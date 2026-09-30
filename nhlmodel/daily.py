@@ -47,7 +47,7 @@ def load_tables(state) -> dict:
     tables, notes = nhl.build_tables(inter)
     odds = _read(os.path.join(_site(state), "odds_history.csv.gz"))
     if len(odds):
-        odds["date"] = pd.to_datetime(odds.date)
+        odds["date"] = pd.to_datetime(odds.date.astype(str), format="mixed").dt.normalize()
         tables["odds"] = odds
     for k in ("games", "team_games", "goalie_games", "player_games", "lineups"):
         tables[k]["date"] = pd.to_datetime(tables[k].date).dt.normalize()
@@ -273,7 +273,7 @@ def cmd_slate(a):
     odds = odds_api.fetch(sched, roster if len(roster) else lineups, "bet", props=not a.no_props)
     hist = _read(os.path.join(site, "odds_history.csv.gz"))
     if len(odds):
-        hist = pd.concat([hist, odds], ignore_index=True)
+        hist = _append_odds(hist, odds)
         hist.to_csv(os.path.join(site, "odds_history.csv.gz"), index=False, compression="gzip")
         # latest bet-time price per book for today's pricing
         odds = odds.sort_values("fetched_at").drop_duplicates(
@@ -319,6 +319,13 @@ def cmd_slate(a):
     print(f"{len(plays)} plays, {meta['flagged']} flagged")
 
 
+def _append_odds(hist: pd.DataFrame, new: pd.DataFrame) -> pd.DataFrame:
+    """Append odds rows, keeping one date format (YYYY-MM-DD) in the stored history."""
+    out = pd.concat([hist, new], ignore_index=True)
+    out["date"] = pd.to_datetime(out.date.astype(str), format="mixed").dt.strftime("%Y-%m-%d")
+    return out
+
+
 LOG_KEYS = ["date", "game_id", "market", "selection", "line", "player_id"]
 
 
@@ -358,7 +365,7 @@ def cmd_close(a):
     _, roster = projected_lineups(tables, soon, None, date, fetch_rosters(list(soon.home) + list(soon.away)))
     odds = odds_api.fetch(soon, roster, "close", props=not a.no_props, game_ids=set(soon.game_id))
     if len(odds):
-        hist = pd.concat([hist, odds], ignore_index=True)
+        hist = _append_odds(hist, odds)
         hist.to_csv(os.path.join(site, "odds_history.csv.gz"), index=False, compression="gzip")
     print(f"closing odds for {len(soon)} games: {len(odds)} rows")
 

@@ -71,3 +71,11 @@ def test_roster_lineup_drops_departed_players_midseason(league):
     t = out[out.team == team]
     assert gone not in set(t.player_id)
     assert (t.pos == "F").sum() == 12 or (t.pos == "F").sum() == 11
+
+
+def test_odds_history_dates_stay_consistent():
+    from nhlmodel.daily import _append_odds
+    hist = pd.DataFrame(dict(date=["2026-09-30", "2026-09-30 00:00:00"], price=[100, 110]))
+    new = pd.DataFrame(dict(date=[pd.Timestamp("2026-10-01")], price=[-120]))
+    out = _append_odds(hist, new)
+    assert out.date.tolist() == ["2026-09-30", "2026-09-30", "2026-10-01"]
