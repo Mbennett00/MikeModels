@@ -5,8 +5,8 @@ team totals and first-period markets. For every play it outputs the **model proj
 probability, fair American odds, the book's no-vig price and the edge**.
 
 ```
-pip install -r requirements.txt
-python -m pytest -q                       # 30 tests, ~45 s
+pip install -r requirements-dev.txt
+python -m pytest -q                       # 35 tests, ~45 s
 ```
 
 ## Website (phone + desktop) and daily automation
