@@ -22,6 +22,18 @@ def season_of(date) -> int:
     return d.year if d.month >= 8 else d.year - 1
 
 
+def headshot_url(snap, pid) -> str:
+    """NHL CDN headshot for the season/team of the player's most recent game."""
+    if pid not in snap.player.index:
+        return ""
+    r = snap.player.loc[pid]
+    try:
+        s = int(r.last_season)
+    except (TypeError, ValueError, AttributeError):
+        return ""
+    return f"https://assets.nhle.com/mugs/nhl/{s}{s + 1}/{r.team}/{int(pid)}.png"
+
+
 def _game_prob(gp, market, selection, line):
     if market == "moneyline":
         return gp.moneyline()[selection]
@@ -136,6 +148,7 @@ def price_state(st: SlateState, lineups: pd.DataFrame | None = None, odds: pd.Da
                                              line=ln, player_id=pr["player_id"], player=pr["name"],
                                              projection=f"{lam:.3f}", p_model=p, confirmed=pr["confirmed"] and confirmed_game,
                                              player_confirmed=pr["confirmed"], goalies_confirmed=confirmed_game,
+                                             team=pr["team"], pos=pr["pos"], headshot=headshot_url(st.snap, pr["player_id"]),
                                              flags="; ".join(x for x in (pr["flags"], gflags) if x)))
     out = pd.DataFrame(rows)
     if out.empty:

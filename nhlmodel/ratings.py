@@ -125,7 +125,7 @@ def build_snapshot(tables: dict, date, season: int, half_life: float, seasons_ba
     wp["player_id"] = pg.player_id; wp["w"] = pg.w
     player = wp.groupby("player_id").sum(numeric_only=True)
     last = pg.sort_values("date").groupby("player_id").tail(1).set_index("player_id")
-    player = player.join(last[["name", "team", "pos", "line", "pp_unit"]])
+    player = player.join(last[["name", "team", "pos", "line", "pp_unit", "season"]].rename(columns={"season": "last_season"}))
     ptot = pg[PLAYER_SUMS].sum()
     L["g_per_xg"] = float(ptot.g_nonen / max(ptot.ixg_nonen, 1e-9))
     L["en_share"] = float(ptot.en_goals / max(ptot.goals, 1e-9))
