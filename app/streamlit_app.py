@@ -1,4 +1,4 @@
-"""NHL Model dashboard (Streamlit). Designed for phone and desktop browsers.
+"""NHL Model dashboard (Streamlit). Designed phone-first, works on desktop.
 
 Data comes from the `data-latest` GitHub release written by the daily workflow.
 Settings (Streamlit secrets or environment variables):
@@ -15,7 +15,6 @@ import os
 import pickle
 import sys
 
-import altair as alt
 import numpy as np
 import pandas as pd
 import requests
@@ -27,186 +26,196 @@ sys.path.insert(0, HERE)
 from nhlmodel.pricing import format_american  # noqa: E402
 from teams import color, logo_url, nickname  # noqa: E402
 
-APP_VERSION = "v3 · dark"
+APP_VERSION = "v4 · rink"
 TAG = "data-latest"
 ET = "America/New_York"
-SERIES = "#3987e5"
 
-st.set_page_config(page_title="NHL Model", page_icon="🏒", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="NHL Model", page_icon="🏒", layout="centered", initial_sidebar_state="collapsed")
 
 # ---------------------------------------------------------------------------------------------
-# Style
+# Style: icy rink background, cream cards, thick navy outlines, offset "sticker" shadows
 # ---------------------------------------------------------------------------------------------
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@500;600;700;800&display=swap');
 :root {
-  --bg: #0f1116; --surface: #171a21; --surface-2: #1e222b; --border: #272c36; --border-2: #323845;
-  --text: #f3f4f6; --text-2: #b4b9c3; --muted: #7d838f; --accent: #3987e5; --accent-soft: rgba(57,135,229,.16);
-  --good: #22c55e; --good-text: #4ade80; --good-soft: rgba(34,197,94,.14);
-  --warn: #fab219; --warn-soft: rgba(250,178,25,.14); --bad: #f06363; --bad-soft: rgba(240,99,99,.14);
+  --ice: #bfe0f2; --ice-2: #d7ecf8; --cream: #fffaf0; --navy: #1f3448; --ink: #1f3448; --ink-2: #4d5d6c;
+  --muted: #7a8894; --red: #d9443a; --red-soft: #fbe3df; --gold: #e2ae45; --gold-soft: #fbefd2;
+  --green: #2e8b57; --green-soft: #def2e5; --line: #e7dfcf;
 }
-html, body, [data-testid="stAppViewContainer"], .stApp { background: var(--bg); }
-.stApp, .stApp p, .stApp div, .stApp span, .stApp button, .stApp input { font-family: 'Inter', system-ui, sans-serif; }
-[data-testid="stHeader"], [data-testid="stToolbar"], #MainMenu, footer,
-[data-testid="stDecoration"], [data-testid="stStatusWidget"] { display: none !important; }
-.block-container { max-width: 1120px; padding: 1rem 1rem 4rem; }
+html, body, .stApp, [data-testid="stAppViewContainer"] {
+  background:
+    linear-gradient(90deg, transparent calc(50% - 2px), rgba(217,68,58,.10) calc(50% - 2px), rgba(217,68,58,.10) calc(50% + 2px), transparent calc(50% + 2px)),
+    radial-gradient(120% 80% at 50% 0%, #d9eefa 0%, var(--ice) 60%, #a9d4ec 100%) fixed;
+}
+.stApp { font-family: 'Nunito', system-ui, sans-serif; color: var(--ink); }
+.stMarkdown, .stMarkdown p, .stMarkdown div, .stMarkdown span:not([data-testid="stIconMaterial"]), .stApp label p,
+.stApp input, .stApp button p, [data-testid="stExpander"] summary p {
+  font-family: 'Nunito', system-ui, sans-serif;
+}
+[data-testid="stHeader"], [data-testid="stToolbar"], #MainMenu, footer, [data-testid="stDecoration"],
+[data-testid="stStatusWidget"] { display: none !important; }
+.block-container { max-width: 760px; padding: 1.1rem 1rem 4rem; }
+h1, h2, h3, .display { font-family: 'Fredoka', 'Nunito', sans-serif !important; letter-spacing: -.01em; }
 
-/* hero */
-.hero { position: relative; overflow: hidden; border-radius: 20px; padding: 22px 22px 18px; margin-bottom: 14px;
-        background: radial-gradient(120% 140% at 0% 0%, #1d3b66 0%, #14233b 45%, #121822 100%);
-        border: 1px solid #22324a; }
-.hero::after { content: ""; position: absolute; right: -60px; top: -60px; width: 240px; height: 240px; border-radius: 50%;
-               background: radial-gradient(circle, rgba(57,135,229,.35), transparent 70%); }
-.hero .eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .14em; color: #8fb8ee; text-transform: uppercase; }
-.hero .title { font-size: 30px; font-weight: 800; color: #fff; margin-top: 4px; letter-spacing: -.02em; }
-.hero .kpis { display: flex; gap: 22px; margin-top: 14px; flex-wrap: wrap; position: relative; z-index: 1; }
-.hero .kpi .v { font-size: 24px; font-weight: 800; color: #fff; }
-.hero .kpi .k { font-size: 12px; color: #a9bddb; }
-.chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 14px; position: relative; z-index: 1; }
-.chip { font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px; background: rgba(255,255,255,.08);
-        color: #dfe6f0; white-space: nowrap; }
-.chip.ok { background: var(--good-soft); color: var(--good-text); }
-.chip.warn { background: var(--warn-soft); color: #ffd36b; }
-.chip.info { background: var(--accent-soft); color: #9cc5f5; }
+/* sticker card */
+.card { background: var(--cream); border: 3px solid var(--navy); border-radius: 26px; padding: 18px 20px;
+        box-shadow: 6px 7px 0 var(--navy); margin: 0 6px 20px 0; }
+.card.soft { box-shadow: 4px 5px 0 var(--navy); }
+.card.dim { opacity: .82; }
 
-/* tabs as a segmented control */
-[data-testid="stTabs"] [role="tablist"] { gap: 2px; background: var(--surface); padding: 4px; border-radius: 14px;
-    overflow-x: auto; scrollbar-width: none; border: 1px solid var(--border); }
+/* header */
+.top { display: flex; align-items: center; gap: 16px; }
+.puck { font-size: 46px; line-height: 1; filter: drop-shadow(3px 4px 0 rgba(31,52,72,.25)); }
+.top h1 { font-size: 28px; margin: 0; padding: 0; line-height: 1.1; color: var(--navy); }
+.top .sub { color: var(--ink-2); font-size: 15px; margin-top: 2px; font-weight: 700; }
+.pills { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+.pill { display: inline-flex; align-items: center; gap: 6px; font-weight: 800; font-size: 14px; padding: 5px 12px;
+        border-radius: 999px; border: 2.5px solid var(--navy); background: var(--cream); color: var(--navy); white-space: nowrap; }
+.pill.gold { background: var(--gold); }
+.pill.green { background: var(--green-soft); }
+.pill.red { background: var(--red-soft); }
+
+/* tabs = pill row */
+[data-testid="stTabs"] [role="tablist"] { gap: 8px; background: transparent; border: 0; padding: 2px 6px 10px 0;
+    overflow-x: auto; scrollbar-width: none; }
 [data-testid="stTabs"] [role="tablist"]::-webkit-scrollbar { display: none; }
-[data-testid="stTab"] { height: 36px; padding: 0 16px; border-radius: 10px; background: transparent; flex: 0 0 auto;
-    display: flex; align-items: center; cursor: pointer; }
-[data-testid="stTab"] p { font-weight: 600; color: var(--muted); font-size: 14px; white-space: nowrap; }
-[data-testid="stTab"][aria-selected="true"] { background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--border-2); }
-[data-testid="stTab"][aria-selected="true"] p { color: var(--text); }
+[data-testid="stTab"] { height: 42px; padding: 0 18px; border-radius: 999px; border: 2.5px solid var(--navy);
+    background: var(--cream); flex: 0 0 auto; display: flex; align-items: center; box-shadow: 3px 3px 0 var(--navy); }
+[data-testid="stTab"] p { font-family: 'Fredoka', sans-serif !important; font-weight: 600; font-size: 16px; color: var(--navy); }
+[data-testid="stTab"][aria-selected="true"] { background: var(--navy); }
+[data-testid="stTab"][aria-selected="true"] p { color: var(--cream) !important; }
 [data-testid="stTabs"] .react-aria-SelectionIndicator { display: none !important; }
+[data-testid="stTabs"] [role="tablist"]::after { display: none; }
 
-/* generic card */
-.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(440px, 1fr)); gap: 12px; }
-.card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 16px; }
-.card.muted { opacity: .72; }
-.section { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .1em;
-           margin: 22px 2px 10px; }
+.h2 { font-family: 'Fredoka', sans-serif; font-weight: 600; font-size: 24px; color: var(--navy);
+      display: flex; align-items: center; gap: 10px; margin: 8px 0 12px; }
+.count { font-family: 'Nunito', sans-serif; font-size: 14px; font-weight: 800; background: var(--gold);
+         border-radius: 999px; padding: 3px 12px; color: #6b3d0c; }
+.note { color: var(--ink-2); font-size: 15px; margin: -4px 0 14px; }
 
 /* avatars */
-.av { position: relative; flex: 0 0 auto; width: 56px; height: 56px; border-radius: 50%; background: var(--surface-2);
-      display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; color: var(--muted);
-      box-shadow: inset 0 0 0 2px var(--ring, var(--border-2)); }
-.av > img.face { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
-.av > img.logo { width: 70%; height: 70%; object-fit: contain; position: absolute; }
-.av > img.logo.fb::after { border-radius: 50%; }
-.av .badge-logo { position: absolute; right: -4px; bottom: -4px; width: 24px; height: 24px; border-radius: 50%;
-                  background: var(--surface); box-shadow: 0 0 0 2px var(--surface); display: flex; align-items: center;
-                  justify-content: center; overflow: hidden; }
-.av .badge-logo img { width: 20px; height: 20px; object-fit: contain; }
-/* if an image fails to load, draw its fallback text over the browser's broken-image icon */
+.av { position: relative; flex: 0 0 auto; width: 58px; height: 58px; border-radius: 50%; background: var(--ice-2);
+      border: 3px solid var(--navy); display: flex; align-items: center; justify-content: center;
+      font-family: 'Fredoka', sans-serif; font-weight: 600; color: var(--navy); overflow: visible; }
+.av > img.face { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+.av > img.logo { position: absolute; width: 74%; height: 74%; object-fit: contain; }
+.av .mini { position: absolute; right: -8px; bottom: -6px; width: 28px; height: 28px; border-radius: 50%;
+            background: var(--cream); border: 2.5px solid var(--navy); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.av .mini img { width: 22px; height: 22px; object-fit: contain; }
 img.fb { position: relative; }
-img.fb::after { content: attr(data-fb); position: absolute; inset: -3px; display: flex; align-items: center;
-                justify-content: center; background: var(--surface-2); color: var(--text-2); font-weight: 700;
-                font-size: 13px; border-radius: 50%; }
-.game .team img.fb::after { border-radius: 12px; font-size: 14px; }
+img.fb::after { content: attr(data-fb); position: absolute; inset: -3px; display: flex; align-items: center; justify-content: center;
+                background: var(--ice-2); color: var(--navy); font-family: 'Fredoka', sans-serif; font-weight: 600; font-size: 14px; border-radius: 50%; }
 
-/* bet card */
-.bet { display: flex; gap: 14px; align-items: flex-start; }
-.bet .body { flex: 1; min-width: 0; }
-.bet .top { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
-.bet .name { font-size: 17px; font-weight: 700; color: var(--text); line-height: 1.25; }
-.bet .what { font-size: 14px; color: var(--text-2); margin-top: 2px; }
-.bet .what b { color: var(--text); font-weight: 600; }
-.edge { font-size: 16px; font-weight: 800; padding: 6px 10px; border-radius: 10px; white-space: nowrap;
-        background: var(--good-soft); color: var(--good-text); }
-.edge.neutral { background: var(--surface-2); color: var(--muted); }
-.edge small { display: block; font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; opacity: .8; text-align: center; }
-.meter { margin-top: 12px; }
-.meter .track { position: relative; height: 8px; border-radius: 99px; background: var(--surface-2); }
-.meter .fill { position: absolute; top: 0; bottom: 0; border-radius: 99px; background: linear-gradient(90deg, rgba(34,197,94,.35), var(--good)); }
-.meter .mark { position: absolute; top: -4px; width: 3px; height: 16px; border-radius: 2px; background: var(--text-2); }
-.meter .dot { position: absolute; top: -4px; width: 16px; height: 16px; margin-left: -8px; border-radius: 50%;
-              background: var(--good); box-shadow: 0 0 0 3px var(--surface); }
-.meter .legend { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-top: 6px; }
-.meter .legend b { color: var(--text); font-weight: 600; }
-.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 12px;
-         padding-top: 12px; border-top: 1px solid var(--border); }
-.stat .k { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
-.stat .v { font-size: 16px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
-.tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
-.tag { font-size: 12px; padding: 3px 8px; border-radius: 6px; background: var(--surface-2); color: var(--text-2); }
-.tag.warn { background: var(--warn-soft); color: #ffd36b; }
+/* pick card */
+.pick { display: flex; gap: 14px; align-items: center; }
+.pick .body { flex: 1; min-width: 0; }
+.pick .who { font-family: 'Fredoka', sans-serif; font-weight: 600; font-size: 20px; line-height: 1.15; color: var(--navy); }
+.pick .bet { font-size: 16px; font-weight: 700; color: var(--ink-2); margin-top: 2px; }
+.pick .odds { font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 22px; padding: 6px 12px; border-radius: 16px;
+              border: 2.5px solid var(--navy); background: var(--gold); color: var(--navy); white-space: nowrap; box-shadow: 3px 3px 0 var(--navy); }
+.tagrow { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 12px; }
+.strength { font-weight: 800; font-size: 14px; padding: 5px 12px; border-radius: 999px; border: 2px solid var(--navy); }
+.strength.hot { background: var(--red); color: #fff; }
+.strength.solid { background: var(--green-soft); color: #1d5a37; }
+.strength.wait { background: var(--gold-soft); color: #6b3d0c; }
+.meta { font-size: 14px; color: var(--muted); font-weight: 700; }
+.card details { margin-top: 10px; }
+.card details summary { cursor: pointer; font-weight: 800; color: var(--navy); font-size: 14px; list-style: none; }
+.card details summary::-webkit-details-marker { display: none; }
+.card details summary::before { content: "▸ "; }
+.card details[open] summary::before { content: "▾ "; }
+.why { margin-top: 8px; font-size: 15px; color: var(--ink-2); line-height: 1.5; }
+.why b { color: var(--navy); }
+.vs { margin-top: 8px; }
+.vs .row { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 700; margin: 5px 0; }
+.vs .lab { width: 64px; color: var(--ink-2); }
+.vs .bar { flex: 1; height: 12px; border-radius: 99px; background: #efe7d6; border: 2px solid var(--navy); overflow: hidden; }
+.vs .bar div { height: 100%; }
+.vs .num { width: 44px; text-align: right; }
 
-/* game card */
-.game .head { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; }
-.game .team { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.game .team.home { justify-content: flex-end; text-align: right; }
-.game .team img { width: 46px; height: 46px; object-fit: contain; flex: 0 0 auto; }
-.game .abbr { font-size: 12px; color: var(--muted); font-weight: 600; letter-spacing: .06em; }
-.game .nick { font-size: 16px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* game tile */
+.game .teams { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 6px; }
+.game .t { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; }
+.game .t img { width: 64px; height: 64px; object-fit: contain; }
+.game .t img.fb::after { border-radius: 18px; inset: -4px; background: var(--cream); font-size: 16px; }
+.game .t .nm { font-family: 'Fredoka', sans-serif; font-weight: 600; font-size: 18px; color: var(--navy); }
+.game .t .g { font-size: 13px; color: var(--muted); font-weight: 700; }
 .game .mid { text-align: center; }
-.game .score { font-size: 24px; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; }
-.game .time { font-size: 12px; color: var(--muted); }
-.wp { margin: 14px 0 6px; }
-.wp .bar { display: flex; height: 10px; border-radius: 99px; overflow: hidden; background: var(--surface-2); gap: 2px; }
-.wp .bar div { height: 100%; }
-.wp .lab { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-2); margin-top: 6px; }
-.wp .lab b { color: var(--text); }
-table.mk { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; margin-top: 10px;
-           border: 0 !important; display: table; }
-table.mk th, table.mk td { border-left: 0 !important; border-right: 0 !important; border-top: 0 !important;
-                           background: transparent !important; }
-table.mk th { text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em;
-              color: var(--muted); padding: 6px 6px; border-bottom: 1px solid var(--border) !important; }
-table.mk td { padding: 8px 6px; border-bottom: 1px solid var(--border) !important; color: var(--text); }
+.game .mid .at { font-family: 'Fredoka', sans-serif; font-size: 15px; color: var(--muted); }
+.game .mid .time { font-weight: 800; font-size: 15px; color: var(--navy); }
+.wp { margin-top: 14px; }
+.wp .bar { display: flex; height: 16px; border-radius: 99px; overflow: hidden; border: 2.5px solid var(--navy); gap: 2px; background: var(--navy); }
+.wp .lab { display: flex; justify-content: space-between; margin-top: 6px; font-weight: 800; font-size: 15px; }
+.proj { text-align: center; color: var(--ink-2); font-size: 15px; margin-top: 10px; }
+.proj b { font-family: 'Fredoka', sans-serif; color: var(--navy); font-size: 18px; }
+table.mk { width: 100%; border-collapse: collapse; font-size: 15px; margin-top: 8px; border: 0 !important; display: table; }
+table.mk th, table.mk td { border: 0 !important; border-bottom: 2px solid var(--line) !important; background: transparent !important;
+                           padding: 8px 4px; }
+table.mk th { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); text-align: left; }
 table.mk tr:last-child td { border-bottom: 0 !important; }
 table.mk th:not(:first-child), table.mk td:not(:first-child) { text-align: right; }
-table.mk td:first-child { font-weight: 600; }
-table.mk td.pos { color: var(--good-text); font-weight: 700; }
-table.mk td.dim { color: var(--muted); }
+table.mk td:first-child { font-weight: 800; color: var(--navy); }
+table.mk td.good { color: var(--green); font-weight: 800; }
 
-/* tiles */
-.tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
-.tile { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 14px 16px; }
-.tile .k { font-size: 12px; color: var(--text-2); }
-.tile .v { font-size: 28px; font-weight: 800; color: var(--text); margin-top: 2px; }
-.tile .d { font-size: 12px; color: var(--muted); }
+/* prop rows */
+.prow { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 2px dashed var(--line); }
+.prow:last-child { border-bottom: 0; }
+.prow .av { width: 46px; height: 46px; border-width: 2.5px; }
+.prow .body { flex: 1; min-width: 0; }
+.prow .nm { font-weight: 800; font-size: 16px; color: var(--navy); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.prow .bt { font-size: 14px; color: var(--ink-2); font-weight: 700; }
+.prow .right { text-align: right; }
+.prow .price { font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 18px; }
+.prow .edge { font-size: 13px; font-weight: 800; color: var(--green); }
+.prow .edge.neg { color: var(--muted); }
 
-/* status rows */
-.srow { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border); gap: 10px; }
-.srow:last-child { border-bottom: 0; }
-.srow .name { font-weight: 700; color: var(--text); }
-.srow .detail { font-size: 13px; color: var(--text-2); }
-.badge { font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
-.badge.ok { background: var(--good-soft); color: var(--good-text); }
-.badge.warn { background: var(--warn-soft); color: #ffd36b; }
-.badge.bad { background: var(--bad-soft); color: #ff8f8f; }
+/* record */
+.big { font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 46px; line-height: 1.05; color: var(--green); }
+.big.neg { color: var(--red); }
+.bigsub { color: var(--ink-2); font-size: 16px; font-weight: 700; margin-bottom: 18px; }
+.status { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 2px dashed var(--line); gap: 10px; }
+.status:last-child { border-bottom: 0; }
+.status .nm { font-weight: 800; font-size: 16px; }
+.status .d { font-size: 13px; color: var(--muted); font-weight: 700; }
 
-.empty { text-align: center; padding: 30px 18px; color: var(--text-2); }
-.empty .big { font-size: 19px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
-.steps { margin: 16px auto 0; padding: 0; list-style: none; font-size: 14px; display: inline-block; text-align: left; }
-.steps li { margin: 8px 0; padding-left: 26px; position: relative; color: var(--text-2); }
-.steps li::before { content: ""; position: absolute; left: 2px; top: 4px; width: 12px; height: 12px; border-radius: 50%;
-                    border: 2px solid var(--border-2); }
-.steps li.done { color: var(--good-text); }
-.steps li.done::before { background: var(--good); border-color: var(--good); }
-.steps li.now::before { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
-.foot { text-align: center; color: var(--muted); font-size: 12px; margin-top: 30px; }
+.empty { text-align: center; }
+.empty .e { font-size: 44px; }
+.empty .t { font-family: 'Fredoka', sans-serif; font-weight: 600; font-size: 22px; margin: 6px 0; color: var(--navy); }
+.empty .s { color: var(--ink-2); font-size: 16px; }
+.steps { list-style: none; padding: 0; margin: 14px auto 0; display: inline-block; text-align: left; }
+.steps li { margin: 8px 0; font-weight: 700; color: var(--ink-2); }
+.foot { text-align: center; color: #56708a; font-size: 13px; font-weight: 700; margin-top: 26px; }
+
+/* Streamlit widgets in the same style */
+[data-testid="stTextInput"] input { background: var(--cream) !important; border-radius: 999px !important; }
+[data-testid="stTextInput"] > div > div, [data-baseweb="select"] > div {
+  border: 2.5px solid var(--navy) !important; border-radius: 999px !important; background: var(--cream) !important; }
+[data-testid="stExpander"] details { background: var(--cream); border: 3px solid var(--navy) !important; border-radius: 22px;
+  box-shadow: 4px 5px 0 var(--navy); margin-right: 6px; }
+.stButton button, .stDownloadButton button { border: 2.5px solid var(--navy) !important; border-radius: 999px !important;
+  box-shadow: 3px 3px 0 var(--navy); font-weight: 800 !important; }
+.stButton button[kind="primary"] { background: var(--gold) !important; color: var(--navy) !important; }
+.stButton button[kind="secondary"], .stDownloadButton button { background: var(--cream) !important; color: var(--navy) !important; }
+[data-testid="stButtonGroup"] button { border: 2.5px solid var(--navy) !important; border-radius: 999px !important;
+  background: var(--cream) !important; font-weight: 800; margin-right: 4px; }
+[data-testid="stButtonGroup"] button[kind="segmented_controlActive"] { background: var(--navy) !important; }
+[data-testid="stButtonGroup"] button[kind="segmented_controlActive"] p { color: var(--cream) !important; }
 
 @media (max-width: 640px) {
-  .block-container { padding: .6rem .6rem 3rem; }
-  .grid { grid-template-columns: 1fr; }
-  .hero { padding: 18px 16px 14px; border-radius: 16px; }
-  .hero .title { font-size: 24px; }
-  .hero .kpis { gap: 16px; }
-  .hero .kpi .v { font-size: 20px; }
-  .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .tile .v { font-size: 22px; }
-  .av { width: 48px; height: 48px; }
-  .bet .name { font-size: 16px; }
-  .game .team img { width: 38px; height: 38px; }
-  .game .nick { font-size: 14px; }
-  .game .score { font-size: 20px; }
-  [data-testid="stTab"] { padding: 0 2px; flex: 1 1 0; justify-content: center; min-width: 0; }
-  [data-testid="stTab"] p { font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; }
-  [data-testid="stTabs"] [role="tablist"] { overflow-x: hidden; }
-  table.mk { font-size: 13px; }
+  .block-container { padding: .8rem .7rem 3rem; }
+  .card { padding: 16px 16px; border-radius: 22px; box-shadow: 5px 6px 0 var(--navy); }
+  .top h1 { font-size: 22px; }
+  .puck { font-size: 36px; }
+  .pill { font-size: 13px; padding: 4px 10px; }
+  .pick .who { font-size: 18px; }
+  .pick .odds { font-size: 19px; padding: 5px 10px; }
+  .av { width: 52px; height: 52px; }
+  .game .t img { width: 54px; height: 54px; }
+  .big { font-size: 40px; }
+  [data-testid="stTab"] { height: 36px; padding: 0 9px; }
+  [data-testid="stTab"] p { font-size: 13.5px; }
+  [data-testid="stTabs"] [role="tablist"] { gap: 6px; }
 }
 </style>
 """, unsafe_allow_html=True)
@@ -240,9 +249,7 @@ def release_assets() -> dict:
         r = requests.get(f"https://api.github.com/repos/{REPO}/releases/tags/{TAG}", headers=h, timeout=20)
     except requests.RequestException:
         return {}
-    if r.status_code != 200:
-        return {}
-    return {a["name"]: a["url"] for a in r.json().get("assets", [])}
+    return {a["name"]: a["url"] for a in r.json().get("assets", [])} if r.status_code == 200 else {}
 
 
 @st.cache_data(ttl=300, show_spinner=False)
@@ -271,12 +278,12 @@ def js(name):
 
 
 # ---------------------------------------------------------------------------------------------
-# Formatting helpers
+# Words, not numbers
 # ---------------------------------------------------------------------------------------------
 E = html.escape
-MARKET_NAME = {"goals": "Anytime goal", "sog": "Shots on goal", "assists": "Assists", "points": "Points",
-               "moneyline": "Moneyline", "puckline": "Puck line", "total": "Total goals", "team_total": "Team total",
-               "p1_total": "1st period total", "p1_3way": "1st period 3-way"}
+MARKET = {"goals": "Anytime goal", "sog": "Shots on goal", "assists": "Assists", "points": "Points",
+          "moneyline": "Moneyline", "puckline": "Puck line", "total": "Total goals", "team_total": "Team total",
+          "p1_total": "1st period total", "p1_3way": "1st period winner"}
 UNIT = {"sog": "shots", "assists": "assists", "points": "points", "goals": "goals"}
 
 
@@ -286,39 +293,34 @@ def teams_of(matchup: str):
 
 
 def bet_text(r) -> str:
-    """What the bet is, e.g. 'Over 2.5 shots' or 'Bruins -1.5'."""
     home, away = teams_of(r.matchup)
     m, s, ln = r.market, str(r.selection), r.line
-    team = lambda x: home if x.startswith("home") else (away if x.startswith("away") else "Draw")
+    team = lambda x: home if x.startswith("home") else (away if x.startswith("away") else "Tie")
     if m in UNIT:
         if m == "goals" and ln == 0.5:
-            return "Anytime goal scorer" if s == "over" else "No goal"
+            return "Scores a goal" if s == "over" else "Doesn't score"
         return f"{'Over' if s == 'over' else 'Under'} {ln:g} {UNIT[m]}"
     if m == "moneyline":
-        return f"{nickname(team(s))} to win"
+        return f"{nickname(team(s))} win"
     if m == "puckline":
         return f"{nickname(team(s))} {ln:+g}"
     if m == "total":
-        return f"{'Over' if s == 'over' else 'Under'} {ln:g} goals"
+        return f"{'Over' if s == 'over' else 'Under'} {ln:g} total goals"
     if m == "team_total":
-        return f"{nickname(team(s))} {'over' if s.endswith('over') else 'under'} {ln:g}"
+        return f"{nickname(team(s))} {'over' if s.endswith('over') else 'under'} {ln:g} goals"
     if m == "p1_total":
         return f"1st period {'over' if s == 'over' else 'under'} {ln:g}"
     if m == "p1_3way":
-        return f"1st period: {nickname(team(s)) if s != 'draw' else 'tie'}"
+        return f"1st period: {nickname(team(s)) if s != 'draw' else 'tied'}"
     return f"{m} {s} {ln}"
 
 
 def bet_team(r):
     home, away = teams_of(r.matchup)
-    s = str(r.selection)
     if isinstance(getattr(r, "team", None), str) and r.team:
         return r.team
-    if s.startswith("home"):
-        return home
-    if s.startswith("away"):
-        return away
-    return home
+    s = str(r.selection)
+    return away if s.startswith("away") else home
 
 
 def fmt_time(x):
@@ -326,8 +328,8 @@ def fmt_time(x):
     return "" if pd.isna(t) else t.tz_convert(ET).strftime("%-I:%M %p")
 
 
-def pct(p, d=0):
-    return "–" if p is None or pd.isna(p) else f"{100 * p:.{d}f}%"
+def pct(p):
+    return "–" if p is None or pd.isna(p) else f"{100 * p:.0f}%"
 
 
 def am(x):
@@ -339,18 +341,63 @@ def initials(name: str) -> str:
     return (parts[0][0] + parts[-1][0]).upper() if len(parts) > 1 else str(name)[:3].upper()
 
 
-def avatar(r) -> str:
+def strength(r):
+    """Plain-English label instead of an edge number."""
+    if not r.confirmed:
+        return "wait", "⏳ Waiting on lineup"
+    if pd.notna(r.edge) and r.edge >= 2 * r.threshold:
+        return "hot", "🚨 Goal-light pick"
+    return "solid", "✅ Solid value"
+
+
+def avatar(r, small=False) -> str:
     team = bet_team(r)
-    ring = color(team)
-    if r.market in UNIT and str(getattr(r, "player", "")):
-        face = getattr(r, "headshot", "")
-        face = face if isinstance(face, str) and face.startswith("http") else ""
-        return (f'<div class="av" style="--ring:{ring}"><span>{E(initials(r.player))}</span>'
-                + (f'<img class="face fb" data-fb="{E(initials(r.player))}" src="{E(face)}" alt="" loading="lazy">'
-                   if face else "")
-                + f'<div class="badge-logo"><img class="fb" data-fb="" src="{logo_url(team)}" alt=""></div></div>')
-    return (f'<div class="av" style="--ring:{ring}"><span>{E(team)}</span>'
+    if r.market in UNIT and r.player:
+        face = r.headshot if isinstance(r.headshot, str) and r.headshot.startswith("http") else ""
+        img = f'<img class="face fb" data-fb="{E(initials(r.player))}" src="{E(face)}" alt="" loading="lazy">' if face else ""
+        mini = "" if small else f'<div class="mini"><img class="fb" data-fb="" src="{logo_url(team)}" alt=""></div>'
+        return f'<div class="av"><span>{E(initials(r.player))}</span>{img}{mini}</div>'
+    return (f'<div class="av"><span>{E(team)}</span>'
             f'<img class="logo fb" data-fb="{E(team)}" src="{logo_url(team)}" alt="" loading="lazy"></div>')
+
+
+def pick_card(r) -> str:
+    cls, label = strength(r)
+    home, away = teams_of(r.matchup)
+    who = r.player if r.market in UNIT and r.player else f"{nickname(away)} @ {nickname(home)}"
+    when = f"{away} @ {home}" + (f" · {r.time}" if r.time else "")
+    book = r.p_novig
+    why = (f"Our model gives this a <b>{pct(r.p_model)}</b> chance. The sportsbook's price implies "
+           f"<b>{pct(book)}</b> (with its cut removed). That gap is the edge: <b>+{100 * r.edge:.1f} points</b>."
+           if pd.notna(book) else f"Our model gives this a <b>{pct(r.p_model)}</b> chance. No book price yet.")
+    extra = f" Fair price would be <b>{am(r.fair_odds)}</b>."
+    if r.market in UNIT:
+        try:
+            extra += f" Projection: <b>{float(r.projection):.2f} {UNIT[r.market]}</b>."
+        except (TypeError, ValueError):
+            pass
+    bars = ""
+    if pd.notna(book):
+        bars = (f'<div class="vs"><div class="row"><span class="lab">Model</span><div class="bar"><div style="width:{100 * r.p_model:.0f}%;background:var(--green)"></div></div><span class="num">{pct(r.p_model)}</span></div>'
+                f'<div class="row"><span class="lab">Book</span><div class="bar"><div style="width:{100 * book:.0f}%;background:var(--muted)"></div></div><span class="num">{pct(book)}</span></div></div>')
+    notes = [x.strip() for x in str(r.flags).split(";") if x.strip() and "UNCONFIRMED" not in x]
+    if r.confidence == "low":
+        notes.append("thin market or only one sportsbook: size down")
+    note_html = "".join(f"<div>• {E(n)}</div>" for n in notes[:3])
+    return f"""
+<div class="card{' dim' if cls == 'wait' else ''}">
+  <div class="pick">{avatar(r)}
+    <div class="body"><div class="who">{E(who)}</div><div class="bet">{E(r.bet)}</div></div>
+    <div class="odds">{am(r.best_price)}</div>
+  </div>
+  <div class="tagrow"><span class="strength {cls}">{label}</span><span class="meta">{E(when)}</span></div>
+  <details><summary>Why this pick?</summary><div class="why">{why}{extra}{bars}{note_html}</div></details>
+</div>"""
+
+
+def empty(emoji, title, sub="", extra=""):
+    st.markdown(f'<div class="card empty"><div class="e">{emoji}</div><div class="t">{E(title)}</div>'
+                f'<div class="s">{sub}</div>{extra}</div>', unsafe_allow_html=True)
 
 
 def prep(df: pd.DataFrame) -> pd.DataFrame:
@@ -358,69 +405,11 @@ def prep(df: pd.DataFrame) -> pd.DataFrame:
         return df
     d = df.copy()
     for c in ("player", "team", "headshot", "flags"):
-        if c not in d:
-            d[c] = ""
-        d[c] = d[c].fillna("")
+        d[c] = d[c].fillna("") if c in d else ""
     d["bet"] = [bet_text(r) for r in d.itertuples()]
     d["time"] = [fmt_time(x) for x in d.get("start_utc", pd.Series([None] * len(d)))]
     d["confirmed"] = d.confirmed.astype(bool)
     return d
-
-
-def meter(p_model, p_book) -> str:
-    if pd.isna(p_book):
-        return (f'<div class="meter"><div class="track"><div class="dot" style="left:{100 * p_model:.1f}%"></div></div>'
-                f'<div class="legend"><span>Model <b>{pct(p_model, 1)}</b></span><span>no book line</span></div></div>')
-    lo, hi = sorted((p_model, p_book))
-    return (f'<div class="meter"><div class="track">'
-            f'<div class="fill" style="left:{100 * lo:.1f}%;width:{100 * (hi - lo):.1f}%"></div>'
-            f'<div class="mark" style="left:{100 * p_book:.1f}%"></div>'
-            f'<div class="dot" style="left:{100 * p_model:.1f}%"></div></div>'
-            f'<div class="legend"><span>Model <b>{pct(p_model, 1)}</b></span><span>Book (no-vig) <b>{pct(p_book, 1)}</b></span></div></div>')
-
-
-def bet_card(r, muted=False) -> str:
-    edge = r.edge
-    edge_html = (f'<div class="edge"><small>edge</small>+{100 * edge:.1f}%</div>' if pd.notna(edge) and edge > 0
-                 else f'<div class="edge neutral"><small>edge</small>{pct(edge, 1) if pd.notna(edge) else "–"}</div>')
-    home, away = teams_of(r.matchup)
-    who = r.player if r.market in UNIT and r.player else f"{away} @ {home}"
-    tags = []
-    if not r.confirmed:
-        tags.append('<span class="tag warn">⚠ Lineup or goalie not confirmed</span>')
-    if r.confidence == "low":
-        tags.append('<span class="tag">Low confidence · thin or single-book market</span>')
-    for n in [x.strip() for x in str(r.flags).split(";") if x.strip()][:2]:
-        tags.append(f'<span class="tag">{E(n)}</span>')
-    try:
-        proj_v = f"{float(r.projection):.2f}"
-    except (TypeError, ValueError):
-        proj_v = "–"
-    third_k = "Projection" if r.market in UNIT else "Market"
-    third_v = proj_v if r.market in UNIT else E(MARKET_NAME.get(r.market, r.market))
-    return f"""
-<div class="card{' muted' if muted else ''}"><div class="bet">
-  {avatar(r)}
-  <div class="body">
-    <div class="top"><div><div class="name">{E(who)}</div>
-      <div class="what"><b>{E(r.bet)}</b> · {E(r.matchup)}{' · ' + E(r.time) if r.time else ''}</div></div>{edge_html}</div>
-    {meter(r.p_model, r.p_novig)}
-    <div class="stats">
-      <div class="stat"><div class="k">Best price</div><div class="v">{am(r.best_price)}</div></div>
-      <div class="stat"><div class="k">Fair odds</div><div class="v">{am(r.fair_odds)}</div></div>
-      <div class="stat"><div class="k">{third_k}</div><div class="v">{third_v}</div></div>
-    </div>
-    {'<div class="tags">' + ''.join(tags) + '</div>' if tags else ''}
-  </div></div></div>"""
-
-
-def empty(title, body=""):
-    st.markdown(f'<div class="card empty"><div class="big">{E(title)}</div>{body}</div>', unsafe_allow_html=True)
-
-
-def footer():
-    st.markdown(f'<div class="foot">NHL Model {APP_VERSION} · data from the NHL API · logos and headshots © NHL</div>',
-                unsafe_allow_html=True)
 
 
 # ---------------------------------------------------------------------------------------------
@@ -433,86 +422,76 @@ if "plays" not in st.session_state or st.session_state.get("plays_src") != meta.
     st.session_state.plays_src = meta.get("generated_at")
     st.session_state.repriced = False
 plays = prep(st.session_state.plays)
-flagged = plays[plays.flag.astype(bool)].sort_values("edge", ascending=False) if len(plays) else plays
-pending = (plays[(~plays.confirmed) & (plays.edge >= plays.threshold)].sort_values("edge", ascending=False)
-           if len(plays) else plays)
+if len(plays):
+    over = plays[plays.edge >= plays.threshold].sort_values("edge", ascending=False)
+    ready = over[over.confirmed]
+    waiting = over[~over.confirmed]
+else:
+    ready = waiting = plays
 
 # ---------------------------------------------------------------------------------------------
-# Hero
+# Header card
 # ---------------------------------------------------------------------------------------------
 if meta.get("date"):
     d = pd.Timestamp(meta["date"])
-    eyebrow = "Next slate" if meta.get("upcoming") else "Tonight"
-    title = d.strftime("%A, %B %-d")
+    title = "Next up" if meta.get("upcoming") else "Tonight"
+    sub = f"{d.strftime('%a, %b %-d')} · {meta.get('games', 0)} games"
+    if meta.get("generated_at"):
+        sub += f" · updated {pd.Timestamp(meta['generated_at']).strftime('%-I:%M %p')}"
 else:
-    eyebrow, title = "NHL Model", "Getting ready"
-chips = []
-if meta.get("generated_at"):
-    chips.append(f'<span class="chip">Updated {pd.Timestamp(meta["generated_at"]).strftime("%-I:%M %p")} ET</span>')
-if meta.get("date"):
-    chips.append('<span class="chip ok">● Odds live</span>' if meta.get("odds_rows") else
-                 '<span class="chip warn">No odds yet</span>')
-    if meta.get("teams"):
-        c, n = meta.get("teams_confirmed", 0), meta["teams"]
-        chips.append(f'<span class="chip {"ok" if c == n else "warn"}">Lineups {c}/{n} confirmed</span>')
-if st.session_state.repriced:
-    chips.append('<span class="chip info">Re-priced with your lineups</span>')
-kpis = ""
+    title, sub = "Getting set up", "Warming up the Zamboni"
+pills = []
 if len(plays):
-    top = flagged.edge.max() if len(flagged) else np.nan
-    kpis = f"""<div class="kpis">
-      <div class="kpi"><div class="v">{meta.get('games', plays.game_id.nunique())}</div><div class="k">games</div></div>
-      <div class="kpi"><div class="v">{len(flagged)}</div><div class="k">best bets</div></div>
-      <div class="kpi"><div class="v">{'–' if pd.isna(top) else f'+{100 * top:.1f}%'}</div><div class="k">top edge</div></div>
-      <div class="kpi"><div class="v">{len(pending)}</div><div class="k">awaiting lineups</div></div></div>"""
-st.markdown(f"""<div class="hero"><div class="eyebrow">{E(eyebrow)}</div><div class="title">{E(title)}</div>
-{kpis}<div class="chips">{''.join(chips)}</div></div>""", unsafe_allow_html=True)
+    pills.append(f'<span class="pill gold">🎯 {len(ready)} pick{"s" if len(ready) != 1 else ""}</span>')
+    if len(waiting):
+        pills.append(f'<span class="pill">⏳ {len(waiting)} on deck</span>')
+if meta.get("date") and not meta.get("odds_rows"):
+    pills.append('<span class="pill red">No sportsbook odds yet</span>')
+if st.session_state.repriced:
+    pills.append('<span class="pill green">Re-priced with your lineups</span>')
+st.markdown(f"""<div class="card"><div class="top"><div class="puck">🏒</div>
+<div><h1>{E(title)}</h1><div class="sub">{E(sub)}</div></div></div>
+<div class="pills">{''.join(pills)}</div></div>""", unsafe_allow_html=True)
 
 # ---------------------------------------------------------------------------------------------
 # Setup state
 # ---------------------------------------------------------------------------------------------
 if plays.empty:
     games = int(status.get("games_stored", 0) or 0)
-    loaded = games > 1500
-    steps = [("Data pipeline connected", "done"),
-             (f"Historical games loaded ({games:,})" if games else "Loading two seasons of NHL games (about an hour on the first run)",
-              "done" if loaded else "now"),
-             ("Model backtested and first slate priced", "done" if meta.get("generated_at") else ("now" if loaded else ""))]
-    items = "".join(f'<li class="{c}">{E(t)}</li>' for t, c in steps)
-    msg = ("No regular-season games scheduled in the next few weeks." if meta.get("generated_at") else
-           "The daily job is building the data. This page fills in by itself when it's done.")
-    empty("Almost there", f'<div>{E(msg)}</div><ul class="steps">{items}</ul>')
-    footer()
+    steps = [("✅", "Connected to the NHL"),
+             ("✅" if games > 1500 else "⏳", f"Loaded {games:,} past games" if games else "Loading past games (about an hour)"),
+             ("✅" if meta.get("generated_at") else "⏳", "Tonight's picks priced")]
+    items = "".join(f"<li>{i} {E(t)}</li>" for i, t in steps)
+    empty("🧊", "Almost game time", "This page fills itself in once the first run finishes.",
+          f'<ul class="steps">{items}</ul>')
     st.stop()
 
 # ---------------------------------------------------------------------------------------------
 # Tabs
 # ---------------------------------------------------------------------------------------------
-t_best, t_games, t_props, t_lineups, t_results, t_model = st.tabs(
-    ["Bets", "Games", "Props", "Lineups", "Results", "Model"])
+t_picks, t_games, t_props, t_lineups, t_record = st.tabs(["Picks", "Games", "Props", "Lineups", "Record"])
 
-with t_best:
-    if len(flagged):
-        st.markdown('<div class="grid">' + "".join(bet_card(r) for r in flagged.itertuples()) + "</div>",
+with t_picks:
+    if len(ready):
+        st.markdown(f'<div class="h2">Tonight\'s picks <span class="count">{len(ready)}</span></div>'
+                    '<div class="note">Bets where our price beats the sportsbook by enough to matter.</div>',
                     unsafe_allow_html=True)
+        st.markdown("".join(pick_card(r) for r in ready.itertuples()), unsafe_allow_html=True)
     else:
-        why = []
-        if not meta.get("odds_rows"):
-            why.append("No sportsbook odds yet, so there's nothing to compare against. Add the <b>ODDS_API_KEY</b> "
-                       "secret in GitHub, or wait for lines to post.")
-        if len(pending):
-            why.append(f"{len(pending)} edges are waiting on confirmed lineups and goalies (below, or the Lineups tab).")
-        if not why:
-            why.append("Nothing clears the edge threshold right now.")
-        empty("No best bets yet", "<br>".join(why))
-    if len(pending):
-        st.markdown(f'<div class="section">Waiting on confirmation · {len(pending)}</div>', unsafe_allow_html=True)
-        st.markdown('<div class="grid">' + "".join(bet_card(r, muted=True) for r in pending.head(16).itertuples())
-                    + "</div>", unsafe_allow_html=True)
+        why = ("Lines aren't posted yet." if not meta.get("odds_rows") else
+               "We only make picks once starting goalies and lineups are confirmed. "
+               "Confirm them in the 📋 Lineups tab, or check back closer to puck drop."
+               if len(waiting) else "Nothing beats the sportsbook by enough tonight. No bet is a good bet.")
+        empty("🥅", "No picks yet", E(why))
+    if len(waiting):
+        st.markdown(f'<div class="h2">On deck <span class="count">{len(waiting)}</span></div>'
+                    '<div class="note">Look good on paper, but lineups or goalies aren\'t confirmed yet.</div>',
+                    unsafe_allow_html=True)
+        st.markdown("".join(pick_card(r) for r in waiting.head(12).itertuples()), unsafe_allow_html=True)
 
 with t_games:
     games = plays[plays.player == ""]
-    cards = []
+    out = []
     for gid, g in games.groupby("game_id", sort=False):
         r0 = g.iloc[0]
         home, away = teams_of(r0.matchup)
@@ -520,110 +499,101 @@ with t_games:
         mlh = ml[ml.selection == "home"]
         ph = float(mlh.p_model.iloc[0]) if len(mlh) else np.nan
         proj = str(ml.projection.iloc[0]) if len(ml) else ""
-        try:   # "HOME 2.83 - 2.33 AWAY (...)"
+        try:
             parts = proj.split(" (")[0].split(" - ")
-            s_home, s_away = parts[0].split()[-1], parts[1].split()[0]
+            s_home, s_away = float(parts[0].split()[-1]), float(parts[1].split()[0])
+            proj_html = f'<div class="proj">Projected score · <b>{E(away)} {s_away:.1f}</b> – <b>{s_home:.1f} {E(home)}</b></div>'
         except (IndexError, ValueError):
-            s_home = s_away = "–"
-
-        def rows(sel):
-            out = []
-            for r in sel.itertuples():
-                cls = ("pos" if pd.notna(r.edge) and r.edge >= r.threshold else
-                       "dim" if pd.isna(r.edge) or r.edge < 0 else "")
-                out.append(f"<tr><td>{E(r.bet)}</td><td>{pct(r.p_model, 1)}</td><td>{am(r.fair_odds)}</td>"
-                           f"<td>{am(r.best_price)}</td><td class='{cls}'>"
-                           f"{f'{100 * r.edge:+.1f}%' if pd.notna(r.edge) else '–'}</td></tr>")
-            return "".join(out)
-
+            proj_html = ""
         fav_home = (ph if ph == ph else .5) >= .5
         pl = g[g.market == "puckline"]
         pl = pl[((pl.selection == ("home" if fav_home else "away")) & (pl.line == -1.5)) |
                 ((pl.selection == ("away" if fav_home else "home")) & (pl.line == 1.5))]
         tl = g[g.market == "total"]
         ln = (tl[tl.best_price.notna()].line.mode().iloc[0] if tl.best_price.notna().any() else 6.5) if len(tl) else None
-        body = rows(pd.concat([ml.sort_values("selection", ascending=False), pl,
-                               tl[tl.line == ln].sort_values("selection") if ln is not None else tl.iloc[:0]]))
+        sel = pd.concat([ml.sort_values("selection", ascending=False), pl,
+                         tl[tl.line == ln].sort_values("selection") if ln is not None else tl.iloc[:0]])
+        rows = "".join(
+            f"<tr><td>{E(r.bet)}</td><td>{pct(r.p_model)}</td><td>{am(r.best_price)}</td>"
+            f"<td class='{'good' if pd.notna(r.edge) and r.edge >= r.threshold else ''}'>"
+            f"{('✅ ' if pd.notna(r.edge) and r.edge >= r.threshold else '') + (f'{100 * r.edge:+.0f}' if pd.notna(r.edge) else '–')}</td></tr>"
+            for r in sel.itertuples())
+        n_picks = int(((g.edge >= g.threshold) & g.confirmed).sum())
         wp = ""
         if ph == ph:
             wp = (f'<div class="wp"><div class="bar"><div style="width:{100 * (1 - ph):.1f}%;background:{color(away)}"></div>'
                   f'<div style="width:{100 * ph:.1f}%;background:{color(home)}"></div></div>'
-                  f'<div class="lab"><span><b>{pct(1 - ph)}</b> {E(away)}</span><span>win probability</span>'
-                  f'<span>{E(home)} <b>{pct(ph)}</b></span></div></div>')
-        cards.append(f"""
+                  f'<div class="lab"><span>{pct(1 - ph)}</span><span style="color:var(--muted)">chance to win</span><span>{pct(ph)}</span></div></div>')
+        out.append(f"""
 <div class="card game">
-  <div class="head">
-    <div class="team"><img class="fb" data-fb="{E(away)}" src="{logo_url(away)}" alt=""><div><div class="abbr">{E(away)}</div><div class="nick">{E(nickname(away))}</div></div></div>
-    <div class="mid"><div class="score">{E(s_away)} – {E(s_home)}</div><div class="time">{E(r0.time) or 'projected'}</div></div>
-    <div class="team home"><div><div class="abbr">{E(home)}</div><div class="nick">{E(nickname(home))}</div></div><img class="fb" data-fb="{E(home)}" src="{logo_url(home)}" alt=""></div>
+  <div class="teams">
+    <div class="t"><img class="fb" data-fb="{E(away)}" src="{logo_url(away)}" alt=""><div class="nm">{E(nickname(away))}</div><div class="g">{E(away)}</div></div>
+    <div class="mid"><div class="at">at</div><div class="time">{E(r0.time) or ''}</div></div>
+    <div class="t"><img class="fb" data-fb="{E(home)}" src="{logo_url(home)}" alt=""><div class="nm">{E(nickname(home))}</div><div class="g">{E(home)}</div></div>
   </div>
-  {wp}
-  <table class="mk"><tr><th>Bet</th><th>Model</th><th>Fair</th><th>Best</th><th>Edge</th></tr>{body}</table>
+  {wp}{proj_html}
+  <details><summary>Full breakdown{f' · {n_picks} pick' + ('s' if n_picks != 1 else '') if n_picks else ''}</summary>
+  <table class="mk"><tr><th>Bet</th><th>Model</th><th>Price</th><th>Edge</th></tr>{rows}</table></details>
 </div>""")
-    st.markdown('<div class="grid">' + "".join(cards) + "</div>", unsafe_allow_html=True)
-    st.caption("Projected score is expected regulation goals (empty-net and OT goals come on top).")
+    st.markdown("".join(out), unsafe_allow_html=True)
 
 with t_props:
     props = plays[plays.player != ""]
     if props.empty:
-        empty("No props priced")
+        empty("👤", "No player props yet")
     else:
-        c1, c2, c3 = st.columns([2, 2, 1.3])
-        q = c1.text_input("Player", placeholder="Search a player", label_visibility="collapsed")
-        mk = c2.segmented_control("Market", ["Shots", "Goals", "Assists", "Points"], default="Shots",
+        q = st.text_input("Find a player", placeholder="🔍  Find a player", label_visibility="collapsed")
+        mk = st.segmented_control("Market", ["Shots", "Goals", "Points", "Assists"], default="Shots",
                                   label_visibility="collapsed") or "Shots"
-        only_lines = c3.toggle("Has book line", value=bool(props.best_price.notna().any()))
         key = {"Shots": "sog", "Goals": "goals", "Assists": "assists", "Points": "points"}[mk]
         d = props[props.market == key]
         if q:
             d = d[d.player.str.contains(q, case=False, na=False)]
-        d = d[d.best_price.notna()] if only_lines else d[d.selection == "over"]
-        d = d.sort_values(["edge", "p_model"], ascending=False)
-        view = pd.DataFrame({
-            "": d.headshot.where(d.headshot.str.startswith("http"), None),
-            "Player": d.player, "Team": d.team,
-            "Bet": [("Over " if s == "over" else "Under ") + f"{l:g}" for s, l in zip(d.selection, d.line)],
-            "Edge": d.edge * 100, "Best": d.best_price.map(am), "Model": d.p_model * 100,
-            "Fair": d.fair_odds.map(am), "Proj": pd.to_numeric(d.projection, errors="coerce"),
-            "Game": d.matchup, "Lineup": np.where(d.confirmed, "✓", "–")})
-        st.dataframe(view, hide_index=True, use_container_width=True, height=min(640, 40 + 44 * len(view)),
-                     row_height=44, column_config={
-                         "": st.column_config.ImageColumn(width="small"),
-                         "Proj": st.column_config.NumberColumn(format="%.2f"),
-                         "Model": st.column_config.NumberColumn(format="%.1f%%"),
-                         "Edge": st.column_config.NumberColumn(format="%+.1f%%"),
-                     })
+        with_line = d[d.best_price.notna()]
+        d = with_line if len(with_line) else d[d.selection == "over"]
+        d = d.sort_values(["edge", "p_model"], ascending=False).head(40)
+        rows = []
+        for r in d.itertuples():
+            e = r.edge
+            etxt = ("✅ " if r.confirmed and pd.notna(e) and e >= r.threshold else "") + (
+                f"{100 * e:+.0f} pts" if pd.notna(e) else f"{pct(r.p_model)} model")
+            rows.append(f'<div class="prow">{avatar(r, small=True)}<div class="body"><div class="nm">{E(r.player)}</div>'
+                        f'<div class="bt">{E(r.bet)} · {E(r.team)}</div></div>'
+                        f'<div class="right"><div class="price">{am(r.best_price) if pd.notna(r.best_price) else pct(r.p_model)}</div>'
+                        f'<div class="edge{" neg" if pd.isna(e) or e < 0 else ""}">{etxt}</div></div></div>')
+        st.markdown(f'<div class="note">Sorted by best value. "pts" = how many percentage points our odds beat the book\'s.</div>'
+                    f'<div class="card soft">{"".join(rows) or "No matches"}</div>', unsafe_allow_html=True)
 
 with t_lineups:
     blob = fetch("slate_state.pkl")
     if not blob:
-        empty("Lineups not available yet")
+        empty("📋", "Lineups aren't ready yet")
     else:
         saved = pickle.loads(blob)
         state, roster = saved["state"], saved["roster"]
         lu = state.lineups.copy()
-        st.caption("Projected lineups come from each team's last game and starters from recent starts. Confirm what "
-                   "you know, then re-price. Only confirmed teams can produce best bets.")
+        st.markdown('<div class="note">Heard who\'s starting? Set the goalie, flip the switches, then tap '
+                    '<b>Update picks</b>. Picks only go live once both are confirmed.</div>', unsafe_allow_html=True)
         choices = []
         for gm in state.schedule.itertuples():
-            with st.expander(f"{gm.away}  @  {gm.home}", expanded=False):
-                cols = st.columns(2)
-                for col, team in zip(cols, (gm.away, gm.home)):
+            with st.expander(f"{nickname(gm.away)}  @  {nickname(gm.home)}", expanded=False):
+                for team in (gm.away, gm.home):
                     goalies = roster[(roster.team == team) & (roster.pos == "G")]
                     cur = lu[(lu.team == team) & (lu.pos == "G")]
                     names = list(dict.fromkeys(goalies.name))
                     idx = names.index(cur.name.iloc[0]) if len(cur) and cur.name.iloc[0] in names else 0
-                    col.markdown(f'<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">'
-                                 f'<img class="fb" data-fb="{E(team)}" src="{logo_url(team)}" style="width:32px;height:32px" alt="">'
-                                 f'<b>{E(nickname(team))}</b></div>', unsafe_allow_html=True)
-                    gname = col.selectbox("Starting goalie", names, index=idx, key=f"g_{gm.game_id}_{team}") if names else None
-                    gconf = col.toggle("Goalie confirmed", key=f"gc_{gm.game_id}_{team}",
-                                       value=bool(cur.confirmed.iloc[0]) if len(cur) else False)
-                    lconf = col.toggle("Lineup confirmed", key=f"lc_{gm.game_id}_{team}",
-                                       value=bool(lu[(lu.team == team) & (lu.pos != "G")].confirmed.all()))
+                    st.markdown(f'<div style="display:flex;align-items:center;gap:10px;margin:6px 0">'
+                                f'<img class="fb" data-fb="{E(team)}" src="{logo_url(team)}" style="width:36px;height:36px" alt="">'
+                                f'<span style="font-family:Fredoka,sans-serif;font-weight:600;font-size:18px">{E(nickname(team))}</span></div>',
+                                unsafe_allow_html=True)
+                    gname = st.selectbox("Starting goalie", names, index=idx, key=f"g_{gm.game_id}_{team}") if names else None
+                    c1, c2 = st.columns(2)
+                    gconf = c1.toggle("Goalie confirmed", key=f"gc_{gm.game_id}_{team}",
+                                      value=bool(cur.confirmed.iloc[0]) if len(cur) else False)
+                    lconf = c2.toggle("Lineup confirmed", key=f"lc_{gm.game_id}_{team}",
+                                      value=bool(lu[(lu.team == team) & (lu.pos != "G")].confirmed.all()))
                     choices.append(dict(team=team, goalie=gname, goalie_confirmed=gconf, lineup_confirmed=lconf))
-        b1, b2 = st.columns(2)
-        if b1.button("Re-price", type="primary", use_container_width=True):
+        if st.button("🔄  Update picks", type="primary", use_container_width=True):
             from nhlmodel.slate import price_state
             new = lu.copy()
             for c in choices:
@@ -633,83 +603,68 @@ with t_lineups:
                     new.loc[gi, ["player_id", "name"]] = [hit.player_id.iloc[0], c["goalie"]]
                     new.loc[gi, "confirmed"] = c["goalie_confirmed"]
                 new.loc[(new.team == c["team"]) & (new.pos != "G"), "confirmed"] = c["lineup_confirmed"]
-            with st.spinner("Pricing…"):
+            with st.spinner("Crunching…"):
                 p, _, _ = price_state(state, lineups=new)
             st.session_state.plays = p
             st.session_state.repriced = True
             st.rerun()
         ov = pd.DataFrame([dict(team=c["team"], goalie=c["goalie"] if c["goalie_confirmed"] else "",
                                 lineup_confirmed=c["lineup_confirmed"]) for c in choices])
-        b2.download_button("Save as override file", ov.to_csv(index=False), file_name=f"{state.date.date()}.csv",
+        st.download_button("💾  Save for the track record", ov.to_csv(index=False), file_name=f"{state.date.date()}.csv",
                            mime="text/csv", use_container_width=True,
-                           help="Commit this file to overrides/ in the repo so the daily job logs these bets.")
+                           help="Commit this file to overrides/ in the repo so tonight's picks get logged and graded.")
 
-with t_results:
+with t_record:
     log = csv("bets_log.csv")
     g = log[log.result.notna()].copy() if "result" in log else pd.DataFrame()
     if g.empty:
-        empty("No results yet", "Best bets are logged at the price when first flagged and graded the next morning.")
+        empty("📈", "The scoreboard starts tonight",
+              "Every pick is logged at the price we flagged it and graded the next morning.")
     else:
-        g["date"] = pd.to_datetime(g.date)
-        roi = g.profit.mean()
-        clv = g.clv_ev.mean() if g.clv_ev.notna().any() else np.nan
-        beat = (g.clv_prob > 0).mean() if g.clv_prob.notna().any() else np.nan
-        st.markdown(f"""
-<div class="tiles">
-  <div class="tile"><div class="k">Graded bets</div><div class="v">{len(g):,}</div><div class="d">1 unit each</div></div>
-  <div class="tile"><div class="k">Profit</div><div class="v">{g.profit.sum():+.1f}u</div><div class="d">ROI {roi:+.1%}</div></div>
-  <div class="tile"><div class="k">Closing line value</div><div class="v">{'–' if pd.isna(clv) else f'{clv:+.1%}'}</div><div class="d">EV at the closing price</div></div>
-  <div class="tile"><div class="k">Beat the close</div><div class="v">{'–' if pd.isna(beat) else f'{beat:.0%}'}</div><div class="d">of graded bets</div></div>
-</div>""", unsafe_allow_html=True)
-        daily = g.groupby("date").profit.sum().cumsum().reset_index(name="units")
-        base = alt.Chart(daily).encode(x=alt.X("date:T", title=None,
-                                               axis=alt.Axis(grid=False, labelColor="#b4b9c3", domainColor="#323845",
-                                                             tickColor="#323845")))
-        area = base.mark_area(color=SERIES, opacity=.15).encode(y="units:Q")
-        line = base.mark_line(color=SERIES, strokeWidth=2).encode(
-            y=alt.Y("units:Q", title="Units", axis=alt.Axis(gridColor="#232833", labelColor="#b4b9c3", domain=False,
-                                                          titleColor="#7d838f")),
-            tooltip=[alt.Tooltip("date:T", title="Date"), alt.Tooltip("units:Q", format="+.2f", title="Units")])
-        zero = alt.Chart(pd.DataFrame({"y": [0]})).mark_rule(color="#4a5160", strokeDash=[3, 3]).encode(y="y:Q")
-        st.altair_chart((area + zero + line).properties(height=250, background="#171a21", padding=12,
-                                                        title=alt.Title("Cumulative profit", anchor="start",
-                                                                        color="#f3f4f6", fontSize=14))
-                        .configure_view(strokeWidth=0), use_container_width=True)
-        by = g.groupby("market").agg(Bets=("profit", "size"), Profit=("profit", "sum"), ROI=("profit", "mean"),
-                                     CLV=("clv_ev", "mean")).reset_index()
-        by["market"] = by.market.map(MARKET_NAME).fillna(by.market)
-        by["ROI"] *= 100
-        by["CLV"] *= 100
-        st.dataframe(by.rename(columns={"market": "Market"}), hide_index=True, use_container_width=True,
-                     column_config={"Profit": st.column_config.NumberColumn(format="%+.1f u"),
-                                    "ROI": st.column_config.NumberColumn(format="%+.1f%%"),
-                                    "CLV": st.column_config.NumberColumn(format="%+.1f%%")})
-
-with t_model:
+        x = g[g.result.isin([0, 1])]
+        units, roi = x.profit.sum(), x.profit.mean()
+        w, l = int(x.result.sum()), int((1 - x.result).sum())
+        blocks = [f'<div class="big{" neg" if units < 0 else ""}">{units:+.1f} units</div>'
+                  f'<div class="bigsub">{w}-{l} · {roi:+.1%} return per bet (1 unit each)</div>']
+        clv = g.clv_prob.dropna()
+        if len(clv):
+            beat = (clv > 0).mean()
+            blocks.append(f'<div class="big{" neg" if beat < .5 else ""}">{beat:.0%}</div>'
+                          f'<div class="bigsub">beat the closing line. Over the long run this matters more than '
+                          f'wins and losses.</div>')
+        groups = {"Player props": ["goals", "sog", "assists", "points"],
+                  "Sides": ["moneyline", "puckline", "p1_3way"], "Totals": ["total", "team_total", "p1_total"]}
+        rows = []
+        for name, mk in groups.items():
+            y = x[x.market.isin(mk)]
+            if len(y):
+                rows.append(f'<div class="status"><div><div class="nm">{name}</div><div class="d">'
+                            f'{int(y.result.sum())}-{int((1 - y.result).sum())}</div></div>'
+                            f'<span class="pill {"green" if y.profit.sum() >= 0 else "red"}">{y.profit.sum():+.1f}u</span></div>')
+        blocks.append("".join(rows))
+        st.markdown(f'<div class="card"><div class="h2" style="margin-top:0">Track record</div>{"".join(blocks)}</div>',
+                    unsafe_allow_html=True)
     ms = csv("market_summary.csv")
-    if ms.empty:
-        empty("Backtest not run yet", "The morning job runs a walk-forward backtest once data is loaded.")
-    else:
+    if len(ms):
         rows = []
         for r in ms[ms.line.astype(str) == "all"].itertuples():
             s = str(r.status)
-            cls, icon, lab = (("ok", "✓", "Bet") if s == "OK" else ("warn", "▼", "Downweight")
-                              if s.startswith("DOWN") else ("bad", "✕", "Don't bet"))
-            better = (1 - r.logloss_model_on_base_rows / r.logloss_base) if r.logloss_base == r.logloss_base else np.nan
-            detail = (f"{r.n:,} predictions · {'beats' if better > 0 else 'trails'} {E(str(r.baseline))} by "
-                      f"{abs(better):.1%} log loss · calibration error {r.ece:.1%}")
-            rows.append(f'<div class="srow"><div><div class="name">{MARKET_NAME.get(r.market, r.market)}</div>'
-                        f'<div class="detail">{detail}</div></div><span class="badge {cls}">{icon} {lab}</span></div>')
-        st.markdown(f'<div class="card">{"".join(rows)}</div>', unsafe_allow_html=True)
-        st.caption("Walk-forward, out-of-sample. Each market is compared with a naive baseline: the closing line "
-                   "when odds are available, otherwise the player's season rate or historical frequency.")
+            icon, lab = (("✅", "Trust it") if s == "OK" else ("⚠️", "Bet smaller") if s.startswith("DOWN")
+                         else ("⛔", "Skip it"))
+            rows.append(f'<div class="status"><div><div class="nm">{MARKET.get(r.market, r.market)}</div>'
+                        f'<div class="d">tested on {r.n:,} past predictions</div></div>'
+                        f'<span class="pill">{icon} {lab}</span></div>')
+        st.markdown(f'<div class="card"><div class="h2" style="margin-top:0">How much to trust each market</div>'
+                    f'<div class="note">Based on how the model did on last season\'s games it never saw.</div>'
+                    f'{"".join(rows)}</div>', unsafe_allow_html=True)
         v = fetch("validation.md")
         if v:
-            with st.expander("Full validation report"):
+            with st.expander("🤓 The nerdy details"):
                 st.markdown(v.decode())
     if meta.get("warnings"):
-        with st.expander(f"Assumptions and data notes ({len(meta['warnings'])})"):
+        with st.expander("ℹ️ Data notes"):
             for w in meta["warnings"]:
                 st.markdown(f"- {w}")
 
-footer()
+st.markdown(f'<div class="foot">🏒 NHL Model {APP_VERSION} · data from the NHL · bet responsibly</div>',
+            unsafe_allow_html=True)

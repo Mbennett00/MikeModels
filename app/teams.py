@@ -16,7 +16,7 @@ TEAMS = {
 
 
 def logo_url(team: str) -> str:
-    return f"https://assets.nhle.com/logos/nhl/svg/{team}_dark.svg"
+    return f"https://assets.nhle.com/logos/nhl/svg/{team}_light.svg"
 
 
 def nickname(team: str) -> str:
