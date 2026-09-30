@@ -288,8 +288,8 @@ def cmd_slate(a):
     state.warnings = (list(tables["_notes"]) + state.warnings + [f"constants: {cfg_src}"]
                       + lineups.attrs.get("notes", []) + ["lineups and goalies use today's NHL rosters"])
     if ov is None:
-        state.warnings.append(f"no overrides/{date.date()}.csv: lineups are projected from each team's last game "
-                              "and goalies from recent starts, so nothing is confirmed and nothing is flagged")
+        state.warnings.append("lineups and starting goalies are projected (not confirmed), so nothing is flagged yet; "
+                              "confirm them in the Lineups tab or with an overrides file")
     plays, cons, warnings = price_state(state)
     plays.to_csv(os.path.join(site, "plays.csv"), index=False)
     cons.to_csv(os.path.join(site, "consistency.csv"), index=False)
