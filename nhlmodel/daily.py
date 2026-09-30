@@ -291,6 +291,18 @@ def cmd_slate(a):
         state.warnings.append("lineups and starting goalies are projected (not confirmed), so nothing is flagged yet; "
                               "confirm them in the Lineups tab or with an overrides file")
     plays, cons, warnings = price_state(state)
+    try:
+        from .images import resolve
+        people = lineups[["player_id", "name"]].assign(
+            headshot=lineups["headshot"] if "headshot" in lineups else "").fillna("").to_dict("records")
+        imgs = resolve(list(sched.home) + list(sched.away), people)
+        json.dump(imgs, open(os.path.join(site, "images.json"), "w"))
+        if len(plays):
+            hs = imgs["headshots"]
+            plays["headshot"] = [hs.get(str(int(p)), h) if pd.notna(p) else h
+                                 for p, h in zip(plays.player_id, plays.get("headshot", pd.Series([""] * len(plays))))]
+    except Exception as e:   # images are cosmetic: never fail the slate over them
+        print(f"image lookup failed: {e}")
     plays.to_csv(os.path.join(site, "plays.csv"), index=False)
     cons.to_csv(os.path.join(site, "consistency.csv"), index=False)
     write(os.path.join(site, "slate.md"), slate_markdown(plays, cons, warnings, date))

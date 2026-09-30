@@ -24,7 +24,7 @@ HERE = os.path.dirname(__file__)
 sys.path.insert(0, os.path.join(HERE, ".."))
 sys.path.insert(0, HERE)
 from nhlmodel.pricing import format_american  # noqa: E402
-from teams import color, logo_url, nickname  # noqa: E402
+from teams import color, nickname  # noqa: E402
 
 APP_VERSION = "v4 · rink"
 TAG = "data-latest"
@@ -103,9 +103,6 @@ h1, h2, h3, .display { font-family: 'Fredoka', 'Nunito', sans-serif !important; 
 .av .mini { position: absolute; right: -8px; bottom: -6px; width: 28px; height: 28px; border-radius: 50%;
             background: var(--cream); border: 2.5px solid var(--navy); display: flex; align-items: center; justify-content: center; overflow: hidden; }
 .av .mini img { width: 22px; height: 22px; object-fit: contain; }
-img.fb { position: relative; }
-img.fb::after { content: attr(data-fb); position: absolute; inset: -3px; display: flex; align-items: center; justify-content: center;
-                background: var(--ice-2); color: var(--navy); font-family: 'Fredoka', sans-serif; font-weight: 600; font-size: 14px; border-radius: 50%; }
 
 /* pick card */
 .pick { display: flex; gap: 14px; align-items: center; }
@@ -138,7 +135,8 @@ img.fb::after { content: attr(data-fb); position: absolute; inset: -3px; display
 .game .teams { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 6px; }
 .game .t { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; }
 .game .t img { width: 64px; height: 64px; object-fit: contain; }
-.game .t img.fb::after { border-radius: 18px; inset: -4px; background: var(--cream); font-size: 16px; }
+.game .t .code { width: 64px; height: 64px; border-radius: 18px; border: 2.5px solid var(--navy); background: var(--ice-2);
+                 display: flex; align-items: center; justify-content: center; font-family: 'Fredoka', sans-serif; font-weight: 600; }
 .game .t .nm { font-family: 'Fredoka', sans-serif; font-weight: 600; font-size: 18px; color: var(--navy); }
 .game .t .g { font-size: 13px; color: var(--muted); font-weight: 700; }
 .game .mid { text-align: center; }
@@ -278,6 +276,72 @@ def js(name):
 
 
 # ---------------------------------------------------------------------------------------------
+# Images: downloaded by this server, shrunk and embedded, so the phone never hotlinks NHL/ESPN
+# ---------------------------------------------------------------------------------------------
+UA = {"User-Agent": "Mozilla/5.0 (nhlmodel dashboard)"}
+ESPN_ABBR = {"LAK": "la", "NJD": "nj", "SJS": "sj", "TBL": "tb", "UTA": "utah"}
+
+
+def _embed_one(url: str, size: int) -> str:
+    import base64
+    if not url:
+        return ""
+    try:
+        r = requests.get(url, headers=UA, timeout=8)
+    except requests.RequestException:
+        return ""
+    if r.status_code != 200 or not r.content:
+        return ""
+    ctype = r.headers.get("content-type", "")
+    if "svg" in ctype or url.endswith(".svg"):
+        return "data:image/svg+xml;base64," + base64.b64encode(r.content).decode()
+    try:
+        from PIL import Image
+        im = Image.open(io.BytesIO(r.content)).convert("RGBA")
+        im.thumbnail((size, size))
+        buf = io.BytesIO()
+        im.save(buf, format="PNG", optimize=True)
+        data = buf.getvalue()
+    except Exception:
+        data = r.content
+    return "data:image/png;base64," + base64.b64encode(data).decode()
+
+
+@st.cache_data(ttl=86400, show_spinner=False, max_entries=5000)
+def embed_many(urls: tuple, size: int) -> dict:
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=12) as ex:
+        return dict(zip(urls, ex.map(lambda u: _embed_one(u, size), urls)))
+
+
+IMAGES = {}
+
+
+def team_logo_url(team: str) -> str:
+    return IMAGES.get("logos", {}).get(team) or \
+        f"https://a.espncdn.com/i/teamlogos/nhl/500/{ESPN_ABBR.get(team, team.lower())}.png"
+
+
+LOGO: dict = {}
+FACE: dict = {}
+
+
+def load_images(teams, faces):
+    """Fetch every logo and headshot the page needs in one parallel, cached call."""
+    LOGO.update({t: v for t, v in zip(teams, (embed_many(tuple(team_logo_url(t) for t in teams), 160).get(team_logo_url(t), "")
+                                               for t in teams))})
+    urls = tuple(sorted({u for u in faces if isinstance(u, str) and u.startswith("http")}))
+    FACE.update(embed_many(urls, 132) if urls else {})
+
+
+def logo_img(team: str, cls: str = "", style: str = "") -> str:
+    src = LOGO.get(team, "")
+    if src:
+        return f'<img class="{cls}" src="{src}" style="{style}" alt="{E(team)}">'
+    return f'<div class="code" style="{style}">{E(team)}</div>'
+
+
+# ---------------------------------------------------------------------------------------------
 # Words, not numbers
 # ---------------------------------------------------------------------------------------------
 E = html.escape
@@ -353,12 +417,13 @@ def strength(r):
 def avatar(r, small=False) -> str:
     team = bet_team(r)
     if r.market in UNIT and r.player:
-        face = r.headshot if isinstance(r.headshot, str) and r.headshot.startswith("http") else ""
-        img = f'<img class="face fb" data-fb="{E(initials(r.player))}" src="{E(face)}" alt="" loading="lazy">' if face else ""
-        mini = "" if small else f'<div class="mini"><img class="fb" data-fb="" src="{logo_url(team)}" alt=""></div>'
-        return f'<div class="av"><span>{E(initials(r.player))}</span>{img}{mini}</div>'
-    return (f'<div class="av"><span>{E(team)}</span>'
-            f'<img class="logo fb" data-fb="{E(team)}" src="{logo_url(team)}" alt="" loading="lazy"></div>')
+        face = FACE.get(r.headshot, "") if isinstance(r.headshot, str) else ""
+        img = f'<img class="face" src="{face}" alt="">' if face else ""
+        mini = "" if small or not LOGO.get(team) else f'<div class="mini"><img src="{LOGO[team]}" alt=""></div>'
+        return f'<div class="av"><span>{"" if face else E(initials(r.player))}</span>{img}{mini}</div>'
+    lg = LOGO.get(team, "")
+    return (f'<div class="av"><span>{"" if lg else E(team)}</span>'
+            + (f'<img class="logo" src="{lg}" alt="">' if lg else "") + "</div>")
 
 
 def pick_card(r) -> str:
@@ -422,6 +487,11 @@ if "plays" not in st.session_state or st.session_state.get("plays_src") != meta.
     st.session_state.plays_src = meta.get("generated_at")
     st.session_state.repriced = False
 plays = prep(st.session_state.plays)
+IMAGES = js("images.json")
+if len(plays):
+    with st.spinner("Loading logos and headshots…"):
+        _teams = sorted({t for m in plays.matchup.unique() for t in teams_of(m)})
+        load_images(_teams, plays.headshot.unique())
 if len(plays):
     over = plays[plays.edge >= plays.threshold].sort_values("edge", ascending=False)
     ready = over[over.confirmed]
@@ -527,9 +597,9 @@ with t_games:
         out.append(f"""
 <div class="card game">
   <div class="teams">
-    <div class="t"><img class="fb" data-fb="{E(away)}" src="{logo_url(away)}" alt=""><div class="nm">{E(nickname(away))}</div><div class="g">{E(away)}</div></div>
+    <div class="t">{logo_img(away)}<div class="nm">{E(nickname(away))}</div><div class="g">{E(away)}</div></div>
     <div class="mid"><div class="at">at</div><div class="time">{E(r0.time) or ''}</div></div>
-    <div class="t"><img class="fb" data-fb="{E(home)}" src="{logo_url(home)}" alt=""><div class="nm">{E(nickname(home))}</div><div class="g">{E(home)}</div></div>
+    <div class="t">{logo_img(home)}<div class="nm">{E(nickname(home))}</div><div class="g">{E(home)}</div></div>
   </div>
   {wp}{proj_html}
   <details><summary>Full breakdown{f' · {n_picks} pick' + ('s' if n_picks != 1 else '') if n_picks else ''}</summary>
@@ -583,7 +653,7 @@ with t_lineups:
                     names = list(dict.fromkeys(goalies.name))
                     idx = names.index(cur.name.iloc[0]) if len(cur) and cur.name.iloc[0] in names else 0
                     st.markdown(f'<div style="display:flex;align-items:center;gap:10px;margin:6px 0">'
-                                f'<img class="fb" data-fb="{E(team)}" src="{logo_url(team)}" style="width:36px;height:36px" alt="">'
+                                + logo_img(team, style="width:36px;height:36px;font-size:12px;border-radius:10px") +
                                 f'<span style="font-family:Fredoka,sans-serif;font-weight:600;font-size:18px">{E(nickname(team))}</span></div>',
                                 unsafe_allow_html=True)
                     gname = st.selectbox("Starting goalie", names, index=idx, key=f"g_{gm.game_id}_{team}") if names else None
