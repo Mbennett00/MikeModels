@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <radialGradient id="ice" cx="50%" cy="30%" r="80%">
+      <stop offset="0" stop-color="#e2f2fb"/><stop offset=".6" stop-color="#bfe0f2"/><stop offset="1" stop-color="#9fcde8"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#ice)"/>
+  <!-- rink markings -->
+  <rect x="0" y="392" width="512" height="10" fill="#d9443a" opacity=".22"/>
+  <circle cx="256" cy="470" r="120" fill="none" stroke="#2a6fb0" stroke-width="8" opacity=".15"/>
+  <g fill="#ffffff" opacity=".8"><circle cx="64" cy="80" r="7"/><circle cx="448" cy="112" r="6"/><circle cx="420" cy="52" r="4"/><circle cx="96" cy="170" r="4"/><circle cx="470" cy="230" r="5"/></g>
+  <!-- shadow -->
+  <ellipse cx="250" cy="452" rx="150" ry="22" fill="#1f3448" opacity=".18"/>
+  <g stroke="#1f3448" stroke-width="12" stroke-linejoin="round" stroke-linecap="round">
+    <!-- legs / pants -->
+    <path d="M196 330 L186 402 L234 402 L248 346 L262 346 L276 402 L324 402 L314 330 Z" fill="#1f3448"/>
+    <!-- skates -->
+    <path d="M172 400 L240 400 L244 424 L166 424 Z" fill="#fffaf0"/>
+    <path d="M270 400 L338 400 L344 424 L266 424 Z" fill="#fffaf0"/>
+    <line x1="160" y1="440" x2="248" y2="440" stroke-width="8"/>
+    <line x1="262" y1="440" x2="350" y2="440" stroke-width="8"/>
+    <line x1="176" y1="425" x2="176" y2="440" stroke-width="7"/><line x1="236" y1="425" x2="236" y2="440" stroke-width="7"/>
+    <line x1="276" y1="425" x2="276" y2="440" stroke-width="7"/><line x1="334" y1="425" x2="334" y2="440" stroke-width="7"/>
+    <!-- jersey -->
+    <path d="M186 214 Q256 190 326 214 L346 330 Q256 350 166 330 Z" fill="#d9443a"/>
+    <path d="M172 296 Q256 316 340 296" fill="none" stroke="#fffaf0" stroke-width="16"/>
+    <path d="M172 296 Q256 316 340 296" fill="none" stroke-width="0"/>
+    <!-- arms + gloves gripping stick -->
+    <path d="M192 222 Q150 238 160 270" fill="none" stroke-width="40"/>
+    <path d="M192 222 Q150 238 160 270" fill="none" stroke="#d9443a" stroke-width="18"/>
+    <path d="M320 222 Q300 290 232 314" fill="none" stroke-width="40"/>
+    <path d="M320 222 Q300 290 232 314" fill="none" stroke="#d9443a" stroke-width="18"/>
+    <!-- stick -->
+    <path d="M150 252 L338 408" fill="none" stroke-width="30"/>
+    <path d="M150 252 L338 408" fill="none" stroke="#f2c77b" stroke-width="14"/>
+    <path d="M326 398 Q334 424 362 424 L408 424 Q420 424 420 412 Q420 400 408 400 L356 400 Z" fill="#1f3448" stroke-width="10"/>
+    <line x1="352" y1="412" x2="404" y2="412" stroke="#fffaf0" stroke-width="5"/>
+    <circle cx="160" cy="266" r="24" fill="#1f3448"/>
+    <circle cx="232" cy="318" r="24" fill="#1f3448"/>
+  </g>
+  <!-- jersey number -->
+  <text x="258" y="278" font-family="Arial Rounded MT Bold, Arial, sans-serif" font-weight="900" font-size="64" text-anchor="middle" fill="#fffaf0" stroke="#1f3448" stroke-width="6" paint-order="stroke">1</text>
+  <g stroke="#1f3448" stroke-width="12" stroke-linejoin="round" stroke-linecap="round">
+    <!-- head -->
+    <circle cx="256" cy="140" r="76" fill="#f7cfa5"/>
+    <!-- helmet -->
+    <path d="M178 140 Q178 58 256 58 Q334 58 334 140 L334 150 L300 150 Q296 116 256 116 Q216 116 212 150 L178 150 Z" fill="#1f3448"/>
+    <path d="M226 64 Q256 56 286 64 L284 112 Q256 106 228 112 Z" fill="#e2ae45" stroke-width="0"/>
+    <rect x="170" y="132" width="30" height="46" rx="12" fill="#1f3448"/>
+    <rect x="312" y="132" width="30" height="46" rx="12" fill="#1f3448"/>
+  </g>
+  <!-- face -->
+  <circle cx="232" cy="156" r="9" fill="#1f3448"/><circle cx="280" cy="156" r="9" fill="#1f3448"/>
+  <circle cx="235" cy="153" r="3" fill="#fff"/><circle cx="283" cy="153" r="3" fill="#fff"/>
+  <ellipse cx="216" cy="182" rx="12" ry="8" fill="#f08a7c" opacity=".7"/><ellipse cx="296" cy="182" rx="12" ry="8" fill="#f08a7c" opacity=".7"/>
+  <path d="M236 184 Q256 204 276 184" fill="#fff" stroke="#1f3448" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- chin strap -->
+  <path d="M190 176 Q210 214 256 218 Q302 214 322 176" fill="none" stroke="#1f3448" stroke-width="7" stroke-linecap="round"/>
+  <!-- puck -->
+  <ellipse cx="462" cy="444" rx="26" ry="10" fill="#1f3448"/>
+  <rect x="436" y="432" width="52" height="12" fill="#1f3448"/>
+  <ellipse cx="462" cy="432" rx="26" ry="10" fill="#33495e"/>
+  <!-- speed lines -->
+  <g stroke="#ffffff" stroke-width="10" stroke-linecap="round" opacity=".9">
+    <line x1="40" y1="300" x2="110" y2="300"/><line x1="60" y1="336" x2="120" y2="336"/><line x1="30" y1="372" x2="100" y2="372"/>
+  </g>
+</svg>

@@ -107,7 +107,15 @@ def _trust(market_summary) -> list:
 
 
 def _write(out_dir: str, data: dict):
+    data.setdefault("colors", {k: v[1] for k, v in DISPLAY.items()})
     with open(os.path.join(out_dir, "data.json"), "w") as f:
         json.dump(data, f, separators=(",", ":"), default=str, allow_nan=False)
     shutil.copy(os.path.join(HERE, "web_template.html"), os.path.join(out_dir, "index.html"))
+    for name in os.listdir(os.path.join(HERE, "web_assets")):   # home-screen icons
+        shutil.copy(os.path.join(HERE, "web_assets", name), os.path.join(out_dir, name))
+    with open(os.path.join(out_dir, "manifest.webmanifest"), "w") as f:
+        json.dump(dict(name="NHL Model", short_name="NHL Model", start_url=".", display="standalone",
+                       background_color="#bfe0f2", theme_color="#bfe0f2",
+                       icons=[dict(src="icon-192.png", sizes="192x192", type="image/png"),
+                              dict(src="icon-512.png", sizes="512x512", type="image/png")]), f)
     open(os.path.join(out_dir, ".nojekyll"), "w").close()

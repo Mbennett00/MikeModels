@@ -18,7 +18,8 @@ def test_web_build_exports_prices_that_match_the_model(league, tmp_path):
     plays, _, _ = price_state(st)
     news = dict(injuries=[dict(team=sched.home.iloc[0], name="Hurt Guy", status="IR")])
     out = web.build(st, plays, dict(date="2024-12-10", generated_at="x"), news, None, None, str(tmp_path / "web"))
-    assert (tmp_path / "web" / "index.html").exists() and (tmp_path / "web" / ".nojekyll").exists()
+    for f in ("index.html", ".nojekyll", "apple-touch-icon.png", "manifest.webmanifest"):
+        assert (tmp_path / "web" / f).exists()
     d = json.load(open(f"{out}/data.json"))
     assert len(d["games"]) == len(sched) and d["players"]
     g = d["games"][0]

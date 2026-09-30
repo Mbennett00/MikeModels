@@ -7,7 +7,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="NHL Model">
 <title>NHL Model</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏒</text></svg>">
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@500;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -77,9 +79,10 @@ details { margin-top: 10px; }
 summary { cursor: pointer; font-weight: 800; font-size: 14px; list-style: none; }
 summary::-webkit-details-marker { display: none; }
 summary::before { content: "▸ "; } details[open] summary::before { content: "▾ "; }
-.av { position: relative; flex: 0 0 auto; width: 48px; height: 48px; border-radius: 50%; background: var(--ice-2);
+.av { position: relative; flex: 0 0 auto; width: 52px; height: 52px; border-radius: 50%; background-color: var(--ice-2);
+      background-image: radial-gradient(circle at 35% 28%, rgba(255,255,255,.35), rgba(255,255,255,0) 60%);
       border: 2.5px solid var(--navy); display: flex; align-items: center; justify-content: center;
-      font-family: 'Fredoka', sans-serif; font-weight: 600; overflow: hidden; }
+      font-family: 'Fredoka', sans-serif; font-weight: 600; color: #fff; overflow: hidden; }
 .av img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .prow { display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; border-bottom: 2px dashed var(--line); }
 .prow:last-child { border-bottom: 0; }
@@ -199,7 +202,8 @@ function timeET(s) { if (!s) return ""; const d = new Date(s);
   return d.toLocaleTimeString("en-US", {hour: "numeric", minute: "2-digit", timeZone: "America/New_York"}); }
 function logo(t) { return `<img class="logo" src="${esc(t.logo)}" alt="${esc(t.abbr)}" onerror="this.outerHTML='<div class=&quot;code&quot;>${esc(t.abbr)}</div>'">`; }
 function initials(n) { const p = String(n).split(" ").filter(Boolean); return p.length > 1 ? p[0][0] + p[p.length - 1][0] : String(n).slice(0, 3); }
-function avatar(pl) { return `<div class="av"><span>${esc(initials(pl.name))}</span>${pl.headshot ? `<img src="${esc(pl.headshot)}" alt="" loading="lazy" onerror="this.remove()">` : ""}</div>`; }
+function avatar(pl) { const c = (D.colors || {})[pl.team] || "#7a8894";
+  return `<div class="av" style="background-color:${esc(c)}"><span>${esc(initials(pl.name))}</span>${pl.headshot ? `<img src="${esc(pl.headshot)}" alt="" loading="lazy" onload="this.previousElementSibling.style.visibility='hidden'" onerror="this.remove()">` : ""}</div>`; }
 function goalie(t, right) { if (!t.goalie) return `<div class="${right ? "r" : ""}">🥅 TBD</div>`;
   const [c, i] = t.goalie_status === "Confirmed" ? ["ok", "✅"] : t.goalie_status === "Likely" ? ["lk", "🟡"] : ["un", "❔"];
   return `<div class="${right ? "r" : ""}">🥅 ${esc(t.goalie)}<br><span class="st ${c}">${i} ${esc(t.goalie_status || "Projected")}</span></div>`; }
