@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#bfe0f2">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="NHL Model">
+<title>NHL Model</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏒</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ice: #bfe0f2; --ice-2: #d7ecf8; --cream: #fffaf0; --navy: #1f3448; --ink: #1f3448; --ink-2: #4d5d6c;
+  --muted: #7a8894; --red: #d9443a; --red-soft: #fbe3df; --gold: #e2ae45; --gold-soft: #fbefd2;
+  --green: #2e8b57; --green-soft: #def2e5; --line: #e7dfcf;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  font-family: 'Nunito', system-ui, sans-serif; color: var(--ink); min-height: 100vh;
+  background:
+    linear-gradient(90deg, transparent calc(50% - 2px), rgba(217,68,58,.10) calc(50% - 2px), rgba(217,68,58,.10) calc(50% + 2px), transparent calc(50% + 2px)),
+    radial-gradient(120% 80% at 50% 0%, #d9eefa 0%, var(--ice) 60%, #a9d4ec 100%) fixed;
+}
+.wrap { max-width: 760px; margin: 0 auto; padding: 16px 14px 60px; }
+h1, .display { font-family: 'Fredoka', 'Nunito', sans-serif; letter-spacing: -.01em; }
+.card { background: var(--cream); border: 3px solid var(--navy); border-radius: 26px; padding: 18px 20px;
+        box-shadow: 6px 7px 0 var(--navy); margin: 0 6px 20px 0; }
+.card.soft { box-shadow: 4px 5px 0 var(--navy); }
+.top { display: flex; align-items: center; gap: 16px; }
+.puck { font-size: 44px; line-height: 1; }
+.top h1 { font-size: 28px; margin: 0; line-height: 1.1; color: var(--navy); }
+.top .sub { color: var(--ink-2); font-size: 15px; margin-top: 3px; font-weight: 700; }
+.pills { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+.pill { display: inline-flex; align-items: center; gap: 6px; font-weight: 800; font-size: 14px; padding: 5px 12px;
+        border-radius: 999px; border: 2.5px solid var(--navy); background: var(--cream); color: var(--navy); white-space: nowrap; }
+.pill.gold { background: var(--gold); } .pill.green { background: var(--green-soft); } .pill.red { background: var(--red-soft); }
+.tabs { display: flex; gap: 8px; margin: 0 6px 16px 0; }
+.tab { flex: 1 1 0; height: 40px; border-radius: 999px; border: 2.5px solid var(--navy); background: var(--cream);
+       box-shadow: 3px 3px 0 var(--navy); font-family: 'Fredoka', sans-serif; font-weight: 600; font-size: 15px;
+       color: var(--navy); cursor: pointer; padding: 0 6px; }
+.tab.on { background: var(--navy); color: var(--cream); }
+.howto { background: var(--gold-soft); border: 2.5px dashed var(--navy); border-radius: 18px; padding: 10px 14px;
+         font-size: 14px; font-weight: 700; margin: 0 6px 16px 0; }
+.note { color: var(--ink-2); font-size: 15px; margin: -2px 0 14px; }
+.h2 { font-family: 'Fredoka', sans-serif; font-weight: 600; font-size: 22px; color: var(--navy); margin: 0 0 10px; }
+.game .teams { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 6px; }
+.game .t { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; }
+.logo { width: 62px; height: 62px; object-fit: contain; }
+.code { width: 62px; height: 62px; border-radius: 18px; border: 2.5px solid var(--navy); background: var(--ice-2);
+        display: flex; align-items: center; justify-content: center; font-family: 'Fredoka', sans-serif; font-weight: 600; }
+.game .nm { font-family: 'Fredoka', sans-serif; font-weight: 600; font-size: 18px; }
+.game .ab { font-size: 13px; color: var(--muted); font-weight: 700; }
+.game .mid { text-align: center; } .game .at { color: var(--muted); font-family: 'Fredoka', sans-serif; }
+.game .time { font-weight: 800; }
+.gl { display: flex; justify-content: space-between; gap: 8px; margin-top: 10px; font-size: 14px; font-weight: 700; }
+.gl > div { flex: 1; } .gl > div.r { text-align: right; }
+.st { display: inline-block; font-size: 12px; font-weight: 800; padding: 1px 8px; border-radius: 999px; border: 2px solid var(--navy); margin-top: 3px; }
+.st.ok { background: var(--green-soft); } .st.lk { background: var(--gold-soft); } .st.un { background: #eee; }
+.wp { margin-top: 14px; }
+.wp .bar { display: flex; height: 16px; border-radius: 99px; overflow: hidden; border: 2.5px solid var(--navy); gap: 2px; background: var(--navy); }
+.wp .lab { display: flex; justify-content: space-between; margin-top: 6px; font-weight: 800; font-size: 15px; }
+.proj { text-align: center; color: var(--ink-2); font-size: 15px; margin-top: 10px; }
+.proj b { font-family: 'Fredoka', sans-serif; color: var(--navy); font-size: 18px; }
+.inj { margin-top: 10px; font-size: 13px; color: var(--ink-2); font-weight: 700; line-height: 1.5; }
+.inj b { color: var(--red); }
+table.px { width: 100%; border-collapse: collapse; font-size: 15px; margin-top: 10px; }
+table.px th, table.px td { border-bottom: 2px solid var(--line); padding: 9px 4px; }
+table.px th { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); text-align: left; }
+table.px tr:last-child td { border-bottom: 0; }
+table.px th:not(:first-child), table.px td:not(:first-child) { text-align: right; white-space: nowrap; }
+table.px td:first-child { font-weight: 800; }
+table.px td.tgt { font-family: 'Fredoka', sans-serif; font-weight: 700; color: var(--green); }
+details { margin-top: 10px; }
+summary { cursor: pointer; font-weight: 800; font-size: 14px; list-style: none; }
+summary::-webkit-details-marker { display: none; }
+summary::before { content: "▸ "; } details[open] summary::before { content: "▾ "; }
+.av { position: relative; flex: 0 0 auto; width: 48px; height: 48px; border-radius: 50%; background: var(--ice-2);
+      border: 2.5px solid var(--navy); display: flex; align-items: center; justify-content: center;
+      font-family: 'Fredoka', sans-serif; font-weight: 600; overflow: hidden; }
+.av img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.prow { display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; border-bottom: 2px dashed var(--line); }
+.prow:last-child { border-bottom: 0; }
+.prow .body { flex: 1; min-width: 0; }
+.prow .nm { font-weight: 800; font-size: 16px; }
+.prow .bt { font-size: 14px; color: var(--ink-2); font-weight: 700; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.lc { border: 2px solid var(--navy); border-radius: 12px; padding: 4px 9px; background: #fff; font-size: 13px; font-weight: 700; }
+.lc b { font-family: 'Fredoka', sans-serif; } .lc .t { color: var(--green); font-weight: 800; }
+.controls { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+input, select { font: inherit; font-weight: 700; color: var(--navy); background: var(--cream); border: 2.5px solid var(--navy);
+                border-radius: 999px; padding: 9px 14px; min-height: 44px; width: 100%; appearance: none; -webkit-appearance: none; }
+select { background-image: linear-gradient(45deg, transparent 50%, var(--navy) 50%), linear-gradient(135deg, var(--navy) 50%, transparent 50%);
+         background-position: calc(100% - 20px) 50%, calc(100% - 14px) 50%; background-size: 6px 6px; background-repeat: no-repeat; padding-right: 34px; }
+.grow { flex: 1 1 160px; }
+.seg { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.seg button { border: 2.5px solid var(--navy); border-radius: 999px; background: var(--cream); padding: 7px 14px;
+              font: inherit; font-weight: 800; color: var(--navy); cursor: pointer; }
+.seg button.on { background: var(--navy); color: var(--cream); }
+label.f { display: block; font-size: 13px; font-weight: 800; color: var(--ink-2); margin: 10px 0 4px 4px; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.verdict { font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 30px; margin-bottom: 6px; }
+.verdict.good { color: var(--green); } .verdict.meh { color: #9a6a12; } .verdict.bad { color: var(--red); }
+.vline { font-size: 16px; font-weight: 700; color: var(--ink-2); margin: 5px 0; } .vline b { color: var(--navy); }
+.vs .row { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 700; margin: 5px 0; }
+.vs .lab { width: 52px; color: var(--ink-2); }
+.vs .bar { flex: 1; height: 12px; border-radius: 99px; background: #efe7d6; border: 2px solid var(--navy); overflow: hidden; }
+.vs .bar div { height: 100%; } .vs .num { width: 44px; text-align: right; }
+.status { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 2px dashed var(--line); gap: 10px; }
+.status:last-child { border-bottom: 0; }
+.status .nm { font-weight: 800; } .status .d { font-size: 13px; color: var(--muted); font-weight: 700; }
+.lineteam { margin-bottom: 14px; } .lineteam .ln { font-size: 14px; font-weight: 700; color: var(--ink-2); margin: 3px 0; }
+.lineteam .ln b { color: var(--navy); display: inline-block; width: 42px; }
+.empty { text-align: center; } .empty .e { font-size: 44px; } .empty .t { font-family: 'Fredoka', sans-serif; font-size: 22px; font-weight: 600; margin: 6px 0; }
+.foot { text-align: center; color: #56708a; font-size: 13px; font-weight: 700; margin-top: 26px; }
+.hide { display: none; }
+@media (max-width: 640px) {
+  .wrap { padding: 12px 10px 50px; }
+  .card { padding: 16px; border-radius: 22px; box-shadow: 5px 6px 0 var(--navy); }
+  .top h1 { font-size: 24px; } .puck { font-size: 36px; }
+  .pill { font-size: 13px; padding: 4px 10px; }
+  .tab { font-size: 13.5px; height: 38px; padding: 0 2px; }
+  .logo, .code { width: 52px; height: 52px; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card" id="hdr"><div class="top"><div class="puck">🏒</div><div><h1>Loading…</h1><div class="sub">Warming up the Zamboni</div></div></div></div>
+  <div class="tabs" id="tabs"></div>
+  <div id="view"></div>
+  <div class="foot">🏒 NHL Model · web · data from the NHL &amp; Daily Faceoff · bet responsibly</div>
+</div>
+<script>
+"use strict";
+const $ = (s, r = document) => r.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+const pct = p => (p == null || isNaN(p)) ? "–" : Math.round(100 * p) + "%";
+const am = x => (x == null || !isFinite(x)) ? "–" : (x > 0 ? "+" : "") + Math.round(x);
+const fair = p => { p = Math.min(Math.max(p, 1e-9), 1 - 1e-9); return p >= 0.5 ? -100 * p / (1 - p) : 100 * (1 - p) / p; };
+const betAt = p => (p > 0.02 && fair(p) > -1500) ? am(fair(p)) : "–";
+const implied = o => o < 0 ? -o / (-o + 100) : 100 / (o + 100);
+const decimal = o => 1 + (o > 0 ? o / 100 : 100 / -o);
+const UNIT = {sog: "shots", goals: "goals", assists: "assists", points: "points"};
+const MNAME = {goals: "Anytime goal", sog: "Shots on goal", assists: "Assists", points: "Points", moneyline: "Moneyline",
+               puckline: "Puck line", total: "Total goals", team_total: "Team total", p1_total: "1st period total", p1_3way: "1st period winner"};
+let D = null, TAB = "tonight", PSTATE = {q: "", game: "all", market: "sog"};
+
+// ---------- math (mirrors nhlmodel.team_model / player_model) ----------
+function lgamma(x) {           // Lanczos
+  const g = 7, c = [0.99999999999980993, 676.5203681218851, -1259.1392167224028, 771.32342877765313,
+    -176.61503916999185, 12.507343278686905, -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7];
+  if (x < 0.5) return Math.log(Math.PI / Math.sin(Math.PI * x)) - lgamma(1 - x);
+  x -= 1; let a = c[0]; const t = x + g + 0.5;
+  for (let i = 1; i < 9; i++) a += c[i] / (x + i);
+  return 0.5 * Math.log(2 * Math.PI) + (x + 0.5) * Math.log(t) - t + Math.log(a);
+}
+function poisSF(line, lam) { const k = Math.floor(line); let p = Math.exp(-lam), s = 0;
+  for (let i = 0; i <= k; i++) { s += p; p *= lam / (i + 1); } return Math.max(0, 1 - s); }
+function nbSF(line, mu, r) { if (!r || r >= 1e5) return poisSF(line, mu);
+  const k = Math.floor(line); let s = 0;
+  for (let i = 0; i <= k; i++) s += Math.exp(lgamma(i + r) - lgamma(r) - lgamma(i + 1) + r * Math.log(r / (r + mu)) + i * Math.log(mu / (r + mu)));
+  return Math.max(0, 1 - s); }
+function propProb(pl, market, line) {
+  const lam = pl.lam[market]; if (lam == null) return null; const P = D.params;
+  if (market === "goals") return poisSF(line, lam);
+  if (market === "sog") return nbSF(line, lam, (P.r_sog || {})[pl.pos] || 8);
+  if (market === "assists") return nbSF(line, lam, P.r_ast);
+  if (market === "points") return (line === 0.5 && P.r_pts >= 1e5) ? 1 - Math.exp(-lam) : nbSF(line, lam, P.r_pts);
+}
+function cells(m, f) { for (let h = 0; h < m.length; h++) for (let a = 0; a < m[h].length; a++) f(h, a, m[h][a]); }
+function gameProb(g, market, sel, line) {
+  const m = g.reg, pot = g.p_ot_home; let hw = 0, tie = 0, aw = 0;
+  cells(m, (h, a, p) => { if (h > a) hw += p; else if (h === a) tie += p; else aw += p; });
+  const ou = (dist, ln, side) => { let o = 0, u = 0, push = 0;
+    dist.forEach((p, k) => { if (k > ln) o += p; else if (k < ln) u += p; else push += p; });
+    const n = Number.isInteger(ln) ? 1 - push : 1; return (side === "over" ? o : u) / n; };
+  if (market === "moneyline") { const ph = hw + tie * pot; return sel === "home" ? ph : 1 - ph; }
+  if (market === "puckline") { const pw = sel === "home" ? pot : 1 - pot; let p = 0, t = 0;
+    cells(m, (h, a, v) => { const mg = sel === "home" ? h - a : a - h; if (mg === 0) t += v; else if (mg + line > 0) p += v; });
+    if (1 + line > 0) p += t * pw; if (-1 + line > 0) p += t * (1 - pw); return p; }
+  if (market === "total") { const dist = []; cells(m, (h, a, p) => { const t = h + a + (h === a ? 1 : 0); dist[t] = (dist[t] || 0) + p; });
+    return ou(dist.map(x => x || 0), line, sel); }
+  if (market === "team_total") { const [side, dir] = sel.split("_"); const pw = side === "home" ? pot : 1 - pot; const dist = [];
+    cells(m, (h, a, p) => { const own = side === "home" ? h : a;
+      if (h !== a) dist[own] = (dist[own] || 0) + p; else { dist[own] = (dist[own] || 0) + p * (1 - pw); dist[own + 1] = (dist[own + 1] || 0) + p * pw; } });
+    return ou(Array.from(dist, x => x || 0), line, dir); }
+  if (market === "p1_total") { const dist = []; cells(g.p1, (h, a, p) => { dist[h + a] = (dist[h + a] || 0) + p; });
+    return ou(Array.from(dist, x => x || 0), line, sel); }
+  if (market === "p1_3way") { let x = {home: 0, draw: 0, away: 0};
+    cells(g.p1, (h, a, p) => { x[h > a ? "home" : h === a ? "draw" : "away"] += p; }); return x[sel]; }
+}
+const thr = m => (D.params.thresholds || {})[m] ?? 0.03;
+
+// ---------- rendering ----------
+function timeET(s) { if (!s) return ""; const d = new Date(s);
+  return d.toLocaleTimeString("en-US", {hour: "numeric", minute: "2-digit", timeZone: "America/New_York"}); }
+function logo(t) { return `<img class="logo" src="${esc(t.logo)}" alt="${esc(t.abbr)}" onerror="this.outerHTML='<div class=&quot;code&quot;>${esc(t.abbr)}</div>'">`; }
+function initials(n) { const p = String(n).split(" ").filter(Boolean); return p.length > 1 ? p[0][0] + p[p.length - 1][0] : String(n).slice(0, 3); }
+function avatar(pl) { return `<div class="av"><span>${esc(initials(pl.name))}</span>${pl.headshot ? `<img src="${esc(pl.headshot)}" alt="" loading="lazy" onerror="this.remove()">` : ""}</div>`; }
+function goalie(t, right) { if (!t.goalie) return `<div class="${right ? "r" : ""}">🥅 TBD</div>`;
+  const [c, i] = t.goalie_status === "Confirmed" ? ["ok", "✅"] : t.goalie_status === "Likely" ? ["lk", "🟡"] : ["un", "❔"];
+  return `<div class="${right ? "r" : ""}">🥅 ${esc(t.goalie)}<br><span class="st ${c}">${i} ${esc(t.goalie_status || "Projected")}</span></div>`; }
+
+function header() {
+  const m = D.meta; const d = m.date ? new Date(m.date + "T12:00:00") : null;
+  const title = !d ? "No games soon" : (m.upcoming ? "Next up" : "Tonight");
+  let sub = d ? d.toLocaleDateString("en-US", {weekday: "short", month: "short", day: "numeric"}) + ` · ${m.games} games` : "";
+  if (m.generated_at) sub += " · updated " + new Date(m.generated_at).toLocaleTimeString("en-US", {hour: "numeric", minute: "2-digit", timeZone: "America/New_York"});
+  const pills = m.games ? `<span class="pill gold">💲 Fair prices ready</span><span class="pill ${m.goalies_confirmed === m.teams ? "green" : ""}">🥅 Goalies ${m.goalies_confirmed}/${m.teams} confirmed</span>` : "";
+  $("#hdr").innerHTML = `<div class="top"><div class="puck">🏒</div><div><h1 class="display">${title}</h1><div class="sub">${esc(sub)}</div></div></div><div class="pills">${pills}</div>`;
+}
+function tabs() {
+  const T = [["tonight", "Tonight"], ["players", "Players"], ["check", "Check"], ["lineups", "Lineups"], ["model", "Model"]];
+  $("#tabs").innerHTML = T.map(([k, n]) => `<button class="tab ${TAB === k ? "on" : ""}" data-k="${k}">${n}</button>`).join("");
+  $("#tabs").querySelectorAll(".tab").forEach(b => b.onclick = () => { TAB = b.dataset.k; render(); window.scrollTo(0, 0); });
+}
+const HOWTO = `<div class="howto">💡 Bet it if DraftKings pays the <span style="color:var(--green)">green “bet at”</span> price or better. Not sure? Use <b>Check</b>.</div>`;
+
+function row(g, label, market, sel, line) { const p = gameProb(g, market, sel, line);
+  return `<tr><td>${esc(label)}</td><td>${pct(p)}</td><td>${am(fair(p))}</td><td class="tgt">${betAt(p - thr(market))}</td></tr>`; }
+function tonight() {
+  if (!D.games.length) return empty("🧊", "No games on the board", "Check back on the next game day.");
+  return HOWTO + D.games.map(g => {
+    const a = g.away, h = g.home, ph = gameProb(g, "moneyline", "home");
+    const favH = ph >= 0.5, fav = favH ? h : a, dog = favH ? a : h, fs = favH ? "home" : "away", ds = favH ? "away" : "home";
+    const head = "<tr><th>Bet</th><th>Chance</th><th>Fair</th><th>Bet at</th></tr>";
+    const main = row(g, `${a.name} win`, "moneyline", "away") + row(g, `${h.name} win`, "moneyline", "home")
+      + row(g, `${fav.name} -1.5`, "puckline", fs, -1.5) + row(g, `${dog.name} +1.5`, "puckline", ds, 1.5)
+      + row(g, "Over 6.5 goals", "total", "over", 6.5) + row(g, "Under 6.5 goals", "total", "under", 6.5);
+    const more = row(g, "Over 5.5 goals", "total", "over", 5.5) + row(g, "Under 5.5 goals", "total", "under", 5.5)
+      + [["away", a], ["home", h]].map(([s, t]) => row(g, `${t.name} over 2.5`, "team_total", s + "_over", 2.5) + row(g, `${t.name} over 3.5`, "team_total", s + "_over", 3.5)).join("")
+      + row(g, "1st period over 1.5", "p1_total", "over", 1.5) + row(g, "1st period under 1.5", "p1_total", "under", 1.5)
+      + row(g, `1st period: ${a.name}`, "p1_3way", "away") + row(g, "1st period: tied", "p1_3way", "draw") + row(g, `1st period: ${h.name}`, "p1_3way", "home");
+    const inj = [a, h].filter(t => t.injuries.length).map(t => `${esc(t.abbr)}: ` + t.injuries.map(i => `${esc(i.name)} <b>${esc(i.status)}</b>`).join(", ")).join(" · ");
+    return `<div class="card game"><div class="teams">
+      <div class="t">${logo(a)}<div class="nm">${esc(a.name)}</div><div class="ab">${esc(a.abbr)}</div></div>
+      <div class="mid"><div class="at">at</div><div class="time">${timeET(g.start_utc)}</div></div>
+      <div class="t">${logo(h)}<div class="nm">${esc(h.name)}</div><div class="ab">${esc(h.abbr)}</div></div></div>
+      <div class="gl">${goalie(a)}${goalie(h, true)}</div>
+      <div class="wp"><div class="bar"><div style="width:${100 * (1 - ph)}%;background:${a.color}"></div><div style="width:${100 * ph}%;background:${h.color}"></div></div>
+        <div class="lab"><span>${pct(1 - ph)}</span><span style="color:var(--muted)">chance to win</span><span>${pct(ph)}</span></div></div>
+      <div class="proj">Projected score · <b>${esc(a.abbr)} ${g.lam_away.toFixed(1)}</b> – <b>${g.lam_home.toFixed(1)} ${esc(h.abbr)}</b></div>
+      ${inj ? `<div class="inj">🚑 ${inj}</div>` : ""}
+      <table class="px">${head}${main}</table>
+      <details><summary>More bets (other totals, team totals, 1st period)</summary><table class="px">${head}${more}</table></details></div>`;
+  }).join("");
+}
+const LINES = {sog: [1.5, 2.5, 3.5, 4.5], goals: [0.5], points: [0.5, 1.5], assists: [0.5]};
+function gameLabel(g) { return `${g.away.name} @ ${g.home.name}`; }
+function players() {
+  if (!D.players.length) return empty("👤", "No player projections yet", "");
+  const S = PSTATE, mk = S.market;
+  let list = D.players.filter(p => p.lam[mk] != null);
+  if (S.q) list = list.filter(p => p.name.toLowerCase().includes(S.q.toLowerCase()));
+  if (S.game !== "all") list = list.filter(p => String(p.game_id) === S.game);
+  list.sort((x, y) => y.lam[mk] - x.lam[mk]); list = list.slice(0, 40);
+  const rows = list.map(p => { const chips = LINES[mk].map(l => { const pr = propProb(p, mk, l);
+      return `<span class="lc"><b>${mk === "goals" ? "Scores" : "O " + l}</b> · ${pct(pr)} · <span class="t">bet at ${betAt(pr - thr(mk))}</span></span>`; }).join("");
+    const proj = `${p.lam[mk].toFixed(2)} ${mk === "goals" ? "expected goals" : UNIT[mk]}`;
+    return `<div class="prow">${avatar(p)}<div class="body"><div class="nm">${esc(p.name)}</div><div class="bt">${esc(p.team)} · projects ${proj}${p.confirmed ? "" : " · lineup projected"}</div><div class="chips">${chips}</div></div></div>`; }).join("");
+  const gopts = `<option value="all">All games</option>` + D.games.map(g => `<option value="${g.game_id}" ${S.game === String(g.game_id) ? "selected" : ""}>${esc(gameLabel(g))}</option>`).join("");
+  const seg = [["sog", "Shots"], ["goals", "Goals"], ["points", "Points"], ["assists", "Assists"]].map(([k, n]) => `<button data-m="${k}" class="${mk === k ? "on" : ""}">${n}</button>`).join("");
+  return `<div class="controls"><input class="grow" id="pq" placeholder="🔍 Find a player" value="${esc(S.q)}"><select class="grow" id="pg">${gopts}</select></div>
+    <div class="seg" id="pm">${seg}</div>${HOWTO}<div class="card soft" id="plist">${rows || "No matches"}</div>`;
+}
+function wirePlayers() {
+  const q = $("#pq"); if (!q) return;
+  q.oninput = () => { PSTATE.q = q.value; const pos = q.selectionStart; render(); const n = $("#pq"); n.focus(); n.setSelectionRange(pos, pos); };
+  $("#pg").onchange = e => { PSTATE.game = e.target.value; render(); };
+  $("#pm").querySelectorAll("button").forEach(b => b.onclick = () => { PSTATE.market = b.dataset.m; render(); });
+}
+// ---------- Check ----------
+let C = {game: null, kind: "game", market: "moneyline", side: "home", dir: "over", line: null, player: null, pmarket: "sog", odds: ""};
+function check() {
+  if (!D.games.length) return empty("🧊", "No games to check", "");
+  if (C.game == null) C.game = String(D.games[0].game_id);
+  const g = D.games.find(x => String(x.game_id) === C.game) || D.games[0];
+  const opt = (v, n, cur) => `<option value="${esc(v)}" ${String(cur) === String(v) ? "selected" : ""}>${esc(n)}</option>`;
+  let form = `<label class="f">Game</label><select id="cg">${D.games.map(x => opt(x.game_id, gameLabel(x), C.game)).join("")}</select>
+    <div class="seg" style="margin-top:12px" id="ck"><button data-k="game" class="${C.kind === "game" ? "on" : ""}">Game bet</button><button data-k="prop" class="${C.kind === "prop" ? "on" : ""}">Player prop</button></div>`;
+  let p = null, label = "", market = null;
+  if (C.kind === "game") {
+    const M = [["moneyline", "Moneyline"], ["puckline", "Puck line"], ["total", "Total goals"], ["team_total", "Team total"], ["p1_total", "1st period total"], ["p1_3way", "1st period winner"]];
+    market = C.market;
+    form += `<label class="f">Bet type</label><select id="cm">${M.map(([k, n]) => opt(k, n, market)).join("")}</select>`;
+    const teamSel = `<select id="cs">${opt("away", g.away.name, C.side)}${opt("home", g.home.name, C.side)}${market === "p1_3way" ? opt("draw", "Tied after 1st", C.side) : ""}</select>`;
+    const dirSel = `<select id="cd">${opt("over", "Over", C.dir)}${opt("under", "Under", C.dir)}</select>`;
+    const defLine = {puckline: -1.5, total: 6.5, team_total: 3.5, p1_total: 1.5}[market];
+    if (C.line == null || isNaN(C.line)) C.line = defLine;
+    const lineIn = `<input id="cl" type="number" step="0.5" inputmode="decimal" value="${C.line}">`;
+    if (market === "moneyline" || market === "p1_3way") { form += `<label class="f">Pick</label>${teamSel}`; }
+    else if (market === "puckline") { form += `<div class="row2"><div><label class="f">Team</label>${teamSel}</div><div><label class="f">Spread</label>${lineIn}</div></div>`; }
+    else if (market === "team_total") { form += `<div class="row2"><div><label class="f">Team</label>${teamSel}</div><div><label class="f">Over/Under</label>${dirSel}</div></div><label class="f">Line</label>${lineIn}`; }
+    else { form += `<div class="row2"><div><label class="f">Over/Under</label>${dirSel}</div><div><label class="f">Line</label>${lineIn}</div></div>`; }
+    const side = (market === "moneyline" || market === "puckline" || market === "p1_3way") ? (C.side === "draw" && market !== "p1_3way" ? "home" : C.side) : C.side;
+    const tname = side === "home" ? g.home.name : side === "away" ? g.away.name : "Tie";
+    const ln = Number(C.line);
+    if (market === "moneyline") { p = gameProb(g, market, side === "draw" ? "home" : side); label = `${tname} to win`; }
+    else if (market === "p1_3way") { p = gameProb(g, market, side); label = side === "draw" ? "Tied after 1st period" : `${tname} leads after 1st`; }
+    else if (market === "puckline") { p = gameProb(g, market, side === "draw" ? "home" : side, ln); label = `${tname} ${ln > 0 ? "+" : ""}${ln}`; }
+    else if (market === "team_total") { const s = side === "draw" ? "home" : side; p = gameProb(g, market, `${s}_${C.dir}`, ln); label = `${s === "home" ? g.home.name : g.away.name} ${C.dir} ${ln}`; }
+    else { p = gameProb(g, market, C.dir, ln); label = `${market === "p1_total" ? "1st period " : ""}${C.dir} ${ln} goals`; }
+  } else {
+    const ps = D.players.filter(x => x.game_id === g.game_id).sort((x, y) => (y.lam.sog || 0) - (x.lam.sog || 0));
+    if (!ps.find(x => String(x.id) === String(C.player))) C.player = ps.length ? String(ps[0].id) : null;
+    market = C.pmarket;
+    form += `<label class="f">Player</label><select id="cp">${ps.map(x => opt(x.id, `${x.name} (${x.team})`, C.player)).join("")}</select>
+      <div class="row2"><div><label class="f">Prop</label><select id="cpm">${opt("sog", "Shots", market)}${opt("goals", "Goals", market)}${opt("points", "Points", market)}${opt("assists", "Assists", market)}</select></div>
+      <div><label class="f">Over/Under</label><select id="cd">${opt("over", "Over", C.dir)}${opt("under", "Under", C.dir)}</select></div></div>
+      <label class="f">Line</label><input id="cl" type="number" step="1" inputmode="decimal" value="${C.line ?? (market === "sog" ? 2.5 : 0.5)}">`;
+    const pl = ps.find(x => String(x.id) === String(C.player));
+    const ln = Number(C.line ?? (market === "sog" ? 2.5 : 0.5));
+    if (pl) { const po = propProb(pl, market, ln); p = po == null ? null : (C.dir === "over" ? po : 1 - po); label = `${pl.name}: ${C.dir} ${ln} ${UNIT[market]}`; }
+  }
+  form += `<label class="f">DraftKings odds</label><input id="co" inputmode="text" placeholder="e.g. +140 or -115" value="${esc(C.odds)}">`;
+  let out = "";
+  const o = parseFloat(String(C.odds).replace(/\s/g, ""));
+  if (p == null || isNaN(p)) out = empty("🤔", "Can't price that one", "");
+  else if (!isFinite(o) || Math.abs(o) < 100) out = `<div class="card"><div class="vline">${esc(label)}</div><div class="vline">Our chance: <b>${pct(p)}</b> · fair price <b>${am(fair(p))}</b> · bet at <b>${betAt(p - thr(market))}</b> or better</div><div class="vline">Type DraftKings’ odds above to check it.</div></div>`;
+  else {
+    const cut = UNIT[market] ? 0.08 : 0.045, book = implied(o) / (1 + cut / 2), edge = p - book, ev = p * (decimal(o) - 1) * 100 - (1 - p) * 100;
+    const [cls, v] = edge >= thr(market) ? ["good", "✅ Bet it"] : edge > 0 ? ["meh", "🤏 Small edge. Pass or bet small"] : ["bad", "❌ Pass"];
+    out = `<div class="card"><div class="verdict ${cls}">${v}</div><div class="vline">${esc(label)} at <b>${am(o)}</b></div>
+      <div class="vs"><div class="row"><span class="lab">Model</span><div class="bar"><div style="width:${100 * p}%;background:var(--green)"></div></div><span class="num">${pct(p)}</span></div>
+      <div class="row"><span class="lab">DK</span><div class="bar"><div style="width:${100 * book}%;background:var(--muted)"></div></div><span class="num">${pct(book)}</span></div></div>
+      <div class="vline">Edge <b>${(100 * edge >= 0 ? "+" : "") + (100 * edge).toFixed(1)} pts</b> · expected profit <b>${ev >= 0 ? "+" : "−"}$${Math.abs(ev).toFixed(2)}</b> per $100</div>
+      <div class="vline">Fair price <b>${am(fair(p))}</b> · bet at <b>${betAt(p - thr(market))}</b> or better</div></div>
+      <div class="note">DK’s chance removes its usual cut (about 4.5% on game lines, 8% on props).</div>`;
+  }
+  return `<div class="note">Pick a bet, type the DraftKings odds, and we’ll tell you if it’s worth it.</div><div class="card soft">${form}</div><div id="cout">${out}</div>`;
+}
+function wireCheck() {
+  const on = (id, ev, f) => { const el = $("#" + id); if (el) el[ev] = f; };
+  on("cg", "onchange", e => { C.game = e.target.value; C.player = null; render(); });
+  $("#ck")?.querySelectorAll("button").forEach(b => b.onclick = () => { C.kind = b.dataset.k; C.line = null; render(); });
+  on("cm", "onchange", e => { C.market = e.target.value; C.line = null; if (C.side === "draw") C.side = "home"; render(); });
+  on("cs", "onchange", e => { C.side = e.target.value; render(); });
+  on("cd", "onchange", e => { C.dir = e.target.value; render(); });
+  on("cp", "onchange", e => { C.player = e.target.value; render(); });
+  on("cpm", "onchange", e => { C.pmarket = e.target.value; C.line = null; render(); });
+  on("cl", "onchange", e => { C.line = parseFloat(e.target.value); render(); });
+  on("co", "oninput", e => { C.odds = e.target.value; const pos = e.target.selectionStart; render(); const n = $("#co"); n.focus(); n.setSelectionRange(pos, pos); });
+}
+function lineups() {
+  if (!D.games.length) return empty("📋", "No lineups yet", "");
+  return `<div class="note">Lines, power-play units and starters come from Daily Faceoff and update through the day. A team is “confirmed” once its starting goalie is confirmed.</div>` +
+    D.games.map(g => `<div class="card">` + [g.away, g.home].map(t => {
+      const L = D.lines.filter(x => x.team === t.abbr);
+      const grp = k => L.filter(x => x.line === k).map(x => esc(x.name.split(" ").slice(-1)[0])).join(" – ");
+      const pp = n => L.filter(x => x.pp === n).map(x => esc(x.name.split(" ").slice(-1)[0])).join(", ");
+      const rows = ["F1", "F2", "F3", "F4", "D1", "D2", "D3"].map(k => grp(k) ? `<div class="ln"><b>${k}</b>${grp(k)}</div>` : "").join("");
+      return `<div class="lineteam"><div class="h2" style="display:flex;align-items:center;gap:10px">${logo(t).replace('class="logo"', 'class="logo" style="width:34px;height:34px"')}${esc(t.name)}</div>
+        <div class="gl" style="margin:0 0 6px">${goalie(t)}</div>${rows}
+        ${pp(1) ? `<div class="ln"><b>PP1</b>${pp(1)}</div>` : ""}${pp(2) ? `<div class="ln"><b>PP2</b>${pp(2)}</div>` : ""}
+        ${t.injuries.length ? `<div class="inj">🚑 ${t.injuries.map(i => `${esc(i.name)} <b>${esc(i.status)}</b>`).join(", ")}</div>` : ""}</div>`;
+    }).join("") + `</div>`).join("");
+}
+function model() {
+  if (!D.trust.length) return empty("📈", "Backtest not run yet", "");
+  const rows = D.trust.map(r => { const s = r.status; const [i, l] = s === "OK" ? ["✅", "Trust it"] : s.startsWith("DOWN") ? ["⚠️", "Bet smaller"] : ["⛔", "Skip it"];
+    return `<div class="status"><div><div class="nm">${esc(MNAME[r.market] || r.market)}</div><div class="d">tested on ${r.n.toLocaleString()} past predictions</div></div><span class="pill">${i} ${l}</span></div>`; }).join("");
+  return `<div class="card"><div class="h2">How much to trust each market</div><div class="note">Based on how the model did on past games it never saw.</div>${rows}</div>`;
+}
+function empty(e, t, s) { return `<div class="card empty"><div class="e">${e}</div><div class="t">${esc(t)}</div><div class="note">${esc(s)}</div></div>`; }
+function render() {
+  tabs();
+  const v = {tonight, players, check, lineups, model}[TAB]();
+  $("#view").innerHTML = v;
+  if (TAB === "players") wirePlayers();
+  if (TAB === "check") wireCheck();
+}
+fetch("data.json?v=" + Date.now()).then(r => r.json()).then(d => { D = d; header(); render(); })
+  .catch(e => { $("#hdr").innerHTML = `<div class="top"><div class="puck">🧊</div><div><h1 class="display">Almost game time</h1><div class="sub">The daily job hasn't published today's prices yet.</div></div></div>`; });
+</script>
+</body>
+</html>

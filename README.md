@@ -6,22 +6,26 @@ probability, fair American odds, the book's no-vig price and the edge**.
 
 ```
 pip install -r requirements-dev.txt
-python -m pytest -q                       # 35 tests, ~45 s
+python -m pytest -q                       # 37 tests, ~60 s
 ```
 
 ## Website (phone + desktop) and daily automation
 
 ```
-GitHub Actions (.github/workflows/daily.yml)            Streamlit Community Cloud (app/streamlit_app.py)
-  ~6am ET   fetch last night's games from the NHL API,     reads the files below from the `data-latest`
-            grade logged plays, walk-forward backtest       release: Flagged plays, All plays, Lineups
-  ~11am ET  price today's slate (+ odds if key set)         (pick goalies, confirm, re-price), Track record,
-  ~5:30pm   re-price with later lines                       Model health
-  hourly    closing odds for games about to start
+GitHub Actions (.github/workflows/daily.yml)              GitHub Pages: https://mbennett00.github.io/NHLModel/
+  ~6am ET   fetch last night's games from the NHL API,       plain HTML page (nhlmodel/web_template.html) +
+            grade logged plays, walk-forward backtest         data.json written by nhlmodel/web.py on every
+  11am, 1pm, 3:30pm, 5:30pm, 6:40pm ET                        slate run: Tonight, Players, Check, Lineups,
+            re-price with Daily Faceoff lines, goalies        Model. No server, so nothing to crash or wake up.
+            and injuries                                      The Check tab prices any line in the browser.
   push to overrides/**  re-price with your confirmations
-        │ writes plays.csv, slate.md, meta.json, bets_log.csv, odds_history, validation.md ... │
-        └────────────────────────────► GitHub release `data-latest` ───────────────────────────┘
+        │ state (history, bets_log.csv, validation, ...) ──► GitHub release `data-latest`
 ```
+
+One-time setup: repo **Settings → Pages → Build and deployment → Source: GitHub Actions**, then
+**Actions → daily model run → Run workflow** (task `slate`). On a phone, open the page and use
+*Add to Home Screen*. The older Streamlit dashboard (`app/streamlit_app.py`) still works from the
+same release files but is no longer needed.
 
 **No odds feed by default.** The site is a price sheet: for every bet it shows the model's chance, the
 fair price and a "bet at or better than" price (fair chance minus the market's edge threshold, with
@@ -36,10 +40,7 @@ Setup (one time):
    enough for props every day. Add `--no-props` to the workflow to save credits.
 2. **First data load:** GitHub → **Actions → daily model run → Run workflow → task `update`**.
    The first run downloads two seasons of games (roughly 1–2 hours; it resumes if cut off).
-3. **Dashboard:** sign in at share.streamlit.io with GitHub → **Create app** → repo
-   `Mbennett00/NHLModel`, branch `claude/betting-model-calibration-66x246` (or `main` once merged),
-   main file `app/streamlit_app.py`. On a phone, open the app URL and use *Add to Home Screen*.
-   To restrict who can see it, use the app's **Share** settings (viewer emails).
+3. **Website:** enable GitHub Pages as above. The page is public (as is the repo).
 4. **Confirming lineups:** nothing is flagged until a team's goalie and lineup are confirmed. Either
    use the dashboard's Lineups tab (re-prices instantly, not saved), or commit
    `overrides/YYYY-MM-DD.csv` (format in `overrides/README.md`), which re-runs the slate and logs

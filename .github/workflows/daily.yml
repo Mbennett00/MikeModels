@@ -30,6 +30,8 @@ jobs:
   run:
     runs-on: ubuntu-latest
     timeout-minutes: 340
+    outputs:
+      web: ${{ steps.web.outputs.web }}
     env:
       GH_TOKEN: ${{ github.token }}
       # No sportsbook odds feed: the model publishes fair prices and "bet at or better than" prices,
@@ -71,3 +73,30 @@ jobs:
         # also after a failure, so checkpointed games from a long first load are kept
         if: always() && steps.pull.outcome == 'success'
         run: scripts/state.sh push
+      - name: Check for web page
+        id: web
+        if: always()
+        run: |
+          if [ -f state/site/web/index.html ]; then echo "web=true" >> "$GITHUB_OUTPUT"; fi
+      - name: Package web page
+        if: always() && steps.web.outputs.web == 'true'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: state/site/web
+
+  # Publishes the price sheet to GitHub Pages (https://<owner>.github.io/<repo>/).
+  # One-time setup: repo Settings -> Pages -> Build and deployment -> Source: GitHub Actions.
+  pages:
+    needs: run
+    if: always() && needs.run.outputs.web == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4

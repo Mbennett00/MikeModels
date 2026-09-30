@@ -316,6 +316,7 @@ def cmd_slate(a):
     if sched.empty:
         meta["warnings"] = ["no NHL regular-season games in the next 45 days"]
         json.dump(meta, open(os.path.join(site, "meta.json"), "w"), indent=2)
+        _publish_web(site, None, pd.DataFrame(), meta)
         print("no games"); return
     tables = load_tables(a.state)
     cfg, cfg_src = config(a.state)
@@ -385,7 +386,23 @@ def cmd_slate(a):
                 teams=int(n_teams), teams_confirmed=int(conf),
                 data_through=str(tables["games"].date.max().date()), constants=cfg_src)
     json.dump(meta, open(os.path.join(site, "meta.json"), "w"), indent=2, default=str)
+    _publish_web(site, state, plays, meta)
     print(f"{len(plays)} plays, {meta['flagged']} flagged")
+
+
+def _publish_web(site, state, plays, meta):
+    """Rebuild the GitHub Pages site (site/web). Cosmetic: never fails the slate."""
+    from . import web
+
+    def js(name):
+        f = os.path.join(site, name)
+        return json.load(open(f)) if os.path.exists(f) else None
+    try:
+        ms = os.path.join(site, "market_summary.csv")
+        web.build(state, plays, meta, js("news.json"), js("images.json"),
+                  pd.read_csv(ms) if os.path.exists(ms) else None, os.path.join(site, "web"))
+    except Exception as e:
+        print(f"web page build failed: {e}")
 
 
 def _append_odds(hist: pd.DataFrame, new: pd.DataFrame) -> pd.DataFrame:
