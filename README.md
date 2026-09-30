@@ -119,6 +119,10 @@ These are the assumptions made instead of guesses. Each one is also printed in t
    the consistency check, player goal and assist λ get a fitted uplift of 1/(1 − league EN share).
    This uplift is the same for every player, so it does not model top-line forwards scoring more EN
    goals.
+9b. **League scale**: a walk-forward factor, actual ÷ predicted regulation goals over prior
+    predictions (recency weighted, clipped 0.9–1.1), multiplies every team λ. It removes the small
+    upward bias from multiplying shrunk factors, which had overpriced overs. It is refit with the
+    other parameters and shown in the fit log.
 10. **Consistency target**: team regulation non-EN λ × the share of goals credited to skaters, plus
     expected OT goals. Assists use the fitted assists-per-goal ratio.
 11. **Points**: `P(1+) = 1 − exp(−λ_pts)`. For higher lines, and for all lines once the backtest

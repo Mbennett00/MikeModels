@@ -52,6 +52,7 @@ jobs:
           echo "task=$t" >> "$GITHUB_OUTPUT"
           echo "Task: $t"
       - name: Download state
+        id: pull
         run: scripts/state.sh pull
       - name: Morning (update data, grade, backtest)
         if: steps.pick.outputs.task == 'morning'
@@ -64,4 +65,6 @@ jobs:
         if: steps.pick.outputs.task != 'morning'
         run: python -m nhlmodel.daily ${{ steps.pick.outputs.task }}
       - name: Upload state
+        # also after a failure, so checkpointed games from a long first load are kept
+        if: always() && steps.pull.outcome == 'success'
         run: scripts/state.sh push
