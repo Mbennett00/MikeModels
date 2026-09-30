@@ -442,6 +442,23 @@ def cmd_backtest(a):
     print(summary[["market", "line", "n", "logloss", "logloss_base", "status"]].to_string(index=False))
 
 
+def cmd_dfo_probe(a):
+    """Save raw Daily Faceoff page data to the release so the parser can be written against it."""
+    from .data import dailyfaceoff as dfo
+    site = _site(a.state)
+    date = pd.Timestamp(a.date) if a.date else today_et()
+    sess = __import__("requests").Session()
+    targets = [("dfo_probe_goalies.json", dfo.goalies_url(date))]
+    targets += [(f"dfo_probe_lines_{t}.json", dfo.lines_url(t)) for t in ("TOR", "COL")]
+    for name, url in targets:
+        try:
+            js = dfo.next_data(url, sess)
+            json.dump(js, open(os.path.join(site, name), "w"))
+            print(f"{url}: ok, keys {list(js.get('props', {}).get('pageProps', {}).keys())[:20]}")
+        except Exception as e:
+            print(f"{url}: FAILED {e}")
+
+
 def cmd_tune(a):
     from .tuning import coordinate_search, save_config
     site = _site(a.state)
@@ -457,7 +474,7 @@ def cmd_tune(a):
 
 def main(argv=None):
     p = argparse.ArgumentParser(prog="nhlmodel.daily")
-    p.add_argument("cmd", choices=["update", "slate", "close", "grade", "backtest", "tune"])
+    p.add_argument("cmd", choices=["update", "slate", "close", "grade", "backtest", "tune", "dfo-probe"])
     p.add_argument("--state", default="state")
     p.add_argument("--overrides", default="overrides")
     p.add_argument("--date")
@@ -470,7 +487,7 @@ def main(argv=None):
     p.add_argument("--no-props", action="store_true", help="skip player-prop odds (saves API credits)")
     a = p.parse_args(argv)
     {"update": cmd_update, "slate": cmd_slate, "close": cmd_close, "grade": cmd_grade,
-     "backtest": cmd_backtest, "tune": cmd_tune}[a.cmd](a)
+     "backtest": cmd_backtest, "tune": cmd_tune, "dfo-probe": cmd_dfo_probe}[a.cmd](a)
 
 
 if __name__ == "__main__":

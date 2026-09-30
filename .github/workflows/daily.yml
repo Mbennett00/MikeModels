@@ -14,7 +14,7 @@ on:
         description: "What to run"
         type: choice
         default: slate
-        options: [slate, morning, update, grade, backtest, close, tune]
+        options: [slate, morning, update, grade, backtest, close, tune, dfo-probe]
 
 permissions:
   contents: write
