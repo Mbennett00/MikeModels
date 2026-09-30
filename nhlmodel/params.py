@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 @dataclass
 class FittedParams:
     lam3: float = 0.05                                 # bivariate Poisson covariance
+    lam_scale: float = 1.0                             # league calibration: actual / predicted team goals
     ot_slope: float = 0.5                              # P(home wins OT/SO) = 0.5 + slope*(share-0.5)
     ot_home_edge: float = 0.0
     en_trans: dict = field(default_factory=lambda: {   # leader's lead d -> P(0,1,2 EN goals)

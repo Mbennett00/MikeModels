@@ -48,6 +48,13 @@ def fit_params(tables: dict, date, season: int, cfg: ModelConfig, game_preds: pd
     # ---- prediction-dependent parameters
     if game_preds is not None and len(game_preds):
         gp = game_preds[game_preds.date < date]
+        if len(gp) >= MIN_GAMES_LAM3 and "lam_home_unscaled" in gp:
+            # recency-weighted (half-life ~ 300 games) ratio of actual to unscaled predicted goals
+            w = 0.5 ** (np.arange(len(gp))[::-1] / 300.0)
+            act = (w * (gp.home_reg_nonen + gp.away_reg_nonen)).sum()
+            pred = (w * (gp.lam_home_unscaled + gp.lam_away_unscaled)).sum()
+            P.lam_scale = float(np.clip(act / pred, 0.9, 1.1))
+            gp = gp.assign(lam_home=gp.lam_home_unscaled * P.lam_scale, lam_away=gp.lam_away_unscaled * P.lam_scale)
         if len(gp) >= MIN_GAMES_LAM3:
             grid = np.linspace(0.0, 0.30, 31)
             ll = [bivariate_poisson_logpmf(gp.home_reg_nonen, gp.away_reg_nonen, gp.lam_home, gp.lam_away, l).sum()

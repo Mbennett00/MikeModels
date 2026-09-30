@@ -245,10 +245,11 @@ class TeamModel:
             mixpp = s * a.pp_off * d.pk_def * pp_time
             pppk = (mix5 + mixpp) / (a.off * d.dfn)
             opp = d.team
-            lam = base * a.off * d.dfn * gf * pppk * pace * rest[a.team] * rest_def[opp] * hf
+            lam = base * a.off * d.dfn * gf * pppk * pace * rest[a.team] * rest_def[opp] * hf * P.lam_scale
             baseline = base * ((1 - s) * a.off + s * a.pp_off * a.drawn)
             out[side] = dict(lam=lam, off=a.off, def_opp=d.dfn, goalie_opp=gf, pp_pk=pppk, pace=pace,
-                             rest=rest[a.team] * rest_def[opp], home=hf, baseline=baseline,
+                             rest=rest[a.team] * rest_def[opp], home=hf, baseline=baseline * P.lam_scale,
+                             scale=P.lam_scale,
                              pp_time=pp_time, opp_shots_against=d.shots_against)
         return out, flags
 

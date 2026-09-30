@@ -110,7 +110,7 @@ def walk_forward(tables: dict, cfg: ModelConfig, start, end, date_stride: int = 
             pdf = pd.DataFrame(player_rows) if player_rows else None
             params = fit_params(tables, date, season, cfg, gdf, pdf, snap.league)
             last_fit = date
-            fit_log.append(dict(date=date, lam3=params.lam3, ot_slope=params.ot_slope, p1_share=params.p1_share,
+            fit_log.append(dict(date=date, lam_scale=params.lam_scale, lam3=params.lam3, ot_slope=params.ot_slope, p1_share=params.p1_share,
                                 en_uplift=params.en_uplift, r_sog_F=params.nb_r["sog"]["F"],
                                 r_sog_D=params.nb_r["sog"]["D"], r_ast=params.count_r["assists"],
                                 r_pts=params.count_r["points"], rest=dict(params.rest),
@@ -129,6 +129,8 @@ def walk_forward(tables: dict, cfg: ModelConfig, start, end, date_stride: int = 
                 lam_home=gp.lam_home, lam_away=gp.lam_away,
                 lam_home_norest=gp.lam_home / gp.factors["home"]["rest"],
                 lam_away_norest=gp.lam_away / gp.factors["away"]["rest"],
+                lam_home_unscaled=gp.lam_home / gp.factors["home"]["scale"],
+                lam_away_unscaled=gp.lam_away / gp.factors["away"]["scale"],
                 home_b2b=rf["home"]["b2b"], away_b2b=rf["away"]["b2b"],
                 home_travel=rf["home"]["travel_km"] > 1500 and rf["home"]["b2b"],
                 away_travel=rf["away"]["travel_km"] > 1500 and rf["away"]["b2b"],
