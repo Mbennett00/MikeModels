@@ -71,7 +71,11 @@ def cmd_update(a):
     if len(games) and not a.full:
         # only look a few days back from the newest stored game (late-finishing games, corrections)
         start = max(start, pd.to_datetime(games.date).max() - pd.Timedelta(days=3))
-    nhl.update(path, start, end, max_games=a.max_games, max_minutes=a.max_minutes)
+    inter = nhl.update(path, start, end, max_games=a.max_games, max_minutes=a.max_minutes)
+    g = inter["games"]
+    write_status(a.state, games_stored=int(len(g)),
+                 data_through=str(pd.to_datetime(g.date).max().date()) if len(g) else None,
+                 seasons=sorted(int(x) for x in g.season.unique()) if len(g) else [])
 
 
 def projected_lineups(tables: dict, schedule: pd.DataFrame, overrides: pd.DataFrame | None, date) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -132,6 +136,26 @@ def _schedule(date):
     return s
 
 
+def next_game_day(start, days: int = 45):
+    """First date >= start with regular-season games (the schedule endpoint returns a week per call)."""
+    f = nhl.Fetcher()
+    d = pd.Timestamp(start)
+    while d <= pd.Timestamp(start) + pd.Timedelta(days=days):
+        games = [g for g in f.schedule(d) if g["game_type"] == 2 and g["date"] >= pd.Timestamp(start)]
+        if games:
+            return min(g["date"] for g in games)
+        d += pd.Timedelta(days=7)
+    return None
+
+
+def write_status(state, **kw):
+    site = _site(state)
+    f = os.path.join(site, "status.json")
+    st = json.load(open(f)) if os.path.exists(f) else {}
+    st.update(kw, updated_at=pd.Timestamp.now(tz=ET).isoformat())
+    json.dump(st, open(f, "w"), indent=2, default=str)
+
+
 def cmd_slate(a):
     from .data import odds_api
     from .report import slate_markdown, write
@@ -139,11 +163,17 @@ def cmd_slate(a):
     site = _site(a.state)
     date = pd.Timestamp(a.date) if a.date else today_et()
     sched = _schedule(date)
-    meta = dict(generated_at=pd.Timestamp.now(tz=ET).isoformat(), date=str(date.date()), games=len(sched))
+    upcoming = False
+    if sched.empty and not a.date:
+        nxt = next_game_day(date)
+        if nxt is not None:
+            date, sched, upcoming = nxt, _schedule(nxt), True
+    meta = dict(generated_at=pd.Timestamp.now(tz=ET).isoformat(), date=str(date.date()), games=len(sched),
+                upcoming=upcoming)
     if sched.empty:
-        meta["warnings"] = ["no NHL regular-season games today"]
+        meta["warnings"] = ["no NHL regular-season games in the next 45 days"]
         json.dump(meta, open(os.path.join(site, "meta.json"), "w"), indent=2)
-        print("no games today"); return
+        print("no games"); return
     tables = load_tables(a.state)
     cfg, cfg_src = config(a.state)
     ovf = os.path.join(a.overrides, f"{date.date()}.csv")
@@ -174,8 +204,12 @@ def cmd_slate(a):
     write(os.path.join(site, "slate.md"), slate_markdown(plays, cons, warnings, date))
     with open(os.path.join(site, "slate_state.pkl"), "wb") as fh:
         pickle.dump(dict(state=state, roster=roster), fh)
-    log_flagged(site, plays, date)
+    if not upcoming:
+        log_flagged(site, plays, date)   # only today's slate goes into the track record
+    n_teams = lineups.team.nunique() if len(lineups) else 0
+    conf = lineups.groupby("team").confirmed.all().sum() if len(lineups) else 0
     meta.update(warnings=warnings, odds_rows=int(len(odds)), flagged=int(plays.flag.sum()) if len(plays) else 0,
+                teams=int(n_teams), teams_confirmed=int(conf),
                 data_through=str(tables["games"].date.max().date()), constants=cfg_src)
     json.dump(meta, open(os.path.join(site, "meta.json"), "w"), indent=2, default=str)
     print(f"{len(plays)} plays, {meta['flagged']} flagged")
