@@ -42,12 +42,25 @@ def player_index(roster: pd.DataFrame) -> dict:
     return idx
 
 
+# common transliteration / short-name variants between sportsbooks and the NHL
+FIRST_ALIASES = {"yegor": "egor", "egor": "yegor", "evgeny": "evgeni", "evgeni": "evgeny", "yevgeni": "evgeni",
+                 "alexander": "alexandre", "alexandre": "alexander", "alex": "alexander", "nikolai": "nikolay",
+                 "nikolay": "nikolai", "mitch": "mitchell", "mitchell": "mitch", "matt": "matthew", "matthew": "matt",
+                 "zach": "zachary", "zachary": "zach", "josh": "joshua", "joshua": "josh", "jake": "jacob",
+                 "jacob": "jake", "nick": "nicholas", "nicholas": "nick", "mike": "michael", "michael": "mike"}
+
+
 def lookup(idx: dict, name: str):
     n = norm_name(name)
     if n in idx:
         return idx[n]
     parts = n.split()
-    return idx.get(f"{parts[0][0]} {parts[-1]}") if len(parts) >= 2 else None
+    if len(parts) < 2:
+        return None
+    alt = FIRST_ALIASES.get(parts[0])
+    if alt and f"{alt} {' '.join(parts[1:])}" in idx:
+        return idx[f"{alt} {' '.join(parts[1:])}"]
+    return idx.get(f"{parts[0][0]} {parts[-1]}")
 
 
 def parse_event(ev: dict, schedule: pd.DataFrame, name_to_id: dict, snapshot: str, fetched_at: str) -> tuple[list, set]:

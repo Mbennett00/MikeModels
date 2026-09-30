@@ -81,6 +81,8 @@ def test_odds_api_parse():
     df = pd.DataFrame(rows)
     assert set(df.market) == {"moneyline", "puckline", "total", "team_total", "sog", "goals", "points"}
     assert df[df.market == "points"].player_id.iloc[0] == 8475690
+    from nhlmodel.data.odds_api import lookup
+    assert lookup(player_index(pd.DataFrame(dict(name=["Egor Chinakhov"], player_id=[1]))), "Yegor Chinakhov") == 1
     assert df[df.market == "team_total"].selection.iloc[0] == "home_over"
     assert df[df.market == "goals"].line.iloc[0] == 0.5
     assert missing == {"Unknown Guy"}
