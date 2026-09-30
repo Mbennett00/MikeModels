@@ -270,22 +270,12 @@ def cmd_slate(a):
     ov = pd.read_csv(ovf) if os.path.exists(ovf) else None
     rosters = fetch_rosters(list(sched.home) + list(sched.away))
     lineups, roster = projected_lineups(tables, sched, ov, date, rosters)
+    odds = odds_api.fetch(sched, roster if len(roster) else lineups, "bet", props=not a.no_props)
     hist = _read(os.path.join(site, "odds_history.csv.gz"))
-    have_today = (len(hist) and ((pd.to_datetime(hist.date.astype(str), format="mixed").dt.normalize() == date)
-                                 & (hist.snapshot == "bet")).any())
-    if a.odds == "fetch" or (a.odds == "auto" and not have_today):
-        odds = odds_api.fetch(sched, roster if len(roster) else lineups, "bet", props=not a.no_props)
-    else:
-        odds = pd.DataFrame()
-        print("odds: reusing today's stored prices (no credits used)")
     if len(odds):
         hist = _append_odds(hist, odds)
         hist.to_csv(os.path.join(site, "odds_history.csv.gz"), index=False, compression="gzip")
         # latest bet-time price per book for today's pricing
-    if not len(odds) and len(hist):
-        hd = pd.to_datetime(hist.date.astype(str), format="mixed").dt.normalize()
-        odds = hist[(hd == date) & (hist.snapshot == "bet") & hist.game_id.isin(sched.game_id)].copy()
-    if len(odds):
         odds = odds.sort_values("fetched_at").drop_duplicates(
             ["game_id", "market", "player_id", "selection", "line", "book"], keep="last")
     hp = {}
@@ -322,9 +312,6 @@ def cmd_slate(a):
         log_flagged(site, plays, date)   # only today's slate goes into the track record
     n_teams = lineups.team.nunique() if len(lineups) else 0
     conf = lineups.groupby("team").confirmed.all().sum() if len(lineups) else 0
-    from .data.odds_api import LAST_CREDITS
-    if "remaining" in LAST_CREDITS:
-        write_status(a.state, odds_credits_left=LAST_CREDITS["remaining"])
     meta.update(warnings=warnings, odds_rows=int(len(odds)), flagged=int(plays.flag.sum()) if len(plays) else 0,
                 teams=int(n_teams), teams_confirmed=int(conf),
                 data_through=str(tables["games"].date.max().date()), constants=cfg_src)
@@ -376,7 +363,7 @@ def cmd_close(a):
         print("no games starting soon"); return
     tables = load_tables(a.state)
     _, roster = projected_lineups(tables, soon, None, date, fetch_rosters(list(soon.home) + list(soon.away)))
-    odds = odds_api.fetch(soon, roster, "close", props=False, game_ids=set(soon.game_id), close=True)
+    odds = odds_api.fetch(soon, roster, "close", props=not a.no_props, game_ids=set(soon.game_id))
     if len(odds):
         hist = _append_odds(hist, odds)
         hist.to_csv(os.path.join(site, "odds_history.csv.gz"), index=False, compression="gzip")
@@ -476,8 +463,6 @@ def main(argv=None):
     p.add_argument("--window", type=int, default=75, help="close: minutes ahead of puck drop")
     p.add_argument("--days", type=int, default=150, help="backtest/tune: number of recent game dates")
     p.add_argument("--no-props", action="store_true", help="skip player-prop odds (saves API credits)")
-    p.add_argument("--odds", choices=["auto", "fetch", "reuse"], default="auto",
-                   help="slate: fetch new odds, reuse today's stored odds, or auto (fetch only if none today)")
     a = p.parse_args(argv)
     {"update": cmd_update, "slate": cmd_slate, "close": cmd_close, "grade": cmd_grade,
      "backtest": cmd_backtest, "tune": cmd_tune}[a.cmd](a)

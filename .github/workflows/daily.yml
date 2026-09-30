@@ -32,12 +32,6 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
-      # credit budget (override in Settings -> Secrets and variables -> Actions -> Variables)
-      ODDS_BOOKMAKERS: ${{ vars.ODDS_BOOKMAKERS || 'draftkings' }}
-      ODDS_PROP_MARKETS: ${{ vars.ODDS_PROP_MARKETS || 'player_shots_on_goal' }}
-      ODDS_EXTRA_MARKETS: ${{ vars.ODDS_EXTRA_MARKETS || '' }}
-      ODDS_CLOSE_MARKETS: ${{ vars.ODDS_CLOSE_MARKETS || 'h2h,totals' }}
-      ODDS_MIN_CREDITS: ${{ vars.ODDS_MIN_CREDITS || '20' }}
       PYTHONUNBUFFERED: "1"
     steps:
       - uses: actions/checkout@v4
@@ -48,19 +42,15 @@ jobs:
       - name: Pick task
         id: pick
         run: |
-          # odds credits: only the 5:30pm run pulls new odds; other runs reuse today's stored prices
-          odds=auto
           case "${{ github.event_name }}|${{ github.event.schedule }}" in
-            "schedule|5 10 * * *") t=morning; odds=reuse ;;
-            "schedule|5 15 * * *") t=slate; odds=reuse ;;
-            "schedule|35 21 * * *") t=slate; odds=fetch ;;
+            "schedule|5 10 * * *") t=morning ;;
+            "schedule|5 15 * * *"|"schedule|35 21 * * *") t=slate ;;
             schedule*) t=close ;;
             push*) t=slate ;;
             *) t="${{ inputs.task }}" ;;
           esac
           echo "task=$t" >> "$GITHUB_OUTPUT"
-          echo "odds=$odds" >> "$GITHUB_OUTPUT"
-          echo "Task: $t (odds: $odds)"
+          echo "Task: $t"
       - name: Download state
         id: pull
         run: scripts/state.sh pull
@@ -70,15 +60,10 @@ jobs:
           python -m nhlmodel.daily update
           python -m nhlmodel.daily grade
           python -m nhlmodel.daily backtest
-          python -m nhlmodel.daily slate --odds ${{ steps.pick.outputs.odds }}
+          python -m nhlmodel.daily slate
       - name: Run ${{ steps.pick.outputs.task }}
         if: steps.pick.outputs.task != 'morning'
-        run: |
-          if [ "${{ steps.pick.outputs.task }}" = "slate" ]; then
-            python -m nhlmodel.daily slate --odds ${{ steps.pick.outputs.odds }}
-          else
-            python -m nhlmodel.daily ${{ steps.pick.outputs.task }}
-          fi
+        run: python -m nhlmodel.daily ${{ steps.pick.outputs.task }}
       - name: Upload state
         # also after a failure, so checkpointed games from a long first load are kept
         if: always() && steps.pull.outcome == 'success'

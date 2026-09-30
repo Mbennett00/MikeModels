@@ -26,17 +26,8 @@ GitHub Actions (.github/workflows/daily.yml)            Streamlit Community Clou
 Setup (one time):
 1. **Odds (optional but needed for edges):** get a key from the-odds-api.com, then add it in GitHub
    → repo **Settings → Secrets and variables → Actions → New repository secret**, name `ODDS_API_KEY`.
-   **Budget mode (default, fits roughly 500 credits/month):** DraftKings only; odds pulled once a day
-   in the 5:30pm ET run (other runs reuse them); props limited to shots on goal; closing odds for
-   moneyline and totals only; no pulls once 20 credits are left. A day with about 7 games costs roughly
-   3 (game lines) + 7 (one prop market per game) + 4–6 (closing lines) ≈ 15 credits.
-   The Odds API charges markets × regions, and one region already covers every US book, so
-   limiting to DraftKings alone does not save credits. To change the budget, add repository
-   **Variables** (Settings → Secrets and variables → Actions → Variables): `ODDS_BOOKMAKERS`
-   (for example `draftkings,fanduel`), `ODDS_PROP_MARKETS` (for example
-   `player_shots_on_goal,player_goal_scorer_anytime,player_points,player_assists`),
-   `ODDS_EXTRA_MARKETS` (`team_totals,totals_p1,h2h_3_way_p1`), `ODDS_CLOSE_MARKETS` and
-   `ODDS_MIN_CREDITS`.
+   Player props cost one request per game per market group, so the free tier (500/month) is not
+   enough for props every day. Add `--no-props` to the workflow to save credits.
 2. **First data load:** GitHub → **Actions → daily model run → Run workflow → task `update`**.
    The first run downloads two seasons of games (roughly 1–2 hours; it resumes if cut off).
 3. **Dashboard:** sign in at share.streamlit.io with GitHub → **Create app** → repo
