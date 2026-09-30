@@ -78,24 +78,111 @@ def cmd_update(a):
                  seasons=sorted(int(x) for x in g.season.unique()) if len(g) else [])
 
 
-def projected_lineups(tables: dict, schedule: pd.DataFrame, overrides: pd.DataFrame | None, date) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Last game's skaters and lines per team; starter = most starts in last 10 (other goalie on a B2B)."""
-    lu, gg = tables["lineups"], tables["goalie_games"]
-    rows, roster = [], []
+def fetch_rosters(teams) -> pd.DataFrame:
+    f = nhl.Fetcher()
+    rows = []
+    for t in sorted(set(teams)):
+        try:
+            rows += f.roster(t)
+        except RuntimeError as e:
+            print(f"roster {t}: {e}")
+    return pd.DataFrame(rows)
+
+
+def _pick_starter(goalie_ids, starts: pd.DataFrame, date):
+    """Most starts in each goalie's recent games (any team), recency weighted; other goalie on a B2B."""
+    if not len(goalie_ids):
+        return None
+    s = starts[starts.player_id.isin(goalie_ids)].sort_values("date")
+    if s.empty:
+        return goalie_ids[0]
+    age = (date - s.date).dt.days.clip(lower=0)
+    w = (0.5 ** (age / 60.0)).groupby(s.player_id).sum().sort_values(ascending=False)
+    pick = w.index[0]
+    last = s[s.date == s.date.max()]
+    if len(w) > 1 and (date - s.date.max()).days == 1 and pick in set(last.player_id):
+        pick = w.index[1]
+    return pick
+
+
+def _roster_lineup(team, roster_t: pd.DataFrame, pg: pd.DataFrame, date, game_id) -> pd.DataFrame:
+    """Build lines from a current roster: rank by each player's recent 5v5 / PP ice time on any team."""
+    hist = pg[pg.player_id.isin(roster_t.player_id) & (pg.date < date)].sort_values("date")
+    recent = hist.groupby("player_id").tail(15).groupby("player_id").agg(toi5=("toi_5v5", "mean"), toipp=("toi_pp", "mean"))
+    r = roster_t[roster_t.pos != "G"].set_index("player_id").join(recent).fillna({"toi5": 0.0, "toipp": 0.0})
+    rows = []
+    for pos, n, size, prefix in (("F", 12, 3, "F"), ("D", 6, 2, "D")):
+        grp = r[r.pos == pos].sort_values("toi5", ascending=False).head(n)
+        for i, (pid, x) in enumerate(grp.iterrows()):
+            rows.append(dict(player_id=pid, name=x["name"], pos=pos, line=f"{prefix}{i // size + 1}", toipp=x.toipp,
+                             headshot=x.get("headshot", "")))
+    lu = pd.DataFrame(rows)
+    if lu.empty:
+        return lu
+    pp = lu.sort_values("toipp", ascending=False)
+    lu["pp_unit"] = 0
+    lu.loc[pp.index[:5], "pp_unit"] = 1
+    lu.loc[pp.index[5:10], "pp_unit"] = 2
+    lu.loc[lu.toipp < 0.3, "pp_unit"] = 0
+    return lu.drop(columns="toipp").assign(date=date, game_id=game_id, team=team, confirmed=False)
+
+
+def projected_lineups(tables: dict, schedule: pd.DataFrame, overrides: pd.DataFrame | None, date,
+                      rosters: pd.DataFrame | None = None) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Projected lineup per team, kept current with today's NHL rosters.
+
+    * Team has played this season: its last game's lineup, minus players no longer on the roster
+      (replacements from the roster by recent ice time).
+    * Team has not played yet this season: lines built from the current roster, ranked by each
+      player's recent ice time on any team (so offseason moves are reflected).
+    * Starter: the roster goalie with the most recent starts (any team); the other one on a B2B.
+    Without ``rosters`` (offline/tests) it falls back to the last game's lineup and goalies.
+    """
+    from .slate import season_of
+    lu, gg, pg = tables["lineups"], tables["goalie_games"], tables["player_games"]
+    season = season_of(date)
+    starts = lu[(lu.pos == "G") & (lu.date < date)]
+    rows, roster, notes = [], [], []
     for g in schedule.itertuples():
         for team in (g.home, g.away):
             tl = lu[(lu.team == team) & (lu.date < date)]
+            rt = rosters[rosters.team == team] if rosters is not None and len(rosters) else None
+            if rt is not None and len(rt):
+                roster += rt.to_dict("records")
+                this_season = tl[pd.to_datetime(tl.date) >= pd.Timestamp(f"{season}-08-01")]
+                if len(this_season):
+                    last = this_season[this_season.date == this_season.date.max()]
+                    sk = last[(last.pos != "G") & last.player_id.isin(rt.player_id)].copy()
+                    missing_f = 12 - (sk.pos == "F").sum()
+                    missing_d = 6 - (sk.pos == "D").sum()
+                    if missing_f > 0 or missing_d > 0:
+                        fill = _roster_lineup(team, rt[~rt.player_id.isin(sk.player_id)], pg, date, g.game_id)
+                        if len(fill):
+                            extra = pd.concat([fill[fill.pos == "F"].head(max(missing_f, 0)),
+                                               fill[fill.pos == "D"].head(max(missing_d, 0))])
+                            sk = pd.concat([sk, extra.assign(line=np.where(extra.pos == "F", "F4", "D3"), pp_unit=0)])
+                    sk = sk.merge(rt[["player_id", "headshot"]], on="player_id", how="left", suffixes=("_x", ""))
+                    sk = sk.drop(columns=[c for c in sk if c.endswith("_x")])
+                    sk = sk.assign(date=date, game_id=g.game_id, confirmed=False)
+                else:
+                    sk = _roster_lineup(team, rt, pg, date, g.game_id)
+                    notes.append(f"{team}: no game yet this season, lines built from the current roster")
+                rows.append(sk)
+                gids = list(rt[rt.pos == "G"].player_id)
+                pick = _pick_starter(gids, starts, date)
+                if pick is not None:
+                    gr = rt[rt.player_id == pick].iloc[0]
+                    rows.append(pd.DataFrame([dict(date=date, game_id=g.game_id, team=team, player_id=pick,
+                                                   name=gr["name"], pos="G", line="G1", pp_unit=0, confirmed=False,
+                                                   headshot=gr.get("headshot", ""))]))
+                continue
+            # ---- offline fallback: last game in the data
             if tl.empty:
                 continue
             last = tl[tl.date == tl.date.max()]
-            sk = last[last.pos != "G"].assign(date=date, game_id=g.game_id, confirmed=False)
-            rows.append(sk)
-            starts = tl[tl.pos == "G"].sort_values("date").tail(10)
-            cand = starts.player_id.value_counts()
-            pick = cand.index[0] if len(cand) else None
-            if pick is not None and len(cand) > 1 and (date - starts.date.max()).days == 1 \
-                    and starts.iloc[-1].player_id == pick:
-                pick = cand.index[1]      # back-to-back: expect the other goalie
+            rows.append(last[last.pos != "G"].assign(date=date, game_id=g.game_id, confirmed=False))
+            tg_starts = tl[tl.pos == "G"]
+            pick = _pick_starter(list(tg_starts.player_id.unique()), tg_starts, date)
             goalies = gg[(gg.team == team) & (gg.date < date)].sort_values("date").drop_duplicates("goalie_id", keep="last").tail(4)
             for r in goalies.itertuples():
                 roster.append(dict(team=team, player_id=r.goalie_id, name=r.name, pos="G"))
@@ -107,9 +194,12 @@ def projected_lineups(tables: dict, schedule: pd.DataFrame, overrides: pd.DataFr
             for r in recent.itertuples():
                 roster.append(dict(team=team, player_id=r.player_id, name=r.name, pos=r.pos))
     out = pd.concat(rows, ignore_index=True) if rows else pd.DataFrame()
+    roster = pd.DataFrame(roster).drop_duplicates(["team", "player_id"]) if roster else pd.DataFrame(
+        columns=["team", "player_id", "name", "pos"])
     if overrides is not None and len(overrides) and len(out):
-        out = apply_overrides(out, overrides, pd.DataFrame(roster))
-    return out, pd.DataFrame(roster).drop_duplicates(["team", "player_id"])
+        out = apply_overrides(out, overrides, roster)
+    out.attrs["notes"] = notes
+    return out, roster
 
 
 def apply_overrides(lu: pd.DataFrame, ov: pd.DataFrame, roster: pd.DataFrame) -> pd.DataFrame:
@@ -178,7 +268,8 @@ def cmd_slate(a):
     cfg, cfg_src = config(a.state)
     ovf = os.path.join(a.overrides, f"{date.date()}.csv")
     ov = pd.read_csv(ovf) if os.path.exists(ovf) else None
-    lineups, roster = projected_lineups(tables, sched, ov, date)
+    rosters = fetch_rosters(list(sched.home) + list(sched.away))
+    lineups, roster = projected_lineups(tables, sched, ov, date, rosters)
     odds = odds_api.fetch(sched, roster if len(roster) else lineups, "bet", props=not a.no_props)
     hist = _read(os.path.join(site, "odds_history.csv.gz"))
     if len(odds):
@@ -194,7 +285,8 @@ def cmd_slate(a):
             hp[k] = pd.read_csv(f, parse_dates=["date"])
     state = build_state({k: v for k, v in tables.items() if not k.startswith("_")}, sched, lineups,
                         odds if len(odds) else None, cfg, hp or None, date)
-    state.warnings = list(tables["_notes"]) + state.warnings + [f"constants: {cfg_src}"]
+    state.warnings = (list(tables["_notes"]) + state.warnings + [f"constants: {cfg_src}"]
+                      + lineups.attrs.get("notes", []) + ["lineups and goalies use today's NHL rosters"])
     if ov is None:
         state.warnings.append(f"no overrides/{date.date()}.csv: lineups are projected from each team's last game "
                               "and goalies from recent starts, so nothing is confirmed and nothing is flagged")
@@ -251,7 +343,7 @@ def cmd_close(a):
     if soon.empty:
         print("no games starting soon"); return
     tables = load_tables(a.state)
-    _, roster = projected_lineups(tables, soon, None, date)
+    _, roster = projected_lineups(tables, soon, None, date, fetch_rosters(list(soon.home) + list(soon.away)))
     odds = odds_api.fetch(soon, roster, "close", props=not a.no_props, game_ids=set(soon.game_id))
     if len(odds):
         hist = pd.concat([hist, odds], ignore_index=True)

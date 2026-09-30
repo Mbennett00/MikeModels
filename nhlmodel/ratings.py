@@ -84,7 +84,7 @@ class Snapshot:
 
 
 def build_snapshot(tables: dict, date, season: int, half_life: float, seasons_back: int = 2,
-                   toi_window: int = 10) -> Snapshot:
+                   toi_window: int = 10, prior_season_weight: float = 1.0) -> Snapshot:
     date = pd.Timestamp(date)
     tg = in_window(tables["team_games"], date, season, seasons_back).copy()
     gg = in_window(tables["goalie_games"], date, season, seasons_back).copy()
@@ -92,6 +92,9 @@ def build_snapshot(tables: dict, date, season: int, half_life: float, seasons_ba
 
     # ---- teams
     tg["w"] = decay_weights(tg, "team", half_life)
+    # rosters change between seasons: earlier seasons count less, so early-season team ratings
+    # regress harder toward the league average (tuned on the backtest)
+    tg.loc[tg.season < season, "w"] *= prior_season_weight
     ws = tg[TEAM_SUMS].multiply(tg["w"], axis=0)
     ws["team"] = tg["team"]; ws["w"] = tg["w"]; ws["n"] = 1
     team = ws.groupby("team").sum(numeric_only=True)

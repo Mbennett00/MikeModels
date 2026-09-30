@@ -83,7 +83,8 @@ def build_state(tables: dict, schedule: pd.DataFrame, lineups: pd.DataFrame, odd
                 cfg: ModelConfig, history_preds: dict | None = None, date=None) -> SlateState:
     date = pd.Timestamp(date or schedule.date.min()).normalize()
     season = season_of(date)
-    snap = build_snapshot(tables, date, season, cfg.half_life_games, cfg.seasons_back, cfg.toi_window)
+    snap = build_snapshot(tables, date, season, cfg.half_life_games, cfg.seasons_back, cfg.toi_window,
+                          cfg.prior_season_weight)
     hp = history_preds or {}
     params = fit_params(tables, date, season, cfg, hp.get("games"), hp.get("players"), snap.league)
     warnings = list(params.notes)
@@ -105,6 +106,8 @@ def price_state(st: SlateState, lineups: pd.DataFrame | None = None, odds: pd.Da
     cfg, params, date, schedule = st.cfg, st.params, st.date, st.schedule
     tm = TeamModel(cfg, st.snap, params)
     rows, cons, warnings = [], [], list(st.warnings)
+    lu_heads = ({int(p): h for p, h in zip(lineups.player_id, lineups.headshot) if isinstance(h, str) and h}
+                if "headshot" in lineups else {})
     for g in schedule.itertuples(index=False):
         lu = lineups[lineups.game_id == g.game_id]
         hg, hconf = _goalie(lu, g.home)
@@ -148,7 +151,7 @@ def price_state(st: SlateState, lineups: pd.DataFrame | None = None, odds: pd.Da
                                              line=ln, player_id=pr["player_id"], player=pr["name"],
                                              projection=f"{lam:.3f}", p_model=p, confirmed=pr["confirmed"] and confirmed_game,
                                              player_confirmed=pr["confirmed"], goalies_confirmed=confirmed_game,
-                                             team=pr["team"], pos=pr["pos"], headshot=headshot_url(st.snap, pr["player_id"]),
+                                             team=pr["team"], pos=pr["pos"], headshot=lu_heads.get(int(pr["player_id"])) or headshot_url(st.snap, pr["player_id"]),
                                              flags="; ".join(x for x in (pr["flags"], gflags) if x)))
     out = pd.DataFrame(rows)
     if out.empty:

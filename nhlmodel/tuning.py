@@ -23,6 +23,7 @@ from .validation import CANONICAL, logloss
 
 GRID = {
     "half_life_games": [15.0, 25.0, 40.0],
+    "prior_season_weight": [0.4, 0.7, 1.0],
     "k_ixg_5v5": [200.0, 400.0, 800.0],
     "k_ixg_pp": [75.0, 150.0, 300.0],
     "m_finish": [15.0, 30.0, 60.0],
@@ -44,6 +45,7 @@ TARGET = {
     "k_team_5v5": ["moneyline", "total", "puckline"], "k_goalie_xga": ["moneyline", "total", "puckline"],
     "pace_exponent": ["total"],
     "half_life_games": ["goals", "sog", "assists", "points", "moneyline", "total"],
+    "prior_season_weight": ["moneyline", "total", "puckline"],
 }
 
 
@@ -87,7 +89,7 @@ def coordinate_search(tables, cfg: ModelConfig, start, end, grid=GRID, passes: i
                 print(f"  {name}: " + ", ".join(f"{k}={s:.5f}" for k, s in scores.items()) + f"  -> {v_best}")
             best = best.with_(**{name: v_best})
             # drop cached snapshots for half-lives no longer in use to bound memory
-            for k in [k for k in cache if k[1] != best.half_life_games]:
+            for k in [k for k in cache if k[1] != best.half_life_games or k[4] != best.prior_season_weight]:
                 cache.pop(k)
     return best, pd.DataFrame(log)
 

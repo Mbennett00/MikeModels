@@ -14,6 +14,7 @@ class ModelConfig:
     # ---- data window / recency ------------------------------------------------
     seasons_back: int = 2              # current season + previous season
     half_life_games: float = 25.0      # exponential decay half-life, in the entity's own games
+    prior_season_weight: float = 0.6   # team data from earlier seasons (roster turnover); tuned
 
     # ---- team model shrinkage (minutes of TOI of league-average prior) --------
     k_team_5v5: float = 1500.0

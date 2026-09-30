@@ -293,6 +293,17 @@ class Fetcher:
                                 start_utc=g.get("startTimeUTC")))
         return out
 
+    def roster(self, team: str) -> list[dict]:
+        """Current NHL roster (api-web /roster/{team}/current)."""
+        js = self.get(f"{WEB}/roster/{team}/current")
+        out = []
+        for group, pos in (("forwards", "F"), ("defensemen", "D"), ("goalies", "G")):
+            for p in js.get(group, []) or []:
+                name = f'{(p.get("firstName") or {}).get("default", "")} {(p.get("lastName") or {}).get("default", "")}'.strip()
+                out.append(dict(team=team, player_id=int(p["id"]), name=name, pos=pos,
+                                headshot=p.get("headshot", "")))
+        return out
+
     def game(self, gid: int) -> tuple[dict, list]:
         pbp = self.get(f"{WEB}/gamecenter/{gid}/play-by-play")
         sh = self.get(f"{STATS}/shiftcharts?cayenneExp=gameId={gid}").get("data", [])

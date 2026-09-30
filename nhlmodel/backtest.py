@@ -95,10 +95,11 @@ def walk_forward(tables: dict, cfg: ModelConfig, start, end, date_stride: int = 
         date = pd.Timestamp(date)
         day = games[games.date == date]
         season = int(day.season.iloc[0])
-        key = (date, cfg.half_life_games, cfg.seasons_back, cfg.toi_window)
+        key = (date, cfg.half_life_games, cfg.seasons_back, cfg.toi_window, cfg.prior_season_weight)
         snap = snap_cache.get(key) if snap_cache is not None else None
         if snap is None:
-            snap = build_snapshot(tables, date, season, cfg.half_life_games, cfg.seasons_back, cfg.toi_window)
+            snap = build_snapshot(tables, date, season, cfg.half_life_games, cfg.seasons_back, cfg.toi_window,
+                                  cfg.prior_season_weight)
             if snap_cache is not None:
                 snap_cache[key] = snap
         if snap.n_team_games < 64:
