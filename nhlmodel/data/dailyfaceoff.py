@@ -51,3 +51,56 @@ def goalies_url(date) -> str:
 
 def lines_url(team: str, slug: str | None = None) -> str:
     return f"{BASE}/teams/{slug or SLUG[team]}/line-combinations"
+
+
+ABBR = {v: k for k, v in SLUG.items()} | {s: k for k, alts in ALT_SLUG.items() for s in alts}
+INJURY_LABEL = {"ir": "IR", "ltir": "LTIR", "out": "Out", "dtd": "Day-to-day"}
+
+
+def parse_goalies(js: dict) -> list[dict]:
+    """One row per team on the starting-goalies page: goalie name and Confirmed / Likely / Unconfirmed."""
+    rows = []
+    for g in js.get("props", {}).get("pageProps", {}).get("data", []) or []:
+        for side in ("home", "away"):
+            team = ABBR.get(g.get(f"{side}TeamSlug", ""))
+            if not team:
+                continue
+            rows.append(dict(team=team, goalie=g.get(f"{side}GoalieName") or "",
+                             status=g.get(f"{side}NewsStrengthName") or "Unconfirmed",
+                             note=(g.get(f"{side}NewsDetails") or "").strip(),
+                             updated=g.get(f"{side}NewsCreatedAt"), start_utc=g.get("dateGmt")))
+    return rows
+
+
+def parse_lines(js: dict, team: str) -> list[dict]:
+    """Every player listed on a team's line-combinations page with his slot and injury status."""
+    players = js.get("props", {}).get("pageProps", {}).get("combinations", {}).get("players", []) or []
+    return [dict(team=team, name=p.get("name") or "", category=p.get("categoryIdentifier"),
+                 group=p.get("groupIdentifier"), slot=p.get("positionIdentifier"),
+                 injury=p.get("injuryStatus"), gtd=bool(p.get("gameTimeDecision")),
+                 news=((p.get("latestNews") or {}).get("details") or "").strip())
+            for p in players]
+
+
+def fetch_day(date, teams, log=print) -> dict:
+    """Starting goalies for the date plus line combinations for each team (one page per team)."""
+    s = requests.Session()
+    out = {"goalies": [], "lines": [], "errors": []}
+    try:
+        out["goalies"] = parse_goalies(next_data(goalies_url(date), s))
+    except Exception as e:
+        out["errors"].append(f"starting goalies: {e}")
+    for t in sorted(set(teams)):
+        for slug in [SLUG.get(t)] + ALT_SLUG.get(t, []):
+            if not slug:
+                continue
+            try:
+                out["lines"] += parse_lines(next_data(lines_url(t, slug), s), t)
+                break
+            except Exception as e:
+                err = f"{t} lines ({slug}): {e}"
+        else:
+            out["errors"].append(err)
+    log(f"daily faceoff: {len(out['goalies'])} goalie entries, {len(out['lines'])} player slots, "
+        f"{len(out['errors'])} errors {out['errors'][:3]}")
+    return out

@@ -468,6 +468,14 @@ table.px td.tgt { font-family: 'Fredoka', sans-serif; font-weight: 700; color: v
 .verdict.good { color: var(--green); } .verdict.meh { color: #9a6a12; } .verdict.bad { color: var(--red); }
 .vline { font-size: 16px; font-weight: 700; color: var(--ink-2); margin: 4px 0; }
 .vline b { color: var(--navy); }
+.gl { display: flex; justify-content: space-between; gap: 8px; margin-top: 10px; font-size: 14px; font-weight: 700; }
+.gl .g { flex: 1; }
+.gl .g.r { text-align: right; }
+.gl .st { display: inline-block; font-size: 12px; font-weight: 800; padding: 1px 8px; border-radius: 999px;
+          border: 2px solid var(--navy); margin-top: 3px; }
+.gl .st.ok { background: var(--green-soft); } .gl .st.lk { background: var(--gold-soft); } .gl .st.un { background: #eee; }
+.inj { margin-top: 10px; font-size: 13px; color: var(--ink-2); font-weight: 700; line-height: 1.5; }
+.inj b { color: var(--red); }
 </style>
 """, unsafe_allow_html=True)
 
@@ -494,6 +502,47 @@ if len(plays):
         load_images(sorted({t for m in plays.matchup.unique() for t in teams_of(m)}), plays.headshot.unique())
 blob = fetch("slate_state.pkl")
 SAVED = pickle.loads(blob) if blob else None
+NEWS = js("news.json")
+
+
+def goalie_line(team):
+    """(name, status) for the starter: user choice > Daily Faceoff > projection."""
+    lu = st.session_state.get("lineups")
+    lu = lu if lu is not None else (SAVED["state"].lineups if SAVED else None)
+    name, status = "", ""
+    if lu is not None:
+        g = lu[(lu.team == team) & (lu.pos == "G")]
+        if len(g):
+            name = str(g["name"].iloc[0])
+            status = (g.status.iloc[0] if "status" in g and isinstance(g.status.iloc[0], str) and g.status.iloc[0]
+                      else ("Confirmed" if bool(g.confirmed.iloc[0]) else "Projected"))
+            if st.session_state.get("repriced") and bool(g.confirmed.iloc[0]):
+                status = "Confirmed"
+    if not name and team in NEWS.get("goalies", {}):
+        name, status = NEWS["goalies"][team]["goalie"], NEWS["goalies"][team]["status"]
+    return name, status
+
+
+def goalie_html(team, right=False):
+    name, status = goalie_line(team)
+    if not name:
+        return f'<div class="g{" r" if right else ""}">🥅 TBD</div>'
+    cls, icon = {"Confirmed": ("ok", "✅"), "Likely": ("lk", "🟡")}.get(status, ("un", "❔"))
+    return (f'<div class="g{" r" if right else ""}">🥅 {E(name)}<br>'
+            f'<span class="st {cls}">{icon} {E(status or "Projected")}</span></div>')
+
+
+def injuries_html(teams):
+    items = [i for i in NEWS.get("injuries", []) if i["team"] in teams]
+    if not items:
+        return ""
+    parts = []
+    for t in teams:
+        mine = [i for i in items if i["team"] == t]
+        if mine:
+            parts.append(f"{E(t)}: " + ", ".join(f'{E(i["name"])} <b>{E(i["status"])}</b>' for i in mine))
+    return f'<div class="inj">🚑 {" · ".join(parts)}</div>'
+
 
 
 def bet_at(x):
@@ -516,7 +565,7 @@ if len(plays):
     pills.append('<span class="pill gold">💲 Fair prices ready</span>')
     if meta.get("teams"):
         c, n = meta.get("teams_confirmed", 0), meta["teams"]
-        pills.append(f'<span class="pill{" green" if c == n else ""}">📋 Lineups {c}/{n} confirmed</span>')
+        pills.append(f'<span class="pill{" green" if c == n else ""}">🥅 Goalies {c}/{n} confirmed</span>')
 if st.session_state.get("repriced"):
     pills.append('<span class="pill green">Updated with your lineups</span>')
 st.markdown(f"""<div class="card"><div class="top"><div class="puck">🏒</div>
@@ -586,7 +635,8 @@ with t_games:
     <div class="mid"><div class="at">at</div><div class="time">{E(r0.time) or ''}</div></div>
     <div class="t">{logo_img(home)}<div class="nm">{E(nickname(home))}</div><div class="g">{E(home)}</div></div>
   </div>
-  {wp}{proj_html}
+  <div class="gl">{goalie_html(away)}{goalie_html(home, right=True)}</div>
+  {wp}{proj_html}{injuries_html([away, home])}
   <table class="px">{head}{rows(main)}</table>
   <details><summary>More bets (other totals, team totals, 1st period)</summary>
   <table class="px">{head}{rows(more)}</table></details>

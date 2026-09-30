@@ -127,8 +127,45 @@ def _roster_lineup(team, roster_t: pd.DataFrame, pg: pd.DataFrame, date, game_id
     return lu.drop(columns="toipp").assign(date=date, game_id=game_id, team=team, confirmed=False)
 
 
+def _dfo_team_lineup(team, lines: pd.DataFrame, goalie: dict | None, rt: pd.DataFrame, extra_idx: dict,
+                     date, game_id, log=print) -> pd.DataFrame | None:
+    """Lineup from Daily Faceoff: F1-F4 / D1-D3 slots, PP1/PP2, starter + Confirmed/Likely status."""
+    from .data.odds_api import lookup, player_index
+    ev = lines[(lines.category == "ev")]
+    sk = ev[ev.group.str.fullmatch(r"f[1-4]|d[1-3]", na=False)]
+    if len(sk) < 15:
+        return None                  # page incomplete: use the roster projection instead
+    idx = player_index(rt[rt.pos != "G"]) if len(rt) else {}
+    pp = lines[lines.category == "pp"]
+    pp_unit = {n: int(g[-1]) for n, g in zip(pp.name, pp.group) if g in ("pp1", "pp2")}
+    heads = dict(zip(rt.player_id, rt.get("headshot", pd.Series([""] * len(rt))))) if len(rt) else {}
+    g_conf = bool(goalie and goalie["status"] == "Confirmed")
+    rows, missing = [], []
+    for r in sk.itertuples():
+        pid = lookup(idx, r.name) or lookup(extra_idx, r.name)
+        if pid is None:
+            missing.append(r.name)
+            continue
+        pos = "F" if r.group.startswith("f") else "D"
+        rows.append(dict(date=date, game_id=game_id, team=team, player_id=int(pid), name=r.name, pos=pos,
+                         line=f"{pos}{r.group[-1]}", pp_unit=pp_unit.get(r.name, 0),
+                         confirmed=g_conf, headshot=heads.get(pid, ""), source="Daily Faceoff",
+                         status="Game-time decision" if r.gtd else ""))
+    if missing:
+        log(f"daily faceoff {team}: {len(missing)} names not matched to the NHL roster: {missing[:4]}")
+    # starter: the starting-goalies page, else the line page's G1
+    gname = goalie["goalie"] if goalie else next(iter(ev[ev.slot == "g1"].name), None)
+    gidx = player_index(rt[rt.pos == "G"]) if len(rt) else {}
+    gid = lookup(gidx, gname) if gname else None
+    if gid is not None:
+        rows.append(dict(date=date, game_id=game_id, team=team, player_id=int(gid), name=gname, pos="G", line="G1",
+                         pp_unit=0, confirmed=g_conf, headshot=heads.get(gid, ""), source="Daily Faceoff",
+                         status=goalie["status"] if goalie else "Projected"))
+    return pd.DataFrame(rows)
+
+
 def projected_lineups(tables: dict, schedule: pd.DataFrame, overrides: pd.DataFrame | None, date,
-                      rosters: pd.DataFrame | None = None) -> tuple[pd.DataFrame, pd.DataFrame]:
+                      rosters: pd.DataFrame | None = None, dfo: dict | None = None) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Projected lineup per team, kept current with today's NHL rosters.
 
     * Team has played this season: its last game's lineup, minus players no longer on the roster
@@ -143,10 +180,26 @@ def projected_lineups(tables: dict, schedule: pd.DataFrame, overrides: pd.DataFr
     season = season_of(date)
     starts = lu[(lu.pos == "G") & (lu.date < date)]
     rows, roster, notes = [], [], []
+    dfo_lines = pd.DataFrame(dfo["lines"]) if dfo and dfo.get("lines") else pd.DataFrame()
+    dfo_goalies = {r["team"]: r for r in (dfo or {}).get("goalies", [])}
+    extra_idx = {}
+    if len(dfo_lines):
+        from .data.odds_api import player_index
+        recent = pg[pg.date >= pd.Timestamp(date) - pd.Timedelta(days=400)].drop_duplicates("player_id", keep="last")
+        extra_idx = player_index(recent)
     for g in schedule.itertuples():
         for team in (g.home, g.away):
             tl = lu[(lu.team == team) & (lu.date < date)]
             rt = rosters[rosters.team == team] if rosters is not None and len(rosters) else None
+            if len(dfo_lines) and (dfo_lines.team == team).any():
+                built = _dfo_team_lineup(team, dfo_lines[dfo_lines.team == team], dfo_goalies.get(team),
+                                         rt if rt is not None else pd.DataFrame(), extra_idx, date, g.game_id)
+                if built is not None and len(built) >= 16:
+                    rows.append(built)
+                    if rt is not None:
+                        roster += rt.to_dict("records")
+                    continue
+                notes.append(f"{team}: Daily Faceoff lines incomplete, using the roster projection")
             if rt is not None and len(rt):
                 roster += rt.to_dict("records")
                 this_season = tl[pd.to_datetime(tl.date) >= pd.Timestamp(f"{season}-08-01")]
@@ -269,7 +322,20 @@ def cmd_slate(a):
     ovf = os.path.join(a.overrides, f"{date.date()}.csv")
     ov = pd.read_csv(ovf) if os.path.exists(ovf) else None
     rosters = fetch_rosters(list(sched.home) + list(sched.away))
-    lineups, roster = projected_lineups(tables, sched, ov, date, rosters)
+    dfo = None
+    if os.environ.get("DFO_ENABLED", "1") == "1":
+        from .data import dailyfaceoff
+        try:
+            dfo = dailyfaceoff.fetch_day(date, list(sched.home) + list(sched.away))
+        except Exception as e:
+            print(f"daily faceoff failed: {e}")
+    lineups, roster = projected_lineups(tables, sched, ov, date, rosters, dfo)
+    if dfo and dfo.get("lines"):
+        inj = [dict(team=r["team"], name=r["name"], status=dailyfaceoff.INJURY_LABEL.get(r["injury"], r["injury"]),
+                    news=r["news"]) for r in dfo["lines"] if r["category"] == "oi" and r["injury"]]
+        gl = {r["team"]: dict(goalie=r["goalie"], status=r["status"], note=r["note"]) for r in dfo.get("goalies", [])}
+        json.dump(dict(injuries=inj, goalies=gl, fetched_at=pd.Timestamp.now(tz=ET).isoformat()),
+                  open(os.path.join(site, "news.json"), "w"), indent=1)
     if os.environ.get("ODDS_ENABLED", "0") == "1":
         odds = odds_api.fetch(sched, roster if len(roster) else lineups, "bet", props=not a.no_props)
     else:
@@ -314,7 +380,7 @@ def cmd_slate(a):
     if not upcoming:
         log_flagged(site, plays, date)   # only today's slate goes into the track record
     n_teams = lineups.team.nunique() if len(lineups) else 0
-    conf = lineups.groupby("team").confirmed.all().sum() if len(lineups) else 0
+    conf = int(lineups[lineups.pos == "G"].confirmed.sum()) if len(lineups) else 0
     meta.update(warnings=warnings, odds_rows=int(len(odds)), flagged=int(plays.flag.sum()) if len(plays) else 0,
                 teams=int(n_teams), teams_confirmed=int(conf),
                 data_through=str(tables["games"].date.max().date()), constants=cfg_src)
