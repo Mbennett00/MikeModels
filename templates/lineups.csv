@@ -1,0 +1,4 @@
+date,game_id,team,player_id,name,pos,line,pp_unit,confirmed
+2026-10-07,2026020001,BOS,8477956,Example Forward,F,F1,1,True
+2026-10-07,2026020001,BOS,8479325,Example Defense,D,D1,1,True
+2026-10-07,2026020001,BOS,8476999,Example Goalie,G,G1,0,False

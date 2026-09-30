@@ -1,0 +1,14 @@
+date,game_id,market,player_id,selection,line,price,book,snapshot
+2026-10-07,2026020001,moneyline,,home,,-135,bookA,bet
+2026-10-07,2026020001,moneyline,,away,,115,bookA,bet
+2026-10-07,2026020001,puckline,,home,-1.5,165,bookA,bet
+2026-10-07,2026020001,puckline,,away,1.5,-195,bookA,bet
+2026-10-07,2026020001,total,,over,6.5,105,bookA,bet
+2026-10-07,2026020001,total,,under,6.5,-125,bookA,bet
+2026-10-07,2026020001,team_total,,home_over,3.5,110,bookA,bet
+2026-10-07,2026020001,team_total,,home_under,3.5,-140,bookA,bet
+2026-10-07,2026020001,goals,8477956,yes,0.5,+190,bookA,bet
+2026-10-07,2026020001,sog,8477956,over,2.5,-130,bookA,bet
+2026-10-07,2026020001,sog,8477956,under,2.5,100,bookA,bet
+2026-10-07,2026020001,points,8477956,over,0.5,-160,bookA,bet
+2026-10-07,2026020001,points,8477956,under,0.5,125,bookA,bet

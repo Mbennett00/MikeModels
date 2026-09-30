@@ -1,0 +1,123 @@
+"""Fit FittedParams using only information dated before the refit date.
+
+Game-level quantities (EN transitions, P1 share, OT-goal share) come straight from
+past results. Quantities that need model predictions (bivariate covariance lam3,
+OT strength slope, rest effects, NB dispersion) are fitted on the walk-forward's
+own *out-of-sample* predictions for earlier dates, so nothing leaks.
+"""
+from __future__ import annotations
+
+import numpy as np
+import pandas as pd
+
+from .config import ModelConfig
+from .distributions import bivariate_poisson_logpmf, fit_nb_r
+from .params import FittedParams
+
+MIN_GAMES_LAM3 = 300
+MIN_OT_GAMES = 150
+PRIOR_EN_GAMES = 50.0
+
+
+def fit_params(tables: dict, date, season: int, cfg: ModelConfig, game_preds: pd.DataFrame | None,
+               player_preds: pd.DataFrame | None, league: dict | None = None) -> FittedParams:
+    P = FittedParams()
+    date = pd.Timestamp(date)
+    g = tables["games"]
+    g = g[(g.date < date) & (g.season > season - cfg.seasons_back)]
+    notes = []
+
+    # ---- empty-net transitions: leader's lead d -> P(0,1,2+ EN goals), smoothed to defaults
+    if len(g):
+        margin = g.home_reg_nonen - g.away_reg_nonen
+        lead_en = np.where(margin > 0, g.home_en_reg, g.away_en_reg).clip(0, 2)
+        for d in (1, 2, 3):
+            sel = margin.abs().to_numpy() == d
+            counts = np.bincount(lead_en[sel].astype(int), minlength=3)[:3].astype(float)
+            prior = np.array(P.en_trans[d]) * PRIOR_EN_GAMES
+            P.en_trans[d] = list((counts + prior) / (counts.sum() + PRIOR_EN_GAMES))
+        reg = (g.home_reg_nonen + g.away_reg_nonen).sum()
+        if reg > 0:
+            P.p1_share = float((g.home_p1 + g.away_p1).sum() / reg)
+        ot = g[g.decision.isin(["OT", "SO"])]
+        if len(ot):
+            P.ot_goal_share = float((ot.decision == "OT").mean())
+    if league is not None and league.get("en_share", 0) < 0.5:
+        P.en_uplift = 1.0 / (1.0 - league["en_share"])
+
+    # ---- prediction-dependent parameters
+    if game_preds is not None and len(game_preds):
+        gp = game_preds[game_preds.date < date]
+        if len(gp) >= MIN_GAMES_LAM3:
+            grid = np.linspace(0.0, 0.30, 31)
+            ll = [bivariate_poisson_logpmf(gp.home_reg_nonen, gp.away_reg_nonen, gp.lam_home, gp.lam_away, l).sum()
+                  for l in grid]
+            P.lam3 = float(grid[int(np.argmax(ll))])
+        else:
+            P.lam3 = cfg.biv_cov_default
+            notes.append(f"lam3 default ({len(gp)} < {MIN_GAMES_LAM3} predicted games)")
+        ot = gp[gp.decision.isin(["OT", "SO"])]
+        if len(ot) >= MIN_OT_GAMES:
+            share = (ot.lam_home / (ot.lam_home + ot.lam_away)).to_numpy() - 0.5
+            y = (ot.home_final > ot.away_final).to_numpy()
+            best = (0.0, -np.inf)
+            for s in np.linspace(0, 2.0, 41):
+                p = np.clip(0.5 + s * share, 0.3, 0.7)
+                l = np.sum(np.where(y, np.log(p), np.log(1 - p)))
+                if l > best[1]:
+                    best = (float(s), l)
+            P.ot_slope = best[0]
+        else:
+            notes.append(f"OT slope default ({len(ot)} OT/SO games)")
+        P.rest, rn = _fit_rest(gp, cfg)
+        P.rest_notes = rn
+    if player_preds is not None and len(player_preds):
+        pp = player_preds[player_preds.date < date]
+        for pos in ("F", "D"):
+            s = pp[pp.pos == pos]
+            if len(s) >= cfg.nb_min_samples:
+                r, _ = fit_nb_r(s.sog.to_numpy(), s.lam_sog.to_numpy())
+                P.nb_r["sog"][pos] = r
+            else:
+                P.nb_r["sog"][pos] = cfg.nb_r_default[pos]
+        if len(pp) >= cfg.nb_min_samples:
+            for mkt, lam in (("assists", "lam_ast"), ("points", "lam_pts")):
+                r, ll = fit_nb_r(pp[mkt].to_numpy(), pp[lam].to_numpy())
+                _, llp = fit_nb_r(pp[mkt].to_numpy(), pp[lam].to_numpy(), grid=[1e6])
+                # keep Poisson unless the NB improves log-lik by > 2 per 1000 obs (one extra parameter)
+                P.count_r[mkt] = r if (ll - llp) > 2 * len(pp) / 1000 else 1e6
+    P.notes = notes
+    return P
+
+
+def _fit_rest(gp: pd.DataFrame, cfg: ModelConfig):
+    """Residual-ratio estimates of back-to-back / travel effects, kept only if |z| >= rest_min_z."""
+    out = {"b2b_off": 1.0, "b2b_def": 1.0, "travel_off": 1.0}
+    notes = []
+    if not cfg.use_rest_factor or "home_b2b" not in gp:
+        return out, ["rest factor disabled"]
+    rows = []
+    for side, opp in (("home", "away"), ("away", "home")):
+        rows.append(pd.DataFrame({
+            "goals": gp[f"{side}_reg_nonen"].to_numpy(), "lam": gp[f"lam_{side}_norest"].to_numpy(),
+            "b2b": gp[f"{side}_b2b"].to_numpy(), "opp_b2b": gp[f"{opp}_b2b"].to_numpy(),
+            "travel": gp[f"{side}_travel"].to_numpy()}))
+    d = pd.concat(rows)
+    if len(d) < 400:
+        return out, ["rest factor: too few games, set to 1.0"]
+    for key, mask in (("b2b_off", d.b2b), ("b2b_def", d.opp_b2b), ("travel_off", d.travel)):
+        mask = mask.astype(bool)
+        a, b = d[mask], d[~mask]
+        if a.goals.sum() < 50:
+            notes.append(f"{key}: insufficient sample")
+            continue
+        ra, rb = a.goals.sum() / a.lam.sum(), b.goals.sum() / b.lam.sum()
+        eff = ra / rb
+        se = np.sqrt(1 / a.goals.sum() + 1 / b.goals.sum())
+        z = np.log(eff) / se
+        if abs(z) >= cfg.rest_min_z:
+            out[key] = float(eff)
+            notes.append(f"{key}: kept {eff:.3f} (z={z:.1f})")
+        else:
+            notes.append(f"{key}: dropped {eff:.3f} (z={z:.1f} < {cfg.rest_min_z})")
+    return out, notes
