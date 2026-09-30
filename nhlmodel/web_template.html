@@ -119,6 +119,20 @@ label.f { display: block; font-size: 13px; font-weight: 800; color: var(--ink-2)
 .empty { text-align: center; } .empty .e { font-size: 44px; } .empty .t { font-family: 'Fredoka', sans-serif; font-size: 22px; font-weight: 600; margin: 6px 0; }
 .foot { text-align: center; color: #56708a; font-size: 13px; font-weight: 700; margin-top: 26px; }
 .hide { display: none; }
+.score { font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 34px; line-height: 1; margin-top: 2px; color: var(--navy); }
+.score.lose { color: var(--muted); }
+.live { display: inline-flex; align-items: center; gap: 5px; background: var(--red); color: #fff; font-weight: 800; font-size: 12px;
+        border-radius: 999px; padding: 2px 9px; border: 2px solid var(--navy); letter-spacing: .04em; }
+.live::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #fff; animation: blink 1.2s infinite; }
+@keyframes blink { 50% { opacity: .2; } }
+.final { display: inline-block; background: var(--navy); color: var(--cream); font-weight: 800; font-size: 12px; border-radius: 999px; padding: 2px 9px; letter-spacing: .04em; }
+.clock { font-size: 13px; font-weight: 800; color: var(--ink-2); margin-top: 4px; }
+tr.lost td { opacity: .45; } tr.won td:first-child, tr.push td:first-child { color: var(--green); }
+.res { margin-right: 4px; }
+.stat { display: inline-block; margin-left: 6px; font-size: 12px; font-weight: 800; padding: 1px 8px; border-radius: 999px; border: 2px solid var(--navy); background: #fff; }
+.stat.in { background: var(--red-soft); } .stat.post { background: #eef1f4; }
+.lc.won { background: var(--green-soft); } .lc.lost { opacity: .45; }
+.pill.live-p { background: var(--red-soft); }
 @media (max-width: 640px) {
   .wrap { padding: 12px 10px 50px; }
   .card { padding: 16px; border-radius: 22px; box-shadow: 5px 6px 0 var(--navy); }
@@ -149,7 +163,8 @@ const decimal = o => 1 + (o > 0 ? o / 100 : 100 / -o);
 const UNIT = {sog: "shots", goals: "goals", assists: "assists", points: "points"};
 const MNAME = {goals: "Anytime goal", sog: "Shots on goal", assists: "Assists", points: "Points", moneyline: "Moneyline",
                puckline: "Puck line", total: "Total goals", team_total: "Team total", p1_total: "1st period total", p1_3way: "1st period winner"};
-let D = null, TAB = "tonight", PSTATE = {q: "", game: "all", market: "sog"};
+let D = null, TODAY = null, PREV = null, TAB = "tonight", PSTATE = {q: "", game: "all", market: "sog"};
+let LIVE = {};   // game_id -> live/final info from ESPN (scores, clock, player box score)
 
 // ---------- math (mirrors nhlmodel.team_model / player_model) ----------
 function lgamma(x) {           // Lanczos
@@ -197,6 +212,92 @@ function gameProb(g, market, sel, line) {
 }
 const thr = m => (D.params.thresholds || {})[m] ?? 0.03;
 
+// ---------- live scores (ESPN allows browser requests; the NHL API does not) ----------
+const ESPN = "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/";
+const FROM_ESPN = {LA: "LAK", NJ: "NJD", SJ: "SJS", TB: "TBL", UTAH: "UTA", WAS: "WSH"};
+const normName = n => String(n || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z]/g, "");
+async function loadLive(data) {
+  if (!data || !data.games.length || !data.meta.date) return;
+  const r = await fetch(ESPN + "scoreboard?dates=" + data.meta.date.replace(/-/g, ""));
+  const sb = await r.json();
+  for (const ev of sb.events || []) {
+    const c = (ev.competitions || [])[0]; if (!c) continue;
+    const side = {};
+    for (const t of c.competitors || []) side[t.homeAway] = t;
+    if (!side.home || !side.away) continue;
+    const ab = t => FROM_ESPN[t.team.abbreviation] || t.team.abbreviation;
+    const g = data.games.find(x => x.home.abbr === ab(side.home) && x.away.abbr === ab(side.away));
+    if (!g) continue;
+    const st = ev.status || c.status || {}, ty = st.type || {};
+    const p1 = t => (t.linescores && t.linescores.length) ? Number(t.linescores[0].value) : null;
+    const prev = LIVE[g.game_id] || {};
+    LIVE[g.game_id] = Object.assign(prev, {
+      state: ty.state, detail: ty.shortDetail || ty.detail || "", period: st.period || 0, espn: ev.id,
+      home: Number(side.home.score || 0), away: Number(side.away.score || 0), p1h: p1(side.home), p1a: p1(side.away)});
+  }
+  await Promise.all(data.games.map(async g => {
+    const L = LIVE[g.game_id];
+    if (!L || L.state === "pre" || (L.state === "post" && L.boxFinal)) return;
+    try {
+      const sm = await (await fetch(ESPN + "summary?event=" + L.espn)).json();
+      const box = {};
+      for (const team of (sm.boxscore || {}).players || []) {
+        const abbr = FROM_ESPN[team.team.abbreviation] || team.team.abbreviation;
+        for (const grp of team.statistics || []) {
+          const k = grp.keys || [], ig = k.indexOf("goals"), ia = k.indexOf("assists"), is = k.indexOf("shotsTotal");
+          if (ig < 0) continue;
+          for (const a of grp.athletes || []) {
+            const v = i => i < 0 ? 0 : Number(a.stats[i]) || 0;
+            const s = {goals: v(ig), assists: v(ia), sog: v(is)}; s.points = s.goals + s.assists;
+            const nm = a.athlete.displayName || "";
+            box[abbr + "|" + normName(nm)] = s;
+            box[abbr + "|last|" + normName(nm.split(" ").slice(-1)[0])] = box[abbr + "|last|" + normName(nm.split(" ").slice(-1)[0])] ? "dup" : s;
+          }
+        }
+      }
+      L.box = box; L.boxFinal = L.state === "post";
+    } catch (e) { /* box score is optional */ }
+  }));
+}
+function playerStat(p) {
+  const L = LIVE[p.game_id]; if (!L || !L.box) return null;
+  const s = L.box[p.team + "|" + normName(p.name)];
+  if (s) return s;
+  const t = L.box[p.team + "|last|" + normName(p.name.split(" ").slice(-1)[0])];
+  return t && t !== "dup" ? t : (L.state === "post" ? {goals: 0, assists: 0, sog: 0, points: 0, dnp: true} : null);
+}
+// true = won, false = lost, "push", undefined = not decided yet
+function cmpLine(x, line, dir, final) {
+  if (x > line) return dir === "over";
+  if (!final) return undefined;
+  if (x < line) return dir === "under";
+  return "push";
+}
+function settle(g, market, sel, line) {
+  const L = LIVE[g.game_id]; if (!L || L.state === "pre" || L.state == null) return undefined;
+  const fin = L.state === "post", h = L.home, a = L.away;
+  if (market === "moneyline") return fin ? (sel === "home" ? h > a : a > h) : undefined;
+  if (market === "puckline") { if (!fin) return undefined; const m = (sel === "home" ? h - a : a - h) + line; return m > 0 ? true : m < 0 ? false : "push"; }
+  if (market === "total") return cmpLine(h + a, line, sel, fin);
+  if (market === "team_total") { const [sd, dir] = sel.split("_"); return cmpLine(sd === "home" ? h : a, line, dir, fin); }
+  const p1done = fin || L.period > 1;
+  if (L.p1h == null || !p1done) return undefined;
+  if (market === "p1_total") return cmpLine(L.p1h + L.p1a, line, sel, true);
+  if (market === "p1_3way") { const r = L.p1h > L.p1a ? "home" : L.p1h < L.p1a ? "away" : "draw"; return r === sel; }
+}
+const RES = r => r === true ? ["won", "✅"] : r === false ? ["lost", "❌"] : r === "push" ? ["push", "➖"] : ["", ""];
+let liveTimer = null;
+async function refreshLive() {
+  try { await loadLive(TODAY); if (PREV) await loadLive(PREV); } catch (e) { return; }
+  header();
+  const ae = document.activeElement;
+  if (!(ae && (ae.tagName === "INPUT" || ae.tagName === "SELECT"))) render();
+  const anyLive = [TODAY, PREV].filter(Boolean).some(d => d.games.some(g => (LIVE[g.game_id] || {}).state === "in"
+      || ((LIVE[g.game_id] || {}).state === "pre" && new Date(g.start_utc) - Date.now() < 15 * 60e3)));
+  clearTimeout(liveTimer);
+  liveTimer = setTimeout(refreshLive, anyLive ? 60e3 : 5 * 60e3);
+}
+
 // ---------- rendering ----------
 function timeET(s) { if (!s) return ""; const d = new Date(s);
   return d.toLocaleTimeString("en-US", {hour: "numeric", minute: "2-digit", timeZone: "America/New_York"}); }
@@ -210,10 +311,13 @@ function goalie(t, right) { if (!t.goalie) return `<div class="${right ? "r" : "
 
 function header() {
   const m = D.meta; const d = m.date ? new Date(m.date + "T12:00:00") : null;
-  const title = !d ? "No games soon" : (m.upcoming ? "Next up" : "Tonight");
+  const title = !d ? "No games soon" : D === PREV ? "Last night" : (m.upcoming ? "Next up" : "Tonight");
   let sub = d ? d.toLocaleDateString("en-US", {weekday: "short", month: "short", day: "numeric"}) + ` · ${m.games} games` : "";
   if (m.generated_at) sub += " · updated " + new Date(m.generated_at).toLocaleTimeString("en-US", {hour: "numeric", minute: "2-digit", timeZone: "America/New_York"});
-  const pills = m.games ? `<span class="pill gold">💲 Fair prices ready</span><span class="pill ${m.goalies_confirmed === m.teams ? "green" : ""}">🥅 Goalies ${m.goalies_confirmed}/${m.teams} confirmed</span>` : "";
+  const st = D.games.map(g => (LIVE[g.game_id] || {}).state), nl = st.filter(x => x === "in").length, nf = st.filter(x => x === "post").length;
+  let pills = m.games ? `<span class="pill gold">💲 Fair prices ready</span><span class="pill ${m.goalies_confirmed === m.teams ? "green" : ""}">🥅 Goalies ${m.goalies_confirmed}/${m.teams} confirmed</span>` : "";
+  if (nl) pills = `<span class="pill live-p">🔴 ${nl} live</span>` + pills;
+  if (nf) pills += `<span class="pill">🏁 ${nf} final</span>`;
   $("#hdr").innerHTML = `<div class="top"><div class="puck">🏒</div><div><h1 class="display">${title}</h1><div class="sub">${esc(sub)}</div></div></div><div class="pills">${pills}</div>`;
 }
 function tabs() {
@@ -223,11 +327,23 @@ function tabs() {
 }
 const HOWTO = `<div class="howto">💡 Bet it if DraftKings pays the <span style="color:var(--green)">green “bet at”</span> price or better. Not sure? Use <b>Check</b>.</div>`;
 
-function row(g, label, market, sel, line) { const p = gameProb(g, market, sel, line);
-  return `<tr><td>${esc(label)}</td><td>${pct(p)}</td><td>${am(fair(p))}</td><td class="tgt">${betAt(p - thr(market))}</td></tr>`; }
+function row(g, label, market, sel, line) { const p = gameProb(g, market, sel, line), [cls, ic] = RES(settle(g, market, sel, line));
+  return `<tr class="${cls}"><td>${ic ? `<span class="res">${ic}</span>` : ""}${esc(label)}</td><td>${pct(p)}</td><td>${am(fair(p))}</td><td class="tgt">${betAt(p - thr(market))}</td></tr>`; }
+function dayPicker() {
+  if (!PREV || !TODAY) return "";
+  const lab = x => new Date(x.meta.date + "T12:00:00").toLocaleDateString("en-US", {weekday: "short", month: "short", day: "numeric"});
+  return `<div class="seg" id="day"><button data-d="today" class="${D === TODAY ? "on" : ""}">${TODAY.meta.upcoming ? "Next up" : "Tonight"} · ${lab(TODAY)}</button>`
+    + `<button data-d="prev" class="${D === PREV ? "on" : ""}">Last night · ${lab(PREV)}</button></div>`;
+}
+function record() {
+  const fin = D.games.filter(g => (LIVE[g.game_id] || {}).state === "post");
+  if (!fin.length) return "";
+  let fw = 0; for (const g of fin) { const ph = gameProb(g, "moneyline", "home"); if (settle(g, "moneyline", ph >= 0.5 ? "home" : "away") === true) fw++; }
+  return `<div class="howto" style="background:var(--green-soft)">🏁 ${fin.length} final · the model's favourite won <b>${fw} of ${fin.length}</b>. Every bet below shows ✅ won, ❌ lost or ➖ push.</div>`;
+}
 function tonight() {
   if (!D.games.length) return empty("🧊", "No games on the board", "Check back on the next game day.");
-  return HOWTO + D.games.map(g => {
+  return dayPicker() + record() + HOWTO + D.games.map(g => {
     const a = g.away, h = g.home, ph = gameProb(g, "moneyline", "home");
     const favH = ph >= 0.5, fav = favH ? h : a, dog = favH ? a : h, fs = favH ? "home" : "away", ds = favH ? "away" : "home";
     const head = "<tr><th>Bet</th><th>Chance</th><th>Fair</th><th>Bet at</th></tr>";
@@ -239,10 +355,15 @@ function tonight() {
       + row(g, "1st period over 1.5", "p1_total", "over", 1.5) + row(g, "1st period under 1.5", "p1_total", "under", 1.5)
       + row(g, `1st period: ${a.name}`, "p1_3way", "away") + row(g, "1st period: tied", "p1_3way", "draw") + row(g, `1st period: ${h.name}`, "p1_3way", "home");
     const inj = [a, h].filter(t => t.injuries.length).map(t => `${esc(t.abbr)}: ` + t.injuries.map(i => `${esc(i.name)} <b>${esc(i.status)}</b>`).join(", ")).join(" · ");
+    const L = LIVE[g.game_id] || {}, on = L.state === "in" || L.state === "post";
+    const sc = (x, y) => on ? `<div class="score ${L.state === "post" && x < y ? "lose" : ""}">${x}</div>` : "";
+    const mid = L.state === "in" ? `<span class="live">LIVE</span><div class="clock">${esc(L.detail)}</div>`
+      : L.state === "post" ? `<span class="final">${esc((L.detail || "Final").toUpperCase())}</span>`
+      : `<div class="at">at</div><div class="time">${timeET(g.start_utc)}</div>`;
     return `<div class="card game"><div class="teams">
-      <div class="t">${logo(a)}<div class="nm">${esc(a.name)}</div><div class="ab">${esc(a.abbr)}</div></div>
-      <div class="mid"><div class="at">at</div><div class="time">${timeET(g.start_utc)}</div></div>
-      <div class="t">${logo(h)}<div class="nm">${esc(h.name)}</div><div class="ab">${esc(h.abbr)}</div></div></div>
+      <div class="t">${logo(a)}<div class="nm">${esc(a.name)}</div>${on ? sc(L.away, L.home) : `<div class="ab">${esc(a.abbr)}</div>`}</div>
+      <div class="mid">${mid}</div>
+      <div class="t">${logo(h)}<div class="nm">${esc(h.name)}</div>${on ? sc(L.home, L.away) : `<div class="ab">${esc(h.abbr)}</div>`}</div></div>
       <div class="gl">${goalie(a)}${goalie(h, true)}</div>
       <div class="wp"><div class="bar"><div style="width:${100 * (1 - ph)}%;background:${a.color}"></div><div style="width:${100 * ph}%;background:${h.color}"></div></div>
         <div class="lab"><span>${pct(1 - ph)}</span><span style="color:var(--muted)">chance to win</span><span>${pct(ph)}</span></div></div>
@@ -261,10 +382,13 @@ function players() {
   if (S.q) list = list.filter(p => p.name.toLowerCase().includes(S.q.toLowerCase()));
   if (S.game !== "all") list = list.filter(p => String(p.game_id) === S.game);
   list.sort((x, y) => y.lam[mk] - x.lam[mk]); list = list.slice(0, 40);
-  const rows = list.map(p => { const chips = LINES[mk].map(l => { const pr = propProb(p, mk, l);
-      return `<span class="lc"><b>${mk === "goals" ? "Scores" : "O " + l}</b> · ${pct(pr)} · <span class="t">bet at ${betAt(pr - thr(mk))}</span></span>`; }).join("");
+  const rows = list.map(p => { const L = LIVE[p.game_id] || {}, s = playerStat(p);
+    const chips = LINES[mk].map(l => { const pr = propProb(p, mk, l);
+      const [cls, ic] = RES(s && !s.dnp ? cmpLine(s[mk], l, "over", L.state === "post") : undefined);
+      return `<span class="lc ${cls}">${ic ? ic + " " : ""}<b>${mk === "goals" ? "Scores" : "O " + l}</b> · ${pct(pr)} · <span class="t">bet at ${betAt(pr - thr(mk))}</span></span>`; }).join("");
+    const badge = s ? `<span class="stat ${L.state}">${s.dnp ? "not in box score" : `${L.state === "in" ? "Live" : "Final"}: ${s[mk]} ${mk === "sog" ? "SOG" : UNIT[mk]}`}</span>` : "";
     const proj = `${p.lam[mk].toFixed(2)} ${mk === "goals" ? "expected goals" : UNIT[mk]}`;
-    return `<div class="prow">${avatar(p)}<div class="body"><div class="nm">${esc(p.name)}</div><div class="bt">${esc(p.team)} · projects ${proj}${p.confirmed ? "" : " · lineup projected"}</div><div class="chips">${chips}</div></div></div>`; }).join("");
+    return `<div class="prow">${avatar(p)}<div class="body"><div class="nm">${esc(p.name)}${badge}</div><div class="bt">${esc(p.team)} · projects ${proj}${p.confirmed ? "" : " · lineup projected"}</div><div class="chips">${chips}</div></div></div>`; }).join("");
   const gopts = `<option value="all">All games</option>` + D.games.map(g => `<option value="${g.game_id}" ${S.game === String(g.game_id) ? "selected" : ""}>${esc(gameLabel(g))}</option>`).join("");
   const seg = [["sog", "Shots"], ["goals", "Goals"], ["points", "Points"], ["assists", "Assists"]].map(([k, n]) => `<button data-m="${k}" class="${mk === k ? "on" : ""}">${n}</button>`).join("");
   return `<div class="controls"><input class="grow" id="pq" placeholder="🔍 Find a player" value="${esc(S.q)}"><select class="grow" id="pg">${gopts}</select></div>
@@ -375,8 +499,15 @@ function render() {
   $("#view").innerHTML = v;
   if (TAB === "players") wirePlayers();
   if (TAB === "check") wireCheck();
+  $("#day")?.querySelectorAll("button").forEach(b => b.onclick = () => {
+    D = b.dataset.d === "prev" ? PREV : TODAY; PSTATE.game = "all"; C.game = null; header(); render(); });
 }
-fetch("data.json?v=" + Date.now()).then(r => r.json()).then(d => { D = d; header(); render(); })
+fetch("data.json?v=" + Date.now()).then(r => r.json()).then(async d => {
+  D = TODAY = d; header(); render();
+  try { const p = await (await fetch("prev.json?v=" + Date.now())).json(); if (p.meta && p.meta.date !== d.meta.date && p.games.length) PREV = p; } catch (e) {}
+  if (PREV) render();
+  refreshLive();
+})
   .catch(e => { $("#hdr").innerHTML = `<div class="top"><div class="puck">🧊</div><div><h1 class="display">Almost game time</h1><div class="sub">The daily job hasn't published today's prices yet.</div></div></div>`; });
 </script>
 </body>

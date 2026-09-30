@@ -36,3 +36,15 @@ def test_web_build_without_games(tmp_path):
     web.build(None, pd.DataFrame(), dict(date="2026-07-01"), None, None, None, str(tmp_path))
     d = json.load(open(tmp_path / "data.json"))
     assert d["games"] == [] and d["meta"]["games"] == 0
+
+
+def test_previous_slate_is_kept_for_last_night(tmp_path):
+    from nhlmodel.daily import _publish_web
+    site = tmp_path
+    json.dump(dict(meta=dict(date="2026-09-29"), games=[{"game_id": 1}]), open(site / "web_data.json", "w"))
+    _publish_web(str(site), None, pd.DataFrame(), dict(date="2026-09-30"))
+    assert json.load(open(site / "web" / "prev.json"))["meta"]["date"] == "2026-09-29"
+    assert json.load(open(site / "web_data.json"))["meta"]["date"] == "2026-09-30"
+    # a second run the same day keeps last night's slate
+    _publish_web(str(site), None, pd.DataFrame(), dict(date="2026-09-30"))
+    assert json.load(open(site / "web" / "prev.json"))["meta"]["date"] == "2026-09-29"

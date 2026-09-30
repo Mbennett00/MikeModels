@@ -16,6 +16,7 @@ import argparse
 import json
 import os
 import pickle
+import shutil
 
 import numpy as np
 import pandas as pd
@@ -399,8 +400,16 @@ def _publish_web(site, state, plays, meta):
         return json.load(open(f)) if os.path.exists(f) else None
     try:
         ms = os.path.join(site, "market_summary.csv")
-        web.build(state, plays, meta, js("news.json"), js("images.json"),
-                  pd.read_csv(ms) if os.path.exists(ms) else None, os.path.join(site, "web"))
+        out = web.build(state, plays, meta, js("news.json"), js("images.json"),
+                        pd.read_csv(ms) if os.path.exists(ms) else None, os.path.join(site, "web"))
+        # keep the previous slate so the page can show last night's settled games
+        last, prev = os.path.join(site, "web_data.json"), os.path.join(site, "web_prev.json")
+        old = js("web_data.json")
+        if old and old.get("meta", {}).get("date") != meta.get("date") and old.get("games"):
+            shutil.copy(last, prev)
+        shutil.copy(os.path.join(out, "data.json"), last)
+        if os.path.exists(prev):
+            shutil.copy(prev, os.path.join(out, "prev.json"))
     except Exception as e:
         print(f"web page build failed: {e}")
 
