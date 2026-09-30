@@ -165,8 +165,13 @@ def price_state(st: SlateState, lineups: pd.DataFrame | None = None, odds: pd.Da
         out = out.merge(book[keys + ["p_novig", "best_price", "n_books", "thin"]], on=keys, how="left")
     else:
         out["p_novig"], out["best_price"], out["n_books"], out["thin"] = np.nan, np.nan, 0, True
-        warnings.append("no odds supplied: book no-vig price and edge are blank")
+        warnings.append("no sportsbook odds: compare the fair / target prices with DraftKings yourself")
     out["book_novig_odds"] = out.p_novig.map(lambda p: fair_american(p) if not pd.isna(p) else np.nan)
+    # "bet at or better than": the sportsbook price whose implied chance is the model's minus the edge
+    # threshold. The book's own cut is not removed from its price, which adds a safety cushion.
+    thr = out.market.map(cfg.edge_threshold).fillna(0.03)
+    p_need = out.p_model - thr
+    out["target_odds"] = [fair_american(p) if p >= 0.02 else np.nan for p in p_need]
     out["edge"] = out.p_model - out.p_novig
     out["threshold"] = out.market.map(cfg.edge_threshold).fillna(0.03)
     out["flag"] = (out.edge >= out.threshold) & (out.confirmed | (not cfg.require_confirmed))

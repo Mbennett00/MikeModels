@@ -23,8 +23,14 @@ GitHub Actions (.github/workflows/daily.yml)            Streamlit Community Clou
         └────────────────────────────► GitHub release `data-latest` ───────────────────────────┘
 ```
 
+**No odds feed by default.** The site is a price sheet: for every bet it shows the model's chance, the
+fair price and a "bet at or better than" price (fair chance minus the market's edge threshold, with
+the book's cut left in as a cushion). You compare with DraftKings yourself, or type DK's odds into
+the **Check** tab. The Odds API code is still in `nhlmodel/data/odds_api.py`: set `ODDS_ENABLED: "1"`
+and pass `secrets.ODDS_API_KEY` in `daily.yml` to switch it back on.
+
 Setup (one time):
-1. **Odds (optional but needed for edges):** get a key from the-odds-api.com, then add it in GitHub
+1. **Odds (optional, off by default):** get a key from the-odds-api.com, then add it in GitHub
    → repo **Settings → Secrets and variables → Actions → New repository secret**, name `ODDS_API_KEY`.
    Player props cost one request per game per market group, so the free tier (500/month) is not
    enough for props every day. Add `--no-props` to the workflow to save credits.

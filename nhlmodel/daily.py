@@ -270,7 +270,10 @@ def cmd_slate(a):
     ov = pd.read_csv(ovf) if os.path.exists(ovf) else None
     rosters = fetch_rosters(list(sched.home) + list(sched.away))
     lineups, roster = projected_lineups(tables, sched, ov, date, rosters)
-    odds = odds_api.fetch(sched, roster if len(roster) else lineups, "bet", props=not a.no_props)
+    if os.environ.get("ODDS_ENABLED", "0") == "1":
+        odds = odds_api.fetch(sched, roster if len(roster) else lineups, "bet", props=not a.no_props)
+    else:
+        odds = pd.DataFrame()   # model-only: fair prices, no sportsbook feed
     hist = _read(os.path.join(site, "odds_history.csv.gz"))
     if len(odds):
         hist = _append_odds(hist, odds)
@@ -349,6 +352,8 @@ def log_flagged(site, plays, date):
 
 def cmd_close(a):
     from .data import odds_api
+    if os.environ.get("ODDS_ENABLED", "0") != "1":
+        print("odds feed disabled: no closing odds to record"); return
     site = _site(a.state)
     now = pd.Timestamp.now(tz="UTC")
     date = today_et()

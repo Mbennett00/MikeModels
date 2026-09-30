@@ -6,8 +6,6 @@ on:
     - cron: "5 10 * * *"        # ~6am ET: fetch last night's games, grade logged plays, refresh backtest
     - cron: "5 15 * * *"        # ~11am ET: price today's slate (morning lines)
     - cron: "35 21 * * *"       # ~5:30pm ET: re-price with later lines / goalie news
-    - cron: "15 16-23 * * *"    # hourly: closing odds for games starting within 75 minutes
-    - cron: "15 0-3 * * *"
   push:
     paths: ["overrides/**"]     # committing a lineup/goalie override re-prices the slate
   workflow_dispatch:
@@ -31,7 +29,10 @@ jobs:
     timeout-minutes: 340
     env:
       GH_TOKEN: ${{ github.token }}
-      ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+      # No sportsbook odds feed: the model publishes fair prices and "bet at or better than" prices,
+      # and you compare them with DraftKings yourself. (Set ODDS_ENABLED to "1" and pass
+      # secrets.ODDS_API_KEY here to switch the feed back on.)
+      ODDS_ENABLED: "0"
       PYTHONUNBUFFERED: "1"
     steps:
       - uses: actions/checkout@v4
@@ -45,7 +46,6 @@ jobs:
           case "${{ github.event_name }}|${{ github.event.schedule }}" in
             "schedule|5 10 * * *") t=morning ;;
             "schedule|5 15 * * *"|"schedule|35 21 * * *") t=slate ;;
-            schedule*) t=close ;;
             push*) t=slate ;;
             *) t="${{ inputs.task }}" ;;
           esac
