@@ -319,7 +319,7 @@ def cmd_backtest(a):
     bt = walk_forward(tables, cfg, start, end, verbose=True)
     bt["games"].to_csv(os.path.join(site, "bt_games.csv.gz"), index=False, compression="gzip")
     keep = ["game_id", "date", "player_id", "pos", "lam_goals", "lam_sog", "lam_ast", "lam_pts",
-            "goals", "assists", "sog", "points"]
+            "lam_goals_nonen_pre", "lam_sog_pre", "lam_ast_raw_pre", "goals", "assists", "sog", "points"]
     bt["players"][keep].to_csv(os.path.join(site, "bt_players.csv.gz"), index=False, compression="gzip")
     summary, _ = run_validation(bt, tables, cfg, site, f"Walk-forward {pd.Timestamp(start).date()} to "
                                 f"{pd.Timestamp(end).date()} ({src})", notes + _data_notes(tables, False))

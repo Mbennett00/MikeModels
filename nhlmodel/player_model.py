@@ -140,6 +140,12 @@ def project_team_players(tm: TeamModel, gp: GameProjection, side: str, lineup: p
                          sog60_5v5=a["sog60_5v5"], a60_5v5=a["a60_5v5"], linemate=lm,
                          lam_goals_nonen=lam_g, lam_sog=lam_sog, lam_ast_raw=lam_a, flags="; ".join(flags)))
     df = pd.DataFrame(rows)
+    # ---- recalibration (level + spread), fitted walk-forward on earlier predictions
+    if len(df):
+        for mkt, col in (("goals", "lam_goals_nonen"), ("sog", "lam_sog"), ("assists", "lam_ast_raw")):
+            a, b, ref = params.recal.get(mkt, (1.0, 1.0, 1.0))
+            df[f"{col}_pre"] = df[col]
+            df[col] = a * ref * (df[col].clip(lower=1e-6) / ref) ** b
     # ---- Section 7: consistency check against the team model
     hw, tie, aw = gp.reg_probs()
     p_ot_win = gp.p_ot_home if side == "home" else 1 - gp.p_ot_home

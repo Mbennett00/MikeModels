@@ -27,6 +27,29 @@ def _et_date(ts: str) -> pd.Timestamp:
     return pd.Timestamp(ts).tz_convert("America/New_York").tz_localize(None).normalize()
 
 
+def player_index(roster: pd.DataFrame) -> dict:
+    """Name -> NHL id. Adds 'first-initial + last name' keys when unique, so 'Christopher Tanev'
+    finds 'Chris Tanev' and 'Alex Romanov' finds 'Alexander Romanov'."""
+    idx = {norm_name(n): p for n, p in zip(roster.name, roster.player_id)}
+    alt: dict = {}
+    for n, p in zip(roster.name, roster.player_id):
+        parts = norm_name(n).split()
+        if len(parts) >= 2:
+            alt.setdefault(f"{parts[0][0]} {parts[-1]}", set()).add(p)
+    for k, v in alt.items():
+        if len(v) == 1:
+            idx.setdefault(k, next(iter(v)))
+    return idx
+
+
+def lookup(idx: dict, name: str):
+    n = norm_name(name)
+    if n in idx:
+        return idx[n]
+    parts = n.split()
+    return idx.get(f"{parts[0][0]} {parts[-1]}") if len(parts) >= 2 else None
+
+
 def parse_event(ev: dict, schedule: pd.DataFrame, name_to_id: dict, snapshot: str, fetched_at: str) -> tuple[list, set]:
     """Rows for one event; returns (rows, unmatched player names)."""
     home, away = abbrev(ev["home_team"]), abbrev(ev["away_team"])
@@ -66,7 +89,7 @@ def parse_event(ev: dict, schedule: pd.DataFrame, name_to_id: dict, snapshot: st
                         sel = "over"      # some books list the player as the outcome name for anytime scorer
                     if market == "goals" and line is None:
                         line = 0.5
-                    pid = name_to_id.get(norm_name(player))
+                    pid = lookup(name_to_id, player)
                     if pid is None:
                         missing.add(player)
                         continue
@@ -86,7 +109,7 @@ def fetch(schedule: pd.DataFrame, lineups: pd.DataFrame, snapshot: str, api_key:
         log("ODDS_API_KEY not set: no odds fetched")
         return pd.DataFrame()
     now = pd.Timestamp.utcnow().isoformat()
-    name_to_id = {norm_name(n): p for n, p in zip(lineups.name, lineups.player_id)}
+    name_to_id = player_index(lineups)
     params = dict(apiKey=key, regions=regions, oddsFormat="american")
     r = requests.get(f"{BASE}/odds", params=dict(params, markets=GAME_MARKETS), timeout=30)
     r.raise_for_status()

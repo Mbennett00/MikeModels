@@ -58,7 +58,7 @@ def validation_markdown(summary: pd.DataFrame, calib: dict, bets_summary: pd.Dat
                    f"- assists: mean gap {c.gap_ast.mean():+.2%}, rescaled in {c.rescaled_ast.mean():.1%}\n")
     if fit_log is not None and len(fit_log):
         out.append("\n## Fitted parameters over the walk-forward\n")
-        out.append(_md(fit_log.drop(columns=["notes"]).astype({"rest": str})))
+        out.append(_md(fit_log.drop(columns=["notes"]).astype({c: str for c in ("rest", "recal") if c in fit_log})))
         last = fit_log.notes.iloc[-1]
         if last:
             out.append(f"\nLatest fit notes: {last}\n")

@@ -73,9 +73,14 @@ def test_odds_api_parse():
                                                            {"name": "Under", "description": "Unknown Guy", "price": 110, "point": 3.5}]},
               {"key": "player_goal_scorer_anytime", "outcomes": [{"name": "Yes", "description": "David Pastrnak", "price": 150}]},
           ]}]}
-    rows, missing = parse_event(ev, sched, {"david pastrnak": 8477956}, "bet", "now")
+    from nhlmodel.data.odds_api import player_index
+    idx = player_index(pd.DataFrame(dict(name=["David Pastrnak", "Chris Tanev"], player_id=[8477956, 8475690])))
+    ev["bookmakers"][0]["markets"].append({"key": "player_points", "outcomes": [
+        {"name": "Over", "description": "Christopher Tanev", "price": 300, "point": 0.5}]})
+    rows, missing = parse_event(ev, sched, idx, "bet", "now")
     df = pd.DataFrame(rows)
-    assert set(df.market) == {"moneyline", "puckline", "total", "team_total", "sog", "goals"}
+    assert set(df.market) == {"moneyline", "puckline", "total", "team_total", "sog", "goals", "points"}
+    assert df[df.market == "points"].player_id.iloc[0] == 8475690
     assert df[df.market == "team_total"].selection.iloc[0] == "home_over"
     assert df[df.market == "goals"].line.iloc[0] == 0.5
     assert missing == {"Unknown Guy"}

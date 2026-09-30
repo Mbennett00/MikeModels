@@ -18,5 +18,8 @@ class FittedParams:
     rest_notes: list = field(default_factory=list)
     nb_r: dict = field(default_factory=lambda: {"sog": {"F": 8.0, "D": 6.0}})
     count_r: dict = field(default_factory=lambda: {"assists": 1e6, "points": 1e6})  # 1e6 = Poisson
+    # prop recalibration fitted on earlier out-of-sample predictions: lam' = a * ref * (lam / ref) ** b
+    recal: dict = field(default_factory=lambda: {"goals": (1.0, 1.0, 0.15), "sog": (1.0, 1.0, 1.8),
+                                                 "assists": (1.0, 1.0, 0.25)})
     en_uplift: float = 1.03                            # settlement includes EN goals; training excludes them
     notes: list = field(default_factory=list)

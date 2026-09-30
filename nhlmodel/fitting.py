@@ -87,6 +87,9 @@ def fit_params(tables: dict, date, season: int, cfg: ModelConfig, game_preds: pd
                 P.nb_r["sog"][pos] = r
             else:
                 P.nb_r["sog"][pos] = cfg.nb_r_default[pos]
+        if len(pp) >= cfg.nb_min_samples and "lam_sog_pre" in pp:
+            P.recal, rn = fit_recal(pp, P)
+            notes += rn
         if len(pp) >= cfg.nb_min_samples:
             for mkt, lam in (("assists", "lam_ast"), ("points", "lam_pts")):
                 r, ll = fit_nb_r(pp[mkt].to_numpy(), pp[lam].to_numpy())
@@ -95,6 +98,43 @@ def fit_params(tables: dict, date, season: int, cfg: ModelConfig, game_preds: pd
                 P.count_r[mkt] = r if (ll - llp) > 2 * len(pp) / 1000 else 1e6
     P.notes = notes
     return P
+
+
+def fit_recal(pp: pd.DataFrame, P: FittedParams) -> tuple[dict, list]:
+    """Fit lam' = a * ref * (lam_pre / ref) ** b per prop market by maximum likelihood.
+
+    lam_pre is the model's rate before recalibration. For goals and assists the level (a) is left to the
+    team consistency check and the EN uplift, so only the spread b is used; shots get both.
+    """
+    from scipy import stats
+    out, notes = dict(P.recal), []
+    specs = (("goals", "lam_goals_nonen_pre", "goals", P.en_uplift),
+             ("sog", "lam_sog_pre", "sog", 1.0),
+             ("assists", "lam_ast_raw_pre", "assists", P.en_uplift))
+    recent = pp.tail(60000)
+    for mkt, col, y, mult in specs:
+        if col not in recent:
+            continue
+        d = recent[[col, y, "pos"]].dropna()
+        lam, k = np.clip(d[col].to_numpy(float) * mult, 1e-6, None), d[y].to_numpy(float)
+        ref = float(lam.mean())
+        best = (1.0, 1.0, -np.inf)
+        for b in np.arange(0.8, 1.81, 0.05):
+            shape = ref * (lam / ref) ** b
+            a_grid = np.arange(0.8, 1.31, 0.01) if mkt == "sog" else [k.sum() / shape.sum()]
+            for a in a_grid:
+                m = a * shape
+                if mkt == "sog":
+                    r = d.pos.map(P.nb_r["sog"]).fillna(8.0).to_numpy()
+                    ll = stats.nbinom.logpmf(k, r, r / (r + m)).sum()
+                else:
+                    ll = stats.poisson.logpmf(k, m).sum()
+                if ll > best[2]:
+                    best = (float(a), float(b), ll)
+        a, b = (best[0] if mkt == "sog" else 1.0), best[1]
+        out[mkt] = (a, b, ref / mult)
+        notes.append(f"recal {mkt}: a={a:.2f} b={b:.2f}")
+    return out, notes
 
 
 def _fit_rest(gp: pd.DataFrame, cfg: ModelConfig):

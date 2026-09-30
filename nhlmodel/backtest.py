@@ -110,7 +110,8 @@ def walk_forward(tables: dict, cfg: ModelConfig, start, end, date_stride: int = 
             pdf = pd.DataFrame(player_rows) if player_rows else None
             params = fit_params(tables, date, season, cfg, gdf, pdf, snap.league)
             last_fit = date
-            fit_log.append(dict(date=date, lam_scale=params.lam_scale, lam3=params.lam3, ot_slope=params.ot_slope, p1_share=params.p1_share,
+            fit_log.append(dict(date=date, recal={k: tuple(round(x, 2) for x in v) for k, v in params.recal.items()},
+                                lam_scale=params.lam_scale, lam3=params.lam3, ot_slope=params.ot_slope, p1_share=params.p1_share,
                                 en_uplift=params.en_uplift, r_sog_F=params.nb_r["sog"]["F"],
                                 r_sog_D=params.nb_r["sog"]["D"], r_ast=params.count_r["assists"],
                                 r_pts=params.count_r["points"], rest=dict(params.rest),
