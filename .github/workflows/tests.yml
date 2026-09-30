@@ -1,0 +1,15 @@
+name: tests
+on:
+  push:
+    paths-ignore: ["overrides/**", "**.md"]
+  pull_request:
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install "numpy>=1.26" "pandas>=2.1" "scipy>=1.11" "requests>=2.31" pytest
+      - run: python -m pytest -q

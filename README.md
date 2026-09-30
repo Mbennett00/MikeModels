@@ -6,14 +6,48 @@ probability, fair American odds, the book's no-vig price and the edge**.
 
 ```
 pip install -r requirements.txt
-python -m pytest -q                       # 24 tests, ~30 s
+python -m pytest -q                       # 30 tests, ~45 s
 ```
+
+## Website (phone + desktop) and daily automation
+
+```
+GitHub Actions (.github/workflows/daily.yml)            Streamlit Community Cloud (app/streamlit_app.py)
+  ~6am ET   fetch last night's games from the NHL API,     reads the files below from the `data-latest`
+            grade logged plays, walk-forward backtest       release: Flagged plays, All plays, Lineups
+  ~11am ET  price today's slate (+ odds if key set)         (pick goalies, confirm, re-price), Track record,
+  ~5:30pm   re-price with later lines                       Model health
+  hourly    closing odds for games about to start
+  push to overrides/**  re-price with your confirmations
+        │ writes plays.csv, slate.md, meta.json, bets_log.csv, odds_history, validation.md ... │
+        └────────────────────────────► GitHub release `data-latest` ───────────────────────────┘
+```
+
+Setup (one time):
+1. **Odds (optional but needed for edges):** get a key from the-odds-api.com, then add it in GitHub
+   → repo **Settings → Secrets and variables → Actions → New repository secret**, name `ODDS_API_KEY`.
+   Player props cost one request per game per market group, so the free tier (500/month) is not
+   enough for props every day. Add `--no-props` to the workflow to save credits.
+2. **First data load:** GitHub → **Actions → daily model run → Run workflow → task `update`**.
+   The first run downloads two seasons of games (roughly 1–2 hours; it resumes if cut off).
+3. **Dashboard:** sign in at share.streamlit.io with GitHub → **Create app** → repo
+   `Mbennett00/NHLModel`, branch `claude/betting-model-calibration-66x246` (or `main` once merged),
+   main file `app/streamlit_app.py`. On a phone, open the app URL and use *Add to Home Screen*.
+   To restrict who can see it, use the app's **Share** settings (viewer emails).
+4. **Confirming lineups:** nothing is flagged until a team's goalie and lineup are confirmed. Either
+   use the dashboard's Lineups tab (re-prices instantly, not saved), or commit
+   `overrides/YYYY-MM-DD.csv` (format in `overrides/README.md`), which re-runs the slate and logs
+   flagged plays for the track record.
+
+Notes: the repository is public, so the release files (your plays) are public too. To keep them
+private, make the repo private and add a read-only GitHub token as the Streamlit secret
+`GITHUB_TOKEN`. GitHub pauses scheduled workflows in a repo with no activity for 60 days.
 
 ## Layout (one module per section of the spec)
 
 | Spec section | Module |
 |---|---|
-| Data: MoneyPuck, NHL API, Daily Faceoff lineups, odds | `nhlmodel/data/` (`moneypuck.py`, `nhl_api.py`, `schema.py`, `templates/`) |
+| Data: NHL API play-by-play + shift charts (automated), MoneyPuck (manual), lineups, odds | `nhlmodel/data/` (`nhl_pipeline.py`, `xg.py`, `odds_api.py`, `moneypuck.py`, `schema.py`) |
 | No leakage, 2 seasons, decay half-life | `nhlmodel/ratings.py` (every rate is built from rows dated before the game) |
 | 1. Team model, bivariate Poisson, ML / PL / totals / P1 / team totals | `nhlmodel/team_model.py`, `nhlmodel/distributions.py` |
 | 2–6. Player shrinkage, TOI, goals, SOG (NB), assists, points | `nhlmodel/player_model.py` |
@@ -94,8 +128,15 @@ These are the assumptions made instead of guesses. Each one is also printed in t
 12. **Lines in history**: MoneyPuck has no line data, so historical lines and PP units are inferred
     from TOI rank. Real Daily Faceoff lines are only used for live slates. The walk-forward treats
     the lineup that actually dressed, and the actual starting goalie, as the confirmed pre-game lineup.
-13. **Score and venue adjustment** uses MoneyPuck's `scoreVenueAdjustedxGoals*` columns rather than
-    recomputing it from shot data.
+13. **xG and score/venue adjustment.** The automated pipeline uses its own xG model (logistic
+    regression on distance, angle, shot type, rebound and strength), with each season scored by the
+    previous season's fit. The earliest loaded season is scored in-sample and flagged. Score/venue
+    coefficients (0.5 / xG share by lead state and venue, clipped 0.8–1.25) are computed league-wide
+    across all loaded data. That is a small leak into the backtest, but not into live pricing. The
+    MoneyPuck path uses MoneyPuck's `scoreVenueAdjustedxGoals*` columns instead.
+13b. **TOI by strength** comes from NHL shift charts: 5v5 means five skaters and a goalie on both
+    sides, and PP means more skaters with both goalies in. Event strength comes from each event's
+    `situationCode`.
 14. **One-sided markets**: a small assumed hold is removed (2.5% for game markets, 5% for player
     props). Keeping the hold small keeps the book's probability high, so edge is understated rather
     than overstated.

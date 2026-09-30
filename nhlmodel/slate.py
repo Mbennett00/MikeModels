@@ -1,6 +1,8 @@
 """Price a slate: every play gets projection, model probability, fair odds, no-vig book price, edge."""
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 import numpy as np
 import pandas as pd
 
@@ -52,23 +54,52 @@ def _game_projection(gp, market, selection):
     return ""
 
 
-def price_slate(tables: dict, schedule: pd.DataFrame, lineups: pd.DataFrame, odds: pd.DataFrame | None,
-                cfg: ModelConfig, history_preds: dict | None = None, date=None):
+@dataclass
+class SlateState:
+    """Everything needed to (re)price a slate without the history tables."""
+    date: pd.Timestamp
+    cfg: ModelConfig
+    snap: object
+    params: FittedParams
+    schedule: pd.DataFrame
+    lineups: pd.DataFrame
+    odds: pd.DataFrame | None
+    warnings: list
+
+
+def build_state(tables: dict, schedule: pd.DataFrame, lineups: pd.DataFrame, odds: pd.DataFrame | None,
+                cfg: ModelConfig, history_preds: dict | None = None, date=None) -> SlateState:
     date = pd.Timestamp(date or schedule.date.min()).normalize()
     season = season_of(date)
     snap = build_snapshot(tables, date, season, cfg.half_life_games, cfg.seasons_back, cfg.toi_window)
     hp = history_preds or {}
     params = fit_params(tables, date, season, cfg, hp.get("games"), hp.get("players"), snap.league)
-    tm = TeamModel(cfg, snap, params)
-    rows, cons, warnings = [], [], list(params.notes)
+    warnings = list(params.notes)
     if not hp:
         warnings.append("no backtest predictions supplied: lam3, OT slope, rest and NB dispersion use defaults")
+    return SlateState(date, cfg, snap, params, schedule, lineups, odds, warnings)
+
+
+def price_slate(tables: dict, schedule: pd.DataFrame, lineups: pd.DataFrame, odds: pd.DataFrame | None,
+                cfg: ModelConfig, history_preds: dict | None = None, date=None):
+    st = build_state(tables, schedule, lineups, odds, cfg, history_preds, date)
+    plays, cons, warnings = price_state(st)
+    return plays, cons, warnings, st.params
+
+
+def price_state(st: SlateState, lineups: pd.DataFrame | None = None, odds: pd.DataFrame | None = None):
+    lineups = st.lineups if lineups is None else lineups
+    odds = st.odds if odds is None else odds
+    cfg, params, date, schedule = st.cfg, st.params, st.date, st.schedule
+    tm = TeamModel(cfg, st.snap, params)
+    rows, cons, warnings = [], [], list(st.warnings)
     for g in schedule.itertuples(index=False):
         lu = lineups[lineups.game_id == g.game_id]
         hg, hconf = _goalie(lu, g.home)
         ag, aconf = _goalie(lu, g.away)
         gp = tm.project(g.home, g.away, hg, ag, date, (hconf, aconf))
         matchup = f"{g.away} @ {g.home}"
+        start = getattr(g, "start_utc", None)
         gflags = "; ".join(gp.flags)
         confirmed_game = hconf and aconf
         # game markets: standard lines + any line the books post
@@ -83,7 +114,7 @@ def price_slate(tables: dict, schedule: pd.DataFrame, lineups: pd.DataFrame, odd
                 p = _game_prob(gp, market, sel, line)
             except (ValueError, KeyError):
                 continue
-            rows.append(dict(game_id=g.game_id, matchup=matchup, market=market, selection=sel, line=line,
+            rows.append(dict(game_id=g.game_id, start_utc=start, matchup=matchup, market=market, selection=sel, line=line,
                              player_id=np.nan, player="", projection=_game_projection(gp, market, sel),
                              p_model=p, confirmed=confirmed_game, player_confirmed=True,
                              goalies_confirmed=confirmed_game, flags=gflags))
@@ -101,12 +132,14 @@ def price_slate(tables: dict, schedule: pd.DataFrame, lineups: pd.DataFrame, odd
                     for ln in sorted(lns):
                         p_over = player_market_prob(pr, market, ln, params)
                         for sel, p in (("over", p_over), ("under", 1 - p_over)):
-                            rows.append(dict(game_id=g.game_id, matchup=matchup, market=market, selection=sel,
+                            rows.append(dict(game_id=g.game_id, start_utc=start, matchup=matchup, market=market, selection=sel,
                                              line=ln, player_id=pr["player_id"], player=pr["name"],
                                              projection=f"{lam:.3f}", p_model=p, confirmed=pr["confirmed"] and confirmed_game,
                                              player_confirmed=pr["confirmed"], goalies_confirmed=confirmed_game,
                                              flags="; ".join(x for x in (pr["flags"], gflags) if x)))
     out = pd.DataFrame(rows)
+    if out.empty:
+        return out, pd.DataFrame(cons), warnings + ["nothing to price"]
     out["fair_odds"] = out.p_model.map(fair_american)
     if odds is not None and len(odds):
         snap_name = "bet" if (odds.snapshot == "bet").any() else ("open" if (odds.snapshot == "open").any() else "close")
@@ -122,4 +155,4 @@ def price_slate(tables: dict, schedule: pd.DataFrame, lineups: pd.DataFrame, odd
     out["threshold"] = out.market.map(cfg.edge_threshold).fillna(0.03)
     out["flag"] = (out.edge >= out.threshold) & (out.confirmed | (not cfg.require_confirmed))
     out["confidence"] = np.where(out.thin.fillna(True).astype(bool) | ~out.confirmed, "low", "normal")
-    return out, pd.DataFrame(cons), warnings, params
+    return out, pd.DataFrame(cons), warnings

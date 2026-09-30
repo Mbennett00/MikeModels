@@ -145,6 +145,8 @@ def flagged_bets(preds: pd.DataFrame, odds: pd.DataFrame, cfg: ModelConfig, thre
                  bet_snapshot: str = "open") -> pd.DataFrame:
     """Every model selection with a bet-time price: edge vs no-vig, flag, CLV vs close, result."""
     thresholds = thresholds or cfg.edge_threshold
+    if bet_snapshot not in set(odds.snapshot) and "bet" in set(odds.snapshot):
+        bet_snapshot = "bet"
     bet = novig_table(odds, cfg, bet_snapshot)
     close = novig_table(odds, cfg, "close")
     if bet.empty:

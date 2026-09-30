@@ -1,0 +1,67 @@
+name: daily model run
+
+# Times are UTC. During daylight time ET = UTC-4 (subtract one more hour in winter).
+on:
+  schedule:
+    - cron: "5 10 * * *"        # ~6am ET: fetch last night's games, grade logged plays, refresh backtest
+    - cron: "5 15 * * *"        # ~11am ET: price today's slate (morning lines)
+    - cron: "35 21 * * *"       # ~5:30pm ET: re-price with later lines / goalie news
+    - cron: "15 16-23 * * *"    # hourly: closing odds for games starting within 75 minutes
+    - cron: "15 0-3 * * *"
+  push:
+    paths: ["overrides/**"]     # committing a lineup/goalie override re-prices the slate
+  workflow_dispatch:
+    inputs:
+      task:
+        description: "What to run"
+        type: choice
+        default: slate
+        options: [slate, morning, update, grade, backtest, close, tune]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: model-state
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install "numpy>=1.26" "pandas>=2.1" "scipy>=1.11" "requests>=2.31"
+      - name: Pick task
+        id: pick
+        run: |
+          case "${{ github.event_name }}|${{ github.event.schedule }}" in
+            "schedule|5 10 * * *") t=morning ;;
+            "schedule|5 15 * * *"|"schedule|35 21 * * *") t=slate ;;
+            schedule*) t=close ;;
+            push*) t=slate ;;
+            *) t="${{ inputs.task }}" ;;
+          esac
+          echo "task=$t" >> "$GITHUB_OUTPUT"
+          echo "Task: $t"
+      - name: Download state
+        run: scripts/state.sh pull
+      - name: Morning (update data, grade, backtest)
+        if: steps.pick.outputs.task == 'morning'
+        run: |
+          python -m nhlmodel.daily update
+          python -m nhlmodel.daily grade
+          python -m nhlmodel.daily backtest
+          python -m nhlmodel.daily slate
+      - name: Run ${{ steps.pick.outputs.task }}
+        if: steps.pick.outputs.task != 'morning'
+        run: python -m nhlmodel.daily ${{ steps.pick.outputs.task }}
+      - name: Upload state
+        run: scripts/state.sh push
