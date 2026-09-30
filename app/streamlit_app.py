@@ -26,7 +26,20 @@ sys.path.insert(0, HERE)
 from nhlmodel.pricing import format_american  # noqa: E402
 from teams import color, nickname  # noqa: E402
 
-APP_VERSION = "v4 · rink"
+APP_VERSION = "v5 · rink"
+
+
+def _build() -> str:
+    """Short git commit of the running code, so it's obvious which version is deployed."""
+    import subprocess
+    try:
+        return subprocess.run(["git", "-C", HERE, "rev-parse", "--short", "HEAD"], capture_output=True,
+                              text=True, timeout=5).stdout.strip() or "?"
+    except Exception:
+        return "?"
+
+
+BUILD = _build()
 TAG = "data-latest"
 ET = "America/New_York"
 
@@ -736,5 +749,5 @@ with t_record:
             for w in meta["warnings"]:
                 st.markdown(f"- {w}")
 
-st.markdown(f'<div class="foot">🏒 NHL Model {APP_VERSION} · data from the NHL · bet responsibly</div>',
+st.markdown(f'<div class="foot">🏒 NHL Model {APP_VERSION} · build {BUILD} · data from the NHL · bet responsibly</div>',
             unsafe_allow_html=True)
