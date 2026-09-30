@@ -114,31 +114,76 @@ def parse_event(ev: dict, schedule: pd.DataFrame, name_to_id: dict, snapshot: st
     return rows, missing
 
 
+def budget() -> dict:
+    """Credit-saving settings, overridable with environment variables (GitHub Actions secrets/vars).
+
+    The Odds API charges (number of markets) x (number of regions) per call; one region or a list of
+    up to 10 bookmakers counts as one. So limiting to DraftKings does not by itself save credits:
+    fewer calls and fewer markets do.
+    """
+    env = os.environ.get
+    return dict(
+        bookmakers=env("ODDS_BOOKMAKERS", "draftkings"),
+        game_markets=env("ODDS_GAME_MARKETS", "h2h,spreads,totals"),
+        extra_markets=[m for m in env("ODDS_EXTRA_MARKETS", "").split(",") if m],
+        prop_markets=[m for m in env("ODDS_PROP_MARKETS", "player_shots_on_goal").split(",") if m],
+        close_markets=env("ODDS_CLOSE_MARKETS", "h2h,totals"),
+        min_credits=int(env("ODDS_MIN_CREDITS", "20")),
+    )
+
+
+LAST_CREDITS: dict = {}
+
+
+def _remaining(r) -> int | None:
+    try:
+        v = int(float(r.headers.get("x-requests-remaining")))
+        LAST_CREDITS["remaining"] = v
+        return v
+    except (TypeError, ValueError):
+        return None
+
+
 def fetch(schedule: pd.DataFrame, lineups: pd.DataFrame, snapshot: str, api_key: str | None = None,
-          regions: str = "us", props: bool = True, game_ids: set | None = None, log=print) -> pd.DataFrame:
+          props: bool = True, game_ids: set | None = None, log=print, close: bool = False) -> pd.DataFrame:
+    """One /odds call for game lines (all games at once) plus, for props, one call per game.
+
+    Credits used ~= len(game markets) + n_games * (len(prop markets) + len(extra markets)).
+    """
     import requests
     key = api_key or os.environ.get("ODDS_API_KEY")
     if not key:
         log("ODDS_API_KEY not set: no odds fetched")
         return pd.DataFrame()
+    b = budget()
     now = pd.Timestamp.utcnow().isoformat()
     name_to_id = player_index(lineups)
-    params = dict(apiKey=key, regions=regions, oddsFormat="american")
-    r = requests.get(f"{BASE}/odds", params=dict(params, markets=GAME_MARKETS), timeout=30)
+    params = dict(apiKey=key, oddsFormat="american")
+    if b["bookmakers"]:
+        params["bookmakers"] = b["bookmakers"]
+    else:
+        params["regions"] = "us"
+    markets = b["close_markets"] if close else b["game_markets"]
+    r = requests.get(f"{BASE}/odds", params=dict(params, markets=markets), timeout=30)
     r.raise_for_status()
-    log(f"odds api: {r.headers.get('x-requests-remaining')} credits left")
+    left = _remaining(r)
+    log(f"odds api: {left} credits left (books: {b['bookmakers'] or 'all US'}; markets: {markets})")
     rows, missing = [], set()
     events = r.json()
     for ev in events:
         rr, mm = parse_event(ev, schedule, name_to_id, snapshot, now)
         rows += rr; missing |= mm
-    extra = EVENT_MARKETS + (PROP_MARKETS if props else [])
-    for ev in events:
+    extra = [] if close else b["extra_markets"] + (b["prop_markets"] if props else [])
+    for ev in events if extra else []:
         home, away = abbrev(ev["home_team"]), abbrev(ev["away_team"])
         m = schedule[(schedule.home == home) & (schedule.away == away)]
         if m.empty or (game_ids is not None and int(m.game_id.iloc[0]) not in game_ids):
             continue
+        if left is not None and left - len(extra) < b["min_credits"]:
+            log(f"odds api: stopping, only {left} credits left (floor {b['min_credits']})")
+            break
         r = requests.get(f"{BASE}/events/{ev['id']}/odds", params=dict(params, markets=",".join(extra)), timeout=30)
+        left = _remaining(r) if r.status_code == 200 else left
         if r.status_code != 200:
             log(f"odds api event {ev['id']}: HTTP {r.status_code} {r.text[:200]}")
             continue
@@ -146,6 +191,7 @@ def fetch(schedule: pd.DataFrame, lineups: pd.DataFrame, snapshot: str, api_key:
         rows += rr; missing |= mm
     if missing:
         log(f"odds api: {len(missing)} player names not matched to lineups, e.g. {sorted(missing)[:5]}")
+    log(f"odds api: {left} credits left after this run")
     out = pd.DataFrame(rows)
     if game_ids is not None and len(out):
         out = out[out.game_id.isin(game_ids)]

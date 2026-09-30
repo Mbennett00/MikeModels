@@ -53,5 +53,9 @@ def novig_table(odds: pd.DataFrame, cfg: ModelConfig, snapshot: str) -> pd.DataF
     g = o.groupby(["game_id", "market", "selection", "line", "player_id"], dropna=False)
     out = g.agg(p_novig=("novig", "median"), best_price=("price", "max"), n_books=("book", "nunique"),
                 one_sided=("one_sided", "all"), date=("date", "first")).reset_index()
-    out["thin"] = out.market.isin(THIN_MARKETS) | (out.n_books < 2) | out.one_sided
+    # a single book is only "thin" when several were expected (ODDS_BOOKMAKERS lists more than one or is empty)
+    import os
+    books = [x for x in os.environ.get("ODDS_BOOKMAKERS", "draftkings").split(",") if x]
+    want = len(books) if books else 2
+    out["thin"] = out.market.isin(THIN_MARKETS) | (out.n_books < min(want, 2)) | out.one_sided
     return out
