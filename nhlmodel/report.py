@@ -69,10 +69,12 @@ def slate_markdown(plays: pd.DataFrame, consistency: pd.DataFrame, warnings: lis
     out = [f"# Slate {pd.Timestamp(date).date()}\n"]
     if warnings:
         out.append("## Warnings / assumptions\n" + "\n".join(f"- {w}" for w in warnings) + "\n")
-    unconf = plays[~plays.confirmed.astype(bool)]
-    if len(unconf):
-        who = sorted(set(unconf.player[unconf.player != ""]))
-        out.append(f"**Unconfirmed lineup (never flagged):** {', '.join(who) if who else 'goalie(s) unconfirmed'}\n")
+    who = sorted(set(plays.player[~plays.player_confirmed.astype(bool) & (plays.player != "")]))
+    if who:
+        out.append(f"**Players with unconfirmed lineup spot (never flagged):** {', '.join(who)}\n")
+    games = sorted(set(plays.matchup[~plays.goalies_confirmed.astype(bool)]))
+    if games:
+        out.append(f"**Starting goalie unconfirmed (no play in these games is flagged):** {', '.join(games)}\n")
     cols = ["matchup", "market", "selection", "line", "player", "projection", "p_model", "fair", "book_novig",
             "best_price", "edge", "confidence", "flags"]
     p = plays.copy()

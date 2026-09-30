@@ -39,7 +39,7 @@ def _game_prob(gp, market, selection, line):
 
 def _game_projection(gp, market, selection):
     if market in ("moneyline", "puckline", "p1_3way"):
-        return f"{gp.home} {gp.lam_home:.2f} - {gp.lam_away:.2f} {gp.away} (reg. xG-based goals)"
+        return f"{gp.home} {gp.lam_home:.2f} - {gp.lam_away:.2f} {gp.away} (regulation goal λ)"
     if market == "total":
         return f"{float((np.arange(len(gp.total_dist())) * gp.total_dist()).sum()):.2f} goals"
     if market == "team_total":
@@ -85,7 +85,8 @@ def price_slate(tables: dict, schedule: pd.DataFrame, lineups: pd.DataFrame, odd
                 continue
             rows.append(dict(game_id=g.game_id, matchup=matchup, market=market, selection=sel, line=line,
                              player_id=np.nan, player="", projection=_game_projection(gp, market, sel),
-                             p_model=p, confirmed=confirmed_game, flags=gflags))
+                             p_model=p, confirmed=confirmed_game, player_confirmed=True,
+                             goalies_confirmed=confirmed_game, flags=gflags))
         for side, team in (("home", g.home), ("away", g.away)):
             df, rep = project_team_players(tm, gp, side, lu[lu.team == team], params, cfg)
             cons.append(dict(game_id=g.game_id, **rep))
@@ -103,6 +104,7 @@ def price_slate(tables: dict, schedule: pd.DataFrame, lineups: pd.DataFrame, odd
                             rows.append(dict(game_id=g.game_id, matchup=matchup, market=market, selection=sel,
                                              line=ln, player_id=pr["player_id"], player=pr["name"],
                                              projection=f"{lam:.3f}", p_model=p, confirmed=pr["confirmed"] and confirmed_game,
+                                             player_confirmed=pr["confirmed"], goalies_confirmed=confirmed_game,
                                              flags="; ".join(x for x in (pr["flags"], gflags) if x)))
     out = pd.DataFrame(rows)
     out["fair_odds"] = out.p_model.map(fair_american)
