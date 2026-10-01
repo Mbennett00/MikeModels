@@ -77,7 +77,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .tile .v { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
 .tile .c { font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 19px; color: var(--navy); }
 .tile .b { font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 16px; color: var(--green); }
-.tile.won { background: var(--green-soft); } .tile.lost { opacity: .45; } .tile.push { background: #f1f1f1; }
+.tile.won { background: var(--green-soft); } .tile.lost { background: #e9edf1; } .tile.lost > * { opacity: .5; } .tile.push { background: #f1f1f1; }
 .sec { font-size: 11.5px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); font-weight: 800; margin: 14px 2px 6px; }
 .more { width: 100%; margin-top: 10px; border: 2.5px dashed var(--navy); background: transparent; border-radius: 14px; padding: 9px; font-weight: 800; font-size: 14px; color: var(--navy); }
 .inj { font-size: 13px; color: var(--ink-2); font-weight: 700; line-height: 1.5; } .inj b { color: var(--red); }
@@ -165,6 +165,22 @@ label.f { display: block; font-size: 13px; font-weight: 800; color: var(--ink-2)
 .note { color: var(--ink-2); font-size: 14.5px; margin: 0 4px 12px; font-weight: 600; }
 .empty { text-align: center; } .empty .e { font-size: 40px; } .empty .t { font-family: 'Fredoka', sans-serif; font-size: 20px; font-weight: 600; margin: 6px 0; }
 .foot { text-align: center; color: #56708a; font-size: 12px; font-weight: 700; margin-top: 18px; }
+/* team-colour game cards */
+.card.gc { padding: 0; overflow: hidden; }
+.gc .band { padding: 12px 14px 4px; }
+.gc .status { color: inherit; opacity: .9; }
+.gc .gk { color: inherit; opacity: .85; }
+.gc .tname, .gc .pct, .gc .score { text-shadow: 0 1px 0 rgba(0,0,0,.12); }
+.gc .ink-light .tname, .gc .ink-light .pct, .gc .ink-light .score { text-shadow: 0 1px 2px rgba(0,0,0,.35); }
+.gc .score.lose { color: inherit; opacity: .5; }
+.gc .code { color: var(--navy); text-shadow: none; }
+.gc .logo { filter: drop-shadow(0 2px 2px rgba(0,0,0,.25)); }
+.gc .final { background: rgba(255,255,255,.9); color: var(--navy); border: 2px solid var(--navy); }
+.gc .live { border: 2px solid var(--navy); }
+.gc .bar { margin: 6px 0 10px; }
+.gc .body { padding: 0 14px 14px; }
+.gc .more { background: var(--cream); border-style: solid; box-shadow: 2px 2px 0 var(--navy); }
+.gc .panel { background: var(--cream); border: 2.5px solid var(--navy); border-radius: 16px; padding: 2px 12px 12px; margin-top: 10px; }
 @media (min-width: 700px) { .tiles { grid-template-columns: repeat(3, 1fr); } }
 </style>
 </head>
@@ -406,6 +422,9 @@ function logo(t) { return `<img class="logo" src="${esc(t.logo)}" alt="${esc(t.a
 function initials(n) { const p = String(n).split(" ").filter(Boolean); return p.length > 1 ? p[0][0] + p[p.length - 1][0] : String(n).slice(0, 3); }
 function avatar(pl) { const c = (D.colors || {})[pl.team] || "#7a8894";
   return `<div class="av" style="background-color:${esc(c)}"><span>${esc(initials(pl.name))}</span>${pl.headshot ? `<img src="${esc(pl.headshot)}" alt="" loading="lazy" onload="this.previousElementSibling.style.visibility='hidden'" onerror="this.remove()">` : ""}</div>`; }
+function lum(hex) { const c = (hex || "#888").replace("#", ""); const f = i => { const v = parseInt(c.substr(i, 2), 16) / 255;
+  return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }; return 0.2126 * f(0) + 0.7152 * f(2) + 0.0722 * f(4); }
+const inkOf = hex => lum(hex) > 0.3 ? ["#1f3448", ""] : ["#ffffff", "ink-light"];
 const gdot = t => t.goalie_status === "Confirmed" ? "ok" : t.goalie_status === "Likely" ? "lk" : "un";
 function gameLabel(g) { return `${g.away.name} @ ${g.home.name}`; }
 function empty(e, t, s) { return `<div class="card empty"><div class="e">${e}</div><div class="t">${esc(t)}</div><div class="note">${esc(s)}</div></div>`; }
@@ -454,28 +473,30 @@ function gameCard(g) {
   const status = L.state === "in" ? `<span class="live">LIVE</span><span>${esc(L.detail)}</span>`
     : L.state === "post" ? `<span class="final">${esc((L.detail || "Final").toUpperCase())}</span><span>model ${pct(favH ? ph : 1 - ph)} on ${esc(fav.abbr)}</span>`
     : `<span>${timeET(g.start_utc)}</span><span>proj ${esc(a.abbr)} ${g.lam_away.toFixed(1)} – ${g.lam_home.toFixed(1)} ${esc(h.abbr)}</span>`;
-  const trow = (t, p, mine, theirs) => `<div class="trow">${logo(t)}<div style="min-width:0"><div class="tname">${esc(t.name)}</div>
+  const [ia, ca] = inkOf(a.color), [ih, ch] = inkOf(h.color);
+  const trow = (t, p, mine, theirs) => `<div class="trow ${t === a ? ca : ch}" style="color:${t === a ? ia : ih}">${logo(t)}<div style="min-width:0"><div class="tname">${esc(t.name)}</div>
       <div class="gk"><span class="dot ${gdot(t)}"></span>${esc(t.goalie || "Goalie TBD")}${t.goalie_status ? ` · ${esc(t.goalie_status)}` : ""}</div></div>
       <div class="right">${on ? `<div class="score ${L.state === "post" && mine < theirs ? "lose" : ""}">${mine}</div>` : `<div class="pct">${pct(p)}</div>`}</div></div>`;
-  let html = `<div class="card"><div class="status">${status}</div>
+  let html = `<div class="card gc" style="background:linear-gradient(170deg, ${a.color} 0%, ${a.color} 22%, ${h.color} 62%, ${h.color} 100%)">
+    <div class="band"><div class="status" style="color:${ia}">${status}</div>
     ${trow(a, 1 - ph, L.away, L.home)}${trow(h, ph, L.home, L.away)}
-    <div class="bar"><div style="width:${100 * (1 - ph)}%;background:${a.color}"></div><div style="width:${100 * ph}%;background:${h.color}"></div></div>
-    <div class="tiles">${tile(g, `${a.abbr} win`, "moneyline", "away")}${tile(g, `${h.abbr} win`, "moneyline", "home")}
+    <div class="bar"><div style="width:${100 * (1 - ph)}%;background:${a.color}"></div><div style="width:${100 * ph}%;background:${h.color}"></div></div></div>
+    <div class="body"><div class="tiles">${tile(g, `${a.abbr} win`, "moneyline", "away")}${tile(g, `${h.abbr} win`, "moneyline", "home")}
       ${tile(g, `${fav.abbr} -1.5`, "puckline", fs, -1.5)}${tile(g, `${dog.abbr} +1.5`, "puckline", ds, 1.5)}
       ${tile(g, "Over 6.5", "total", "over", 6.5)}${tile(g, "Under 6.5", "total", "under", 6.5)}</div>`;
   if (OPEN.has(g.game_id)) {
     const inj = [a, h].filter(t => t.injuries.length).map(t => `${esc(t.abbr)}: ` + t.injuries.map(i => `${esc(i.name)} <b>${esc(i.status)}</b>`).join(", ")).join("<br>");
     const top = D.players.filter(p => p.game_id === g.game_id && p.lam.sog != null).sort((x, y) => y.lam.sog - x.lam.sog).slice(0, 6);
-    html += `<div class="sec">Totals</div><div class="tiles">${tile(g, "Over 5.5", "total", "over", 5.5)}${tile(g, "Under 5.5", "total", "under", 5.5)}
+    html += `<div class="panel"><div class="sec">Totals</div><div class="tiles">${tile(g, "Over 5.5", "total", "over", 5.5)}${tile(g, "Under 5.5", "total", "under", 5.5)}
         ${tile(g, `${a.abbr} over 2.5`, "team_total", "away_over", 2.5)}${tile(g, `${h.abbr} over 2.5`, "team_total", "home_over", 2.5)}
         ${tile(g, `${a.abbr} over 3.5`, "team_total", "away_over", 3.5)}${tile(g, `${h.abbr} over 3.5`, "team_total", "home_over", 3.5)}</div>
       <div class="sec">1st period</div><div class="tiles">${tile(g, "P1 over 1.5", "p1_total", "over", 1.5)}${tile(g, "P1 under 1.5", "p1_total", "under", 1.5)}
         ${tile(g, `P1 ${a.abbr} lead`, "p1_3way", "away")}${tile(g, `P1 ${h.abbr} lead`, "p1_3way", "home")}${tile(g, "P1 tied", "p1_3way", "draw")}</div>
       ${top.length ? `<div class="sec">Top shooters</div>${top.map(p => playerRow(p, "sog")).join("")}` : ""}
       ${inj ? `<div class="sec">Injuries</div><div class="inj">${inj}</div>` : ""}
-      <div class="sec">Lines</div>${linesHtml(g)}`;
+      <div class="sec">Lines</div>${linesHtml(g)}</div>`;
   }
-  return html + `<button class="more" data-more="${g.game_id}">${OPEN.has(g.game_id) ? "Less ▴" : "More bets, shooters & lines ▾"}</button></div>`;
+  return html + `<button class="more" data-more="${g.game_id}">${OPEN.has(g.game_id) ? "Less ▴" : "More bets, shooters & lines ▾"}</button></div></div>`;
 }
 function linesHtml(g) {
   return `<div class="lines">` + [g.away, g.home].map(t => {
