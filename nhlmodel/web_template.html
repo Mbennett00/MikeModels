@@ -182,16 +182,20 @@ label.f { display: block; font-size: 13px; font-weight: 800; color: var(--ink-2)
 .gc .more { background: var(--cream); border-style: solid; box-shadow: 2px 2px 0 var(--navy); }
 .gc .panel { background: var(--cream); border: 2.5px solid var(--navy); border-radius: 16px; padding: 2px 12px 12px; margin-top: 10px; }
 /* matchup breakdown */
-.mx .hd { display: flex; justify-content: space-between; font-family: 'Fredoka', sans-serif; font-weight: 600; font-size: 15px; margin: 2px 0 4px; }
-.mx .r { display: grid; grid-template-columns: 46px 1fr 46px; align-items: center; gap: 8px; margin: 2px 0 8px; }
-.mx .lab { grid-column: 1 / -1; text-align: center; font-size: 12px; font-weight: 800; color: var(--ink-2); margin-bottom: -6px; }
+.mx .r { display: grid; grid-template-columns: 128px 38px 1fr 38px; align-items: center; gap: 8px; margin: 9px 0; }
+.mx .hd { margin: 0 0 4px; }
+.mx .hd .v { font-family: 'Fredoka', sans-serif; font-size: 14px; }
+.mx .vs { text-align: center; font-size: 11px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.mx .lab { font-size: 13.5px; font-weight: 800; color: var(--navy); white-space: nowrap; }
 .mx .v { font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 14px; color: var(--navy); }
 .mx .v.r2 { text-align: right; } .mx .v.neg { color: var(--red); }
 .mx .tr { display: flex; height: 12px; background: #efe7d6; border: 2px solid var(--navy); border-radius: 99px; overflow: hidden; }
 .mx .half { flex: 1; display: flex; } .mx .half.l { justify-content: flex-end; border-right: 2px solid var(--navy); }
 .mx .half div { height: 100%; }
-.mx .why { font-size: 13.5px; font-weight: 700; color: var(--ink-2); line-height: 1.45; margin-top: 4px; }
-.mx .why b { color: var(--navy); }
+.edges { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 12px; }
+.edges .et { font-size: 11.5px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-right: 2px; }
+.edge { font-size: 13px; font-weight: 800; border: 2px solid var(--navy); border-radius: 999px; padding: 2px 9px; background: #fff; }
+.edge.soft { border-style: dashed; background: transparent; color: var(--ink-2); }
 /* game panel tabs + compact player rows */
 .ptabs { display: flex; gap: 4px; background: #efe7d6; border-radius: 999px; padding: 4px; margin: 10px 0 12px; }
 .ptabs button { flex: 1; border: 0; background: transparent; border-radius: 999px; padding: 7px 0; font-weight: 800; font-size: 13.5px; color: var(--navy); }
@@ -529,27 +533,25 @@ function gameCard(g) {
   return html + `<button class="more" data-more="${g.game_id}">${OPEN.has(g.game_id) ? "Less ▴" : "Matchup, bets, players & lines ▾"}</button></div></div>`;
 }
 // every row reads "higher = better for that team", as % vs league average
-const MX_ROWS = [["Attack (5-on-5)", t => t.off - 1], ["Defence (5-on-5)", t => 1 - t.dfn], ["Goalie", t => 1 - t.gk],
-                 ["Power play", t => t.pp - 1], ["Penalty kill", t => 1 - t.pk], ["Power-play chances", t => t.ppc - 1]];
+const MX_ROWS = [["Attack", t => t.off - 1], ["Defence", t => 1 - t.dfn], ["Goalie", t => 1 - t.gk],
+                 ["Special teams", t => ((t.pp * t.ppc - 1) + (1 - t.pk)) / 2]];
+const MX_ICON = {Attack: "⚡", Defence: "🛡️", Goalie: "🥅", "Special teams": "🎯"};
 const sgn = v => { const n = Math.round(100 * v); return n === 0 ? "0%" : (n > 0 ? "+" : "−") + Math.abs(n) + "%"; };
 function matchupHtml(g) {
   const M = g.mx; if (!M) return "";
   const a = g.away, h = g.home, A = M.away, H = M.home, W = 0.15;
   const half = (v, col, side) => `<div class="half ${side}"><div style="width:${Math.min(Math.abs(v) / W, 1) * 100}%;background:${v > 0 ? col : "#f0b3ab"}"></div></div>`;
+  const val = (v, cls) => `<span class="v ${cls} ${Math.round(100 * v) < 0 ? "neg" : ""}">${sgn(v)}</span>`;
   const rows = MX_ROWS.map(([lab, fn]) => { const va = fn(A), vh = fn(H);
-    return `<div class="r"><div class="lab">${lab}</div><div class="v ${Math.round(100 * va) < 0 ? "neg" : ""}">${sgn(va)}</div>
-      <div class="tr">${half(va, a.color, "l")}${half(vh, h.color, "")}</div><div class="v r2 ${Math.round(100 * vh) < 0 ? "neg" : ""}">${sgn(vh)}</div></div>`; }).join("");
-  // the two biggest gaps, in words
-  const gaps = MX_ROWS.map(([lab, fn]) => ({lab, d: fn(A) - fn(H), va: fn(A), vh: fn(H)})).sort((x, y) => Math.abs(y.d) - Math.abs(x.d)).slice(0, 2)
-    .filter(x => Math.abs(x.d) >= 0.02)
-    .map(x => `<b>${esc(x.d > 0 ? a.abbr : h.abbr)} ${x.lab.toLowerCase().replace(" (5-on-5)", "")}</b> (${sgn(x.d > 0 ? x.va : x.vh)} vs ${sgn(x.d > 0 ? x.vh : x.va)})`);
-  const extra = [];
-  if (Math.abs(M.pace - 1) >= 0.015) extra.push(`expect a ${M.pace > 1 ? "faster, higher-event" : "slower, tighter"} game (${sgn(M.pace - 1)} pace)`);
-  extra.push(`home ice is worth ${sgn(H.home - 1)} to ${esc(h.abbr)}`);
-  for (const [t, X] of [[a, A], [h, H]]) if (Math.abs(X.rest - 1) > 0.005) extra.push(`${esc(t.abbr)} back-to-back ${sgn(X.rest - 1)}`);
-  return `<div class="mx"><div class="hd"><span>${esc(a.name)}</span><span>${esc(h.name)}</span></div>${rows}
-    <div class="why">${gaps.length ? `Biggest edges: ${gaps.join(" and ")}. ` : "Evenly matched on paper. "}${(x => x.charAt(0).toUpperCase() + x.slice(1))(extra.join("; "))}.
-    Adds up to <b>${esc(a.abbr)} ${A.lam.toFixed(1)} – ${H.lam.toFixed(1)} ${esc(h.abbr)}</b> projected goals.</div></div>`;
+    return `<div class="r"><span class="lab">${MX_ICON[lab]} ${lab}</span>${val(va, "")}<div class="tr">${half(va, a.color, "l")}${half(vh, h.color, "")}</div>${val(vh, "r2")}</div>`; }).join("");
+  const edges = MX_ROWS.map(([lab, fn]) => ({lab, d: fn(A) - fn(H)})).filter(x => Math.abs(x.d) >= 0.03)
+    .sort((x, y) => Math.abs(y.d) - Math.abs(x.d)).slice(0, 2)
+    .map(x => `<span class="edge">${MX_ICON[x.lab]} ${esc(x.d > 0 ? a.abbr : h.abbr)} ${x.lab.toLowerCase()}</span>`);
+  const notes = [];
+  if (Math.abs(M.pace - 1) >= 0.015) notes.push(M.pace > 1 ? "fast pace" : "slow pace");
+  for (const [t, X] of [[a, A], [h, H]]) if (Math.abs(X.rest - 1) > 0.005) notes.push(`${esc(t.abbr)} back-to-back`);
+  return `<div class="mx"><div class="r hd"><span></span><span class="v">${esc(a.abbr)}</span><span class="vs">vs avg</span><span class="v r2">${esc(h.abbr)}</span></div>${rows}
+    <div class="edges">${edges.length ? `<span class="et">Edge</span>${edges.join("")}` : `<span class="et">Even matchup</span>`}${notes.map(n => `<span class="edge soft">${n}</span>`).join("")}</div></div>`;
 }
 function linesHtml(g) {
   return `<div class="lines">` + [g.away, g.home].map(t => {
