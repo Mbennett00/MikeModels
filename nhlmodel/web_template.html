@@ -81,8 +81,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .sec { font-size: 11.5px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); font-weight: 800; margin: 14px 2px 6px; }
 .more { width: 100%; margin-top: 10px; border: 2.5px dashed var(--navy); background: transparent; border-radius: 14px; padding: 9px; font-weight: 800; font-size: 14px; color: var(--navy); }
 .inj { font-size: 13px; color: var(--ink-2); font-weight: 700; line-height: 1.5; } .inj b { color: var(--red); }
-.lines { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 13px; font-weight: 700; color: var(--ink-2); }
-.lines .ln { margin: 2px 0; } .lines .ln b { color: var(--navy); display: inline-block; width: 34px; }
+.lines { display: grid; grid-template-columns: 1fr; gap: 12px; font-size: 13px; font-weight: 700; color: var(--ink-2); }
+.lines .ln { margin: 3px 0; display: grid; grid-template-columns: 38px 1fr; } .lines .ln b { color: var(--navy); }
 .lines .tn { font-family: 'Fredoka', sans-serif; font-weight: 600; font-size: 15px; color: var(--navy); margin-bottom: 4px; }
 
 /* players */
@@ -192,6 +192,16 @@ label.f { display: block; font-size: 13px; font-weight: 800; color: var(--ink-2)
 .mx .half div { height: 100%; }
 .mx .why { font-size: 13.5px; font-weight: 700; color: var(--ink-2); line-height: 1.45; margin-top: 4px; }
 .mx .why b { color: var(--navy); }
+/* game panel tabs + compact player rows */
+.ptabs { display: flex; gap: 4px; background: #efe7d6; border-radius: 999px; padding: 4px; margin: 10px 0 12px; }
+.ptabs button { flex: 1; border: 0; background: transparent; border-radius: 999px; padding: 7px 0; font-weight: 800; font-size: 13.5px; color: var(--navy); }
+.ptabs button.on { background: var(--navy); color: var(--cream); }
+.mini { display: grid; grid-template-columns: 36px minmax(0, 1fr); column-gap: 10px; row-gap: 5px; align-items: center; padding: 8px 0; border-bottom: 2px dashed var(--line); }
+.mini:last-of-type { border-bottom: 0; }
+.mini .av { width: 36px; height: 36px; font-size: 12px; }
+.mini .mc { grid-column: 2; display: flex; gap: 6px; } .mini .lc { padding: 3px 7px; font-size: 12px; }
+.link { width: 100%; margin-top: 8px; border: 0; background: transparent; font-weight: 800; font-size: 14px; color: var(--navy); text-decoration: underline; padding: 6px; }
+.tn2 { color: var(--navy) !important; }
 @media (min-width: 700px) { .tiles { grid-template-columns: repeat(3, 1fr); } }
 </style>
 </head>
@@ -222,6 +232,7 @@ const MNAME = {goals: "Anytime goal", sog: "Shots on goal", assists: "Assists", 
 let D = null, TODAY = null, PREV = null, TAB = "games", PSTATE = {q: "", game: "all", market: "sog"};
 let LIVE = {};   // game_id -> live/final info from ESPN (scores, clock, player box score)
 const OPEN = new Set();   // game cards with "More" expanded
+const PANEL = {};         // game_id -> which panel tab is showing
 // ---------- math (mirrors nhlmodel.team_model / player_model) ----------
 function lgamma(x) {           // Lanczos
   const g = 7, c = [0.99999999999980993, 676.5203681218851, -1259.1392167224028, 771.32342877765313,
@@ -496,18 +507,26 @@ function gameCard(g) {
       ${tile(g, `${fav.abbr} -1.5`, "puckline", fs, -1.5)}${tile(g, `${dog.abbr} +1.5`, "puckline", ds, 1.5)}
       ${tile(g, "Over 6.5", "total", "over", 6.5)}${tile(g, "Under 6.5", "total", "under", 6.5)}</div>`;
   if (OPEN.has(g.game_id)) {
-    const inj = [a, h].filter(t => t.injuries.length).map(t => `${esc(t.abbr)}: ` + t.injuries.map(i => `${esc(i.name)} <b>${esc(i.status)}</b>`).join(", ")).join("<br>");
-    const top = D.players.filter(p => p.game_id === g.game_id && p.lam.sog != null).sort((x, y) => y.lam.sog - x.lam.sog).slice(0, 6);
-    html += `<div class="panel"><div class="sec">Matchup <span style="text-transform:none;letter-spacing:0">· vs league average</span></div>${matchupHtml(g)}<div class="sec">Totals</div><div class="tiles">${tile(g, "Over 5.5", "total", "over", 5.5)}${tile(g, "Under 5.5", "total", "under", 5.5)}
+    const view = PANEL[g.game_id] || "matchup";
+    const tabs = [["matchup", "Matchup"], ["bets", "Bets"], ["players", "Players"], ["lines", "Lines"]]
+      .map(([k, n]) => `<button class="${view === k ? "on" : ""}" data-pv="${g.game_id}|${k}">${n}</button>`).join("");
+    let body = "";
+    if (view === "matchup") body = matchupHtml(g);
+    else if (view === "bets") body = `<div class="tiles">${tile(g, "Over 5.5", "total", "over", 5.5)}${tile(g, "Under 5.5", "total", "under", 5.5)}
         ${tile(g, `${a.abbr} over 2.5`, "team_total", "away_over", 2.5)}${tile(g, `${h.abbr} over 2.5`, "team_total", "home_over", 2.5)}
-        ${tile(g, `${a.abbr} over 3.5`, "team_total", "away_over", 3.5)}${tile(g, `${h.abbr} over 3.5`, "team_total", "home_over", 3.5)}</div>
-      <div class="sec">1st period</div><div class="tiles">${tile(g, "P1 over 1.5", "p1_total", "over", 1.5)}${tile(g, "P1 under 1.5", "p1_total", "under", 1.5)}
-        ${tile(g, `P1 ${a.abbr} lead`, "p1_3way", "away")}${tile(g, `P1 ${h.abbr} lead`, "p1_3way", "home")}${tile(g, "P1 tied", "p1_3way", "draw")}</div>
-      ${top.length ? `<div class="sec">Top shooters</div>${top.map(p => playerRow(p, "sog")).join("")}` : ""}
-      ${inj ? `<div class="sec">Injuries</div><div class="inj">${inj}</div>` : ""}
-      <div class="sec">Lines</div>${linesHtml(g)}</div>`;
+        ${tile(g, `${a.abbr} over 3.5`, "team_total", "away_over", 3.5)}${tile(g, `${h.abbr} over 3.5`, "team_total", "home_over", 3.5)}
+        ${tile(g, "1st per. over 1.5", "p1_total", "over", 1.5)}${tile(g, "1st per. under 1.5", "p1_total", "under", 1.5)}
+        ${tile(g, `1st per. ${a.abbr} lead`, "p1_3way", "away")}${tile(g, `1st per. ${h.abbr} lead`, "p1_3way", "home")}</div>`;
+    else if (view === "players") {
+      const top = D.players.filter(p => p.game_id === g.game_id && p.lam.sog != null).sort((x, y) => y.lam.sog - x.lam.sog).slice(0, 5);
+      body = top.map(miniRow).join("") + `<button class="link" data-allprops="${g.game_id}">All player props for this game →</button>`;
+    } else {
+      const inj = [a, h].filter(t => t.injuries.length).map(t => `<b class="tn2">${esc(t.abbr)}</b> ` + t.injuries.map(i => `${esc(i.name)} <b>${esc(i.status)}</b>`).join(", ")).join("<br>");
+      body = linesHtml(g) + (inj ? `<div class="inj" style="margin-top:10px">🚑 ${inj}</div>` : "");
+    }
+    html += `<div class="panel"><div class="ptabs">${tabs}</div>${body}</div>`;
   }
-  return html + `<button class="more" data-more="${g.game_id}">${OPEN.has(g.game_id) ? "Less ▴" : "Matchup, more bets & lines ▾"}</button></div></div>`;
+  return html + `<button class="more" data-more="${g.game_id}">${OPEN.has(g.game_id) ? "Less ▴" : "Matchup, bets, players & lines ▾"}</button></div></div>`;
 }
 // every row reads "higher = better for that team", as % vs league average
 const MX_ROWS = [["Attack (5-on-5)", t => t.off - 1], ["Defence (5-on-5)", t => 1 - t.dfn], ["Goalie", t => 1 - t.gk],
@@ -564,6 +583,16 @@ function playerRow(p, mk) {
   return `<div class="prow"><div class="phead">${avatar(p)}<div style="min-width:0"><div class="pname">${esc(p.name)}${badge}</div>
     <div class="pmeta">${esc(p.team)} · proj ${p.lam[mk].toFixed(2)} ${mk === "goals" ? "goals" : UNIT[mk]}${p.confirmed ? "" : " · lineup projected"}</div></div></div>
     <div class="pchips">${chips}</div></div>`;
+}
+function miniRow(p) {
+  const L = LIVE[p.game_id] || {}, s = playerStat(p), lam = p.lam.sog;
+  // the two lines closest to a coin flip are the interesting ones
+  const lines = [1.5, 2.5, 3.5, 4.5].map(l => ({l, pr: propProb(p, "sog", l)})).sort((x, y) => Math.abs(x.pr - 0.5) - Math.abs(y.pr - 0.5)).slice(0, 2).sort((x, y) => x.l - y.l);
+  const chips = lines.map(({l, pr}) => { const [cls, ic] = RES(s && !s.dnp ? cmpLine(s.sog, l, "over", L.state === "post") : undefined);
+    const i = bet({player: p, market: "sog", line: l, p: pr, label: `${p.name} over ${l} shots`});
+    return `<button class="lc ${cls}" data-bet="${i}">${ic ? ic + " " : ""}<b>O ${l}</b> ${pct(pr)} · <span class="t">${betAt(pr - thr("sog"))}</span></button>`; }).join("");
+  return `<div class="mini">${avatar(p)}<div class="mn"><div class="pname">${esc(p.name)} <span class="pmeta">· ${esc(p.team)} · ${lam.toFixed(1)} shots</span>${s && !s.dnp ? ` <span class="stat ${L.state}">${s.sog} SOG</span>` : ""}</div>
+    </div><div class="mc">${chips}</div></div>`;
 }
 function props() {
   if (!D.players.length) return empty("👤", "No player projections yet", "");
@@ -639,6 +668,8 @@ function render() {
   if (TAB === "props") wireProps();
   if (TAB === "check") wireCheck();
   $("#view").querySelectorAll("[data-bet]").forEach(el => el.onclick = () => openSheet(BETS[Number(el.dataset.bet)]));
+  $("#view").querySelectorAll("[data-pv]").forEach(el => el.onclick = () => { const [id, k] = el.dataset.pv.split("|"); PANEL[id] = k; render(); });
+  $("#view").querySelectorAll("[data-allprops]").forEach(el => el.onclick = () => { PSTATE.game = el.dataset.allprops; PSTATE.q = ""; TAB = "props"; render(); window.scrollTo(0, 0); });
   $("#view").querySelectorAll("[data-more]").forEach(el => el.onclick = () => {
     const id = Number(el.dataset.more); OPEN.has(id) ? OPEN.delete(id) : OPEN.add(id); render(); });
 }
