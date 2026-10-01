@@ -156,11 +156,11 @@ def _toi_from_shifts(gid, shifts, roster, grow):
 
 
 # ---------------------------------------------------------------------------------------------
-def build_tables(inter: dict[str, pd.DataFrame]) -> tuple[dict, list[str]]:
+def build_tables(inter: dict[str, pd.DataFrame], xg_version: int | None = None) -> tuple[dict, list[str]]:
     games = inter["games"].copy()
     games["date"] = pd.to_datetime(games.date)
     shots = inter["shots"].merge(games[["game_id", "date"]], on="game_id")
-    shots["xg"], notes = score_by_season(shots)
+    shots["xg"], notes = score_by_season(shots, dict(zip(games.game_id, games.home)), xg_version)
     coefs = score_venue_coefs(shots)   # league-wide; small leakage accepted, see README
     shots = shots.merge(coefs, on=["lead", "is_home"], how="left").fillna({"coef": 1.0})
     shots["xg_adj"] = shots.xg * np.where(shots.strength == "5v5", shots.coef, 1.0)

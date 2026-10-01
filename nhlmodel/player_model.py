@@ -47,6 +47,8 @@ def adjusted_rates(snap: Snapshot, pid, pos: str, line: str, pp_unit, cfg: Model
 
 
 def project_toi(snap: Snapshot, pid, pos, line, pp_unit, cfg: ModelConfig) -> dict:
+    if getattr(cfg, "toi_method", 1) >= 2:
+        return _project_toi_v2(snap, pid, pos, line, pp_unit, cfg)
     rec = snap.recent(pid)
     r5, rp = role_5v5(pos, line), role_pp(pos, pp_unit)
     role_toi = float(snap.role5.toi_pg.get(r5, snap.role5.toi_pg.mean()))
@@ -70,6 +72,47 @@ def project_toi(snap: Snapshot, pid, pos, line, pp_unit, cfg: ModelConfig) -> di
     if modal_pp != unit_now:
         share = (1 - b) * share + b * role_share
         notes.append(f"PP unit change {modal_pp}->{unit_now}")
+    return dict(toi_5v5=toi5, pp_share=share, notes=notes)
+
+
+def _project_toi_v2(snap: Snapshot, pid, pos, line, pp_unit, cfg: ModelConfig) -> dict:
+    """Recency-weighted minutes, using the player's own games in tonight's slot when he has them.
+
+    5v5 TOI: recent games weighted by 0.5 ** (games ago / toi_half_life). If he played tonight's line
+    in at least two of them, those games carry `toi_slot_weight` of the estimate; otherwise a line
+    change blends toward the role average as before. The result is shrunk toward the role average
+    with `k_toi` pseudo-games. PP share works the same way with tonight's PP unit.
+    """
+    rec = snap.recent(pid)
+    r5, rp = role_5v5(pos, line), role_pp(pos, pp_unit)
+    role_toi = float(snap.role5.toi_pg.get(r5, snap.role5.toi_pg.mean()))
+    role_share = float(snap.rolepp.pp_share.get(rp, 0.0))
+    notes = []
+    if len(rec) < 2:
+        notes.append(f"only {len(rec)} recent games: role-average TOI")
+        return dict(toi_5v5=role_toi, pp_share=role_share, notes=notes)
+    rec = rec.sort_values("date")
+    hl = max(getattr(cfg, "toi_half_life", 4.0), 0.5)
+    w = 0.5 ** (np.arange(len(rec))[::-1] / hl)
+    n_eff = float(w.sum() ** 2 / (w ** 2).sum())
+    try:
+        unit_now = int(pp_unit)
+    except (TypeError, ValueError):
+        unit_now = 0
+    sw, b, k = getattr(cfg, "toi_slot_weight", 0.6), cfg.toi_role_blend_on_change, getattr(cfg, "k_toi", 2.0)
+
+    def est(vals, in_slot, role_val, label):
+        base = float(np.average(vals, weights=w))
+        if in_slot.sum() >= 2:
+            slot = float(np.average(vals[in_slot], weights=w[in_slot]))
+            out = (1 - sw) * base + sw * slot if not in_slot.all() else base
+        else:
+            out = (1 - b) * base + b * role_val
+            notes.append(f"{label} change: blended toward role average")
+        return (n_eff * out + k * role_val) / (n_eff + k)
+
+    toi5 = est(rec.toi_5v5.to_numpy(float), (rec.line.astype(str) == str(line)).to_numpy(), role_toi, "line")
+    share = est(rec.pp_share.to_numpy(float), (rec.pp_unit.astype(int) == unit_now).to_numpy(), role_share, "PP unit")
     return dict(toi_5v5=toi5, pp_share=share, notes=notes)
 
 

@@ -36,6 +36,10 @@ class ModelConfig:
     m_finish: float = 30.0             # goals-equivalent prior for finishing multiplier
     finish_cap: tuple = (0.85, 1.15)
     toi_window: int = 10               # rolling games for TOI projection
+    toi_method: int = 1                # 1 = plain average + role blend; 2 = recency-weighted, slot-aware
+    toi_half_life: float = 5.0         # v2: games for a recent game's weight to halve
+    toi_slot_weight: float = 0.8       # v2: weight on games played in tonight's line / PP unit
+    k_toi: float = 5.0                 # v2: pseudo-games of role-average TOI
     lineup_beta: float = 0.0           # personnel adjustment strength (0 = off); set from the backtest
     lineup_clip: tuple = (0.9, 1.1)    # cap on the lineup factor
     toi_role_blend_on_change: float = 0.5   # weight on role-average TOI when line/PP unit changed
