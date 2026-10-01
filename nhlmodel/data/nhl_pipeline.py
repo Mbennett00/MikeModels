@@ -18,7 +18,7 @@ import numpy as np
 import pandas as pd
 
 from .moneypuck import infer_lines
-from .xg import XG_SOURCE, score_by_season, score_venue_coefs
+from .xg import XG_SOURCE, XG_VERSION, score_by_season, score_venue_coefs
 
 WEB = "https://api-web.nhle.com/v1"
 STATS = "https://api.nhle.com/stats/rest/en"
@@ -162,7 +162,16 @@ def build_tables(inter: dict[str, pd.DataFrame], xg_version: int | None = None,
     games = inter["games"].copy()
     games["date"] = pd.to_datetime(games.date)
     shots = inter["shots"].merge(games[["game_id", "date"]], on="game_id")
-    shots["xg"], notes = score_by_season(shots, dict(zip(games.game_id, games.home)), xg_version)
+    notes = []
+    ver = XG_VERSION if xg_version is None else xg_version
+    if ver >= 3:   # MoneyPuck context as model inputs (NaN / indicator 0 where a shot has no match)
+        from .moneypuck_shots import FEAT_COLS, attach_columns
+        ctx = attach_columns(shots, mp_shots, ["xGoal"] + FEAT_COLS)
+        shots = shots.join(ctx[FEAT_COLS])
+        shots["mp_xGoal_ok"] = ctx["xGoal"].notna().astype(float)
+        notes.append(f"xG v3: MoneyPuck context for {shots.mp_xGoal_ok[shots.unblocked].mean():.0%} of unblocked shots")
+    shots["xg"], n2 = score_by_season(shots, dict(zip(games.game_id, games.home)), ver)
+    notes += n2
     src = xg_source or XG_SOURCE
     if src == "moneypuck" and mp_shots is not None and len(mp_shots):
         from .moneypuck_shots import attach

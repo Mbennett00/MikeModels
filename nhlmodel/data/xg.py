@@ -154,6 +154,54 @@ class XGModel2(XGModel):
         return np.where(shots.unblocked, p, 0.0)
 
 
+class XGModel3(XGModel2):
+    """v3: v2 plus MoneyPuck's event-feed context where the shot matches (rush, puck speed from the
+    last event, rebound angle speed, off-wing, last event type, shooter / defender fatigue). Fit on
+    the previous season like v1/v2, so no leakage. Unmatched shots use v2 inputs with an indicator."""
+
+    LAST = ["FAC", "HIT", "TAKE", "GIVE", "BLOCK", "SHOT", "MISS"]
+
+    def _X(self, s):
+        base = features2(s, self.offsets)
+        ok = s["mp_xGoal_ok"].fillna(0).to_numpy(float) if "mp_xGoal_ok" in s else np.zeros(len(s))
+        def col(name, f=lambda v: v):
+            v = pd.to_numeric(s[name], errors="coerce").to_numpy(float) if name in s else np.zeros(len(s))
+            return np.nan_to_num(f(v)) * ok
+        cat = s["lastEventCategory"].astype(str).str.upper() if "lastEventCategory" in s else pd.Series("", index=s.index)
+        extra = [ok, col("shotRush"), col("speedFromLastEvent", lambda v: np.log1p(np.clip(v, 0, 500))),
+                 col("timeSinceLastEvent", lambda v: np.log1p(np.clip(v, 0, 120))),
+                 col("distanceFromLastEvent", lambda v: np.clip(v, 0, 200) / 50),
+                 col("shotAnglePlusReboundSpeed", lambda v: np.log1p(np.clip(v, 0, 500))),
+                 col("offWing"), col("shooterTimeOnIce", lambda v: np.clip(v, 0, 180) / 60),
+                 col("defendingTeamAverageTimeOnIceSinceFaceoff", lambda v: np.clip(v, 0, 180) / 60)]
+        extra += [(cat == c).to_numpy(float) * ok for c in self.LAST]
+        return np.column_stack([base] + extra)
+
+    def fit(self, shots):
+        self.offsets = arena_offsets(shots) if "arena" in shots else {}
+        d = shots[shots.unblocked & ~shots.en_target]
+        X, yv = self._X(d), d.goal.to_numpy(float)
+
+        def f(w):
+            z = X @ w
+            p = 1 / (1 + np.exp(-z))
+            ll = -np.sum(yv * z - np.logaddexp(0, z)) + self.l2 * np.sum(w[1:] ** 2)
+            g = X.T @ (p - yv) + 2 * self.l2 * np.r_[0, w[1:]]
+            return ll, g
+
+        w0 = np.zeros(X.shape[1]); w0[0] = np.log(yv.mean() / (1 - yv.mean()))
+        self.w = minimize(f, w0, jac=True, method="L-BFGS-B").x
+        en = shots[shots.unblocked & shots.en_target]
+        if len(en) > 50:
+            self.en_rate = float(en.goal.mean())
+        return self
+
+    def predict(self, shots):
+        p = 1 / (1 + np.exp(-(self._X(shots) @ self.w)))
+        p = np.where(shots.en_target, self.en_rate, p)
+        return np.where(shots.unblocked, p, 0.0)
+
+
 import os as _os
 # "model" = our xG; "moneypuck" = MoneyPuck's xG where it matches (needs intermediate/mp_shots.csv.gz)
 XG_SOURCE = _os.environ.get("NHL_XG_SOURCE", "model")
@@ -167,7 +215,7 @@ def score_by_season(shots: pd.DataFrame, home_of: dict | None = None,
     notes, out = [], pd.Series(0.0, index=shots.index)
     if version >= 2:
         shots = derive(shots, home_of)
-    cls = XGModel2 if version >= 2 else XGModel
+    cls = XGModel3 if version >= 3 else XGModel2 if version >= 2 else XGModel
     seasons = sorted(shots.season.unique())
     models = {s: cls().fit(shots[shots.season == s]) for s in seasons}
     for i, s in enumerate(seasons):

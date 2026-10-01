@@ -581,7 +581,7 @@ def cmd_tune(a):
 
 
 def cmd_xg_compare(a):
-    """Walk-forward: our xG vs MoneyPuck's xG (writes site/xg_compare.json; does not change the model)."""
+    """Walk-forward: xG v2 vs v3 (v2 + MoneyPuck context). Writes site/xg_compare.json; changes nothing."""
     from .backtest import walk_forward
     from .data import moneypuck_shots
     from .data.xg import derive, XGModel2
@@ -597,28 +597,32 @@ def cmd_xg_compare(a):
     sh = inter["shots"]
     full = [s for s in seasons if (sh.season == s).sum() > 50000]
     if len(full) >= 2:
+        from .data.moneypuck_shots import FEAT_COLS, attach_columns
+        from .data.xg import XGModel3
         d = derive(sh, dict(zip(games.game_id, games.home)))
+        ctx = attach_columns(d, mp, ["xGoal"] + FEAT_COLS)
+        d = d.join(ctx[FEAT_COLS]).assign(mp=ctx["xGoal"], mp_xGoal_ok=ctx["xGoal"].notna().astype(float))
         tr, te = d[d.season == full[-2]], d[d.season == full[-1]]
-        te = te.assign(mp=moneypuck_shots.attach(te, mp))
         ev = te[te.unblocked & ~te.en_target & te.mp.notna()]
         y = ev.goal.to_numpy(float)
         ll = lambda p: float(-(y * np.log(np.clip(p, 1e-6, 1)) + (1 - y) * np.log(np.clip(1 - p, 1e-6, 1))).mean())
         out["shots"] = dict(n=int(len(ev)), coverage=float(te.mp.notna()[te.unblocked].mean()),
-                            ours=ll(XGModel2().fit(tr).predict(ev)), moneypuck=ll(ev.mp.to_numpy(float)))
+                            v2=ll(XGModel2().fit(tr).predict(ev)), v3=ll(XGModel3().fit(tr).predict(ev)),
+                            moneypuck_in_sample=ll(ev.mp.to_numpy(float)))
         print("shot-level", out["shots"], flush=True)
     # second half of the last full season (enough history before it for ratings)
     last = full[-1] if full else seasons[-1]
     sd = games[games.season == last].date.sort_values()
     start, end = sd.iloc[int(len(sd) * 0.45)], sd.iloc[-1]
     print(f"walk-forward {start.date()} to {end.date()}", flush=True)
-    for src in ("model", "moneypuck"):
-        tables, notes = nhl.build_tables(inter, mp_shots=mp, xg_source=src)
+    for src, ver in (("v2", 2), ("v3", 3)):
+        tables, notes = nhl.build_tables(inter, mp_shots=mp, xg_source="model", xg_version=ver)
         for k in ("games", "team_games", "goalie_games", "player_games", "lineups"):
             tables[k]["date"] = pd.to_datetime(tables[k].date).dt.normalize()
         bt = walk_forward(tables, cfg, start, end, date_stride=2)
         out[src] = {m: round(objective(bt, [m]), 5) for m in
                     ("moneyline", "total", "puckline", "team_total", "goals", "sog", "assists", "points")}
-        print(src, out[src], [n for n in notes if "xG source" in n], flush=True)
+        print(src, out[src], [n for n in notes if "xG" in n], flush=True)
     json.dump(out, open(os.path.join(_site(a.state), "xg_compare.json"), "w"), indent=1)
 
 
