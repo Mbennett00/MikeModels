@@ -71,6 +71,7 @@ def build(state, plays: pd.DataFrame, meta: dict, news: dict | None, images: dic
         gp = tm.project(g.home, g.away, h["goalie_id"], a["goalie_id"], state.date,
                         (h["goalie_confirmed"], a["goalie_confirmed"]))
         games.append(dict(game_id=int(g.game_id), start_utc=getattr(g, "start_utc", None), away=a, home=h,
+                          mx=_matchup(tm, gp, g.home, g.away),
                           lam_home=_num(gp.lam_home), lam_away=_num(gp.lam_away), p_ot_home=_num(gp.p_ot_home),
                           reg=_mat(gp.matrix), p1=_mat(gp.p1_matrix)))
     players = []
@@ -97,6 +98,23 @@ def build(state, plays: pd.DataFrame, meta: dict, news: dict | None, images: dic
         games=games, players=players, lines=lines, trust=_trust(market_summary))
     _write(out_dir, data)
     return out_dir
+
+
+def _matchup(tm, gp, home, away) -> dict:
+    """Per-team strengths behind the projection, as multipliers vs league average (1 = average).
+
+    Defence, goalie and penalty kill are 'goals allowed' multipliers (lower is better); the page flips
+    them so every row reads 'higher = better for that team'."""
+    f = gp.factors
+    out = {}
+    for side, team, opp_side in (("home", home, "away"), ("away", away, "home")):
+        r = tm.rating(team)
+        out[side] = dict(off=_num(r.off), dfn=_num(r.dfn), pp=_num(r.pp_off), pk=_num(r.pk_def),
+                         gk=_num(f[opp_side]["goalie_opp"]),      # this team's goalie, faced by the opponent
+                         ppc=_num(f[side]["pp_time"]),            # this team's expected power-play chances
+                         rest=_num(f[side]["rest"]), home=_num(f[side]["home"]), lam=_num(f[side]["lam"]))
+    out["pace"] = _num(f["home"]["pace"])
+    return out
 
 
 def _trust(market_summary) -> list:

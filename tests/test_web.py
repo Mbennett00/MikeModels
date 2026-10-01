@@ -30,6 +30,11 @@ def test_web_build_exports_prices_that_match_the_model(league, tmp_path):
     ml = plays[(plays.game_id == g["game_id"]) & (plays.market == "moneyline") & (plays.selection == "home")]
     assert abs(hw + tie * g["p_ot_home"] - ml.p_model.iloc[0]) < 1e-3
     assert abs(m.sum() - 1) < 1e-3
+    # matchup breakdown: every factor present, and the projected goals match the card
+    mx = g["mx"]
+    for side in ("home", "away"):
+        assert set(mx[side]) >= {"off", "dfn", "pp", "pk", "gk", "ppc", "rest", "home", "lam"}
+    assert abs(mx["home"]["lam"] - g["lam_home"]) < 1e-3 and abs(mx["away"]["lam"] - g["lam_away"]) < 1e-3
 
 
 def test_web_build_without_games(tmp_path):

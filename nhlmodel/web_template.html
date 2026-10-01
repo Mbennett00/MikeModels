@@ -181,6 +181,17 @@ label.f { display: block; font-size: 13px; font-weight: 800; color: var(--ink-2)
 .gc .body { padding: 0 14px 14px; }
 .gc .more { background: var(--cream); border-style: solid; box-shadow: 2px 2px 0 var(--navy); }
 .gc .panel { background: var(--cream); border: 2.5px solid var(--navy); border-radius: 16px; padding: 2px 12px 12px; margin-top: 10px; }
+/* matchup breakdown */
+.mx .hd { display: flex; justify-content: space-between; font-family: 'Fredoka', sans-serif; font-weight: 600; font-size: 15px; margin: 2px 0 4px; }
+.mx .r { display: grid; grid-template-columns: 46px 1fr 46px; align-items: center; gap: 8px; margin: 2px 0 8px; }
+.mx .lab { grid-column: 1 / -1; text-align: center; font-size: 12px; font-weight: 800; color: var(--ink-2); margin-bottom: -6px; }
+.mx .v { font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 14px; color: var(--navy); }
+.mx .v.r2 { text-align: right; } .mx .v.neg { color: var(--red); }
+.mx .tr { display: flex; height: 12px; background: #efe7d6; border: 2px solid var(--navy); border-radius: 99px; overflow: hidden; }
+.mx .half { flex: 1; display: flex; } .mx .half.l { justify-content: flex-end; border-right: 2px solid var(--navy); }
+.mx .half div { height: 100%; }
+.mx .why { font-size: 13.5px; font-weight: 700; color: var(--ink-2); line-height: 1.45; margin-top: 4px; }
+.mx .why b { color: var(--navy); }
 @media (min-width: 700px) { .tiles { grid-template-columns: repeat(3, 1fr); } }
 </style>
 </head>
@@ -487,7 +498,7 @@ function gameCard(g) {
   if (OPEN.has(g.game_id)) {
     const inj = [a, h].filter(t => t.injuries.length).map(t => `${esc(t.abbr)}: ` + t.injuries.map(i => `${esc(i.name)} <b>${esc(i.status)}</b>`).join(", ")).join("<br>");
     const top = D.players.filter(p => p.game_id === g.game_id && p.lam.sog != null).sort((x, y) => y.lam.sog - x.lam.sog).slice(0, 6);
-    html += `<div class="panel"><div class="sec">Totals</div><div class="tiles">${tile(g, "Over 5.5", "total", "over", 5.5)}${tile(g, "Under 5.5", "total", "under", 5.5)}
+    html += `<div class="panel"><div class="sec">Matchup <span style="text-transform:none;letter-spacing:0">· vs league average</span></div>${matchupHtml(g)}<div class="sec">Totals</div><div class="tiles">${tile(g, "Over 5.5", "total", "over", 5.5)}${tile(g, "Under 5.5", "total", "under", 5.5)}
         ${tile(g, `${a.abbr} over 2.5`, "team_total", "away_over", 2.5)}${tile(g, `${h.abbr} over 2.5`, "team_total", "home_over", 2.5)}
         ${tile(g, `${a.abbr} over 3.5`, "team_total", "away_over", 3.5)}${tile(g, `${h.abbr} over 3.5`, "team_total", "home_over", 3.5)}</div>
       <div class="sec">1st period</div><div class="tiles">${tile(g, "P1 over 1.5", "p1_total", "over", 1.5)}${tile(g, "P1 under 1.5", "p1_total", "under", 1.5)}
@@ -496,7 +507,30 @@ function gameCard(g) {
       ${inj ? `<div class="sec">Injuries</div><div class="inj">${inj}</div>` : ""}
       <div class="sec">Lines</div>${linesHtml(g)}</div>`;
   }
-  return html + `<button class="more" data-more="${g.game_id}">${OPEN.has(g.game_id) ? "Less ▴" : "More bets, shooters & lines ▾"}</button></div></div>`;
+  return html + `<button class="more" data-more="${g.game_id}">${OPEN.has(g.game_id) ? "Less ▴" : "Matchup, more bets & lines ▾"}</button></div></div>`;
+}
+// every row reads "higher = better for that team", as % vs league average
+const MX_ROWS = [["Attack (5-on-5)", t => t.off - 1], ["Defence (5-on-5)", t => 1 - t.dfn], ["Goalie", t => 1 - t.gk],
+                 ["Power play", t => t.pp - 1], ["Penalty kill", t => 1 - t.pk], ["Power-play chances", t => t.ppc - 1]];
+const sgn = v => { const n = Math.round(100 * v); return n === 0 ? "0%" : (n > 0 ? "+" : "−") + Math.abs(n) + "%"; };
+function matchupHtml(g) {
+  const M = g.mx; if (!M) return "";
+  const a = g.away, h = g.home, A = M.away, H = M.home, W = 0.15;
+  const half = (v, col, side) => `<div class="half ${side}"><div style="width:${Math.min(Math.abs(v) / W, 1) * 100}%;background:${v > 0 ? col : "#f0b3ab"}"></div></div>`;
+  const rows = MX_ROWS.map(([lab, fn]) => { const va = fn(A), vh = fn(H);
+    return `<div class="r"><div class="lab">${lab}</div><div class="v ${Math.round(100 * va) < 0 ? "neg" : ""}">${sgn(va)}</div>
+      <div class="tr">${half(va, a.color, "l")}${half(vh, h.color, "")}</div><div class="v r2 ${Math.round(100 * vh) < 0 ? "neg" : ""}">${sgn(vh)}</div></div>`; }).join("");
+  // the two biggest gaps, in words
+  const gaps = MX_ROWS.map(([lab, fn]) => ({lab, d: fn(A) - fn(H), va: fn(A), vh: fn(H)})).sort((x, y) => Math.abs(y.d) - Math.abs(x.d)).slice(0, 2)
+    .filter(x => Math.abs(x.d) >= 0.02)
+    .map(x => `<b>${esc(x.d > 0 ? a.abbr : h.abbr)} ${x.lab.toLowerCase().replace(" (5-on-5)", "")}</b> (${sgn(x.d > 0 ? x.va : x.vh)} vs ${sgn(x.d > 0 ? x.vh : x.va)})`);
+  const extra = [];
+  if (Math.abs(M.pace - 1) >= 0.015) extra.push(`expect a ${M.pace > 1 ? "faster, higher-event" : "slower, tighter"} game (${sgn(M.pace - 1)} pace)`);
+  extra.push(`home ice is worth ${sgn(H.home - 1)} to ${esc(h.abbr)}`);
+  for (const [t, X] of [[a, A], [h, H]]) if (Math.abs(X.rest - 1) > 0.005) extra.push(`${esc(t.abbr)} back-to-back ${sgn(X.rest - 1)}`);
+  return `<div class="mx"><div class="hd"><span>${esc(a.name)}</span><span>${esc(h.name)}</span></div>${rows}
+    <div class="why">${gaps.length ? `Biggest edges: ${gaps.join(" and ")}. ` : "Evenly matched on paper. "}${(x => x.charAt(0).toUpperCase() + x.slice(1))(extra.join("; "))}.
+    Adds up to <b>${esc(a.abbr)} ${A.lam.toFixed(1)} – ${H.lam.toFixed(1)} ${esc(h.abbr)}</b> projected goals.</div></div>`;
 }
 function linesHtml(g) {
   return `<div class="lines">` + [g.away, g.home].map(t => {
