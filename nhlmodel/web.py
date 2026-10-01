@@ -15,6 +15,7 @@ import numpy as np
 import pandas as pd
 
 from .data.teams import DISPLAY
+from .player_model import project_team_players
 from .team_model import TeamModel
 
 HERE = os.path.dirname(__file__)
@@ -51,7 +52,7 @@ def build(state, plays: pd.DataFrame, meta: dict, news: dict | None, images: dic
     inj = news.get("injuries", [])
     logos = images.get("logos", {})
     faces = images.get("headshots", {})
-    games = []
+    games, gp_by = [], {}
     for g in state.schedule.itertuples():
         side = {}
         for team in (g.away, g.home):
@@ -70,6 +71,7 @@ def build(state, plays: pd.DataFrame, meta: dict, news: dict | None, images: dic
         a, h = side[g.away], side[g.home]
         gp = tm.project(g.home, g.away, h["goalie_id"], a["goalie_id"], state.date,
                         (h["goalie_confirmed"], a["goalie_confirmed"]))
+        gp_by[int(g.game_id)] = gp
         games.append(dict(game_id=int(g.game_id), start_utc=getattr(g, "start_utc", None), away=a, home=h,
                           mx=_matchup(tm, gp, g.home, g.away),
                           lam_home=_num(gp.lam_home), lam_away=_num(gp.lam_away), p_ot_home=_num(gp.p_ot_home),
@@ -84,9 +86,23 @@ def build(state, plays: pd.DataFrame, meta: dict, news: dict | None, images: dic
                             game_id=int(r0.game_id), confirmed=bool(r0.confirmed),
                             headshot=faces.get(str(int(pid))) or (r0.headshot if isinstance(r0.get("headshot"), str) else ""),
                             lam=lam))
+    # per-player matchup effect (tonight vs an average opponent at a neutral rink) for the rink view
+    mxp = {}
+    for g in state.schedule.itertuples():
+        gp = gp_by[int(g.game_id)]
+        for side, team in (("home", g.home), ("away", g.away)):
+            try:
+                df, _ = project_team_players(tm, gp, side, lu[lu.team == team], state.params, state.cfg)
+            except Exception:
+                continue
+            for r in df.itertuples():
+                mxp[int(r.player_id)] = (_num(r.mx_pts - 1), _num(r.mx_sog - 1))
     lines = []
     for r in lu[lu.pos != "G"].itertuples():
-        lines.append(dict(team=r.team, name=r.name, pos=r.pos, line=r.line, pp=int(r.pp_unit or 0)))
+        pid = int(r.player_id) if pd.notna(r.player_id) else None
+        mp, ms = mxp.get(pid, (None, None))
+        lines.append(dict(team=r.team, name=r.name, pos=r.pos, line=r.line, pp=int(r.pp_unit or 0), id=pid,
+                          mx_pts=mp, mx_sog=ms))
     P = state.params
     data = dict(
         meta=dict(date=meta.get("date"), upcoming=bool(meta.get("upcoming")), generated_at=meta.get("generated_at"),
@@ -114,6 +130,7 @@ def _matchup(tm, gp, home, away) -> dict:
                          ppc=_num(f[side]["pp_time"]),            # this team's expected power-play chances
                          rest=_num(f[side]["rest"]), home=_num(f[side]["home"]), lam=_num(f[side]["lam"]))
     out["pace"] = _num(f["home"]["pace"])
+    out["league_gpg"] = _num(tm.snap.league["goals_pg"])
     return out
 
 

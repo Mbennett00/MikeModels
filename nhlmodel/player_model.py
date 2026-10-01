@@ -129,6 +129,13 @@ def project_team_players(tm: TeamModel, gp: GameProjection, side: str, lineup: p
         lam_sog = (a["sog60_5v5"] * toi5 / 60 + a["sog60_pp"] * toipp / 60) * f["opp_shots_against"] \
             * home * script
         lam_a = (a["a60_5v5"] * toi5 / 60 * lm + a["a60_pp"] * toipp / 60) * tsf
+        # the same player against a league-average opponent at a neutral rink: the ratio is tonight's matchup effect
+        toipp_n = t["pp_share"] * L["pp_toi_pg"]
+        g_n = a["finish"] * (a["ixg60_5v5"] * toi5 + a["ixg60_pp"] * toipp_n) / 60
+        a_n = (a["a60_5v5"] * toi5 * lm + a["a60_pp"] * toipp_n) / 60
+        sog_n = (a["sog60_5v5"] * toi5 + a["sog60_pp"] * toipp_n) / 60
+        mx_pts = (lam_g + lam_a) / (g_n + a_n) if g_n + a_n > 0 else 1.0
+        mx_sog = lam_sog / sog_n if sog_n > 0 else 1.0
         flags = list(t["notes"])
         if not bool(r.confirmed):
             flags.append("LINEUP UNCONFIRMED")
@@ -138,7 +145,8 @@ def project_team_players(tm: TeamModel, gp: GameProjection, side: str, lineup: p
                          pp_unit=r.pp_unit, confirmed=bool(r.confirmed), toi_5v5=toi5, toi_pp=toipp,
                          finish=a["finish"], ixg60_5v5=a["ixg60_5v5"], ixg60_pp=a["ixg60_pp"],
                          sog60_5v5=a["sog60_5v5"], a60_5v5=a["a60_5v5"], linemate=lm,
-                         lam_goals_nonen=lam_g, lam_sog=lam_sog, lam_ast_raw=lam_a, flags="; ".join(flags)))
+                         lam_goals_nonen=lam_g, lam_sog=lam_sog, lam_ast_raw=lam_a, mx_pts=mx_pts, mx_sog=mx_sog,
+                         flags="; ".join(flags)))
     df = pd.DataFrame(rows)
     # ---- recalibration (level + spread), fitted walk-forward on earlier predictions
     if len(df):

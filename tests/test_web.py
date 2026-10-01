@@ -35,6 +35,8 @@ def test_web_build_exports_prices_that_match_the_model(league, tmp_path):
     for side in ("home", "away"):
         assert set(mx[side]) >= {"off", "dfn", "pp", "pk", "gk", "ppc", "rest", "home", "lam"}
     assert abs(mx["home"]["lam"] - g["lam_home"]) < 1e-3 and abs(mx["away"]["lam"] - g["lam_away"]) < 1e-3
+    # rink view: every skater in the lines has an id and a matchup effect
+    assert d["lines"] and all(x["id"] is not None and x["mx_pts"] is not None for x in d["lines"])
 
 
 def test_web_build_without_games(tmp_path):

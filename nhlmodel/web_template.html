@@ -220,6 +220,23 @@ label.f { display: block; font-size: 13px; font-weight: 800; color: var(--ink-2)
 .pl.won { background: var(--green-soft); } .pl.lost { opacity: .45; }
 .link { width: 100%; margin-top: 8px; border: 0; background: transparent; font-weight: 800; font-size: 14px; color: var(--navy); text-decoration: underline; padding: 6px; }
 .tn2 { color: var(--navy) !important; }
+/* rink view */
+.rk-hd { display: flex; justify-content: space-between; gap: 8px; }
+.seg2 { display: flex; gap: 4px; } .seg2 .chip { padding: 5px 11px; }
+.rk-sub { font-size: 13px; font-weight: 700; color: var(--ink-2); margin: 0 2px 8px; } .rk-sub b { color: var(--navy); }
+.rk-sub b.g { color: var(--green); } .rk-sub b.r { color: var(--red); }
+.rink { position: relative; height: 330px; border: 3px solid var(--navy); border-radius: 22px 22px 60px 60px; overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 80%, rgba(63,143,210,.28) 0 38px, transparent 39px),
+    linear-gradient(180deg, transparent 27%, rgba(42,92,170,.55) 27% 30%, transparent 30% 79.5%, rgba(217,68,58,.6) 79.5% 80.5%, transparent 80.5%),
+    linear-gradient(180deg, #f4fbff, #e3f2fb); }
+.rk { position: absolute; transform: translate(-50%, 0); display: flex; flex-direction: column; align-items: center; border: 0; background: transparent; padding: 0; width: 84px; }
+.rk-c { width: 46px; height: 46px; border-radius: 50%; border: 3px solid var(--navy); display: flex; align-items: center; justify-content: center;
+        font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 15px; box-shadow: 0 0 0 4px rgba(255,255,255,.6), 2px 3px 0 var(--navy); }
+.rk-n { font-weight: 800; font-size: 12.5px; color: var(--navy); margin-top: 4px; white-space: nowrap; max-width: 84px; overflow: hidden; text-overflow: ellipsis; }
+.rk-v { font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 13px; color: var(--muted); }
+.rk-v.up { color: var(--green); } .rk-v.dn { color: var(--red); }
+.rk-key { font-size: 12px; font-weight: 700; color: var(--muted); margin-top: 8px; line-height: 1.4; }
 /* player card grid */
 .pgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 0 4px 12px 0; }
 .pc { background: var(--cream); border: 3px solid var(--navy); border-radius: 20px; box-shadow: 4px 5px 0 var(--navy); overflow: hidden; cursor: pointer; display: flex; flex-direction: column; }
@@ -272,6 +289,7 @@ let D = null, TODAY = null, PREV = null, TAB = "games", PSTATE = {q: "", game: "
 let LIVE = {};   // game_id -> live/final info from ESPN (scores, clock, player box score)
 const OPEN = new Set();   // game cards with "More" expanded
 const PANEL = {};         // game_id -> which panel tab is showing
+const RINK = {};          // game_id -> {side, line, m} for the rink view
 // ---------- math (mirrors nhlmodel.team_model / player_model) ----------
 function lgamma(x) {           // Lanczos
   const g = 7, c = [0.99999999999980993, 676.5203681218851, -1259.1392167224028, 771.32342877765313,
@@ -547,7 +565,7 @@ function gameCard(g) {
       ${tile(g, "Over 6.5", "total", "over", 6.5)}${tile(g, "Under 6.5", "total", "under", 6.5)}</div>`;
   if (OPEN.has(g.game_id)) {
     const view = PANEL[g.game_id] || "matchup";
-    const tabs = [["matchup", "Matchup"], ["bets", "Bets"], ["players", "Players"], ["lines", "Lines"]]
+    const tabs = [["matchup", "Matchup"], ["bets", "Bets"], ["players", "Players"], ["lines", "Rink"]]
       .map(([k, n]) => `<button class="${view === k ? "on" : ""}" data-pv="${g.game_id}|${k}">${n}</button>`).join("");
     let body = "";
     if (view === "matchup") body = matchupHtml(g);
@@ -561,7 +579,7 @@ function gameCard(g) {
       body = top.map(p => miniRow(p, "sog")).join("") + `<button class="link" data-allprops="${g.game_id}">All player props for this game →</button>`;
     } else {
       const inj = [a, h].filter(t => t.injuries.length).map(t => `<b class="tn2">${esc(t.abbr)}</b> ` + t.injuries.map(i => `${esc(i.name)} <b>${esc(i.status)}</b>`).join(", ")).join("<br>");
-      body = linesHtml(g) + (inj ? `<div class="inj" style="margin-top:10px">🚑 ${inj}</div>` : "");
+      body = rinkHtml(g) + (inj ? `<div class="inj" style="margin-top:10px">🚑 ${inj}</div>` : "");
     }
     html += `<div class="panel"><div class="ptabs">${tabs}</div>${body}</div>`;
   }
@@ -587,6 +605,51 @@ function matchupHtml(g) {
   for (const [t, X] of [[a, A], [h, H]]) if (Math.abs(X.rest - 1) > 0.005) notes.push(`${esc(t.abbr)} back-to-back`);
   return `<div class="mx"><div class="r hd"><span></span><span class="v">${esc(a.abbr)}</span><span class="vs">vs avg</span><span class="v r2">${esc(h.abbr)}</span></div>${rows}
     <div class="edges">${edges.length ? `<span class="et">Edge</span>${edges.join("")}` : `<span class="et">Even matchup</span>`}${notes.map(n => `<span class="edge soft">${n}</span>`).join("")}</div></div>`;
+}
+// ---------- rink view: one line at a time, each player coloured by tonight's projection vs his position ----------
+function posAvg(mk) {   // slate average by position, the "0" on the colour scale
+  const out = {};
+  for (const pos of ["F", "D"]) { const v = D.players.filter(p => p.pos === pos && p.lam[mk] != null).map(p => p.lam[mk]);
+    out[pos] = v.length ? v.reduce((a, b) => a + b, 0) / v.length : 0; }
+  return out;
+}
+function heat(v, scale) {
+  const x = Math.max(-1, Math.min(1, v / scale));
+  if (Math.abs(x) < 0.12) return ["#c9d1d8", "#1f3448"];
+  return x > 0 ? (x > 0.5 ? ["#3fbf6a", "#0f3d22"] : ["#8fdba6", "#0f3d22"]) : (x < -0.5 ? ["#d9443a", "#fff"] : ["#f19a90", "#5a1610"]);
+}
+function rinkHtml(g) {
+  const R = RINK[g.game_id] || (RINK[g.game_id] = {side: "away", line: "1", m: "points"});
+  const t = R.side === "away" ? g.away : g.home, opp = R.side === "away" ? g.home : g.away;
+  const L = D.lines.filter(x => x.team === t.abbr), byId = Object.fromEntries(D.players.map(p => [p.id, p]));
+  const mk = R.m, avg = posAvg(mk), scale = mk === "points" ? 0.3 : 1.2;
+  let F, Dd;
+  if (R.line === "PP") { const u = L.filter(x => x.pp === 1); F = u.filter(x => x.pos === "F"); Dd = u.filter(x => x.pos === "D"); }
+  else { F = L.filter(x => x.line === "F" + R.line); Dd = L.filter(x => x.line === "D" + R.line); }
+  // spots on the rink (percent of width / height); PP can have 4 F + 1 D
+  const fSpots = F.length >= 4 ? [[14, 11], [38, 5], [62, 5], [86, 11]] : [[17, 11], [50, 5], [83, 11]];
+  const fLab = F.length >= 4 ? ["F", "F", "F", "F"] : ["LW", "C", "RW"];
+  const dSpots = Dd.length === 1 ? [[50, 40]] : [[30, 40], [70, 40]], dLab = Dd.length === 1 ? ["D"] : ["LD", "RD"];
+  const dot = (x, spot, lab) => { const p = byId[x.id], lam = p ? p.lam[mk] : null;
+    const v = lam == null ? null : lam - avg[x.pos], [bg, ink] = v == null ? ["#e3e7eb", "#7a8894"] : heat(v, scale);
+    const val = v == null ? "–" : (v >= 0 ? "+" : "−") + Math.abs(v).toFixed(mk === "points" ? 2 : 1);
+    return `<button class="rk" style="left:${spot[0]}%;top:${spot[1]}%" ${p ? `data-player="${p.id}"` : ""}>
+      <span class="rk-c" style="background:${bg};color:${ink}">${lab}</span><span class="rk-n">${esc(x.name.split(" ").slice(-1)[0])}</span>
+      <span class="rk-v ${v == null ? "" : v > 0.0001 ? "up" : "dn"}">${val}</span></button>`; };
+  const gk = R.side === "away" ? g.away : g.home, M = g.mx || {};
+  const ga = M[R.side === "away" ? "home" : "away"]?.lam, gaV = ga != null && M.league_gpg ? ga - M.league_gpg : null;
+  const [gbg, gink] = gaV == null ? ["#e3e7eb", "#7a8894"] : heat(-gaV, 0.5);
+  const goalie = `<div class="rk" style="left:50%;top:67%"><span class="rk-c" style="background:${gbg};color:${gink}">G</span>
+      <span class="rk-n">${esc((gk.goalie || "TBD").split(" ").slice(-1)[0])}</span>
+      <span class="rk-v ${gaV == null ? "" : gaV < 0 ? "up" : "dn"}">${gaV == null ? "–" : `${ga.toFixed(1)} GA`}</span></div>`;
+  const tm = L.map(x => x.mx_pts).filter(x => x != null), team = tm.length ? tm.reduce((a, b) => a + b, 0) / tm.length : null;
+  const chips = (arr, key, cur) => arr.map(([k, n]) => `<button class="chip ${cur === k ? "on" : ""}" data-rk="${g.game_id}|${key}|${k}">${n}</button>`).join("");
+  return `<div class="rk-hd"><div class="seg2">${chips([["away", g.away.abbr], ["home", g.home.abbr]], "side", R.side)}</div>
+      <div class="seg2">${chips([["points", "Pts"], ["sog", "SOG"]], "m", R.m)}</div></div>
+    <div class="strip" style="padding:0;margin:8px 0">${chips([["1", "Line 1"], ["2", "Line 2"], ["3", "Line 3"], ["4", "Line 4"], ["PP", "PP1"]], "line", R.line)}</div>
+    <div class="rk-sub"><b>${esc(t.abbr)}</b> ${team == null ? "" : `matchup <b class="${team >= 0 ? "g" : "r"}">${sgn(team)}</b> `}vs ${esc(opp.abbr)} D &amp; ${esc((opp.goalie || "goalie TBD").split(" ").slice(-1)[0])}</div>
+    <div class="rink">${F.map((x, i) => dot(x, fSpots[i] || fSpots[0], fLab[i] || "F")).join("")}${Dd.map((x, i) => dot(x, dSpots[i] || dSpots[0], dLab[i] || "D")).join("")}${goalie}</div>
+    <div class="rk-key">Number = tonight's projected ${mk === "points" ? "points" : "shots"} vs the average ${"forward / D"} · goalie shows goals against expected. Tap a player for his lines.</div>`;
 }
 function linesHtml(g) {
   return `<div class="lines">` + [g.away, g.home].map(t => {
@@ -750,6 +813,7 @@ function render() {
   if (TAB === "check") wireCheck();
   $("#view").querySelectorAll("[data-bet]").forEach(el => el.onclick = e => { e.stopPropagation(); openSheet(BETS[Number(el.dataset.bet)]); });
   $("#view").querySelectorAll("[data-player]").forEach(el => el.onclick = () => openPlayer(el.dataset.player));
+  $("#view").querySelectorAll("[data-rk]").forEach(el => el.onclick = e => { e.stopPropagation(); const [id, k, v] = el.dataset.rk.split("|"); RINK[id][k] = v; render(); });
   $("#view").querySelectorAll("[data-pv]").forEach(el => el.onclick = () => { const [id, k] = el.dataset.pv.split("|"); PANEL[id] = k; render(); });
   $("#view").querySelectorAll("[data-allprops]").forEach(el => el.onclick = () => { PSTATE.game = el.dataset.allprops; PSTATE.q = ""; TAB = "props"; render(); window.scrollTo(0, 0); });
   $("#view").querySelectorAll("[data-more]").forEach(el => el.onclick = () => {
