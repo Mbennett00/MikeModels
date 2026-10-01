@@ -17,7 +17,7 @@ on:
         description: "What to run"
         type: choice
         default: slate
-        options: [slate, morning, update, grade, backtest, close, tune, dfo-probe, xg-compare]
+        options: [slate, slate-odds, morning, update, grade, backtest, close, tune, dfo-probe, xg-compare]
 
 permissions:
   contents: write
@@ -54,6 +54,7 @@ jobs:
             push*) t=slate ;;
             *) t="${{ inputs.task }}" ;;
           esac
+          if [ "$t" = "slate-odds" ]; then t=slate; echo "ODDS_PULL=1" >> "$GITHUB_ENV"; fi   # manual pull (3 credits)
           echo "task=$t" >> "$GITHUB_OUTPUT"
           case "${{ github.event.schedule }}" in
             "5 15 * * *") echo "ODDS_PULL=1" >> "$GITHUB_ENV" ;;
