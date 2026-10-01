@@ -182,6 +182,12 @@ These are the assumptions made instead of guesses. Each one is also printed in t
     0.23427 -> 0.23424; puck line and other props unchanged. No passes/carries in the stored data, so
     true pre-shot movement and shooter handedness are not modelled.
 
+17d. **Ice-time projection v2** (`toi_method = 2`): recent games weighted by 0.5^(games ago / 5); games
+    the player spent in tonight's line / PP unit carry 80% of the estimate when he has at least two;
+    shrunk toward the role average with 5 pseudo-games. On 8,063 player-games: 5v5 TOI error 1.59 ->
+    1.47 min, PP 0.68 -> 0.62 min. Walk-forward: shots on goal 0.36981 -> 0.36900, goals 0.23424 ->
+    0.23416, assists / points unchanged within noise.
+
 ## Known gaps / data not available here
 
 * Natural Stat Trick is not scraped. The same situation splits (5v5, 5on4, 4on5) come from
