@@ -136,8 +136,8 @@ def _matchup(tm, gp, home, away) -> dict:
                          ppc=_num(f[side]["pp_time"]),            # this team's expected power-play chances
                          rest=_num(f[side]["rest"]), home=_num(f[side]["home"]), lam=_num(f[side]["lam"]),
                          lineup=_num(f[side].get("lineup", 1.0)),
-                         missing=[str(tm.snap.player.name.get(p, "")) for p in f[side].get("lineup_info", {}).get("missing", [])
-                                  if p in tm.snap.player.index][:3])
+                         missing=[[str(tm.snap.player.name.get(p, "")), _num(f[side]["lineup_info"].get("impact", {}).get(p, 0))]
+                                  for p in f[side].get("lineup_info", {}).get("missing", []) if p in tm.snap.player.index][:3])
     out["pace"] = _num(f["home"]["pace"])
     out["league_gpg"] = _num(tm.snap.league["goals_pg"])
     return out

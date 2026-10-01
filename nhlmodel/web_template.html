@@ -614,9 +614,9 @@ function matchupHtml(g) {
   if (Math.abs(M.pace - 1) >= 0.015) notes.push(M.pace > 1 ? "fast pace" : "slow pace");
   for (const [t, X] of [[a, A], [h, H]]) if (Math.abs(X.rest - 1) > 0.005) notes.push(`${esc(t.abbr)} back-to-back`);
   // personnel: who is dressing tonight vs who usually plays
-  const lineupRows = [[a, A], [h, H]].filter(([t, X]) => X.lineup != null && Math.abs(X.lineup - 1) >= 0.01).map(([t, X]) =>
-    `<div class="lu ${X.lineup < 1 ? "dn" : "up"}"><b>${esc(t.abbr)} lineup ${sgn(X.lineup - 1)}</b>${X.missing && X.missing.length && X.lineup < 1
-      ? ` · without ${X.missing.map(esc).join(", ")}` : X.lineup >= 1 ? " · stronger group than recent games" : ""}</div>`).join("");
+  const lineupRows = [[a, A], [h, H]].filter(([t, X]) => X.lineup != null && X.lineup <= 0.995).map(([t, X]) =>
+    `<div class="lu dn">🚑 <b>${esc(t.abbr)} attack ${sgn(X.lineup - 1)}</b>${(X.missing || []).length
+      ? ` · without ${X.missing.filter(m => m[1] >= 0.002).map(m => `${esc(m[0].split(" ").slice(-1)[0])} (${sgn(-m[1])})`).join(", ")}` : ""}</div>`).join("");
   return `<div class="mx"><div class="r hd"><span></span><span class="v">${esc(a.abbr)}</span><span class="vs">vs avg</span><span class="v r2">${esc(h.abbr)}</span></div>${rows}
     ${lineupRows}<div class="edges">${edges.length ? `<span class="et">Edge</span>${edges.join("")}` : `<span class="et">Even matchup</span>`}${notes.map(n => `<span class="edge soft">${n}</span>`).join("")}</div></div>`;
 }
