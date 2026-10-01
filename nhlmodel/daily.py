@@ -400,8 +400,18 @@ def _publish_web(site, state, plays, meta):
         return json.load(open(f)) if os.path.exists(f) else None
     try:
         ms = os.path.join(site, "market_summary.csv")
-        out = web.build(state, plays, meta, js("news.json"), js("images.json"),
-                        pd.read_csv(ms) if os.path.exists(ms) else None, os.path.join(site, "web"))
+        msd = pd.read_csv(ms) if os.path.exists(ms) else None
+        updates = None
+        try:   # the Updates tab: what moved since the last run
+            from . import changelog
+            if state is not None:
+                updates = changelog.update(site, state, plays, js("news.json"), meta, msd)
+            elif js("model_log.json"):
+                updates = changelog.feed(js("model_log.json"))
+        except Exception as e:
+            print(f"changelog failed: {e}")
+        out = web.build(state, plays, meta, js("news.json"), js("images.json"), msd, os.path.join(site, "web"),
+                        updates=updates)
         # keep the previous slate so the page can show last night's settled games
         last, prev = os.path.join(site, "web_data.json"), os.path.join(site, "web_prev.json")
         old = js("web_data.json")

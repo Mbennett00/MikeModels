@@ -109,8 +109,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
 /* bottom nav */
 .nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; display: flex; justify-content: center;
        padding: 8px 12px calc(8px + env(safe-area-inset-bottom)); background: linear-gradient(180deg, rgba(191,224,242,0), rgba(191,224,242,.95) 35%); }
-.nav .in { display: flex; gap: 6px; background: var(--cream); border: 3px solid var(--navy); border-radius: 999px; padding: 5px; box-shadow: 3px 4px 0 var(--navy); width: 100%; max-width: 420px; }
-.nav button { flex: 1; border: 0; background: transparent; border-radius: 999px; height: 44px; font-family: 'Fredoka', sans-serif; font-weight: 600; font-size: 15px; color: var(--navy); }
+.nav .in { display: flex; gap: 2px; background: var(--cream); border: 3px solid var(--navy); border-radius: 999px; padding: 5px; box-shadow: 3px 4px 0 var(--navy); width: 100%; max-width: 480px; }
+.nav button { flex: 1; border: 0; background: transparent; border-radius: 999px; height: 44px; font-family: 'Fredoka', sans-serif; font-weight: 600; font-size: 14px; color: var(--navy); padding: 0 2px; white-space: nowrap; }
 .nav button.on { background: var(--navy); color: var(--cream); }
 
 /* bottom sheet */
@@ -220,6 +220,12 @@ label.f { display: block; font-size: 13px; font-weight: 800; color: var(--ink-2)
 .pl.won { background: var(--green-soft); } .pl.lost { opacity: .45; }
 .link { width: 100%; margin-top: 8px; border: 0; background: transparent; font-weight: 800; font-size: 14px; color: var(--navy); text-decoration: underline; padding: 6px; }
 .tn2 { color: var(--navy) !important; }
+/* updates */
+.kv { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; }
+.kv div { display: flex; flex-direction: column; } .kv span { font-size: 12px; font-weight: 800; color: var(--muted); }
+.kv b { font-family: 'Fredoka', sans-serif; font-size: 18px; color: var(--navy); }
+.upd .ut { font-family: 'Fredoka', sans-serif; font-weight: 600; font-size: 16px; color: var(--navy); margin-bottom: 6px; }
+.ui { display: grid; grid-template-columns: 24px 1fr; gap: 6px; font-size: 14px; font-weight: 700; color: var(--ink-2); padding: 6px 0; border-top: 2px dashed var(--line); }
 /* rink view */
 .rk-hd { display: flex; justify-content: space-between; gap: 8px; }
 .seg2 { display: flex; gap: 4px; } .seg2 .chip { padding: 5px 11px; }
@@ -230,6 +236,7 @@ label.f { display: block; font-size: 13px; font-weight: 800; color: var(--ink-2)
     radial-gradient(circle at 50% 80%, rgba(63,143,210,.28) 0 38px, transparent 39px),
     linear-gradient(180deg, transparent 27%, rgba(42,92,170,.55) 27% 30%, transparent 30% 79.5%, rgba(217,68,58,.6) 79.5% 80.5%, transparent 80.5%),
     linear-gradient(180deg, #f4fbff, #e3f2fb); }
+.rk-logo { position: absolute; left: 50%; top: 47%; width: 62%; max-width: 220px; transform: translate(-50%, -50%); opacity: .13; pointer-events: none; filter: saturate(1.2); }
 .rk { position: absolute; transform: translate(-50%, 0); display: flex; flex-direction: column; align-items: center; border: 0; background: transparent; padding: 0; width: 84px; }
 .rk-c { width: 46px; height: 46px; border-radius: 50%; border: 3px solid var(--navy); display: flex; align-items: center; justify-content: center;
         font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 15px; box-shadow: 0 0 0 4px rgba(255,255,255,.6), 2px 3px 0 var(--navy); }
@@ -528,6 +535,7 @@ function strip() {
   const st = D.games.map(g => (LIVE[g.game_id] || {}).state), nl = st.filter(x => x === "in").length, nf = st.filter(x => x === "post").length;
   if (nl) h += `<span class="chip live-c">🔴 ${nl} live</span>`;
   if (nf) h += `<span class="chip">🏁 ${nf} final</span>`;
+  if (TAB === "updates") h = "";
   if (D.games.length && TAB === "games") h += `<span class="chip info">🥅 ${D.meta.goalies_confirmed}/${D.meta.teams} goalies confirmed</span>`;
   $("#strip").innerHTML = h;
   $("#strip").style.display = h ? "" : "none";
@@ -535,7 +543,7 @@ function strip() {
     D = b.dataset.day === "prev" ? PREV : TODAY; PSTATE.game = "all"; C.game = null; OPEN.clear(); render(); window.scrollTo(0, 0); });
 }
 function nav() {
-  const T = [["games", "🏒 Games"], ["props", "👤 Props"], ["check", "✅ Check"]];
+  const T = [["games", "🏒 Games"], ["props", "👤 Props"], ["check", "✅ Check"], ["updates", "📰 Updates"]];
   $("#nav").innerHTML = T.map(([k, n]) => `<button class="${TAB === k ? "on" : ""}" data-k="${k}">${n}</button>`).join("");
   $("#nav").querySelectorAll("button").forEach(b => b.onclick = () => { TAB = b.dataset.k; render(); window.scrollTo(0, 0); });
 }
@@ -648,7 +656,7 @@ function rinkHtml(g) {
       <div class="seg2">${chips([["points", "Pts"], ["sog", "SOG"]], "m", R.m)}</div></div>
     <div class="strip" style="padding:0;margin:8px 0">${chips([["1", "Line 1"], ["2", "Line 2"], ["3", "Line 3"], ["4", "Line 4"], ["PP", "PP1"]], "line", R.line)}</div>
     <div class="rk-sub"><b>${esc(t.abbr)}</b> ${team == null ? "" : `matchup <b class="${team >= 0 ? "g" : "r"}">${sgn(team)}</b> `}vs ${esc(opp.abbr)} D &amp; ${esc((opp.goalie || "goalie TBD").split(" ").slice(-1)[0])}</div>
-    <div class="rink">${F.map((x, i) => dot(x, fSpots[i] || fSpots[0], fLab[i] || "F")).join("")}${Dd.map((x, i) => dot(x, dSpots[i] || dSpots[0], dLab[i] || "D")).join("")}${goalie}</div>
+    <div class="rink"><img class="rk-logo" src="${esc(t.logo)}" alt="" onerror="this.remove()">${F.map((x, i) => dot(x, fSpots[i] || fSpots[0], fLab[i] || "F")).join("")}${Dd.map((x, i) => dot(x, dSpots[i] || dSpots[0], dLab[i] || "D")).join("")}${goalie}</div>
     <div class="rk-key">Number = tonight's projected ${mk === "points" ? "points" : "shots"} vs the average ${"forward / D"} · goalie shows goals against expected. Tap a player for his lines.</div>`;
 }
 function linesHtml(g) {
@@ -760,6 +768,27 @@ function openPlayer(id) {
   $("#sheet").scrollTop = 0;
 }
 
+// ---------- updates: what moved in the model, run by run ----------
+const UPD_KIND = {all: "All", data: "Data", model: "Model", teams: "Teams", goalie: "Goalies", injury: "Injuries", price: "Prices"};
+let UFILTER = "all";
+function updates() {
+  const M = (TODAY || D).model, runs = (TODAY || D).updates || [];
+  const fmtT = t => new Date(t).toLocaleString("en-US", {weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/New_York"});
+  const now = M ? `<div class="card"><div class="sec" style="margin-top:0">The model right now</div><div class="kv">
+      <div><span>Results through</span><b>${M.data_through ? new Date(M.data_through + "T12:00:00").toLocaleDateString("en-US", {month: "short", day: "numeric"}) : "–"}</b></div>
+      <div><span>Recent-form window</span><b>${M.half_life} games</b></div>
+      <div><span>Weight on last season</span><b>${Math.round(100 * M.prior_w)}%</b></div>
+      <div><span>Home-ice edge</span><b>${sgn(M.home_edge)}</b></div>
+      <div><span>League goals / game</span><b>${M.goals_pg.toFixed(2)}</b></div>
+      <div><span>Scoring calibration</span><b>${M.lam_scale.toFixed(3)}</b></div></div>
+      <div class="hint">Refreshed every morning from last night's results; goalies, lineups and injuries re-checked 5 times a day.</div></div>` : "";
+  const kinds = Object.keys(UPD_KIND).filter(k => k === "all" || runs.some(r => r.items.some(i => i.kind === k)));
+  const chips = kinds.length > 2 ? `<div class="strip" style="padding-left:0">${kinds.map(k => `<button class="chip ${UFILTER === k ? "on" : ""}" data-uf="${k}">${UPD_KIND[k]}</button>`).join("")}</div>` : "";
+  const list = runs.map(r => { const it = r.items.filter(i => UFILTER === "all" || i.kind === UFILTER); if (!it.length) return "";
+    return `<div class="card upd"><div class="ut">${esc(fmtT(r.time))}</div>${it.map(i => `<div class="ui"><span>${i.icon}</span><span>${esc(i.text)}</span></div>`).join("")}</div>`; }).join("");
+  return now + chips + (list || `<div class="note">No changes logged yet. They'll appear here after the next run.</div>`);
+}
+
 // ---------- tap-a-price sheet ----------
 let SH = null;   // {b, sign, num}
 function openSheet(b) {
@@ -807,10 +836,11 @@ function openInfo() {
 function render() {
   BETS = [];
   header(); strip(); nav();
-  const v = {games, props, check}[TAB]();
+  const v = {games, props, check, updates}[TAB]();
   $("#view").innerHTML = v;
   if (TAB === "props") wireProps();
   if (TAB === "check") wireCheck();
+  document.querySelectorAll("[data-uf]").forEach(b => b.onclick = () => { UFILTER = b.dataset.uf; render(); });
   $("#view").querySelectorAll("[data-bet]").forEach(el => el.onclick = e => { e.stopPropagation(); openSheet(BETS[Number(el.dataset.bet)]); });
   $("#view").querySelectorAll("[data-player]").forEach(el => el.onclick = () => openPlayer(el.dataset.player));
   $("#view").querySelectorAll("[data-rk]").forEach(el => el.onclick = e => { e.stopPropagation(); const [id, k, v] = el.dataset.rk.split("|"); RINK[id][k] = v; render(); });

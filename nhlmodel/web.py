@@ -39,13 +39,14 @@ def _mat(m, cut=1e-7):
 
 
 def build(state, plays: pd.DataFrame, meta: dict, news: dict | None, images: dict | None,
-          market_summary: pd.DataFrame | None, out_dir: str) -> str:
+          market_summary: pd.DataFrame | None, out_dir: str, updates: list | None = None) -> str:
     os.makedirs(out_dir, exist_ok=True)
     news, images = news or {}, images or {}
     if state is None:   # no games scheduled: still publish a page that says so
         _write(out_dir, dict(meta=dict(date=meta.get("date"), upcoming=bool(meta.get("upcoming")),
                                        generated_at=meta.get("generated_at"), games=0, goalies_confirmed=0, teams=0),
-                             params={}, games=[], players=[], lines=[], trust=_trust(market_summary)))
+                             params={}, games=[], players=[], lines=[], trust=_trust(market_summary),
+                             updates=updates or []))
         return out_dir
     lu = state.lineups
     tm = TeamModel(state.cfg, state.snap, state.params)
@@ -111,7 +112,11 @@ def build(state, plays: pd.DataFrame, meta: dict, news: dict | None, images: dic
                   teams=2 * len(games), constants=meta.get("constants", "")),
         params=dict(r_sog=P.nb_r.get("sog", {}), r_ast=P.count_r.get("assists", 1e6),
                     r_pts=P.count_r.get("points", 1e6), thresholds=state.cfg.edge_threshold),
-        games=games, players=players, lines=lines, trust=_trust(market_summary))
+        games=games, players=players, lines=lines, trust=_trust(market_summary),
+        updates=updates or [],
+        model=dict(data_through=meta.get("data_through"), half_life=state.cfg.half_life_games,
+                   prior_w=state.cfg.prior_season_weight, home_edge=_num(state.snap.league["home_ratio"] - 1),
+                   goals_pg=_num(state.snap.league["goals_pg"]), lam_scale=_num(state.params.lam_scale)))
     _write(out_dir, data)
     return out_dir
 

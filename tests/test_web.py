@@ -55,3 +55,23 @@ def test_previous_slate_is_kept_for_last_night(tmp_path):
     # a second run the same day keeps last night's slate
     _publish_web(str(site), None, pd.DataFrame(), dict(date="2026-09-30"))
     assert json.load(open(site / "web" / "prev.json"))["meta"]["date"] == "2026-09-29"
+
+
+def test_changelog_lists_what_moved():
+    from nhlmodel.changelog import diff
+    base = dict(slate="2026-10-01", data_through="2026-09-30", constants="tuned",
+                params=dict(lam_scale=1.006, home_edge=0.022), recal={}, teams={"TOR": dict(off=1.0, dfn=1.0, pp=1.0, pk=1.0)},
+                goalies={"NYI": ["Ilya Sorokin", "Likely"]}, injuries=[], trust={"total": "OK"},
+                prices={"1": dict(matchup="NYI @ TOR", ml_home=0.45, over65=0.44)})
+    cur = json.loads(json.dumps(base))
+    cur["params"]["lam_scale"] = 1.010
+    cur["goalies"]["NYI"] = ["Ilya Sorokin", "Confirmed"]
+    cur["injuries"] = ["TOR|John Tavares|Day-to-day"]
+    cur["prices"]["1"]["ml_home"] = 0.47
+    cur["teams"]["TOR"]["off"] = 1.03
+    text = " | ".join(i["text"] for i in diff(base, cur))
+    for s in ("scoring calibration: 1.006 → 1.010", "Sorokin Likely → Confirmed", "Tavares listed Day-to-day",
+              "TOR win 45% → 47%", "TOR attack +3%"):
+        assert s in text, (s, text)
+    assert diff(base, base) == []
+    assert diff(None, base)[0]["icon"] == "🟢"
