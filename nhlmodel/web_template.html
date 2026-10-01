@@ -204,6 +204,20 @@ label.f { display: block; font-size: 13px; font-weight: 800; color: var(--ink-2)
 .mini:last-of-type { border-bottom: 0; }
 .mini .av { width: 36px; height: 36px; font-size: 12px; }
 .mini .mc { grid-column: 2; display: flex; gap: 6px; } .mini .lc { padding: 3px 7px; font-size: 12px; }
+.who { border: 0; background: transparent; padding: 0; text-align: left; min-width: 0; }
+.mini .mn { grid-column: 2; } .mini > .who:first-child { grid-row: 1; }
+.chev { color: var(--muted); font-weight: 800; }
+.props-seg { margin-top: 0; background: var(--cream); border: 2.5px solid var(--navy); }
+.phd { display: flex; gap: 12px; align-items: center; padding-right: 44px; }
+.phd .av { width: 54px; height: 54px; font-size: 17px; }
+.plh, .pl { display: grid; grid-template-columns: 1fr 64px 64px; align-items: center; gap: 6px; }
+.plh { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 800; margin: 14px 0 2px; text-align: right; }
+.psec { margin-top: 10px; }
+.ph { display: flex; justify-content: space-between; align-items: baseline; font-family: 'Fredoka', sans-serif; font-weight: 600; font-size: 16px; color: var(--navy); border-bottom: 2px solid var(--line); padding-bottom: 3px; }
+.ph .pm { font-family: 'Nunito', sans-serif; font-size: 12.5px; font-weight: 800; color: var(--ink-2); }
+.pl { width: 100%; border: 0; background: transparent; padding: 8px 2px; border-bottom: 2px dashed var(--line); font-weight: 800; font-size: 14.5px; text-align: left; }
+.pl .c, .pl .b { text-align: right; font-family: 'Fredoka', sans-serif; font-weight: 700; } .pl .b { color: var(--green); }
+.pl.won { background: var(--green-soft); } .pl.lost { opacity: .45; }
 .link { width: 100%; margin-top: 8px; border: 0; background: transparent; font-weight: 800; font-size: 14px; color: var(--navy); text-decoration: underline; padding: 6px; }
 .tn2 { color: var(--navy) !important; }
 @media (min-width: 700px) { .tiles { grid-template-columns: repeat(3, 1fr); } }
@@ -523,7 +537,7 @@ function gameCard(g) {
         ${tile(g, `1st per. ${a.abbr} lead`, "p1_3way", "away")}${tile(g, `1st per. ${h.abbr} lead`, "p1_3way", "home")}</div>`;
     else if (view === "players") {
       const top = D.players.filter(p => p.game_id === g.game_id && p.lam.sog != null).sort((x, y) => y.lam.sog - x.lam.sog).slice(0, 5);
-      body = top.map(miniRow).join("") + `<button class="link" data-allprops="${g.game_id}">All player props for this game →</button>`;
+      body = top.map(p => miniRow(p, "sog")).join("") + `<button class="link" data-allprops="${g.game_id}">All player props for this game →</button>`;
     } else {
       const inj = [a, h].filter(t => t.injuries.length).map(t => `<b class="tn2">${esc(t.abbr)}</b> ` + t.injuries.map(i => `${esc(i.name)} <b>${esc(i.status)}</b>`).join(", ")).join("<br>");
       body = linesHtml(g) + (inj ? `<div class="inj" style="margin-top:10px">🚑 ${inj}</div>` : "");
@@ -574,48 +588,77 @@ function games() {
 }
 
 const LINES = {sog: [1.5, 2.5, 3.5, 4.5], goals: [0.5], points: [0.5, 1.5], assists: [0.5]};
-function playerRow(p, mk) {
-  const L = LIVE[p.game_id] || {}, s = playerStat(p);
-  const chips = LINES[mk].map(l => { const pr = propProb(p, mk, l);
-    const [cls, ic] = RES(s && !s.dnp ? cmpLine(s[mk], l, "over", L.state === "post") : undefined);
-    const lab = mk === "goals" ? "Scores" : `O ${l}`;
-    const i = bet({player: p, market: mk, line: l, p: pr, label: `${p.name} ${mk === "goals" ? "to score" : `over ${l} ${UNIT[mk]}`}`});
-    return `<button class="lc ${cls}" data-bet="${i}">${ic ? ic + " " : ""}<b>${lab}</b> ${pct(pr)} · <span class="t">${betAt(pr - thr(mk))}</span></button>`; }).join("");
-  const badge = s ? `<span class="stat ${L.state}">${s.dnp ? "not in box score" : `${L.state === "in" ? "Live" : "Final"} ${s[mk]}`}</span>` : "";
-  return `<div class="prow"><div class="phead">${avatar(p)}<div style="min-width:0"><div class="pname">${esc(p.name)}${badge}</div>
-    <div class="pmeta">${esc(p.team)} · proj ${p.lam[mk].toFixed(2)} ${mk === "goals" ? "goals" : UNIT[mk]}${p.confirmed ? "" : " · lineup projected"}</div></div></div>
-    <div class="pchips">${chips}</div></div>`;
-}
-function miniRow(p) {
-  const L = LIVE[p.game_id] || {}, s = playerStat(p), lam = p.lam.sog;
+const PNAME = {sog: "shots", goals: "goals", points: "points", assists: "assists"};
+const SHEET_LINES = {sog: [1.5, 2.5, 3.5, 4.5, 5.5], goals: [0.5, 1.5], points: [0.5, 1.5, 2.5], assists: [0.5, 1.5]};
+function lineLabel(mk, l) { return mk === "goals" && l === 0.5 ? "Scores" : `O ${l}`; }
+function miniRow(p, mk = "sog") {
+  const L = LIVE[p.game_id] || {}, s = playerStat(p), lam = p.lam[mk];
   // the two lines closest to a coin flip are the interesting ones
-  const lines = [1.5, 2.5, 3.5, 4.5].map(l => ({l, pr: propProb(p, "sog", l)})).sort((x, y) => Math.abs(x.pr - 0.5) - Math.abs(y.pr - 0.5)).slice(0, 2).sort((x, y) => x.l - y.l);
-  const chips = lines.map(({l, pr}) => { const [cls, ic] = RES(s && !s.dnp ? cmpLine(s.sog, l, "over", L.state === "post") : undefined);
-    const i = bet({player: p, market: "sog", line: l, p: pr, label: `${p.name} over ${l} shots`});
-    return `<button class="lc ${cls}" data-bet="${i}">${ic ? ic + " " : ""}<b>O ${l}</b> ${pct(pr)} · <span class="t">${betAt(pr - thr("sog"))}</span></button>`; }).join("");
-  return `<div class="mini">${avatar(p)}<div class="mn"><div class="pname">${esc(p.name)} <span class="pmeta">· ${esc(p.team)} · ${lam.toFixed(1)} shots</span>${s && !s.dnp ? ` <span class="stat ${L.state}">${s.sog} SOG</span>` : ""}</div>
-    </div><div class="mc">${chips}</div></div>`;
+  const lines = SHEET_LINES[mk].map(l => ({l, pr: propProb(p, mk, l)})).filter(x => x.pr > 0.04)
+    .sort((x, y) => Math.abs(x.pr - 0.5) - Math.abs(y.pr - 0.5)).slice(0, 2).sort((x, y) => x.l - y.l);
+  const chips = lines.map(({l, pr}) => { const [cls, ic] = RES(s && !s.dnp ? cmpLine(s[mk], l, "over", L.state === "post") : undefined);
+    const i = bet({player: p, market: mk, line: l, p: pr, label: `${p.name} ${mk === "goals" && l === 0.5 ? "to score" : `over ${l} ${PNAME[mk]}`}`});
+    return `<button class="lc ${cls}" data-bet="${i}">${ic ? ic + " " : ""}<b>${lineLabel(mk, l)}</b> ${pct(pr)} · <span class="t">${betAt(pr - thr(mk))}</span></button>`; }).join("");
+  const live = s && !s.dnp ? ` <span class="stat ${L.state}">${s[mk]} ${mk === "sog" ? "SOG" : PNAME[mk]}</span>` : "";
+  return `<div class="mini"><button class="who" data-player="${p.id}">${avatar(p)}</button>
+    <button class="who mn" data-player="${p.id}"><div class="pname">${esc(p.name)} <span class="chev">›</span>${live}</div>
+    <div class="pmeta">${esc(p.team)} · proj ${lam.toFixed(mk === "goals" ? 2 : 1)} ${PNAME[mk]}</div></button>
+    <div class="mc">${chips}</div></div>`;
 }
 function props() {
   if (!D.players.length) return empty("👤", "No player projections yet", "");
   const S = PSTATE, mk = S.market;
   let list = D.players.filter(p => p.lam[mk] != null);
-  if (S.q) list = list.filter(p => p.name.toLowerCase().includes(S.q.toLowerCase()));
+  if (S.q) list = list.filter(p => normName(p.name).includes(normName(S.q)));
   if (S.game !== "all") list = list.filter(p => String(p.game_id) === S.game);
-  list.sort((x, y) => y.lam[mk] - x.lam[mk]); list = list.slice(0, 50);
+  list.sort((x, y) => y.lam[mk] - x.lam[mk]);
+  const total = list.length, n = S.n || 20;
   const mkt = [["sog", "Shots"], ["goals", "Goals"], ["points", "Points"], ["assists", "Assists"]]
-    .map(([k, n]) => `<button class="chip ${mk === k ? "on" : ""}" data-m="${k}">${n}</button>`).join("");
-  const gms = `<button class="chip ${S.game === "all" ? "on" : ""}" data-g="all">All games</button>`
+    .map(([k, nm]) => `<button class="${mk === k ? "on" : ""}" data-m="${k}">${nm}</button>`).join("");
+  const gms = `<button class="chip ${S.search || S.q ? "on" : ""}" data-search="1">🔍</button>`
+    + `<button class="chip ${S.game === "all" ? "on" : ""}" data-g="all">All games</button>`
     + D.games.map(g => `<button class="chip ${S.game === String(g.game_id) ? "on" : ""}" data-g="${g.game_id}">${esc(g.away.abbr)} @ ${esc(g.home.abbr)}</button>`).join("");
-  return `<input class="search" id="pq" placeholder="🔍 Find a player" value="${esc(S.q)}" autocomplete="off">
-    <div class="strip" style="padding-left:0">${mkt}</div><div class="strip" style="padding-left:0">${gms}</div>
-    <div class="card">${list.map(p => playerRow(p, mk)).join("") || "No matches"}</div>`;
+  return `<div class="ptabs props-seg">${mkt}</div>
+    <div class="strip" style="padding-left:0">${gms}</div>
+    ${S.search || S.q ? `<input class="search" id="pq" placeholder="Find a player" value="${esc(S.q)}" autocomplete="off">` : ""}
+    <div class="card">${list.slice(0, n).map(p => miniRow(p, mk)).join("") || `<div class="note" style="margin:6px">No players match.</div>`}
+    ${total > n ? `<button class="link" data-showmore="1">Show more (${total - n})</button>` : ""}</div>`;
 }
 function wireProps() {
-  const q = $("#pq"); if (!q) return;
-  q.oninput = () => { PSTATE.q = q.value; const pos = q.selectionStart; render(); const n = $("#pq"); n.focus(); n.setSelectionRange(pos, pos); };
-  document.querySelectorAll("[data-m]").forEach(b => b.onclick = () => { PSTATE.market = b.dataset.m; render(); });
-  document.querySelectorAll("[data-g]").forEach(b => b.onclick = () => { PSTATE.game = b.dataset.g; render(); });
+  const q = $("#pq");
+  if (q) q.oninput = () => { PSTATE.q = q.value; const pos = q.selectionStart; render(); const n = $("#pq"); n.focus(); n.setSelectionRange(pos, pos); };
+  document.querySelectorAll("[data-m]").forEach(b => b.onclick = () => { PSTATE.market = b.dataset.m; PSTATE.n = 20; render(); });
+  document.querySelectorAll("[data-g]").forEach(b => b.onclick = () => { PSTATE.game = b.dataset.g; PSTATE.n = 20; render(); });
+  document.querySelectorAll("[data-search]").forEach(b => b.onclick = () => {
+    PSTATE.search = !(PSTATE.search || PSTATE.q); if (!PSTATE.search) PSTATE.q = ""; render(); $("#pq")?.focus(); });
+  document.querySelectorAll("[data-showmore]").forEach(b => b.onclick = () => { PSTATE.n = (PSTATE.n || 20) + 20; render(); });
+}
+
+// ---------- player sheet: every line for one player ----------
+function openPlayer(id) {
+  const p = D.players.find(x => String(x.id) === String(id)); if (!p) return;
+  const g = D.games.find(x => x.game_id === p.game_id), L = LIVE[p.game_id] || {}, s = playerStat(p);
+  const slot = D.lines.filter(x => x.team === p.team && normName(x.name) === normName(p.name));
+  const where = slot.length ? [slot[0].line, slot[0].pp ? `PP${slot[0].pp}` : ""].filter(Boolean).join(" · ") : "";
+  const PB = [];
+  const sec = mk => { if (p.lam[mk] == null) return "";
+    const rows = SHEET_LINES[mk].map(l => { const pr = propProb(p, mk, l); if (pr < 0.03) return "";
+      const [cls, ic] = RES(s && !s.dnp ? cmpLine(s[mk], l, "over", L.state === "post") : undefined);
+      PB.push({player: p, market: mk, line: l, p: pr, label: `${p.name} ${mk === "goals" && l === 0.5 ? "to score" : `over ${l} ${PNAME[mk]}`}`});
+      return `<button class="pl ${cls}" data-pb="${PB.length - 1}"><span>${ic ? ic + " " : ""}${mk === "goals" && l === 0.5 ? "Anytime goal" : `Over ${l}`}</span>
+        <span class="c">${pct(pr)}</span><span class="b">${betAt(pr - thr(mk))}</span></button>`; }).join("");
+    const live = s && !s.dnp ? ` · ${L.state === "in" ? "live" : "final"} <b>${s[mk]}</b>` : "";
+    return `<div class="psec"><div class="ph"><span>${MNAME[mk]}</span><span class="pm">proj ${p.lam[mk].toFixed(2)}${live}</span></div>${rows}</div>`; };
+  $("#sheet").innerHTML = `<div class="grab"></div><button class="iconbtn close" id="shx" aria-label="Close">✕</button>
+    <div class="phd">${avatar(p)}<div><div class="sh-t">${esc(p.name)}</div>
+      <div class="sh-s">${esc(p.team)}${where ? " · " + esc(where) : ""} · ${esc(g ? gameLabel(g) : "")}${p.confirmed ? "" : " · projected lineup"}</div></div></div>
+    <div class="plh"><span></span><span>Chance</span><span>Bet at</span></div>
+    ${["sog", "goals", "points", "assists"].map(sec).join("")}
+    <div class="hint">Tap a line to check it against DraftKings.</div>`;
+  $("#shx").onclick = closeSheet;
+  $("#sheet").querySelectorAll("[data-pb]").forEach(el => el.onclick = () => openSheet(PB[Number(el.dataset.pb)]));
+  $("#scrim").classList.add("open"); $("#sheet").classList.add("open");
+  $("#sheet").scrollTop = 0;
 }
 
 // ---------- tap-a-price sheet ----------
@@ -670,6 +713,7 @@ function render() {
   if (TAB === "props") wireProps();
   if (TAB === "check") wireCheck();
   $("#view").querySelectorAll("[data-bet]").forEach(el => el.onclick = () => openSheet(BETS[Number(el.dataset.bet)]));
+  $("#view").querySelectorAll("[data-player]").forEach(el => el.onclick = () => openPlayer(el.dataset.player));
   $("#view").querySelectorAll("[data-pv]").forEach(el => el.onclick = () => { const [id, k] = el.dataset.pv.split("|"); PANEL[id] = k; render(); });
   $("#view").querySelectorAll("[data-allprops]").forEach(el => el.onclick = () => { PSTATE.game = el.dataset.allprops; PSTATE.q = ""; TAB = "props"; render(); window.scrollTo(0, 0); });
   $("#view").querySelectorAll("[data-more]").forEach(el => el.onclick = () => {
