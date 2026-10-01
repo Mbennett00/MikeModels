@@ -199,6 +199,13 @@ These are the assumptions made instead of guesses. Each one is also printed in t
     season), but priced through this model it was worse on every market: moneyline 0.6842 vs 0.6836,
     totals 0.6832 vs 0.6743, team totals 0.6666 vs 0.6632, puck line and props slightly worse. The
     goalie, finishing and tuned constants are fitted around our xG, so the source stays "model".
+    **xG v3** (`XG_VERSION = 3`): v2 plus MoneyPuck's event-feed context as model inputs (rush, speed /
+    time / distance from the last event, rebound angle speed, off-wing, last event type, shooter and
+    defender time on ice), still fit on the previous season. Shot level it beats v2 out of sample
+    (0.2246 vs 0.2254), but in the walk-forward it is mixed and within noise: moneyline 0.6843 vs
+    0.6836, totals 0.6739 vs 0.6743, puck line 0.5928 vs 0.5925, team totals and props even. Team and
+    goalie ratings average thousands of shots, so better per-shot grading mostly washes out. v2 stays
+    the default; `xg-compare` re-runs the test as more MoneyPuck data accumulates.
 
 ## Known gaps / data not available here
 
