@@ -74,7 +74,13 @@ def build(state, plays: pd.DataFrame, meta: dict, news: dict | None, images: dic
         gp = tm.project(g.home, g.away, h["goalie_id"], a["goalie_id"], state.date,
                         (h["goalie_confirmed"], a["goalie_confirmed"]), sk)
         gp_by[int(g.game_id)] = gp
-        games.append(dict(game_id=int(g.game_id), start_utc=getattr(g, "start_utc", None), away=a, home=h,
+        dk = []
+        if len(plays) and "best_price" in plays:
+            gp_ = plays[(plays.game_id == g.game_id) & (plays.player.fillna("") == "") & plays.best_price.notna()]
+            for r in gp_.itertuples():
+                dk.append(dict(m=r.market, s=r.selection, l=_num(r.line), price=_num(r.best_price, 0),
+                               nv=_num(r.p_novig), edge=_num(r.edge)))
+        games.append(dict(game_id=int(g.game_id), start_utc=getattr(g, "start_utc", None), away=a, home=h, dk=dk,
                           mx=_matchup(tm, gp, g.home, g.away, lu),
                           lam_home=_num(gp.lam_home), lam_away=_num(gp.lam_away), p_ot_home=_num(gp.p_ot_home),
                           reg=_mat(gp.matrix), p1=_mat(gp.p1_matrix)))

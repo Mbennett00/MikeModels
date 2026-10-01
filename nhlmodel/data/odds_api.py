@@ -115,15 +115,21 @@ def parse_event(ev: dict, schedule: pd.DataFrame, name_to_id: dict, snapshot: st
 
 
 def fetch(schedule: pd.DataFrame, lineups: pd.DataFrame, snapshot: str, api_key: str | None = None,
-          regions: str = "us", props: bool = True, game_ids: set | None = None, log=print) -> pd.DataFrame:
+          regions: str = "us", props: bool = True, game_ids: set | None = None, log=print,
+          bookmakers: str | None = None, game_only: bool = False) -> pd.DataFrame:
+    """game_only + bookmakers='draftkings' is the lean mode: one /odds call, 3 credits."""
     import requests
     key = api_key or os.environ.get("ODDS_API_KEY")
     if not key:
         log("ODDS_API_KEY not set: no odds fetched")
         return pd.DataFrame()
-    now = pd.Timestamp.utcnow().isoformat()
+    now = pd.Timestamp.now('UTC').isoformat()
     name_to_id = player_index(lineups)
-    params = dict(apiKey=key, regions=regions, oddsFormat="american")
+    params = dict(apiKey=key, oddsFormat="american")
+    if bookmakers:
+        params["bookmakers"] = bookmakers      # replaces regions; cost = markets x 1
+    else:
+        params["regions"] = regions
     r = requests.get(f"{BASE}/odds", params=dict(params, markets=GAME_MARKETS), timeout=30)
     r.raise_for_status()
     log(f"odds api: {r.headers.get('x-requests-remaining')} credits left")
@@ -132,8 +138,8 @@ def fetch(schedule: pd.DataFrame, lineups: pd.DataFrame, snapshot: str, api_key:
     for ev in events:
         rr, mm = parse_event(ev, schedule, name_to_id, snapshot, now)
         rows += rr; missing |= mm
-    extra = EVENT_MARKETS + (PROP_MARKETS if props else [])
-    for ev in events:
+    extra = [] if game_only else EVENT_MARKETS + (PROP_MARKETS if props else [])
+    for ev in (events if extra else []):
         home, away = abbrev(ev["home_team"]), abbrev(ev["away_team"])
         m = schedule[(schedule.home == home) & (schedule.away == away)]
         if m.empty or (game_ids is not None and int(m.game_id.iloc[0]) not in game_ids):

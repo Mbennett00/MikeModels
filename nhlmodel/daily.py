@@ -344,16 +344,33 @@ def cmd_slate(a):
         gl = {r["team"]: dict(goalie=r["goalie"], status=r["status"], note=r["note"]) for r in dfo.get("goalies", [])}
         json.dump(dict(injuries=inj, goalies=gl, fetched_at=pd.Timestamp.now(tz=ET).isoformat()),
                   open(os.path.join(site, "news.json"), "w"), indent=1)
-    if os.environ.get("ODDS_ENABLED", "0") == "1":
+    mode = os.environ.get("ODDS_ENABLED", "0")
+    odds = pd.DataFrame()
+    if mode == "1":
         odds = odds_api.fetch(sched, roster if len(roster) else lineups, "bet", props=not a.no_props)
-    else:
-        odds = pd.DataFrame()   # model-only: fair prices, no sportsbook feed
+    elif mode == "lean" and os.environ.get("ODDS_PULL") == "1" and not upcoming:
+        # DraftKings game lines only: one call, 3 credits
+        odds = odds_api.fetch(sched, lineups, "bet", bookmakers="draftkings", game_only=True)
+        if len(odds) and os.environ.get("ODDS_CLOSE") == "1":
+            # the evening pull is the closing line for games starting within the next ~2 hours
+            st = pd.to_datetime(sched.start_utc, utc=True)
+            soon = set(sched[st <= pd.Timestamp.now(tz="UTC") + pd.Timedelta(hours=2)].game_id)
+            close = odds[odds.game_id.isin(soon)].assign(snapshot="close")
+            odds = pd.concat([odds, close], ignore_index=True)
     hist = _read(os.path.join(site, "odds_history.csv.gz"))
-    if len(odds):
+    if not len(odds) and mode == "lean" and len(hist):
+        # between pulls: reuse today's latest DraftKings prices
+        h = hist[(pd.to_datetime(hist.date.astype(str), format="mixed").dt.normalize() == date)
+                 & (hist.snapshot == "bet") & hist.game_id.isin(sched.game_id)]
+        if len(h):
+            odds = h.sort_values("fetched_at").drop_duplicates(
+                ["game_id", "market", "player_id", "selection", "line", "book"], keep="last")
+            print(f"reusing {len(odds)} DraftKings prices from {odds.fetched_at.max()}")
+    elif len(odds):
         hist = _append_odds(hist, odds)
         hist.to_csv(os.path.join(site, "odds_history.csv.gz"), index=False, compression="gzip")
         # latest bet-time price per book for today's pricing
-        odds = odds.sort_values("fetched_at").drop_duplicates(
+        odds = odds[odds.snapshot == "bet"].sort_values("fetched_at").drop_duplicates(
             ["game_id", "market", "player_id", "selection", "line", "book"], keep="last")
     hp = {}
     for k in ("games", "players"):

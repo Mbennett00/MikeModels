@@ -27,7 +27,14 @@ One-time setup: repo **Settings → Pages → Build and deployment → Source: G
 *Add to Home Screen*. The older Streamlit dashboard (`app/streamlit_app.py`) still works from the
 same release files but is no longer needed.
 
-**No odds feed by default.** The site is a price sheet: for every bet it shows the model's chance, the
+**DraftKings game lines (lean mode, default).** `ODDS_ENABLED: "lean"` pulls DraftKings moneyline,
+puck line and totals in one Odds API call (3 credits) at the ~11am and ~6:40pm ET runs only, about 180
+credits a month; the evening pull also records the closing line for games starting within two hours
+(CLV in the track record). Other runs reuse the day's latest prices. Needs the repo secret
+`ODDS_API_KEY`; without it the page works as before. Game tiles show DK's price and the edge, and Model
+likes gets a Best value tab. Props are not pulled (too many credits).
+
+**Previously: no odds feed.** The site is a price sheet: for every bet it shows the model's chance, the
 fair price and a "bet at or better than" price (fair chance minus the market's edge threshold, with
 the book's cut left in as a cushion). You compare with DraftKings yourself, or type DK's odds into
 the **Check** tab. The Odds API code is still in `nhlmodel/data/odds_api.py`: set `ODDS_ENABLED: "1"`

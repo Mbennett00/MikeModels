@@ -34,10 +34,10 @@ jobs:
       web: ${{ steps.web.outputs.web }}
     env:
       GH_TOKEN: ${{ github.token }}
-      # No sportsbook odds feed: the model publishes fair prices and "bet at or better than" prices,
-      # and you compare them with DraftKings yourself. (Set ODDS_ENABLED to "1" and pass
-      # secrets.ODDS_API_KEY here to switch the feed back on.)
-      ODDS_ENABLED: "0"
+      # DraftKings game lines from the-odds-api.com, pulled at the ~11am and ~6:40pm ET runs only
+      # (3 credits each); other runs reuse the latest prices. "0" = no feed, "1" = full feed incl. props.
+      ODDS_ENABLED: "lean"   # DraftKings game lines, 2 pulls a day (~180 credits / month)
+      ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
       PYTHONUNBUFFERED: "1"
     steps:
       - uses: actions/checkout@v4
@@ -55,6 +55,10 @@ jobs:
             *) t="${{ inputs.task }}" ;;
           esac
           echo "task=$t" >> "$GITHUB_OUTPUT"
+          case "${{ github.event.schedule }}" in
+            "5 15 * * *") echo "ODDS_PULL=1" >> "$GITHUB_ENV" ;;
+            "40 22 * * *") echo "ODDS_PULL=1" >> "$GITHUB_ENV"; echo "ODDS_CLOSE=1" >> "$GITHUB_ENV" ;;
+          esac
           echo "Task: $t"
       - name: Download state
         id: pull

@@ -115,3 +115,29 @@ def test_intermediate_dates_with_mixed_formats_load(tmp_path):
     pd.to_datetime(inter["games"].date)      # strict parse no longer fails
     save_intermediate({"games": g}, str(tmp_path))
     assert pd.read_csv(tmp_path / "games.csv.gz").date.tolist() == ["2026-09-30", "2026-10-01"]
+
+
+def test_lean_odds_mode_is_one_draftkings_call(monkeypatch):
+    import pandas as pd
+    import requests
+    from nhlmodel.data import odds_api
+    calls = []
+
+    class R:
+        status_code = 200
+        headers = {"x-requests-remaining": "497"}
+        def raise_for_status(self): pass
+        def json(self):
+            return [dict(id="e1", home_team="Toronto Maple Leafs", away_team="New York Islanders",
+                         commence_time="2026-10-01T23:00:00Z",
+                         bookmakers=[dict(key="draftkings", markets=[dict(key="h2h", outcomes=[
+                             dict(name="Toronto Maple Leafs", price=-130), dict(name="New York Islanders", price=110)])])])]
+
+    monkeypatch.setattr(requests, "get", lambda url, params=None, timeout=None: calls.append((url, params)) or R())
+    sched = pd.DataFrame(dict(game_id=[1], home=["TOR"], away=["NYI"], date=[pd.Timestamp("2026-10-01")]))
+    out = odds_api.fetch(sched, pd.DataFrame(columns=["player_id", "name"]), "bet", api_key="k",
+                         bookmakers="draftkings", game_only=True)
+    assert len(calls) == 1                                   # no per-event calls
+    assert calls[0][1]["bookmakers"] == "draftkings" and "regions" not in calls[0][1]
+    assert calls[0][1]["markets"] == "h2h,spreads,totals"    # 3 credits
+    assert set(out.selection) == {"home", "away"} and set(out.book) == {"draftkings"}
