@@ -43,7 +43,10 @@ def fetch(seasons, path: str, refresh_current: bool = True, log=print) -> pd.Dat
             time.sleep(1)
         except Exception as e:   # optional source: keep what we have
             log(f"moneypuck shots {s}: {e}")
-    out = pd.concat(parts, ignore_index=True) if len(parts) > 1 else old
+    parts = [p for p in parts if len(p)]
+    out = pd.concat(parts, ignore_index=True) if parts else pd.DataFrame(columns=COLS)
+    for c in ("season", "game_id", "period", "time", "shooterPlayerId", "xGoal", "isPlayoffGame"):
+        out[c] = pd.to_numeric(out[c], errors="coerce")
     os.makedirs(path, exist_ok=True)
     out.to_csv(f, index=False, compression="gzip")
     return out
@@ -55,10 +58,13 @@ def attach(shots: pd.DataFrame, mp: pd.DataFrame, tol: int = 2) -> pd.Series:
     Match on game, shooter and game second (within `tol` s). MoneyPuck game ids are the short form
     (20001); ours are season * 1e6 + that. MoneyPuck `time` is seconds since the start of the game.
     """
-    out = pd.Series(np.nan, index=shots.index)
+    out = pd.Series(np.nan, index=shots.index, dtype=float)
     if mp is None or mp.empty:
         return out
     m = mp.copy()
+    for c in ("season", "game_id", "time", "shooterPlayerId", "xGoal"):
+        m[c] = pd.to_numeric(m[c], errors="coerce")
+    m = m.dropna(subset=["season", "game_id", "time", "shooterPlayerId", "xGoal"])
     m["gid"] = (m.season.astype(int) * 1_000_000 + m.game_id.astype(int)).astype("int64")
     m = m.rename(columns={"shooterPlayerId": "shooter"})[["gid", "shooter", "time", "xGoal"]].dropna()
     m["shooter"] = m.shooter.astype("int64")
@@ -67,5 +73,5 @@ def attach(shots: pd.DataFrame, mp: pd.DataFrame, tol: int = 2) -> pd.Series:
     s["gid"] = s.game_id.astype("int64"); s["shooter"] = s.shooter.astype("int64"); s["t"] = s.t.astype("int64")
     s, m = s.sort_values("t"), m.sort_values("time")
     j = pd.merge_asof(s, m, left_on="t", right_on="time", by=["gid", "shooter"], tolerance=tol, direction="nearest")
-    out.loc[j["index"].to_numpy()] = j.xGoal.to_numpy()
+    out.loc[j["index"].to_numpy()] = j.xGoal.to_numpy(dtype=float)
     return out

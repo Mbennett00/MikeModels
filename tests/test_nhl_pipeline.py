@@ -96,7 +96,7 @@ def test_moneypuck_xg_attaches_by_game_shooter_and_time():
                              shooter=[11, 11, 22, 11], t=[76, 300, 95, 76],
                              unblocked=[True, True, False, True]))
     mp = pd.DataFrame(dict(season=[2025, 2025, 2025], game_id=[20001, 20001, 20001], period=[1, 1, 1],
-                           time=[77, 95, 600], shooterPlayerId=[11, 22, 11], xGoal=[0.05, 0.2, 0.3],
+                           time=[77, 95, 600], shooterPlayerId=[11, 22, 11], xGoal=["0.05", "0.2", "0.3"],
                            event=["SHOT"] * 3, isPlayoffGame=[0] * 3))
     x = attach(ours, mp)
     assert x.iloc[0] == 0.05                  # same game + shooter, 1 s apart
