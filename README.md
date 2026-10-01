@@ -194,6 +194,11 @@ These are the assumptions made instead of guesses. Each one is also printed in t
     model for the rest. Off by default (`NHL_XG_SOURCE=model`); `python -m nhlmodel.daily xg-compare`
     (workflow task `xg-compare`) runs the walk-forward with each source and writes
     `site/xg_compare.json`. Data courtesy of MoneyPuck.com; check their terms before commercial use.
+    Result (walk-forward 2025-12-27 to 2026-04-16): MoneyPuck's xG is clearly better shot by shot
+    (log loss 0.2181 vs our 0.2254 on 110,719 shots, flattered because their model trained on that
+    season), but priced through this model it was worse on every market: moneyline 0.6842 vs 0.6836,
+    totals 0.6832 vs 0.6743, team totals 0.6666 vs 0.6632, puck line and props slightly worse. The
+    goalie, finishing and tuned constants are fitted around our xG, so the source stays "model".
 
 ## Known gaps / data not available here
 
