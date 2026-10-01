@@ -225,16 +225,16 @@ label.f { display: block; font-size: 13px; font-weight: 800; color: var(--ink-2)
 /* model likes */
 .likes { background: linear-gradient(160deg, #fff7df, var(--cream)); }
 .lk-h { font-family: 'Fredoka', sans-serif; font-weight: 600; font-size: 19px; color: var(--navy); }
-.lk { width: 100%; display: grid; grid-template-columns: 20px 40px 1fr auto; gap: 10px; align-items: center; border: 0; border-top: 2px dashed var(--line);
+.likerow { width: 100%; display: grid; grid-template-columns: 20px 40px 1fr auto; gap: 10px; align-items: center; border: 0; border-top: 2px dashed var(--line);
       background: transparent; padding: 8px 2px; text-align: left; }
-.lk:first-of-type { border-top: 0; }
+.likerow:first-of-type { border-top: 0; }
 .lk-n { font-family: 'Fredoka', sans-serif; font-weight: 700; color: var(--muted); }
-.lk .av, .lk .logo, .lk .code { width: 40px; height: 40px; font-size: 13px; }
+.likerow .av, .likerow .logo, .likerow .code { width: 40px; height: 40px; font-size: 13px; }
 .lk-t { min-width: 0; display: flex; flex-direction: column; } .lk-t b { font-size: 15px; color: var(--navy); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lk-t span { font-size: 12.5px; font-weight: 700; color: var(--ink-2); }
 .lk-p { text-align: right; display: flex; flex-direction: column; } .lk-p b { font-family: 'Fredoka', sans-serif; font-size: 20px; color: var(--navy); }
 .lk-p span { font-size: 12px; font-weight: 800; color: var(--green); white-space: nowrap; }
-.lk.won { background: var(--green-soft); } .lk.lost { opacity: .45; }
+.likerow.won { background: var(--green-soft); } .likerow.lost { opacity: .45; }
 .lk-note { font-size: 12px; font-weight: 700; color: var(--muted); margin-top: 6px; line-height: 1.4; }
 /* updates */
 .kv { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; }
@@ -723,7 +723,7 @@ function likesHtml() {
     const mk = r.b.market, settled = r.b.g ? settle(r.b.g, mk, r.b.sel, r.b.line) : (() => { const s = playerStat(r.player), L = LIVE[r.player.game_id] || {};
       return s && !s.dnp ? cmpLine(s[mk], r.b.line, "over", L.state === "post") : undefined; })();
     const [cls, ic] = RES(settled), k = bet(Object.assign({p: r.p}, r.b));
-    return `<button class="lk ${cls}" data-bet="${k}"><span class="lk-n">${i + 1}</span>${r.player ? avatar(r.player) : logo(r.b.sel === "home" ? r.b.g.home : r.b.sel === "away" ? r.b.g.away : r.b.g.home)}
+    return `<button class="likerow ${cls}" data-bet="${k}"><span class="lk-n">${i + 1}</span>${r.player ? avatar(r.player) : logo(r.b.sel === "home" ? r.b.g.home : r.b.sel === "away" ? r.b.g.away : r.b.g.home)}
       <span class="lk-t"><b>${ic ? ic + " " : ""}${esc(r.label)}</b><span>${esc(r.sub)}</span></span>
       <span class="lk-p"><b>${pct(r.p)}</b><span>bet at ${betAt(r.p - thr(mk))}</span></span></button>`; }).join("");
   return `<div class="card likes"><div class="lk-h"><span>⭐ Model likes tonight</span></div>
