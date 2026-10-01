@@ -112,7 +112,8 @@ def price_state(st: SlateState, lineups: pd.DataFrame | None = None, odds: pd.Da
         lu = lineups[lineups.game_id == g.game_id]
         hg, hconf = _goalie(lu, g.home)
         ag, aconf = _goalie(lu, g.away)
-        gp = tm.project(g.home, g.away, hg, ag, date, (hconf, aconf))
+        sk = {t: lu[(lu.team == t) & lu.pos.isin(["F", "D"])] for t in (g.home, g.away)}
+        gp = tm.project(g.home, g.away, hg, ag, date, (hconf, aconf), sk)
         matchup = f"{g.away} @ {g.home}"
         start = getattr(g, "start_utc", None)
         gflags = "; ".join(gp.flags)

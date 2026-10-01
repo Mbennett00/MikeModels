@@ -30,6 +30,7 @@ PARAMS = [
     ("b2b_off", "Back-to-back scoring effect", lambda v: "none" if v == 1 else f"{100 * (v - 1):+.1f}%", 0.001),
     ("b2b_def", "Back-to-back defence effect", lambda v: "none" if v == 1 else f"{100 * (v - 1):+.1f}%", 0.001),
     ("half_life", "Recent-form window (half-life)", lambda v: f"{v:.0f} games", 0.5),
+    ("lineup_beta", "Injury / lineup adjustment strength", lambda v: "off" if v == 0 else f"{v:.2f}", 0.01),
     ("prior_w", "Weight on last season", lambda v: f"{100 * v:.0f}%", 0.01),
 ]
 RECAL = {"goals": "Goal props", "sog": "Shot props", "assists": "Assist props"}
@@ -41,7 +42,8 @@ def snapshot(state, plays: pd.DataFrame, news: dict | None, meta: dict, market_s
                   ot_slope=P.ot_slope, p1_share=P.p1_share, en_uplift=P.en_uplift,
                   r_sog_F=P.nb_r.get("sog", {}).get("F"), r_sog_D=P.nb_r.get("sog", {}).get("D"),
                   b2b_off=P.rest.get("b2b_off", 1.0), b2b_def=P.rest.get("b2b_def", 1.0),
-                  half_life=cfg.half_life_games, prior_w=cfg.prior_season_weight)
+                  half_life=cfg.half_life_games, prior_w=cfg.prior_season_weight,
+                  lineup_beta=getattr(cfg, "lineup_beta", 0.0))
     recal = {k: [round(float(x), 3) for x in v[:2]] for k, v in getattr(P, "recal", {}).items()}
     tm = TeamModel(cfg, state.snap, P)
     teams = {}

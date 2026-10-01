@@ -213,7 +213,7 @@ class TeamModel:
         return self._ratings[team]
 
     def lambdas(self, home, away, home_goalie=None, away_goalie=None, date=None,
-                goalie_confirmed=(True, True)):
+                goalie_confirmed=(True, True), lineups=None):
         cfg, L, P = self.cfg, self.snap.league, self.params
         rh, ra = self.rating(home), self.rating(away)
         base = L["goals_pg"]
@@ -238,6 +238,13 @@ class TeamModel:
                     rest_def[team] *= P.rest.get("b2b_def", 1.0)
                 if rf["travel_km"] > 1500:
                     rest[team] *= P.rest.get("travel_off", 1.0)
+        # tonight's personnel vs the players the team usually dresses (1.0 when off or no lineup)
+        lf, lf_info = {home: 1.0, away: 1.0}, {}
+        if lineups is not None and getattr(cfg, "lineup_beta", 0) > 0:
+            from .lineup import lineup_factor
+            for team in (home, away):
+                sk = lineups.get(team)
+                lf[team], lf_info[team] = lineup_factor(self.snap, team, sk, cfg)
         out = {}
         for side, a, d, gf, hf in (("home", rh, ra, gf_a, h), ("away", ra, rh, gf_h, 1 / h)):
             pp_time = a.drawn * d.taken
@@ -245,17 +252,19 @@ class TeamModel:
             mixpp = s * a.pp_off * d.pk_def * pp_time
             pppk = (mix5 + mixpp) / (a.off * d.dfn)
             opp = d.team
-            lam = base * a.off * d.dfn * gf * pppk * pace * rest[a.team] * rest_def[opp] * hf * P.lam_scale
+            lam = base * a.off * d.dfn * gf * pppk * pace * rest[a.team] * rest_def[opp] * hf * P.lam_scale * lf[a.team]
             baseline = base * ((1 - s) * a.off + s * a.pp_off * a.drawn)
             out[side] = dict(lam=lam, off=a.off, def_opp=d.dfn, goalie_opp=gf, pp_pk=pppk, pace=pace,
                              rest=rest[a.team] * rest_def[opp], home=hf, baseline=baseline * P.lam_scale,
+                             lineup=lf[a.team], lineup_info=lf_info.get(a.team, {}),
                              scale=P.lam_scale,
                              pp_time=pp_time, opp_shots_against=d.shots_against)
         return out, flags
 
     def project(self, home, away, home_goalie=None, away_goalie=None, date=None,
-                goalie_confirmed=(True, True)) -> GameProjection:
-        f, flags = self.lambdas(home, away, home_goalie, away_goalie, date, goalie_confirmed)
+                goalie_confirmed=(True, True), lineups=None) -> GameProjection:
+        """lineups: optional {team: skaters DataFrame (player_id, pos, line, pp_unit)} for the personnel factor."""
+        f, flags = self.lambdas(home, away, home_goalie, away_goalie, date, goalie_confirmed, lineups)
         P = self.params
         lh, la = f["home"]["lam"], f["away"]["lam"]
         m0 = bivariate_poisson_matrix(lh, la, P.lam3)

@@ -36,6 +36,8 @@ class ModelConfig:
     m_finish: float = 30.0             # goals-equivalent prior for finishing multiplier
     finish_cap: tuple = (0.85, 1.15)
     toi_window: int = 10               # rolling games for TOI projection
+    lineup_beta: float = 0.0           # personnel adjustment strength (0 = off); set from the backtest
+    lineup_clip: tuple = (0.9, 1.1)    # cap on the lineup factor
     toi_role_blend_on_change: float = 0.5   # weight on role-average TOI when line/PP unit changed
     linemate_exponent: float = 0.5     # damping of linemate quality factor (0 disables)
     linemate_clip: tuple = (0.8, 1.25)

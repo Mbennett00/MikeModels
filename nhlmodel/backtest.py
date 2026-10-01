@@ -124,7 +124,8 @@ def walk_forward(tables: dict, cfg: ModelConfig, start, end, date_stride: int = 
                 continue
             hg, hconf = _goalie(lu, g.home)
             ag, aconf = _goalie(lu, g.away)
-            gp = tm.project(g.home, g.away, hg, ag, date, (hconf, aconf))
+            sk = {t: lu[(lu.team == t) & lu.pos.isin(["F", "D"])] for t in (g.home, g.away)}
+            gp = tm.project(g.home, g.away, hg, ag, date, (hconf, aconf), sk)
             rf = {s: rest_flags(snap, t, g.home, date) for s, t in (("home", g.home), ("away", g.away))}
             game_rows.append(dict(
                 game_id=g.game_id, date=date, season=season, home=g.home, away=g.away,
@@ -132,6 +133,7 @@ def walk_forward(tables: dict, cfg: ModelConfig, start, end, date_stride: int = 
                 lam_home_norest=gp.lam_home / gp.factors["home"]["rest"],
                 lam_away_norest=gp.lam_away / gp.factors["away"]["rest"],
                 lam_home_unscaled=gp.lam_home / gp.factors["home"]["scale"],
+                lineup_home=gp.factors["home"]["lineup"], lineup_away=gp.factors["away"]["lineup"],
                 lam_away_unscaled=gp.lam_away / gp.factors["away"]["scale"],
                 home_b2b=rf["home"]["b2b"], away_b2b=rf["away"]["b2b"],
                 home_travel=rf["home"]["travel_km"] > 1500 and rf["home"]["b2b"],

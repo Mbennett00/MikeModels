@@ -70,8 +70,9 @@ def build(state, plays: pd.DataFrame, meta: dict, news: dict | None, images: dic
                 goalie_confirmed=bool(gl.confirmed.iloc[0]) if len(gl) else False,
                 injuries=[dict(name=i["name"], status=i["status"]) for i in inj if i["team"] == team])
         a, h = side[g.away], side[g.home]
+        sk = {t: lu[(lu.team == t) & lu.pos.isin(["F", "D"])] for t in (g.home, g.away)}
         gp = tm.project(g.home, g.away, h["goalie_id"], a["goalie_id"], state.date,
-                        (h["goalie_confirmed"], a["goalie_confirmed"]))
+                        (h["goalie_confirmed"], a["goalie_confirmed"]), sk)
         gp_by[int(g.game_id)] = gp
         games.append(dict(game_id=int(g.game_id), start_utc=getattr(g, "start_utc", None), away=a, home=h,
                           mx=_matchup(tm, gp, g.home, g.away),
@@ -133,7 +134,10 @@ def _matchup(tm, gp, home, away) -> dict:
         out[side] = dict(off=_num(r.off), dfn=_num(r.dfn), pp=_num(r.pp_off), pk=_num(r.pk_def),
                          gk=_num(f[opp_side]["goalie_opp"]),      # this team's goalie, faced by the opponent
                          ppc=_num(f[side]["pp_time"]),            # this team's expected power-play chances
-                         rest=_num(f[side]["rest"]), home=_num(f[side]["home"]), lam=_num(f[side]["lam"]))
+                         rest=_num(f[side]["rest"]), home=_num(f[side]["home"]), lam=_num(f[side]["lam"]),
+                         lineup=_num(f[side].get("lineup", 1.0)),
+                         missing=[str(tm.snap.player.name.get(p, "")) for p in f[side].get("lineup_info", {}).get("missing", [])
+                                  if p in tm.snap.player.index][:3])
     out["pace"] = _num(f["home"]["pace"])
     out["league_gpg"] = _num(tm.snap.league["goals_pg"])
     return out

@@ -35,6 +35,7 @@ GRID = {
     "k_team_5v5": [750.0, 1500.0, 3000.0],
     "k_goalie_xga": [30.0, 60.0, 120.0],
     "pace_exponent": [0.0, 0.5],
+    "lineup_beta": [0.0, 0.25, 0.5, 1.0],
 }
 
 # which markets' log loss each parameter is judged on
@@ -44,6 +45,7 @@ TARGET = {
     "k_ast_5v5": ["assists", "points"], "k_ast_pp": ["assists", "points"],
     "k_team_5v5": ["moneyline", "total", "puckline"], "k_goalie_xga": ["moneyline", "total", "puckline"],
     "pace_exponent": ["total"],
+    "lineup_beta": ["moneyline", "total", "puckline"],
     "half_life_games": ["goals", "sog", "assists", "points", "moneyline", "total"],
     "prior_season_weight": ["moneyline", "total", "puckline"],
 }
