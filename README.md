@@ -173,6 +173,15 @@ These are the assumptions made instead of guesses. Each one is also printed in t
     (off) and it stays in the tuning grid; the page still lists missing regulars and their usual share
     of team scoring on each game's Matchup tab.
 
+17c. **xG v2** (`nhlmodel/data/xg.py`, `XG_VERSION = 2`): adds shot-sequence context from the stored
+    shots (rebound angle change per second, rush proxy = attempt within 10 s of one by the other team,
+    sustained pressure, time since the last attempt), a finer distance/angle shape, tip/deflection x
+    distance, score state, and a per-rink recorded-distance correction. Out of sample (fit 2024-25,
+    scored 2025-26): shot log loss 0.2261 -> 0.2251, AUC 0.740 -> 0.743. Walk-forward Dec 2025-Apr
+    2026: moneyline 0.6784 -> 0.6780, totals 0.6930 -> 0.6913, team totals 0.6622 -> 0.6616, goals
+    0.23427 -> 0.23424; puck line and other props unchanged. No passes/carries in the stored data, so
+    true pre-shot movement and shooter handedness are not modelled.
+
 ## Known gaps / data not available here
 
 * Natural Stat Trick is not scraped. The same situation splits (5v5, 5on4, 4on5) come from

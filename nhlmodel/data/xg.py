@@ -154,7 +154,7 @@ class XGModel2(XGModel):
         return np.where(shots.unblocked, p, 0.0)
 
 
-XG_VERSION = 1   # 2 = shot-context model; switched on after the walk-forward comparison
+XG_VERSION = 2   # 1 = original distance/angle/type model; 2 beat it in the walk-forward (see README)
 
 
 def score_by_season(shots: pd.DataFrame, home_of: dict | None = None,
