@@ -164,6 +164,15 @@ These are the assumptions made instead of guesses. Each one is also printed in t
     points with |z| > 3. For game markets the baseline is the closing no-vig line whenever odds are
     supplied, which is a hard bar to clear.
 
+17b. **Missing regulars** (`nhlmodel/lineup.py`): this season's top-6 F / top-4 D (by ice time over the
+    last 10 games) who are not dressing are replaced at replacement level for their usual minutes, and
+    the team's expected goals can drop by `lineup_beta` x that share (capped at -10%). Walk-forward
+    Dec 2025-Apr 2026 (449 games, tuned config): teams missing regulars did score ~4-5% below
+    expectation, but also allowed ~6-9% fewer, so with beta 0.5 moneyline log loss went 0.6784 -> 0.6789,
+    totals 0.6930 -> 0.6925, puck line and props unchanged within noise. No gain, so `lineup_beta = 0`
+    (off) and it stays in the tuning grid; the page still lists missing regulars and their usual share
+    of team scoring on each game's Matchup tab.
+
 ## Known gaps / data not available here
 
 * Natural Stat Trick is not scraped. The same situation splits (5v5, 5on4, 4on5) come from

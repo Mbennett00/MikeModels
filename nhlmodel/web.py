@@ -75,7 +75,7 @@ def build(state, plays: pd.DataFrame, meta: dict, news: dict | None, images: dic
                         (h["goalie_confirmed"], a["goalie_confirmed"]), sk)
         gp_by[int(g.game_id)] = gp
         games.append(dict(game_id=int(g.game_id), start_utc=getattr(g, "start_utc", None), away=a, home=h,
-                          mx=_matchup(tm, gp, g.home, g.away),
+                          mx=_matchup(tm, gp, g.home, g.away, lu),
                           lam_home=_num(gp.lam_home), lam_away=_num(gp.lam_away), p_ot_home=_num(gp.p_ot_home),
                           reg=_mat(gp.matrix), p1=_mat(gp.p1_matrix)))
     players = []
@@ -122,7 +122,20 @@ def build(state, plays: pd.DataFrame, meta: dict, news: dict | None, images: dic
     return out_dir
 
 
-def _matchup(tm, gp, home, away) -> dict:
+def _missing(tm, team, lineups) -> list:
+    """Regulars not dressing tonight and their usual share of team scoring (shown, not priced unless lineup_beta > 0)."""
+    import dataclasses
+    from .lineup import lineup_factor
+    try:
+        sk = lineups[(lineups.team == team) & lineups.pos.isin(["F", "D"])]
+        _, info = lineup_factor(tm.snap, team, sk, dataclasses.replace(tm.cfg, lineup_beta=1.0))
+    except Exception:
+        return []
+    return [[str(tm.snap.player.name.get(p, "")), _num(info["impact"].get(p, 0))]
+            for p in info.get("missing", []) if p in tm.snap.player.index][:3]
+
+
+def _matchup(tm, gp, home, away, lineups=None) -> dict:
     """Per-team strengths behind the projection, as multipliers vs league average (1 = average).
 
     Defence, goalie and penalty kill are 'goals allowed' multipliers (lower is better); the page flips
@@ -135,9 +148,7 @@ def _matchup(tm, gp, home, away) -> dict:
                          gk=_num(f[opp_side]["goalie_opp"]),      # this team's goalie, faced by the opponent
                          ppc=_num(f[side]["pp_time"]),            # this team's expected power-play chances
                          rest=_num(f[side]["rest"]), home=_num(f[side]["home"]), lam=_num(f[side]["lam"]),
-                         lineup=_num(f[side].get("lineup", 1.0)),
-                         missing=[[str(tm.snap.player.name.get(p, "")), _num(f[side]["lineup_info"].get("impact", {}).get(p, 0))]
-                                  for p in f[side].get("lineup_info", {}).get("missing", []) if p in tm.snap.player.index][:3])
+                         lineup=_num(f[side].get("lineup", 1.0)), missing=_missing(tm, team, lineups))
     out["pace"] = _num(f["home"]["pace"])
     out["league_gpg"] = _num(tm.snap.league["goals_pg"])
     return out
