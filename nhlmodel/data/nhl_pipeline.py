@@ -329,18 +329,27 @@ class Fetcher:
         return pbp, sh
 
 
+def _clean_dates(df: pd.DataFrame) -> pd.DataFrame:
+    """Store every date as YYYY-MM-DD (rows appended over time can mix '2026-09-30' and
+    '2026-09-30 00:00:00', which breaks strict date parsing)."""
+    if len(df) and "date" in df:
+        df = df.copy()
+        df["date"] = pd.to_datetime(df.date.astype(str), format="mixed").dt.strftime("%Y-%m-%d")
+    return df
+
+
 def load_intermediate(path: str) -> dict[str, pd.DataFrame]:
     out = {}
     for k in INTERMEDIATE:
         f = os.path.join(path, f"{k}.csv.gz")
-        out[k] = pd.read_csv(f) if os.path.exists(f) else pd.DataFrame()
+        out[k] = _clean_dates(pd.read_csv(f)) if os.path.exists(f) else pd.DataFrame()
     return out
 
 
 def save_intermediate(inter: dict, path: str) -> None:
     os.makedirs(path, exist_ok=True)
     for k, v in inter.items():
-        v.to_csv(os.path.join(path, f"{k}.csv.gz"), index=False, compression="gzip")
+        _clean_dates(v).to_csv(os.path.join(path, f"{k}.csv.gz"), index=False, compression="gzip")
 
 
 def update(path: str, start, end, fetcher: Fetcher | None = None, log=print, max_games: int | None = None,

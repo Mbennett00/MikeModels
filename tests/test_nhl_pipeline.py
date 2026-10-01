@@ -103,3 +103,15 @@ def test_moneypuck_xg_attaches_by_game_shooter_and_time():
     assert pd.isna(x.iloc[1])                 # no MoneyPuck shot near t=300
     assert pd.isna(x.iloc[2])                 # blocked shots are not matched
     assert pd.isna(x.iloc[3])                 # different game
+
+
+def test_intermediate_dates_with_mixed_formats_load(tmp_path):
+    import pandas as pd
+    from nhlmodel.data.nhl_pipeline import load_intermediate, save_intermediate
+    g = pd.DataFrame(dict(game_id=[1, 2], date=["2026-09-30", "2026-10-01 00:00:00"]))
+    g.to_csv(tmp_path / "games.csv.gz", index=False, compression="gzip")
+    inter = load_intermediate(str(tmp_path))
+    assert inter["games"].date.tolist() == ["2026-09-30", "2026-10-01"]
+    pd.to_datetime(inter["games"].date)      # strict parse no longer fails
+    save_intermediate({"games": g}, str(tmp_path))
+    assert pd.read_csv(tmp_path / "games.csv.gz").date.tolist() == ["2026-09-30", "2026-10-01"]
