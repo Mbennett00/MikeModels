@@ -222,6 +222,20 @@ label.f { display: block; font-size: 13px; font-weight: 800; color: var(--ink-2)
 .pl.won { background: var(--green-soft); } .pl.lost { opacity: .45; }
 .link { width: 100%; margin-top: 8px; border: 0; background: transparent; font-weight: 800; font-size: 14px; color: var(--navy); text-decoration: underline; padding: 6px; }
 .tn2 { color: var(--navy) !important; }
+/* model likes */
+.likes { background: linear-gradient(160deg, #fff7df, var(--cream)); }
+.lk-h { font-family: 'Fredoka', sans-serif; font-weight: 600; font-size: 19px; color: var(--navy); }
+.lk { width: 100%; display: grid; grid-template-columns: 20px 40px 1fr auto; gap: 10px; align-items: center; border: 0; border-top: 2px dashed var(--line);
+      background: transparent; padding: 8px 2px; text-align: left; }
+.lk:first-of-type { border-top: 0; }
+.lk-n { font-family: 'Fredoka', sans-serif; font-weight: 700; color: var(--muted); }
+.lk .av, .lk .logo, .lk .code { width: 40px; height: 40px; font-size: 13px; }
+.lk-t { min-width: 0; display: flex; flex-direction: column; } .lk-t b { font-size: 15px; color: var(--navy); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lk-t span { font-size: 12.5px; font-weight: 700; color: var(--ink-2); }
+.lk-p { text-align: right; display: flex; flex-direction: column; } .lk-p b { font-family: 'Fredoka', sans-serif; font-size: 20px; color: var(--navy); }
+.lk-p span { font-size: 12px; font-weight: 800; color: var(--green); white-space: nowrap; }
+.lk.won { background: var(--green-soft); } .lk.lost { opacity: .45; }
+.lk-note { font-size: 12px; font-weight: 700; color: var(--muted); margin-top: 6px; line-height: 1.4; }
 /* updates */
 .kv { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; }
 .kv div { display: flex; flex-direction: column; } .kv span { font-size: 12px; font-weight: 800; color: var(--muted); }
@@ -681,9 +695,44 @@ function record() {
   let fw = 0; for (const g of fin) { const ph = gameProb(g, "moneyline", "home"); if (settle(g, "moneyline", ph >= 0.5 ? "home" : "away") === true) fw++; }
   return `<div class="note">🏁 The model's favourite won <b>${fw} of ${fin.length}</b> finished games. ✅ won · ❌ lost · ➖ push</div>`;
 }
+// ---------- model likes: the strongest opinions on the slate ----------
+let LIKE = "goals";
+const LIKE_CATS = [["goals", "🚨 Anytime goal"], ["win", "🏆 To win"], ["totals", "📊 Totals"], ["sog", "🎯 Shots"], ["points", "⭐ Points"]];
+function likeRows() {
+  const out = [], gname = g => `${g.away.abbr} @ ${g.home.abbr}`;
+  if (LIKE === "win") {
+    for (const g of D.games) { const ph = gameProb(g, "moneyline", "home"), home = ph >= 0.5, t = home ? g.home : g.away;
+      out.push({p: home ? ph : 1 - ph, label: `${t.name} to win`, sub: gname(g), b: {g, market: "moneyline", sel: home ? "home" : "away", label: `${t.name} to win`}}); }
+  } else if (LIKE === "totals") {
+    for (const g of D.games) for (const ln of [5.5, 6.5]) { const po = gameProb(g, "total", "over", ln), over = po >= 0.5;
+      out.push({p: over ? po : 1 - po, label: `${over ? "Over" : "Under"} ${ln}`, sub: gname(g), b: {g, market: "total", sel: over ? "over" : "under", line: ln, label: `${gname(g)} ${over ? "over" : "under"} ${ln}`}}); }
+    // keep each game's stronger line only
+    const best = {}; for (const r of out) { const k = r.sub; if (!best[k] || r.p > best[k].p) best[k] = r; } out.length = 0; out.push(...Object.values(best));
+  } else {
+    const mk = LIKE, ln = mk === "sog" ? 2.5 : 0.5;
+    for (const p of D.players) { if (p.lam[mk] == null) continue; const pr = propProb(p, mk, ln);
+      const lab = mk === "goals" ? `${p.name} to score` : `${p.name} over ${ln} ${PNAME[mk]}`;
+      out.push({p: pr, label: p.name, sub: `${p.team} · ${mk === "goals" ? "anytime goal" : `over ${ln} ${PNAME[mk]}`}`, player: p,
+                b: {player: p, market: mk, line: ln, label: lab}}); }
+  }
+  return out.sort((x, y) => y.p - x.p).slice(0, 5);
+}
+function likesHtml() {
+  if (!D.games.length) return "";
+  const rows = likeRows().map((r, i) => {
+    const mk = r.b.market, settled = r.b.g ? settle(r.b.g, mk, r.b.sel, r.b.line) : (() => { const s = playerStat(r.player), L = LIVE[r.player.game_id] || {};
+      return s && !s.dnp ? cmpLine(s[mk], r.b.line, "over", L.state === "post") : undefined; })();
+    const [cls, ic] = RES(settled), k = bet(Object.assign({p: r.p}, r.b));
+    return `<button class="lk ${cls}" data-bet="${k}"><span class="lk-n">${i + 1}</span>${r.player ? avatar(r.player) : logo(r.b.sel === "home" ? r.b.g.home : r.b.sel === "away" ? r.b.g.away : r.b.g.home)}
+      <span class="lk-t"><b>${ic ? ic + " " : ""}${esc(r.label)}</b><span>${esc(r.sub)}</span></span>
+      <span class="lk-p"><b>${pct(r.p)}</b><span>bet at ${betAt(r.p - thr(mk))}</span></span></button>`; }).join("");
+  return `<div class="card likes"><div class="lk-h"><span>⭐ Model likes tonight</span></div>
+    <div class="strip" style="padding:0;margin:8px 0 6px">${LIKE_CATS.map(([k, n]) => `<button class="chip ${LIKE === k ? "on" : ""}" data-like="${k}">${n}</button>`).join("")}</div>
+    ${rows}<div class="lk-note">Highest chances on the slate, not guaranteed value: a big favourite can still be a bad price. Tap one to check DraftKings' odds.</div></div>`;
+}
 function games() {
   if (!D.games.length) return empty("🧊", "No games on the board", "Check back on the next game day.");
-  return record() + `<div class="note">👆 Tap any price to check DraftKings' odds.</div>` + D.games.map(gameCard).join("");
+  return likesHtml() + record() + `<div class="note">👆 Tap any price to check DraftKings' odds.</div>` + D.games.map(gameCard).join("");
 }
 
 const LINES = {sog: [1.5, 2.5, 3.5, 4.5], goals: [0.5], points: [0.5, 1.5], assists: [0.5]};
@@ -847,6 +896,7 @@ function render() {
   $("#view").innerHTML = v;
   if (TAB === "props") wireProps();
   if (TAB === "check") wireCheck();
+  document.querySelectorAll("[data-like]").forEach(b => b.onclick = () => { LIKE = b.dataset.like; render(); });
   document.querySelectorAll("[data-uf]").forEach(b => b.onclick = () => { UFILTER = b.dataset.uf; render(); });
   $("#view").querySelectorAll("[data-bet]").forEach(el => el.onclick = e => { e.stopPropagation(); openSheet(BETS[Number(el.dataset.bet)]); });
   $("#view").querySelectorAll("[data-player]").forEach(el => el.onclick = () => openPlayer(el.dataset.player));
