@@ -154,6 +154,9 @@ class XGModel2(XGModel):
         return np.where(shots.unblocked, p, 0.0)
 
 
+import os as _os
+# "model" = our xG; "moneypuck" = MoneyPuck's xG where it matches (needs intermediate/mp_shots.csv.gz)
+XG_SOURCE = _os.environ.get("NHL_XG_SOURCE", "model")
 XG_VERSION = 2   # 1 = original distance/angle/type model; 2 beat it in the walk-forward (see README)
 
 

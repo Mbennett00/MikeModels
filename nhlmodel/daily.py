@@ -45,7 +45,9 @@ def load_tables(state) -> dict:
     inter = nhl.load_intermediate(os.path.join(state, "intermediate"))
     if inter["games"].empty:
         raise SystemExit("no games stored yet: run `update` first")
-    tables, notes = nhl.build_tables(inter)
+    mpf = os.path.join(state, "intermediate", "mp_shots.csv.gz")
+    mp = pd.read_csv(mpf) if os.path.exists(mpf) else None
+    tables, notes = nhl.build_tables(inter, mp_shots=mp)
     odds = _read(os.path.join(_site(state), "odds_history.csv.gz"))
     if len(odds):
         odds["date"] = pd.to_datetime(odds.date.astype(str), format="mixed").dt.normalize()
@@ -74,6 +76,10 @@ def cmd_update(a):
         start = max(start, pd.to_datetime(games.date).max() - pd.Timedelta(days=3))
     inter = nhl.update(path, start, end, max_games=a.max_games, max_minutes=a.max_minutes)
     g = inter["games"]
+    if os.environ.get("MP_ENABLED", "1") == "1" and len(g):
+        from .data import moneypuck_shots
+        seasons = sorted(int(x) for x in g.season.unique())[-2:]
+        moneypuck_shots.fetch(seasons, path)
     write_status(a.state, games_stored=int(len(g)),
                  data_through=str(pd.to_datetime(g.date).max().date()) if len(g) else None,
                  seasons=sorted(int(x) for x in g.season.unique()) if len(g) else [])
@@ -574,9 +580,51 @@ def cmd_tune(a):
     print("tuned ->", os.path.join(site, "tuned_config.json"))
 
 
+def cmd_xg_compare(a):
+    """Walk-forward: our xG vs MoneyPuck's xG (writes site/xg_compare.json; does not change the model)."""
+    from .backtest import walk_forward
+    from .data import moneypuck_shots
+    from .data.xg import derive, XGModel2
+    from .tuning import objective
+    path = os.path.join(a.state, "intermediate")
+    inter = nhl.load_intermediate(path)
+    seasons = sorted(int(x) for x in inter["games"].season.unique())
+    mp = moneypuck_shots.fetch(seasons[-3:], path)
+    cfg, _ = config(a.state)
+    games = inter["games"].copy(); games["date"] = pd.to_datetime(games.date)
+    out = {}
+    # shot level on the last full season (MoneyPuck's model was trained on it, so this flatters it)
+    sh = inter["shots"]
+    full = [s for s in seasons if (sh.season == s).sum() > 50000]
+    if len(full) >= 2:
+        d = derive(sh, dict(zip(games.game_id, games.home)))
+        tr, te = d[d.season == full[-2]], d[d.season == full[-1]]
+        te = te.assign(mp=moneypuck_shots.attach(te, mp))
+        ev = te[te.unblocked & ~te.en_target & te.mp.notna()]
+        y = ev.goal.to_numpy(float)
+        ll = lambda p: float(-(y * np.log(np.clip(p, 1e-6, 1)) + (1 - y) * np.log(np.clip(1 - p, 1e-6, 1))).mean())
+        out["shots"] = dict(n=int(len(ev)), coverage=float(te.mp.notna()[te.unblocked].mean()),
+                            ours=ll(XGModel2().fit(tr).predict(ev)), moneypuck=ll(ev.mp.to_numpy(float)))
+        print("shot-level", out["shots"], flush=True)
+    # second half of the last full season (enough history before it for ratings)
+    last = full[-1] if full else seasons[-1]
+    sd = games[games.season == last].date.sort_values()
+    start, end = sd.iloc[int(len(sd) * 0.45)], sd.iloc[-1]
+    print(f"walk-forward {start.date()} to {end.date()}", flush=True)
+    for src in ("model", "moneypuck"):
+        tables, notes = nhl.build_tables(inter, mp_shots=mp, xg_source=src)
+        for k in ("games", "team_games", "goalie_games", "player_games", "lineups"):
+            tables[k]["date"] = pd.to_datetime(tables[k].date).dt.normalize()
+        bt = walk_forward(tables, cfg, start, end, date_stride=2)
+        out[src] = {m: round(objective(bt, [m]), 5) for m in
+                    ("moneyline", "total", "puckline", "team_total", "goals", "sog", "assists", "points")}
+        print(src, out[src], [n for n in notes if "xG source" in n], flush=True)
+    json.dump(out, open(os.path.join(_site(a.state), "xg_compare.json"), "w"), indent=1)
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(prog="nhlmodel.daily")
-    p.add_argument("cmd", choices=["update", "slate", "close", "grade", "backtest", "tune", "dfo-probe"])
+    p.add_argument("cmd", choices=["update", "slate", "close", "grade", "backtest", "tune", "dfo-probe", "xg-compare"])
     p.add_argument("--state", default="state")
     p.add_argument("--overrides", default="overrides")
     p.add_argument("--date")
@@ -589,7 +637,8 @@ def main(argv=None):
     p.add_argument("--no-props", action="store_true", help="skip player-prop odds (saves API credits)")
     a = p.parse_args(argv)
     {"update": cmd_update, "slate": cmd_slate, "close": cmd_close, "grade": cmd_grade,
-     "backtest": cmd_backtest, "tune": cmd_tune, "dfo-probe": cmd_dfo_probe}[a.cmd](a)
+     "backtest": cmd_backtest, "tune": cmd_tune, "dfo-probe": cmd_dfo_probe,
+     "xg-compare": cmd_xg_compare}[a.cmd](a)
 
 
 if __name__ == "__main__":

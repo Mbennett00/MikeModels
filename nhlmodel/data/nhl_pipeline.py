@@ -18,7 +18,7 @@ import numpy as np
 import pandas as pd
 
 from .moneypuck import infer_lines
-from .xg import score_by_season, score_venue_coefs
+from .xg import XG_SOURCE, score_by_season, score_venue_coefs
 
 WEB = "https://api-web.nhle.com/v1"
 STATS = "https://api.nhle.com/stats/rest/en"
@@ -156,11 +156,21 @@ def _toi_from_shifts(gid, shifts, roster, grow):
 
 
 # ---------------------------------------------------------------------------------------------
-def build_tables(inter: dict[str, pd.DataFrame], xg_version: int | None = None) -> tuple[dict, list[str]]:
+def build_tables(inter: dict[str, pd.DataFrame], xg_version: int | None = None,
+                 mp_shots: pd.DataFrame | None = None, xg_source: str | None = None) -> tuple[dict, list[str]]:
+    """xg_source: "model" (our xG) or "moneypuck" (MoneyPuck's xG where a shot matches, ours otherwise)."""
     games = inter["games"].copy()
     games["date"] = pd.to_datetime(games.date)
     shots = inter["shots"].merge(games[["game_id", "date"]], on="game_id")
     shots["xg"], notes = score_by_season(shots, dict(zip(games.game_id, games.home)), xg_version)
+    src = xg_source or XG_SOURCE
+    if src == "moneypuck" and mp_shots is not None and len(mp_shots):
+        from .moneypuck_shots import attach
+        mpx = attach(shots, mp_shots)
+        use = mpx.notna() & shots.unblocked
+        shots.loc[use, "xg"] = mpx[use]
+        cov = use.sum() / max(shots.unblocked.sum(), 1)
+        notes.append(f"xG source: MoneyPuck for {cov:.0%} of unblocked shots, our model for the rest")
     coefs = score_venue_coefs(shots)   # league-wide; small leakage accepted, see README
     shots = shots.merge(coefs, on=["lead", "is_home"], how="left").fillna({"coef": 1.0})
     shots["xg_adj"] = shots.xg * np.where(shots.strength == "5v5", shots.coef, 1.0)

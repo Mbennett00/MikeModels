@@ -188,6 +188,13 @@ These are the assumptions made instead of guesses. Each one is also printed in t
     1.47 min, PP 0.68 -> 0.62 min. Walk-forward: shots on goal 0.36981 -> 0.36900, goals 0.23424 ->
     0.23416, assists / points unchanged within noise.
 
+17e. **MoneyPuck xG (optional source)**: `nhlmodel/data/moneypuck_shots.py` downloads MoneyPuck's
+    shot files each morning (`intermediate/mp_shots.csv.gz`) and `build_tables(..., xg_source=
+    "moneypuck")` uses their xG for every shot that matches ours (game, shooter, game second), with our
+    model for the rest. Off by default (`NHL_XG_SOURCE=model`); `python -m nhlmodel.daily xg-compare`
+    (workflow task `xg-compare`) runs the walk-forward with each source and writes
+    `site/xg_compare.json`. Data courtesy of MoneyPuck.com; check their terms before commercial use.
+
 ## Known gaps / data not available here
 
 * Natural Stat Trick is not scraped. The same situation splits (5v5, 5on4, 4on5) come from

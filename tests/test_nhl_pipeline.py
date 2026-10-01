@@ -87,3 +87,19 @@ def test_odds_api_parse():
     assert df[df.market == "goals"].line.iloc[0] == 0.5
     assert missing == {"Unknown Guy"}
     assert df[df.market == "puckline"].set_index("selection").line.to_dict() == {"home": -1.5, "away": 1.5}
+
+
+def test_moneypuck_xg_attaches_by_game_shooter_and_time():
+    import pandas as pd
+    from nhlmodel.data.moneypuck_shots import attach
+    ours = pd.DataFrame(dict(game_id=[2025020001, 2025020001, 2025020001, 2025020002],
+                             shooter=[11, 11, 22, 11], t=[76, 300, 95, 76],
+                             unblocked=[True, True, False, True]))
+    mp = pd.DataFrame(dict(season=[2025, 2025, 2025], game_id=[20001, 20001, 20001], period=[1, 1, 1],
+                           time=[77, 95, 600], shooterPlayerId=[11, 22, 11], xGoal=[0.05, 0.2, 0.3],
+                           event=["SHOT"] * 3, isPlayoffGame=[0] * 3))
+    x = attach(ours, mp)
+    assert x.iloc[0] == 0.05                  # same game + shooter, 1 s apart
+    assert pd.isna(x.iloc[1])                 # no MoneyPuck shot near t=300
+    assert pd.isna(x.iloc[2])                 # blocked shots are not matched
+    assert pd.isna(x.iloc[3])                 # different game

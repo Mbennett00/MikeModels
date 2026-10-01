@@ -11,18 +11,3 @@ jobs:
           python-version: "3.11"
       - run: pip install "pandas>=2.1" "requests>=2.31" "numpy>=1.26" "scipy>=1.11"
       - run: python scripts/dfo_probe.py
-      - name: MoneyPuck shot files (availability + columns)
-        run: |
-          for u in "https://peter-tanner.com/moneypuck/downloads/shots_2025.zip" \
-                   "https://peter-tanner.com/moneypuck/downloads/shots_2024.zip" \
-                   "https://moneypuck.com/moneypuck/playerData/seasonSummary/2025/regular/teams.csv"; do
-            echo "=== $u"; curl -sSL -A "Mozilla/5.0" -o /tmp/mp -w "HTTP %{http_code} size %{size_download}\n" "$u" || true
-          done
-          curl -sSL -A "Mozilla/5.0" -o /tmp/s.zip "https://peter-tanner.com/moneypuck/downloads/shots_2025.zip" && \
-          python - <<'PY'
-          import zipfile, io, pandas as pd
-          z = zipfile.ZipFile('/tmp/s.zip'); n = z.namelist(); print(n)
-          d = pd.read_csv(z.open(n[0]), nrows=5)
-          print(list(d.columns))
-          print(d[[c for c in ("game_id", "id", "period", "time", "shooterPlayerId", "xGoal", "xCordAdjusted", "yCordAdjusted", "event", "shotType") if c in d]].to_string())
-          PY
