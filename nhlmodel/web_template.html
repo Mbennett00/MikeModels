@@ -220,6 +220,27 @@ label.f { display: block; font-size: 13px; font-weight: 800; color: var(--ink-2)
 .pl.won { background: var(--green-soft); } .pl.lost { opacity: .45; }
 .link { width: 100%; margin-top: 8px; border: 0; background: transparent; font-weight: 800; font-size: 14px; color: var(--navy); text-decoration: underline; padding: 6px; }
 .tn2 { color: var(--navy) !important; }
+/* player card grid */
+.pgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 0 4px 12px 0; }
+.pc { background: var(--cream); border: 3px solid var(--navy); border-radius: 20px; box-shadow: 4px 5px 0 var(--navy); overflow: hidden; cursor: pointer; display: flex; flex-direction: column; }
+.pc:active { transform: translate(2px, 2px); box-shadow: 2px 3px 0 var(--navy); }
+.pc-top { position: relative; height: 104px; border-bottom: 3px solid var(--navy); display: flex; align-items: flex-end; justify-content: center;
+          background-image: radial-gradient(circle at 50% 30%, rgba(255,255,255,.35), rgba(255,255,255,0) 65%); }
+.pc-ph { position: relative; width: 96px; height: 96px; display: flex; align-items: center; justify-content: center; }
+.pc-ph span { font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 30px; color: rgba(255,255,255,.9); text-shadow: 0 2px 0 rgba(0,0,0,.2); }
+.pc-ph img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: top; }
+.pc-team { position: absolute; left: 8px; top: 8px; background: var(--cream); border: 2px solid var(--navy); border-radius: 999px; font-size: 11px; font-weight: 800; padding: 0 7px; }
+.pc-live { position: absolute; right: 8px; top: 8px; border: 2px solid var(--navy); border-radius: 999px; font-size: 11px; font-weight: 800; padding: 0 7px; background: #fff; }
+.pc-live.in { background: var(--red); color: #fff; }
+.pc-body { padding: 8px 10px 10px; display: flex; flex-direction: column; flex: 1; }
+.pc-first { font-size: 12px; font-weight: 800; color: var(--ink-2); line-height: 1.1; min-height: 13px; }
+.pc-last { font-family: 'Fredoka', sans-serif; font-weight: 600; font-size: 19px; line-height: 1.1; color: var(--navy); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pc-proj { font-size: 12.5px; font-weight: 700; color: var(--ink-2); margin: 2px 0 8px; } .pc-proj b { color: var(--navy); }
+.pc-line { margin-top: auto; width: 100%; border: 2.5px solid var(--navy); border-radius: 12px; background: #fff; padding: 5px 8px; text-align: left; box-shadow: 2px 2px 0 var(--navy); }
+.pc-line .pl1 { display: block; font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 15px; color: var(--navy); }
+.pc-line .pl2 { display: block; font-weight: 800; font-size: 12.5px; color: var(--green); }
+.pc.won .pc-line { background: var(--green-soft); } .pc.lost .pc-body { opacity: .5; }
+@media (min-width: 700px) { .pgrid { grid-template-columns: repeat(3, 1fr); } }
 @media (min-width: 700px) { .tiles { grid-template-columns: repeat(3, 1fr); } }
 </style>
 </head>
@@ -605,6 +626,21 @@ function miniRow(p, mk = "sog") {
     <div class="pmeta">${esc(p.team)} · proj ${lam.toFixed(mk === "goals" ? 2 : 1)} ${PNAME[mk]}</div></button>
     <div class="mc">${chips}</div></div>`;
 }
+function pcard(p, mk) {
+  const L = LIVE[p.game_id] || {}, s = playerStat(p), lam = p.lam[mk], col = (D.colors || {})[p.team] || "#7a8894";
+  // headline line: the one closest to a coin flip
+  const {l, pr} = SHEET_LINES[mk].map(l => ({l, pr: propProb(p, mk, l)})).sort((x, y) => Math.abs(x.pr - 0.5) - Math.abs(y.pr - 0.5))[0];
+  const [cls, ic] = RES(s && !s.dnp ? cmpLine(s[mk], l, "over", L.state === "post") : undefined);
+  const i = bet({player: p, market: mk, line: l, p: pr, label: `${p.name} ${mk === "goals" && l === 0.5 ? "to score" : `over ${l} ${PNAME[mk]}`}`});
+  const parts = p.name.split(" "), last = parts.slice(1).join(" ") || parts[0];
+  const live = s && !s.dnp ? `<span class="pc-live ${L.state}">${L.state === "in" ? "LIVE" : "FINAL"} ${s[mk]}</span>` : "";
+  return `<div class="pc ${cls}" data-player="${p.id}">
+    <div class="pc-top" style="background:linear-gradient(160deg, ${col}, ${col}cc)">${live}<span class="pc-team">${esc(p.team)}</span>
+      <div class="pc-ph"><span>${esc(initials(p.name))}</span>${p.headshot ? `<img src="${esc(p.headshot)}" alt="" loading="lazy" onload="this.previousElementSibling.style.visibility='hidden'" onerror="this.remove()">` : ""}</div></div>
+    <div class="pc-body"><div class="pc-first">${esc(parts.length > 1 ? parts[0] : "")}</div><div class="pc-last">${esc(last)}</div>
+      <div class="pc-proj">proj <b>${lam.toFixed(mk === "goals" ? 2 : 1)}</b> ${PNAME[mk]}</div>
+      <button class="pc-line" data-bet="${i}"><span class="pl1">${ic ? ic + " " : ""}${lineLabel(mk, l)} · ${pct(pr)}</span><span class="pl2">bet at ${betAt(pr - thr(mk))}</span></button></div></div>`;
+}
 function props() {
   if (!D.players.length) return empty("👤", "No player projections yet", "");
   const S = PSTATE, mk = S.market;
@@ -621,8 +657,8 @@ function props() {
   return `<div class="ptabs props-seg">${mkt}</div>
     <div class="strip" style="padding-left:0">${gms}</div>
     ${S.search || S.q ? `<input class="search" id="pq" placeholder="Find a player" value="${esc(S.q)}" autocomplete="off">` : ""}
-    <div class="card">${list.slice(0, n).map(p => miniRow(p, mk)).join("") || `<div class="note" style="margin:6px">No players match.</div>`}
-    ${total > n ? `<button class="link" data-showmore="1">Show more (${total - n})</button>` : ""}</div>`;
+    ${list.length ? `<div class="pgrid">${list.slice(0, n).map(p => pcard(p, mk)).join("")}</div>` : `<div class="note">No players match.</div>`}
+    ${total > n ? `<button class="more" style="margin-top:4px" data-showmore="1">Show more (${total - n})</button>` : ""}`;
 }
 function wireProps() {
   const q = $("#pq");
@@ -712,7 +748,7 @@ function render() {
   $("#view").innerHTML = v;
   if (TAB === "props") wireProps();
   if (TAB === "check") wireCheck();
-  $("#view").querySelectorAll("[data-bet]").forEach(el => el.onclick = () => openSheet(BETS[Number(el.dataset.bet)]));
+  $("#view").querySelectorAll("[data-bet]").forEach(el => el.onclick = e => { e.stopPropagation(); openSheet(BETS[Number(el.dataset.bet)]); });
   $("#view").querySelectorAll("[data-player]").forEach(el => el.onclick = () => openPlayer(el.dataset.player));
   $("#view").querySelectorAll("[data-pv]").forEach(el => el.onclick = () => { const [id, k] = el.dataset.pv.split("|"); PANEL[id] = k; render(); });
   $("#view").querySelectorAll("[data-allprops]").forEach(el => el.onclick = () => { PSTATE.game = el.dataset.allprops; PSTATE.q = ""; TAB = "props"; render(); window.scrollTo(0, 0); });
