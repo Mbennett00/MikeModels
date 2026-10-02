@@ -98,7 +98,29 @@ the NFL page has a turf background, team-colour game cards, a Teams power rankin
   Closing lines are sharper than a public-data team model, as expected. The page says so, the 💰 flag needs a 6-point
   edge, and the model is best used to find numbers worth a look early in the week and to price alt lines.
   Starting-QB adjustment: margin error 10.28 → 10.22. Half-life 90-300 days and ridge 3-12 all landed within 0.08.
-- **Next**: player props (anytime TD, receptions, yards) and a field formation view.
+- **Player props** (`nflmodel/props.py`, 👤 Props tab and each game's Players panel): anytime TD, receptions,
+  receiving / rushing / passing yards, passing TDs.
+  - Volume: team targets and carries per game (half-life 5 games), moved by game script (leading teams run more).
+  - Share: recency-weighted share of team targets / carries; players ruled out (ESPN injuries, roster status)
+    are dropped and their share goes to available teammates. The projected starting QB gets the dropbacks.
+  - Efficiency: catch rate, yards per target / carry / attempt shrunk toward the role average, adjusted for the
+    opponent's pass / run defence. TDs: team TDs from the game model's projected points, split pass / rush, with
+    each player's slice from his red-zone share blended with his overall share.
+  - Fitted on 2022-23 walk-forward projections, tested on 2024-26 (players who played):
+
+    | | model MAE | last-5-games average MAE |
+    |---|---|---|
+    | Receptions | 1.65 | 1.70 |
+    | Receiving yards | 22.5 | 23.5 |
+    | Rushing yards | 22.9 | 24.2 |
+    | Passing yards (starters) | 59.6 | 65.5 |
+
+    Anytime TD Brier 0.163 vs 0.176 for the base rate; calibrated by bucket (e.g. 30-40% predicted → 35% scored).
+    Yardage uses a shifted gamma (less skewed than a plain gamma, which put the median too low); the model's
+    chance of going over its own even-money line runs within about 1 point of actual for receiving and rushing.
+  - No prop odds are pulled (the per-game prop endpoint would cost ~75 credits a week); type the book's line and
+    price into the player sheet for a verdict. The green price leaves a 4-point cushion for prop hold.
+- **Next**: a field formation view.
 
 ## Layout (one module per section of the spec)
 

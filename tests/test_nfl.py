@@ -164,3 +164,46 @@ def test_long_term_ir_not_double_counted():
     rep = pd.DataFrame(dict(key=["old injury", "new injury"], status=["Injured Reserve", "Injured Reserve"], pos=["RB", "TE"]))
     miss, det = I.missing(regs, rep)
     assert miss["RB"] == 0 and abs(miss["REC"] - 0.8) < 1e-9
+
+
+def _box(n_games=6):
+    rows = []
+    d0 = pd.Timestamp("2026-09-07")
+    for k in range(n_games):
+        gid, date = f"2026_{k:02d}_KC_LV", d0 + pd.Timedelta(days=7 * k)
+        base = dict(game_id=gid, season=2026, week=k + 1, date=date, team="KC", opp="LV")
+        z = dict(tgt=0, rz_tgt=0, rec=0, rec_yds=0, rec_td=0, car=0, rz_car=0, rush_yds=0, rush_td=0, att=0, cmp=0, pass_yds=0, pass_td=0, ints=0)
+        mk = lambda **kw: {**base, **z, **kw}
+        rows += [mk(player_id="qb", name="Q.Back", att=34, cmp=22, pass_yds=250, pass_td=2),
+                 mk(player_id="wr1", name="W.One", tgt=10, rz_tgt=2, rec=7, rec_yds=90, rec_td=1),
+                 mk(player_id="wr2", name="W.Two", tgt=5, rz_tgt=1, rec=3, rec_yds=40),
+                 mk(player_id="rb", name="R.Back", car=18, rz_car=3, rush_yds=80, rush_td=1, tgt=3, rec=2, rec_yds=15)]
+    return pd.DataFrame(rows)
+
+
+def test_props_projection_and_injury_redistribution():
+    from nflmodel import props as PP
+    pg = _box()
+    tg = PP.team_games(pg)
+    cfg = PP.PropConfig(); cfg.priors = PP.fit_priors(pg)
+    games = pd.DataFrame([dict(game_id="next", team="KC", opp="LV", pts=24.0, margin=0.0)])
+    pr = PP.project(pg, tg, "2026-10-20", games, cfg).set_index("player_id")
+    assert pr.loc["wr1", "rec_yds"] > pr.loc["wr2", "rec_yds"] > 0
+    assert pr.loc["rb", "rush_yds"] > 50 and 150 < pr.loc["qb", "pass_yds"] < 350
+    assert pr.loc["wr1", "lam_td"] > 0 and pd.isna(pr.loc["wr1", "pass_yds"])
+    # WR1 out: WR2 picks up targets
+    pr2 = PP.project(pg, tg, "2026-10-20", games, cfg, available={"KC": {"qb", "wr2", "rb"}}).set_index("player_id")
+    assert "wr1" not in pr2.index and pr2.loc["wr2", "tgt"] > pr.loc["wr2", "tgt"]
+    # leading teams run more
+    lead = PP.project(pg, tg, "2026-10-20", games.assign(margin=10.0), cfg).set_index("player_id")
+    assert lead.loc["rb", "car"] > pr.loc["rb", "car"] and lead.loc["wr1", "tgt"] < pr.loc["wr1", "tgt"]
+
+
+def test_prop_probabilities_behave():
+    from nflmodel import props as PP
+    cfg = PP.PropConfig()
+    row = dict(rec=5.0, rec_yds=60.0, rush_yds=70.0, pass_yds=250.0, lam_pass_td=1.6, lam_td=0.5)
+    assert PP.p_over(row, "rec_yds", 30.5, cfg) > PP.p_over(row, "rec_yds", 60.5, cfg) > PP.p_over(row, "rec_yds", 90.5, cfg)
+    assert 0.3 < PP.p_over(row, "rush_yds", 65.5, cfg) < 0.7
+    assert abs(PP.p_over(row, "td", 0.5, cfg) - (1 - np.exp(-0.5))) < 1e-9
+    assert PP.p_over(row, "pass_td", 0.5, cfg) > PP.p_over(row, "pass_td", 1.5, cfg)

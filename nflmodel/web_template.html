@@ -30,6 +30,7 @@ body {
 button { font: inherit; color: inherit; cursor: pointer; }
 .wrap { max-width: 720px; margin: 0 auto; padding: calc(10px + env(safe-area-inset-top)) 16px calc(var(--nav-h) + 28px + env(safe-area-inset-bottom)); }
 .hdr { display: flex; align-items: center; gap: 12px; margin: 4px 4px 12px; }
+.appicon { width: 44px; height: 44px; border-radius: 12px; border: 2.5px solid var(--navy); box-shadow: 2px 3px 0 var(--navy); background: #0b0d0c; }
 .ball { width: 44px; height: 44px; border-radius: 12px; border: 2.5px solid var(--navy); box-shadow: 2px 3px 0 var(--navy); background: var(--cream);
         display: flex; align-items: center; justify-content: center; font-size: 26px; }
 .hdr .t { flex: 1; min-width: 0; }
@@ -160,12 +161,47 @@ label.f { display: block; font-size: 13px; font-weight: 800; color: var(--ink-2)
 .verdict.bad { background: var(--red-soft); } .verdict.bad .h { color: var(--red); }
 .verdict .d { font-size: 14px; font-weight: 700; color: var(--ink-2); margin-top: 4px; }
 .close { position: absolute; right: 14px; top: 12px; }
+/* small logo pair for game totals */
+.duo { display: inline-flex; vertical-align: -3px; margin-right: 4px; } .duo img { width: 16px; height: 16px; object-fit: contain; }
+.duo img + img { margin-left: -3px; }
+.duo-b img { width: 24px; height: 24px; } .duo-b { vertical-align: middle; }
+/* props */
+.search { width: 100%; font: inherit; font-weight: 700; color: var(--navy); background: var(--cream); border: 2.5px solid var(--navy); border-radius: 999px; padding: 10px 16px; margin: 0 0 12px; }
+.pgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 0 4px 12px 0; }
+.pc { background: var(--cream); border: 3px solid var(--navy); border-radius: 20px; box-shadow: 4px 5px 0 var(--navy); overflow: hidden; cursor: pointer; display: flex; flex-direction: column; text-align: left; padding: 0; }
+.pc:active { transform: translate(2px, 2px); box-shadow: 2px 3px 0 var(--navy); }
+.pc-top { position: relative; height: 96px; border-bottom: 3px solid var(--navy); display: flex; align-items: flex-end; justify-content: center; overflow: hidden;
+          background-image: radial-gradient(circle at 50% 30%, rgba(255,255,255,.3), rgba(255,255,255,0) 65%); }
+.pc-ph { position: relative; width: 92px; height: 88px; display: flex; align-items: center; justify-content: center; }
+.pc-ph span { font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 28px; color: rgba(255,255,255,.9); }
+.pc-ph img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: top; }
+.pc-team { position: absolute; left: 7px; top: 7px; background: var(--cream); border: 2px solid var(--navy); border-radius: 999px; font-size: 11px; font-weight: 800; padding: 0 7px; color: var(--navy); }
+.pc-tag { position: absolute; right: 7px; top: 7px; border: 2px solid var(--navy); border-radius: 999px; font-size: 11px; font-weight: 800; padding: 0 7px; background: var(--gold-soft); color: var(--navy); }
+.pc-body { padding: 8px 10px 10px; display: flex; flex-direction: column; flex: 1; }
+.pc-first { font-size: 12px; font-weight: 800; color: var(--ink-2); line-height: 1.1; min-height: 13px; }
+.pc-last { font-family: 'Fredoka', sans-serif; font-weight: 600; font-size: 18px; line-height: 1.1; color: var(--navy); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pc-big { display: flex; align-items: baseline; gap: 5px; margin: 4px 0 2px; }
+.pc-big b { font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 26px; color: var(--navy); line-height: 1; } .pc-big span { font-size: 12.5px; font-weight: 800; color: var(--ink-2); }
+.pc-sub { font-size: 12px; font-weight: 700; color: var(--muted); margin-bottom: 8px; }
+.pc-line { margin-top: auto; border: 2.5px solid var(--navy); border-radius: 12px; background: #fff; padding: 5px 8px; box-shadow: 2px 2px 0 var(--navy); display: flex; justify-content: space-between; align-items: baseline; }
+.pc-line b { font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 15px; color: var(--navy); } .pc-line span { font-weight: 800; font-size: 12.5px; color: var(--green); }
+.prow2 { display: grid; grid-template-columns: 40px 1fr auto; gap: 10px; align-items: center; width: 100%; border: 0; border-top: 2px dashed var(--line); background: transparent; padding: 7px 2px; text-align: left; }
+.prow2:first-of-type { border-top: 0; }
+.av { position: relative; width: 40px; height: 40px; border-radius: 50%; border: 2.5px solid var(--navy); overflow: hidden; display: flex; align-items: center; justify-content: center;
+      font-family: 'Fredoka', sans-serif; font-weight: 600; font-size: 13px; color: #fff; }
+.av img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: top; }
+.prow2 b { font-size: 14.5px; color: var(--navy); } .prow2 .s { font-size: 12px; font-weight: 700; color: var(--ink-2); }
+.prow2 .r { text-align: right; } .prow2 .r b { font-family: 'Fredoka', sans-serif; font-size: 18px; }
+.stepper { display: flex; align-items: center; gap: 6px; } .stepper button { width: 44px; height: 44px; border-radius: 50%; border: 2.5px solid var(--navy); background: #fff; font-size: 20px; font-weight: 800; color: var(--navy); }
+.stepper .lv { flex: 1; min-width: 0; text-align: center; font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 26px; color: var(--navy); }
+.phd { display: flex; gap: 12px; align-items: center; padding-right: 44px; } .phd .av { width: 56px; height: 56px; font-size: 18px; }
+@media (min-width: 700px) { .pgrid { grid-template-columns: repeat(3, 1fr); } }
 @media (min-width: 700px) { .tiles { grid-template-columns: repeat(3, 1fr); } }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <div class="hdr"><div class="ball">🏈</div><div class="t"><h1 id="title">Loading…</h1><div class="sub" id="sub">Lining the field</div></div>
+  <div class="hdr"><img class="appicon" src="apple-touch-icon.png" alt=""><div class="t"><h1 id="title">Loading…</h1><div class="sub" id="sub">Lining the field</div></div>
     <div class="sport"><a href="index.html">🏒</a><a class="on" href="nfl.html">🏈</a></div>
     <button class="iconbtn" id="infoBtn" aria-label="How it works">?</button></div>
   <div class="strip" id="strip"></div>
@@ -189,6 +225,7 @@ const THR = 0.025;   // shade on the fair price before a bet is worth it (the mo
 let D = null, TAB = "games", LIVE = {}, BETS = [], SH = null, C = {game: null, m: "spread", side: "home", line: null};
 const OPEN = new Set(), PANEL = {};
 const BOOK = () => (D && D.meta.book) || "Caesars";
+const BOOKS = () => BOOK() + (BOOK().endsWith("s") ? "'" : "'s");
 
 // ---------- pricing from the exported distributions (mirrors nflmodel.model) ----------
 function dist(g, m) { return m === "total" ? g.tpmf : g.mpmf; }
@@ -242,6 +279,8 @@ function label(g, b) {
   if (b.m === "spread") return `${t.abbr} ${sp(b.line)}`;
   return `${b.s === "over" ? "Over" : "Under"} ${b.line}`;
 }
+const duo = (g, big) => `<span class="duo ${big ? "duo-b" : ""}"><img src="${esc(g.away.logo)}" alt="" onerror="this.remove()"><img src="${esc(g.home.logo)}" alt="" onerror="this.remove()"></span>`;
+const tlabel = (g, b) => (b.m === "total" ? duo(g) : "") + esc(label(g, b));
 function mkBets(g) {   // attach line numbers (home handicap = −spread) to the exported model-vs-market rows
   return g.bets.map(b => Object.assign({}, b, {line: b.m === "spread" ? (b.s === "home" ? -g.spread : g.spread) : b.m === "total" ? g.total_line : null}));
 }
@@ -249,14 +288,14 @@ function tile(g, b) {
   const cls = settle(g, b), val = b.edge != null && b.edge >= D.meta.edge_flag;
   const i = bet({g, b, p: b.p, label: label(g, b)});
   const ic = cls === "won" ? "✅ " : cls === "lost" ? "❌ " : cls === "push" ? "➖ " : "";
-  return `<button class="tile ${cls} ${val ? "val" : ""}" data-bet="${i}"><span class="l">${ic}${esc(label(g, b))}</span>
+  return `<button class="tile ${cls} ${val ? "val" : ""}" data-bet="${i}"><span class="l">${ic}${tlabel(g, b)}</span>
     <span class="v"><span class="c">${pct(b.p)}</span><span class="b">${am(fair(b.p - THR))}</span></span>
     ${b.mkt != null ? `<span class="dk">${esc(b.src)} ${am(b.price)} · <b class="${b.edge >= 0 ? "pos" : "neg"}">${b.edge >= 0 ? "+" : "−"}${Math.abs(100 * b.edge).toFixed(1)}%</b>${val ? " 💰" : ""}</span>` : ""}</button>`;
 }
 function customTile(g, m, side, line) {
   const p = prob(g, m, side, line), b = {m, s: side, line, p};
   const i = bet({g, b, p, label: label(g, b)});
-  return `<button class="tile ${settle(g, b)}" data-bet="${i}"><span class="l">${esc(label(g, b))}</span>
+  return `<button class="tile ${settle(g, b)}" data-bet="${i}"><span class="l">${tlabel(g, b)}</span>
     <span class="v"><span class="c">${pct(p)}</span><span class="b">${am(fair(p - THR))}</span></span></button>`;
 }
 
@@ -280,9 +319,9 @@ function gameCard(g) {
     <div class="body">${injStrip(g)}<div class="tiles">${bets.map(b => tile(g, b)).join("")}</div>`;
   if (OPEN.has(g.game_id)) {
     const view = PANEL[g.game_id] || "matchup";
-    const tabs = [["matchup", "Matchup"], ["bets", "More lines"], ["score", "Score"], ["field", "Field"]]
+    const tabs = [["matchup", "Matchup"], ["players", "Players"], ["bets", "Lines"], ["score", "Score"], ["field", "Field"]]
       .map(([k, n]) => `<button class="${view === k ? "on" : ""}" data-pv="${g.game_id}|${k}">${n}</button>`).join("");
-    const body = view === "matchup" ? matchupHtml(g) : view === "bets" ? altHtml(g) : view === "score" ? scoreHtml(g) : fieldHtml(g);
+    const body = view === "matchup" ? matchupHtml(g) : view === "players" ? gamePlayers(g) : view === "bets" ? altHtml(g) : view === "score" ? scoreHtml(g) : fieldHtml(g);
     html += `<div class="panel"><div class="ptabs">${tabs}</div>${body}</div>`;
   }
   return html + `<button class="more" data-more="${g.game_id}">${OPEN.has(g.game_id) ? "Less ▴" : "Matchup, more lines & score ▾"}</button></div></div>`;
@@ -353,7 +392,7 @@ function likesHtml() {
   const rows = likeRows(); if (!rows.length) return "";
   return `<div class="card likes"><div class="lk-h">💡 Model likes</div>${rows.map((r, i) => { const t = r.b.s === "away" ? r.g.away : r.g.home, cls = settle(r.g, r.b);
     const j = bet({g: r.g, b: r.b, p: r.b.p, label: label(r.g, r.b)});
-    return `<button class="likerow ${cls}" data-bet="${j}"><span class="lk-n">${i + 1}</span>${r.b.m === "total" ? `<div class="code">${r.b.s === "over" ? "O" : "U"}</div>` : logo(t)}
+    return `<button class="likerow ${cls}" data-bet="${j}"><span class="lk-n">${i + 1}</span>${r.b.m === "total" ? duo(r.g, true) : logo(t)}
       <span class="lk-t"><b>${esc(label(r.g, r.b))}</b><span>${esc(r.g.away.abbr)} @ ${esc(r.g.home.abbr)} · model ${pct(r.b.p)} vs market ${pct(r.b.mkt)}</span></span>
       <span class="lk-p"><b>${am(r.b.price)}</b><span>+${(100 * r.b.edge).toFixed(1)}% edge</span></span></button>`; }).join("")}
     <div class="hint">Edges against the ${D.games.some(g => g.src === "odds") ? "market consensus (median no-vig across US books)" : "posted lines"}. The model has not beaten closing lines in testing, so treat these as leans and shop for the best number.</div></div>`;
@@ -361,6 +400,143 @@ function likesHtml() {
 function games() {
   if (!D.games.length) return empty("🏟️", "No games this week", "The schedule will show here once the next week is set.");
   return likesHtml() + D.games.map(gameCard).join("");
+}
+
+
+// ---------- player props (mirrors nflmodel.props) ----------
+function lgam(x) { const c = [76.18009172947146, -86.50532032941677, 24.01409824083091, -1.231739572450155, 0.1208650973866179e-2, -0.5395239384953e-5];
+  let y = x, t = x + 5.5; t -= (x + 0.5) * Math.log(t); let s = 1.000000000190015; for (const v of c) s += v / ++y; return -t + Math.log(2.5066282746310005 * s / x); }
+function gammaQ(a, x) {          // regularised upper incomplete gamma
+  if (x <= 0) return 1; const gl = lgam(a);
+  if (x < a + 1) { let ap = a, sum = 1 / a, del = sum; for (let n = 0; n < 300; n++) { ap++; del *= x / ap; sum += del; if (Math.abs(del) < Math.abs(sum) * 1e-10) break; }
+    return 1 - sum * Math.exp(-x + a * Math.log(x) - gl); }
+  let b = x + 1 - a, c = 1e300, d = 1 / b, h = d;
+  for (let i = 1; i < 300; i++) { const an = -i * (i - a); b += 2; d = an * d + b; if (Math.abs(d) < 1e-300) d = 1e-300; c = b + an / c; if (Math.abs(c) < 1e-300) c = 1e-300; d = 1 / d; const del = d * c; h *= del; if (Math.abs(del - 1) < 1e-10) break; }
+  return Math.exp(-x + a * Math.log(x) - gl) * h;
+}
+const gamSF = (L, mu, cv, sh) => { if (mu + sh <= 0) return 0; const k = 1 / (cv * cv); return gammaQ(k, (L + sh) * k / (mu + sh)); };
+function nbSF(L, mu, r) { const k = Math.floor(L), p = r / (r + mu); let pm = Math.pow(p, r), cdf = 0;
+  for (let i = 0; i <= k; i++) { cdf += pm; pm *= (i + r) / (i + 1) * (1 - p); } return Math.max(0, 1 - cdf); }
+function poisSF(L, lam) { const k = Math.floor(L); let pm = Math.exp(-lam), cdf = 0; for (let i = 0; i <= k; i++) { cdf += pm; pm *= lam / (i + 1); } return Math.max(0, 1 - cdf); }
+const PM = {td: "Anytime TD", rec: "Receptions", rec_yds: "Receiving yards", rush_yds: "Rushing yards", pass_yds: "Passing yards", pass_td: "Passing TDs"};
+const PU = {rec: "rec", rec_yds: "rec yds", rush_yds: "rush yds", pass_yds: "pass yds", pass_td: "pass TD"};
+function pOver(p, m, L) {
+  const C = D.meta.props || {r_rec: 9.2, cv: {rec_yds: .6, rush_yds: .5, pass_yds: .25}, shift: {rec_yds: 10, rush_yds: 20, pass_yds: 50}};
+  if (m === "td") return 1 - Math.exp(-p.lam_td);
+  if (m === "rec") return nbSF(L, p.rec, C.r_rec);
+  if (m === "rec_yds") { const p0 = Math.pow(C.r_rec / (C.r_rec + p.rec), C.r_rec); return (1 - p0) * gamSF(L, p.rec_yds / Math.max(1 - p0, 1e-6), C.cv.rec_yds, C.shift.rec_yds); }
+  if (m === "rush_yds") return gamSF(L, p.rush_yds, C.cv.rush_yds, C.shift.rush_yds);
+  if (m === "pass_yds") return gamSF(L, p.pass_yds, C.cv.pass_yds, C.shift.pass_yds);
+  if (m === "pass_td") return poisSF(L, p.lam_pass_td);
+  return NaN;
+}
+// the card's line: the x.5 closest to the model's median (an even-money number)
+function fairLine(mu, m, p) {
+  if (!p || m === "td") return Math.floor(mu) + 0.5;
+  let best = Math.floor(mu) + 0.5, gap = 9;
+  for (let L = Math.max(0.5, Math.floor(mu * 0.6) + 0.5); L <= mu * 1.4 + 1; L += 1) { const d = Math.abs(pOver(p, m, L) - 0.5); if (d < gap) { gap = d; best = L; } }
+  return best;
+}
+function pMean(p, m) { return {rec: p.rec, rec_yds: p.rec_yds, rush_yds: p.rush_yds, pass_yds: p.pass_yds, pass_td: p.lam_pass_td}[m]; }
+function marketsFor(p) { return p.role === "QB" ? ["pass_yds", "pass_td", "rush_yds", "td"] : p.role === "RB" ? ["rush_yds", "td", "rec_yds", "rec"] : ["rec_yds", "rec", "td"]; }
+function teamOf(abbr) { const g = D.games.find(x => x.home.abbr === abbr || x.away.abbr === abbr); return g ? (g.home.abbr === abbr ? g.home : g.away) : {abbr, color: "#555"}; }
+function gameOf(p) { return D.games.find(x => x.game_id === p.game_id); }
+function initials(n) { const q = String(n).split(" ").filter(Boolean); return q.length > 1 ? q[0][0] + q[q.length - 1][0] : String(n).slice(0, 2); }
+function avatar(p) { const t = teamOf(p.team);
+  return `<div class="av" style="background:${esc(t.color)}"><span>${esc(initials(p.name))}</span>${p.headshot ? `<img src="${esc(p.headshot)}" alt="" loading="lazy" onerror="this.remove()">` : ""}</div>`; }
+let PS = {m: "td", game: "all", q: "", n: 24};
+const PCHIPS = [["td", "🏈 TD"], ["rec_yds", "🙌 Receiving"], ["rush_yds", "🏃 Rushing"], ["pass_yds", "🎯 Passing"]];
+function propPool() {
+  const P = (D.players || []).filter(p => PS.game === "all" || p.game_id === PS.game);
+  const q = PS.q.trim().toLowerCase(), m = PS.m;
+  let L = P.filter(p => !q || p.name.toLowerCase().includes(q) || p.team.toLowerCase() === q);
+  if (m === "td") L = L.filter(p => p.p_td >= 0.08).sort((a, b) => b.p_td - a.p_td);
+  else if (m === "rec_yds") L = L.filter(p => p.role !== "QB" && p.rec_yds >= 12).sort((a, b) => b.rec_yds - a.rec_yds);
+  else if (m === "rush_yds") L = L.filter(p => p.rush_yds >= 12 && (p.role !== "QB" || p.rush_yds >= 15)).sort((a, b) => b.rush_yds - a.rush_yds);
+  else L = L.filter(p => p.pass_yds != null).sort((a, b) => b.pass_yds - a.pass_yds);
+  return L;
+}
+function pcard(p) {
+  const t = teamOf(p.team), m = PS.m, parts = p.name.split(" "), first = parts.length > 1 ? parts[0] : "", last = parts.length > 1 ? parts.slice(1).join(" ") : p.name;
+  let big, sub, line;
+  if (m === "td") { big = `<b>${pct(p.p_td)}</b><span>to score</span>`; sub = p.role === "RB" ? `${p.car.toFixed(0)} carries · ${p.rec.toFixed(1)} rec` : `${p.tgt.toFixed(1)} targets`;
+    line = `<b>Anytime</b><span>fair ${am(fair(p.p_td))}</span>`; }
+  else { const mu = pMean(p, m), L = fairLine(mu, m, p), po = pOver(p, m, L);
+    big = `<b>${Math.round(mu)}</b><span>${PU[m]}</span>`;
+    sub = m === "rec_yds" ? `${p.rec.toFixed(1)} catches · ${p.tgt.toFixed(1)} targets` : m === "rush_yds" ? `${p.car.toFixed(1)} carries · TD ${pct(p.p_td)}` : `${p.lam_pass_td.toFixed(1)} pass TD · ${Math.round(p.att)} att`;
+    line = `<b>O ${L}</b><span>${pct(po)} · ${am(fair(po))}</span>`; }
+  const tag = p.status ? `<span class="pc-tag">${esc(ST(p.status))}</span>` : "";
+  return `<button class="pc" data-pp="${esc(p.id)}|${esc(p.game_id)}"><div class="pc-top" style="background-color:${esc(t.color)}"><span class="pc-team">${esc(p.team)} ${esc(p.pos)}</span>${tag}
+    <div class="pc-ph"><span>${esc(initials(p.name))}</span>${p.headshot ? `<img src="${esc(p.headshot)}" alt="" loading="lazy" onerror="this.remove()">` : ""}</div></div>
+    <div class="pc-body"><div class="pc-first">${esc(first)}</div><div class="pc-last">${esc(last)}</div><div class="pc-big">${big}</div><div class="pc-sub">${sub}</div><div class="pc-line">${line}</div></div></button>`;
+}
+function props() {
+  if (!(D.players || []).length) return empty("👤", "No player props yet", "Projections show up once this week's games are priced.");
+  const gs = D.games.filter(g => (D.players || []).some(p => p.game_id === g.game_id));
+  const L = propPool();
+  return `<div class="strip" style="padding-left:0">${PCHIPS.map(([k, n]) => `<button class="chip ${PS.m === k ? "on" : ""}" data-pm="${k}">${n}</button>`).join("")}</div>
+    <div class="strip" style="padding-left:0"><button class="chip ${PS.game === "all" ? "on" : ""}" data-pg="all">All games</button>${gs.map(g => `<button class="chip ${PS.game === g.game_id ? "on" : ""}" data-pg="${esc(g.game_id)}">${esc(g.away.abbr)} @ ${esc(g.home.abbr)}</button>`).join("")}</div>
+    <input class="search" id="psearch" placeholder="Search a player or team" value="${esc(PS.q)}">
+    ${L.length ? `<div class="pgrid">${L.slice(0, PS.n).map(pcard).join("")}</div>` : `<div class="note">No players match.</div>`}
+    ${L.length > PS.n ? `<button class="more" id="pmore">Show more (${L.length - PS.n})</button>` : ""}
+    <div class="note" style="color:#e6f3e6;margin-top:12px">Tap a player to check any line against ${esc(BOOKS())} number. Out and doubtful players are removed and their targets / carries go to teammates.</div>`;
+}
+function wireProps() {
+  document.querySelectorAll("[data-pm]").forEach(b => b.onclick = () => { PS.m = b.dataset.pm; PS.n = 24; render(); });
+  document.querySelectorAll("[data-pg]").forEach(b => b.onclick = () => { PS.game = b.dataset.pg; PS.n = 24; render(); });
+  const si = $("#psearch"); if (si) si.oninput = e => { PS.q = e.target.value; const pos = e.target.selectionStart; render(); const n = $("#psearch"); n.focus(); n.setSelectionRange(pos, pos); };
+  $("#pmore") && ($("#pmore").onclick = () => { PS.n += 24; render(); });
+}
+function gamePlayers(g) {
+  const P = (D.players || []).filter(p => p.game_id === g.game_id);
+  if (!P.length) return `<div class="hint">Player projections appear before kickoff.</div>`;
+  const row = (p, right, sub) => `<button class="prow2" data-pp="${esc(p.id)}|${esc(p.game_id)}">${avatar(p)}<span style="min-width:0"><b>${esc(p.name)}</b><div class="s">${esc(p.team)} ${esc(p.pos)}${p.status ? ` · ${esc(ST(p.status))}` : ""} · ${sub}</div></span><span class="r">${right}</span></button>`;
+  const td = [...P].sort((a, b) => b.p_td - a.p_td).slice(0, 4);
+  const yd = [...P].map(p => ({p, y: p.role === "QB" ? p.pass_yds : Math.max(p.rec_yds, p.rush_yds)})).sort((a, b) => b.y - a.y).slice(0, 4);
+  return `<div class="sec">Most likely to score</div>${td.map(p => row(p, `<b>${pct(p.p_td)}</b>`, `fair ${am(fair(p.p_td))}`)).join("")}
+    <div class="sec">Yardage leaders</div>${yd.map(({p}) => { const m = p.role === "QB" ? "pass_yds" : p.rec_yds >= p.rush_yds ? "rec_yds" : "rush_yds";
+      return row(p, `<b>${Math.round(pMean(p, m))}</b>`, PU[m]); }).join("")}
+    <button class="more" data-allprops="${esc(g.game_id)}">All props for this game →</button>`;
+}
+// player sheet: projections + check any line
+let PSH = null;
+function openPlayer(id, gid) {
+  const p = (D.players || []).find(x => x.id === id && x.game_id === gid); if (!p) return;
+  const m = marketsFor(p)[0]; PSH = {p, m, line: m === "td" ? null : fairLine(pMean(p, m), m, p), side: "over", sign: -1, num: ""};
+  drawPlayer(); $("#scrim").classList.add("open"); $("#sheet").classList.add("open");
+}
+function drawPlayer() {
+  const {p, m} = PSH, g = gameOf(p), t = teamOf(p.team);
+  const prob = m === "td" ? pOver(p, "td") : (PSH.side === "over" ? pOver(p, m, PSH.line) : 1 - pOver(p, m, PSH.line));
+  const kp = p.role === "QB" ? [["Pass yds", Math.round(p.pass_yds)], ["Pass TD", p.lam_pass_td.toFixed(1)], ["Rush yds", Math.round(p.rush_yds)], ["TD", pct(p.p_td)]]
+    : [["Rec", p.rec.toFixed(1)], ["Rec yds", Math.round(p.rec_yds)], ["Rush yds", Math.round(p.rush_yds)], ["TD", pct(p.p_td)]];
+  const o = PSH.num ? PSH.sign * Number(PSH.num) : NaN;
+  const step = m === "rec" || m === "pass_td" ? 1 : 5;
+  $("#sheet").innerHTML = `<div class="grab"></div><button class="iconbtn close" id="shx" aria-label="Close">✕</button>
+    <div class="phd">${avatar(p)}<div><div class="sh-t">${esc(p.name)}</div><div class="sh-s">${esc(p.pos)} · ${esc(t.city || "")} ${esc(t.name || p.team)} vs ${esc(p.opp)}${g ? " · " + kickLab(g.start_utc) : ""}${p.status ? ` · <b class="neg">${esc(p.status)}</b>` : ""}</div></div></div>
+    <div class="kpis" style="grid-template-columns:repeat(4,1fr)">${kp.map(([k, v]) => `<div class="kpi"><div class="k">${k}</div><div class="n" style="font-size:19px">${v}</div></div>`).join("")}</div>
+    <div class="seg">${marketsFor(p).map(k => `<button class="${m === k ? "on" : ""}" data-sm="${k}">${PM[k]}</button>`).join("")}</div>
+    ${m === "td" ? "" : `<div class="seg" style="margin-top:6px"><button class="${PSH.side === "over" ? "on" : ""}" data-ss="over">Over</button><button class="${PSH.side === "under" ? "on" : ""}" data-ss="under">Under</button></div>
+      <div class="stepper"><button data-st="-1">−</button><input class="lv odds" id="pline" inputmode="decimal" value="${PSH.line}"><button data-st="1">+</button></div>`}
+    <div class="kpis"><div class="kpi"><div class="k">Chance</div><div class="n">${pct(prob)}</div></div><div class="kpi"><div class="k">Fair</div><div class="n">${am(fair(prob))}</div></div>
+      <div class="kpi g"><div class="k">Bet at</div><div class="n">${am(fair(prob - 0.04))}</div></div></div>
+    <div class="sh-s" style="margin:4px 0 6px">${esc(BOOK())} odds${m === "td" ? "" : ` (set the line above to ${esc(BOOKS())})`}</div>
+    <div class="oddsrow"><div class="sign"><button data-s="1" class="${PSH.sign > 0 ? "on" : ""}">+</button><button data-s="-1" class="${PSH.sign < 0 ? "on" : ""}">−</button></div>
+      <input class="odds" id="odds" inputmode="numeric" pattern="[0-9]*" placeholder="110" value="${esc(PSH.num)}"></div>
+    <div id="vd">${isFinite(o) && Math.abs(o) >= 100 ? propVerdict(prob, o) : `<div class="hint">Props carry more hold than game lines, so the green price leaves a 4-point cushion.</div>`}</div>`;
+  $("#shx").onclick = closeSheet;
+  $("#sheet").querySelectorAll("[data-sm]").forEach(x => x.onclick = () => { PSH.m = x.dataset.sm; PSH.line = PSH.m === "td" ? null : fairLine(pMean(p, PSH.m), PSH.m, p); drawPlayer(); });
+  $("#sheet").querySelectorAll("[data-ss]").forEach(x => x.onclick = () => { PSH.side = x.dataset.ss; drawPlayer(); });
+  $("#sheet").querySelectorAll("[data-st]").forEach(x => x.onclick = () => { PSH.line = Math.max(0.5, PSH.line + Number(x.dataset.st) * step); drawPlayer(); });
+  $("#pline") && ($("#pline").onchange = e => { const v = Number(e.target.value.replace(/[^0-9.]/g, "")); if (v > 0) PSH.line = v; drawPlayer(); });
+  $("#sheet").querySelectorAll("[data-s]").forEach(x => x.onclick = () => { PSH.sign = Number(x.dataset.s); drawPlayer(); });
+  $("#odds").oninput = e => { PSH.num = e.target.value.replace(/[^0-9]/g, ""); const o2 = PSH.sign * Number(PSH.num);
+    $("#vd").innerHTML = PSH.num && Math.abs(o2) >= 100 ? propVerdict(prob, o2) : `<div class="hint">Keep typing… (American odds, e.g. -115)</div>`; };
+}
+function propVerdict(p, o) {
+  const book = implied(o) / 1.04, edge = p - book, ev = p * (decimal(o) - 1) * 100 - (1 - p) * 100;
+  const [cls, v] = edge >= 0.04 ? ["good", "✅ Bet it"] : edge > 0 ? ["meh", "🤏 Small edge, pass or bet small"] : ["bad", "❌ Pass"];
+  return `<div class="verdict ${cls}"><div class="h">${v}</div><div class="d">Model ${pct(p)} vs ${esc(BOOK())} ${pct(book)} · edge ${(edge >= 0 ? "+" : "") + (100 * edge).toFixed(1)} pts · ${ev >= 0 ? "+" : "−"}$${Math.abs(ev).toFixed(2)} per $100</div></div>`;
 }
 
 // ---------- teams ----------
@@ -410,7 +586,7 @@ function openSheet(o) {
   SH = {o, sign: own ? (pr < 0 ? -1 : 1) : (fair(o.p) < 0 ? -1 : 1), num: own ? String(Math.abs(Math.round(pr))) : ""};
   drawSheet(); $("#scrim").classList.add("open"); $("#sheet").classList.add("open");
 }
-function closeSheet() { $("#scrim").classList.remove("open"); $("#sheet").classList.remove("open"); SH = null; }
+function closeSheet() { $("#scrim").classList.remove("open"); $("#sheet").classList.remove("open"); SH = null; PSH = null; }
 function verdictHtml(p, o) {
   const book = implied(o) / 1.0225, edge = p - book, ev = p * (decimal(o) - 1) * 100 - (1 - p) * 100;
   const [cls, v] = edge >= THR ? ["good", "✅ Bet it"] : edge > 0 ? ["meh", "🤏 Small edge, pass or bet small"] : ["bad", "❌ Pass"];
@@ -467,14 +643,17 @@ function strip() {
   $("#strip").innerHTML = h; $("#strip").style.display = h ? "" : "none";
 }
 function nav() {
-  const T = [["games", "🏈 Games"], ["teams", "📈 Teams"], ["check", "✅ Check"]];
+  const T = [["games", "🏈 Games"], ["props", "👤 Props"], ["teams", "📈 Teams"], ["check", "✅ Check"]];
   $("#nav").innerHTML = T.map(([k, n]) => `<button class="${TAB === k ? "on" : ""}" data-k="${k}">${n}</button>`).join("");
   $("#nav").querySelectorAll("button").forEach(b => b.onclick = () => { TAB = b.dataset.k; render(); window.scrollTo(0, 0); });
 }
 function render() {
   BETS = []; header(); strip(); nav();
-  $("#view").innerHTML = {games, teams, check}[TAB]();
+  $("#view").innerHTML = {games, props, teams, check}[TAB]();
   if (TAB === "check") wireCheck();
+  if (TAB === "props") wireProps();
+  $("#view").querySelectorAll("[data-pp]").forEach(el => el.onclick = e => { e.stopPropagation(); const [id, gid] = el.dataset.pp.split("|"); openPlayer(id, gid); });
+  $("#view").querySelectorAll("[data-allprops]").forEach(el => el.onclick = () => { PS.game = el.dataset.allprops; PS.q = ""; TAB = "props"; render(); window.scrollTo(0, 0); });
   document.querySelectorAll("[data-ts]").forEach(b => b.onclick = () => { TSORT = b.dataset.ts; render(); });
   $("#view").querySelectorAll("[data-bet]").forEach(el => el.onclick = e => { e.stopPropagation(); openSheet(BETS[Number(el.dataset.bet)]); });
   $("#view").querySelectorAll("[data-pv]").forEach(el => el.onclick = () => { const [id, k] = el.dataset.pv.split("|"); PANEL[id] = k; render(); });

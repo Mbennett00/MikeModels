@@ -18,6 +18,7 @@ import pandas as pd
 
 from . import backtest as B
 from . import data, injuries as I, model as M, odds as O
+from . import props as PP
 from .teams import info
 
 HERE = os.path.dirname(__file__)
@@ -214,6 +215,11 @@ def run(state: str = "state", log=print) -> dict:
             frozen[g.game_id] = rec
         games.append(dict(rec, result=_result(g), state="post" if not pd.isna(g.result) else ("in" if started else "pre")))
     json.dump({k: v for k, v in frozen.items() if k.startswith(str(season))}, open(ppath, "w"), separators=(",", ":"))
+    try:
+        players = player_props(cache, site, seasons, season, games, R, live, now_et, log)
+    except Exception as e:   # props never block the game page
+        log(f"nfl props: {e}")
+        players = []
 
     played = sched[sched.result.notna()]
     meta = dict(sport="nfl", generated_at=now_et.isoformat(), season=season,
@@ -226,11 +232,91 @@ def run(state: str = "state", log=print) -> dict:
                 sd_margin=_r(cfg.sd_margin, 2), sd_total=_r(cfg.sd_total, 2),
                 backtest={k: (list(v) if isinstance(v, tuple) else _r(v)) for k, v in bt.items()},
                 backtest_seasons="2021-" + str(int(bt_rows.season.max())) if len(bt_rows) else None)
-    out = dict(meta=meta, games=games, teams=team_table(R, rows, season), key_m=cfg.key_m, key_t=cfg.key_t)
+    pc = PP.PropConfig()
+    meta["props"] = dict(r_rec=pc.r_rec, cv=dict(rec_yds=pc.cv_rec_yds, rush_yds=pc.cv_rush_yds, pass_yds=pc.cv_pass_yds),
+                         shift=dict(rec_yds=pc.sh_rec_yds, rush_yds=pc.sh_rush_yds, pass_yds=pc.sh_pass_yds))
+    out = dict(meta=meta, games=games, players=players, teams=team_table(R, rows, season), key_m=cfg.key_m, key_t=cfg.key_t)
     write(site, out)
     log(f"nfl: week {meta['week']}, {len(games)} games, data through {meta['data_through']}, "
         f"odds {'from ' + str(meta['odds_at']) if cached else 'none (nflverse lines)'}")
     return out
+
+
+ROLE = {"QB": "QB", "RB": "RB", "FB": "RB", "HB": "RB", "WR": "REC", "TE": "REC"}
+
+
+def player_props(cache, site, seasons, season, games, R, live, now_et, log=print) -> list:
+    """Projections for the players who matter in each upcoming game; started games keep their last projections."""
+    pg = data.load_players(cache, seasons)
+    if pg.empty:
+        return []
+    cfg = PP.PropConfig()
+    cfg.priors = PP.fit_priors(pg[pg.season >= season - 4])
+    tgp = PP.team_games(pg)
+    ros = data.rosters(season, cache, log)
+    act = ros[ros.status == "ACT"] if len(ros) else ros
+    out_keys = {}
+    if live is not None and len(live):
+        for t, d in live.groupby("team"):
+            out_keys[t] = set(d[d.status.map(I.miss_weight) >= 0.85].key)
+    q_keys = {(r.team, r.key): str(r.status) for r in live.itertuples()} if live is not None and len(live) else {}
+    rows, starters, avail = [], {}, {}
+    pending = [g for g in games if g.get("state") == "pre"]
+    for g in pending:
+        for side, opp, sign in (("home", "away", 1), ("away", "home", -1)):
+            t = g[side]["abbr"]
+            pts = g["pts_home"] if side == "home" else g["pts_away"]
+            rows.append(dict(game_id=g["game_id"], team=t, opp=g[opp]["abbr"], pts=pts, margin=sign * g["margin"]))
+            if len(act):
+                mine = act[act.team == t]
+                avail[t] = {pid for pid, r in mine.iterrows() if I.norm(r.full_name) not in out_keys.get(t, set())}
+            qbname = g[side].get("qb")
+            if qbname and len(act):
+                cand = act[(act.team == t) & (act.position == "QB")]
+                m = cand[cand.full_name.map(I.norm) == I.norm(qbname)]
+                if m.empty:   # backup written as 'G. Minshew'
+                    last = I.norm(qbname).split()[-1] if I.norm(qbname) else ""
+                    m = cand[cand.full_name.map(lambda n: I.norm(n).split()[-1] if I.norm(n) else "") == last]
+                if len(m):
+                    starters[t] = m.index[0]
+    fpath = os.path.join(site, "nfl_props.json")
+    try:
+        frozen = json.load(open(fpath))
+    except (OSError, ValueError):
+        frozen = {}
+    res = []
+    if rows:
+        asof = now_et.tz_localize(None)
+        roles = {pid: ROLE.get(r.position) for pid, r in act.iterrows()} if len(act) else None
+        pr = PP.project(pg, tgp, asof, pd.DataFrame(rows), cfg, dfn={"pass": R.dfn["epa_db"], "rush": R.dfn["epa_play"]},
+                        available=avail or None, roles_now=roles, starters=starters)
+        for r in pr.itertuples():
+            if r.role is None or (r.role == "QB" and pd.isna(getattr(r, "pass_yds", np.nan))):
+                continue
+            show = (r.role == "QB") or r.tgt >= 2.5 or r.car >= 5
+            if not show:
+                continue
+            info_ = ros.loc[r.player_id] if r.player_id in ros.index else None
+            full = info_.full_name if info_ is not None else r.name
+            rec = dict(id=r.player_id, game_id=r.game_id, team=r.team, opp=r.opp, name=full, role=r.role,
+                       pos=info_.position if info_ is not None else r.role,
+                       num=_r(info_.jersey_number, 0) if info_ is not None else None,
+                       headshot=info_.headshot_url if info_ is not None and isinstance(info_.headshot_url, str) else None,
+                       status=q_keys.get((r.team, I.norm(full))),
+                       tgt=_r(r.tgt, 2), rec=_r(r.rec, 2), rec_yds=_r(r.rec_yds, 1), car=_r(r.car, 2),
+                       rush_yds=_r(r.rush_yds, 1), lam_td=_r(r.lam_td, 4), p_td=_r(1 - math.exp(-r.lam_td), 4))
+            if not pd.isna(getattr(r, "pass_yds", np.nan)):
+                rec.update(att=_r(r.att, 1), pass_yds=_r(r.pass_yds, 1), lam_pass_td=_r(r.lam_pass_td, 3))
+            res.append(rec)
+        for gid in {r["game_id"] for r in res}:
+            frozen[gid] = [r for r in res if r["game_id"] == gid]
+    pend_ids = {g["game_id"] for g in pending}
+    for g in games:
+        if g["game_id"] not in pend_ids and g["game_id"] in frozen:
+            res += frozen[g["game_id"]]
+    json.dump({k: v for k, v in frozen.items() if k.startswith(str(season))}, open(fpath, "w"), separators=(",", ":"))
+    log(f"nfl props: {len(res)} players")
+    return res
 
 
 def injury_reports(inj: pd.DataFrame, wk: pd.DataFrame, log=print) -> pd.DataFrame | None:
