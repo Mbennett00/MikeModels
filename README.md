@@ -71,6 +71,13 @@ the NFL page has a turf background, team-colour game cards, a Teams power rankin
   `y = mu + home + offense[team] + defense[opponent]` over past games (half-life 140 days, garbage time removed).
 - **Starting QB**: each QB's EPA per dropback (shrunk toward replacement); when the listed starter differs from the
   team's usual QB play, the passing numbers move by the difference.
+- **Injuries**: ESPN's live NFL injury list (official report from nflverse as a fallback). A starter is a player with
+  40%+ of offensive or defensive snaps over the team's last 6 games; each injured starter counts his snap share,
+  scaled by status (Out/IR 1.0, Doubtful 0.85, Questionable 0.25). A ruled-out starting QB is replaced by his backup
+  in the QB adjustment. Backtest (official pre-game reports, 2021-2026): one "missing starters" number moves the margin
+  about 0.84 points per full-time starter; margin error 10.22 → 10.20, moneyline Brier 0.2243 → 0.2234, ATS when the
+  model is off the close by 3+ 48.8% → 50.9%. Splitting by position group (6 numbers) overfit (10.26), and injuries did
+  not improve totals, so totals ignore them.
 - **Game expectation**: margin and total are linear in the two sides' ratings (plus dome / wind / cold for totals),
   fitted on past seasons. The margin distribution is a discretised normal reweighted by key-number factors measured
   on past finals (3, 7, 10, 6, 14 ...), re-centred to keep its mean. Moneyline, spread, total and alt lines come from it.
@@ -82,11 +89,11 @@ the NFL page has a turf background, team-colour game cards, a Teams power rankin
 
   | | model | closing line |
   |---|---|---|
-  | Margin mean abs. error | 10.22 | 9.78 |
+  | Margin mean abs. error | 10.20 | 9.78 |
   | Total mean abs. error | 10.54 | 10.34 |
-  | Against the spread (all games / model off by 3+) | 47.8% / 48.8% | – |
+  | Against the spread (all games / model off by 3+) | ~48% / 50.9% | – |
   | Over/under (all games / off by 3+) | 51.2% / 48.5% | – |
-  | Moneyline Brier score | 0.2243 | 0.2123 |
+  | Moneyline Brier score | 0.2234 | 0.2123 |
 
   Closing lines are sharper than a public-data team model, as expected. The page says so, the 💰 flag needs a 6-point
   edge, and the model is best used to find numbers worth a look early in the week and to price alt lines.

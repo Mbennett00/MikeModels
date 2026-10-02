@@ -114,3 +114,46 @@ def load(cache: str, seasons=None, log=print) -> tuple[pd.DataFrame, pd.DataFram
     for d in (tg, qb):
         d["date"] = pd.to_datetime(d.date)
     return sched, tg, qb
+
+
+SNAP_URL = REL + "/snap_counts/snap_counts_{season}.csv"
+INJ_URL = REL + "/injuries/injuries_{season}.csv"
+SNAP_COLS = ["game_id", "season", "week", "player", "position", "team", "offense_pct", "defense_pct"]
+INJ_COLS = ["season", "game_type", "team", "week", "gsis_id", "position", "full_name", "report_status"]
+
+
+def _csv(url: str, local: str, cols: list) -> pd.DataFrame:
+    if LOCAL:
+        d = pd.read_csv(os.path.join(LOCAL, local), usecols=lambda c: c in cols)
+    else:
+        d = pd.read_csv(io.BytesIO(_get(url)), usecols=lambda c: c in cols)
+    for c in ("team",):
+        d[c] = d[c].replace(TEAM_FIX)
+    return d
+
+
+def load_rosters(cache: str, seasons, log=print) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """(snap counts, official injury reports) for the seasons; the latest season is always refetched."""
+    os.makedirs(cache, exist_ok=True)
+    cur = max(seasons)
+    out = {"snaps": [], "inj": []}
+    for s in seasons:
+        for kind, url, local, cols in (("snaps", SNAP_URL, f"snap{s}.csv", SNAP_COLS),
+                                       ("inj", INJ_URL, f"inj{s}.csv", INJ_COLS)):
+            f = os.path.join(cache, f"{kind}_{s}.csv")
+            if s < cur and os.path.exists(f):
+                out[kind].append(pd.read_csv(f))
+                continue
+            try:
+                d = _csv(url.format(season=s), local, cols)
+                d.to_csv(f, index=False)
+            except Exception as e:
+                log(f"nfl {kind} {s}: {e}")
+                if not os.path.exists(f):
+                    continue
+                d = pd.read_csv(f)
+            out[kind].append(d)
+    if out["snaps"]:
+        log(f"nfl snaps: {sum(len(x) for x in out['snaps'])} rows; injury reports: {sum(len(x) for x in out['inj'])} rows")
+    cat = lambda xs, cols: pd.concat(xs, ignore_index=True) if xs else pd.DataFrame(columns=cols)
+    return cat(out["snaps"], SNAP_COLS), cat(out["inj"], INJ_COLS)

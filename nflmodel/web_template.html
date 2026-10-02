@@ -86,6 +86,11 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .mx .tr { display: flex; height: 12px; background: #efe7d6; border: 2px solid var(--navy); border-radius: 99px; overflow: hidden; }
 .mx .half { flex: 1; display: flex; } .mx .half.l { justify-content: flex-end; border-right: 2px solid var(--navy); } .mx .half div { height: 100%; }
 .mx .hd .v { font-size: 13px; } .mx .vs { text-align: center; font-size: 11px; font-weight: 800; color: var(--muted); text-transform: uppercase; }
+.injc { font-size: 12.5px; font-weight: 700; color: var(--ink-2); background: var(--cream); border: 2px solid var(--navy); border-radius: 12px; padding: 5px 9px; margin-bottom: 8px; line-height: 1.45; }
+.injc .inj { display: inline; } .injc .inj + .inj::before { content: ""; display: block; }
+.ih { display: flex; justify-content: space-between; font-family: 'Fredoka', sans-serif; font-weight: 600; color: var(--navy); margin-top: 8px; border-bottom: 2px solid var(--line); }
+.ir { display: flex; justify-content: space-between; gap: 8px; font-size: 13.5px; font-weight: 800; color: var(--navy); padding: 4px 0; border-bottom: 2px dashed var(--line); }
+.ps { font-size: 12px; font-weight: 700; color: var(--muted); } .tn2 { color: var(--navy); }
 .hint { font-size: 13px; font-weight: 700; color: var(--ink-2); margin-top: 10px; line-height: 1.4; }
 /* score distribution */
 .dist { display: flex; align-items: flex-end; gap: 1px; height: 110px; border-bottom: 2.5px solid var(--navy); margin-top: 8px; }
@@ -262,7 +267,8 @@ function gameCard(g) {
     : s ? `<span class="final">${esc((s.detail || "Final").toUpperCase())}</span><span>model had ${esc(h.abbr)} ${sp(-Math.round(2 * g.margin) / 2)}</span>`
     : `<span>${kickLab(g.start_utc)}${g.neutral ? " · neutral site" : ""}</span><span>proj ${esc(a.abbr)} ${g.pts_away.toFixed(0)} – ${g.pts_home.toFixed(0)} ${esc(h.abbr)}</span>`;
   const [ia, ca] = inkOf(a.color), [ih, ch] = inkOf(h.color);
-  const qbl = t => t.qb ? `QB ${esc(t.qb)}${t.qb_adj != null && Math.abs(t.qb_adj) >= 0.03 ? (t.qb_adj < 0 ? " ⬇️" : " ⬆️") : ""}` : "QB TBD";
+  const qbl = t => (t.qb ? `QB ${esc(t.qb)}${t.qb_adj != null && Math.abs(t.qb_adj) >= 0.03 ? (t.qb_adj < 0 ? " ⬇️" : " ⬆️") : ""}` : "QB TBD")
+    + (t.qb_note ? ` · 🚑 ${esc(t.qb_note)}` : "");
   const trow = (t, p, mine, theirs, ink, cl) => `<div class="trow ${cl}" style="color:${ink}">${logo(t)}<div style="min-width:0"><div class="tname">${esc(t.city)} ${esc(t.name)}</div>
       <div class="qb">${qbl(t)}</div></div>
       <div class="right">${s ? `<div class="score ${s.state === "post" && mine < theirs ? "lose" : ""}">${mine}</div>` : `<div class="pct">${pct(p)}</div>`}</div></div>`;
@@ -271,7 +277,7 @@ function gameCard(g) {
     <div class="band"><div class="status" style="color:${ia}">${status}</div>
     ${trow(a, 1 - ph, s && s.away, s && s.home, ia, ca)}${trow(h, ph, s && s.home, s && s.away, ih, ch)}
     <div class="bar"><div style="width:${100 * (1 - ph)}%;background:${a.color}"></div><div style="width:${100 * ph}%;background:${h.color}"></div></div></div>
-    <div class="body"><div class="tiles">${bets.map(b => tile(g, b)).join("")}</div>`;
+    <div class="body">${injStrip(g)}<div class="tiles">${bets.map(b => tile(g, b)).join("")}</div>`;
   if (OPEN.has(g.game_id)) {
     const view = PANEL[g.game_id] || "matchup";
     const tabs = [["matchup", "Matchup"], ["bets", "More lines"], ["score", "Score"], ["field", "Field"]]
@@ -280,6 +286,22 @@ function gameCard(g) {
     html += `<div class="panel"><div class="ptabs">${tabs}</div>${body}</div>`;
   }
   return html + `<button class="more" data-more="${g.game_id}">${OPEN.has(g.game_id) ? "Less ▴" : "Matchup, more lines & score ▾"}</button></div></div>`;
+}
+// missing starters: one line per team on the card, full list in the matchup panel
+const ST = s => { s = String(s || ""); return /^out/i.test(s) ? "Out" : /^doubt/i.test(s) ? "Doubtful" : /^quest/i.test(s) ? "Q" : /reserve|^ir/i.test(s) ? "IR" : s; };
+function injStrip(g) {
+  const row = t => (t.injuries || []).length ? `<div class="inj"><b class="tn2">${esc(t.abbr)}</b> <b class="neg">${t.inj_pts.toFixed(1)} pts</b> · ${t.injuries.slice(0, 3).map(i => `${esc(i.name)} (${esc(i.pos)}) <b>${ST(i.status)}</b>`).join(", ")}${t.injuries.length > 3 ? ` +${t.injuries.length - 3}` : ""}</div>` : "";
+  const h = row(g.away) + row(g.home);
+  return h ? `<div class="injc">🚑 ${h}</div>` : "";
+}
+function injPanel(g) {
+  const team = t => {
+    const s = (t.injuries || []).map(i => `<div class="ir"><span>${esc(i.name)} <span class="ps">${esc(i.pos)} · ${esc(i.group)} · ${Math.round(100 * i.share)}% of snaps</span></span><b class="${ST(i.status) === "Q" ? "" : "neg"}">${esc(i.status)}</b></div>`).join("");
+    const o = (t.others || []).map(i => `${esc(i.name)} (${esc(i.pos)}) ${esc(ST(i.status))}`).join(", ");
+    return `<div class="ih"><b>${esc(t.abbr)}</b><span class="${t.inj_pts < -0.05 ? "neg" : ""}">${t.inj_pts != null ? (t.inj_pts < -0.05 ? t.inj_pts.toFixed(1) + " pts" : "full strength") : ""}</span></div>
+      ${s || `<div class="ps">No starters listed.</div>`}${o ? `<div class="ps" style="margin-top:4px">Also listed (not regular starters): ${o}</div>` : ""}${t.qb_note ? `<div class="ps">QB: ${esc(t.qb_note)}, so ${esc(t.qb)} is projected to start.</div>` : ""}`; };
+  return `<div class="sec">Injuries</div>${team(g.away)}${team(g.home)}
+    <div class="hint">A starter = 40%+ of snaps over the last 6 games. Each missing full-time starter costs about ${(D.meta.pts_per_starter || 0.85).toFixed(1)} points of margin (Out counts fully, Doubtful 85%, Questionable 25%), measured on past seasons. Source: ${esc(D.meta.inj_source || "–")}.</div>`;
 }
 const MX = [["⚡ Offense", "off"], ["🎯 Passing", "pas"], ["🛡️ Defense", "dfn"], ["🧤 Pass defense", "pdef"], ["🏆 Points rating", "pts"]];
 function matchupHtml(g) {
@@ -291,7 +313,7 @@ function matchupHtml(g) {
       <div class="tr"><div class="half l"><div style="width:${w(va)}%;background:${col(va, g.away)}"></div></div><div class="half"><div style="width:${w(vh)}%;background:${col(vh, g.home)}"></div></div></div>
       <span class="v r2">#${rh ?? "–"}</span></div>`; };
   const qb = t => t.qb ? `<div class="hint">🏈 <b>${esc(t.abbr)}</b>: ${esc(t.qb)}${t.qb_level != null ? ` · ${(t.qb_level >= 0 ? "+" : "")}${t.qb_level.toFixed(2)} EPA/dropback` : ""}${t.qb_adj != null && Math.abs(t.qb_adj) >= 0.03 ? ` · <b class="${t.qb_adj < 0 ? "neg" : "pos"}">${t.qb_adj < 0 ? "below" : "above"} their usual QB play (${(t.qb_adj >= 0 ? "+" : "") + t.qb_adj.toFixed(2)})</b>` : ""}</div>` : "";
-  return `<div class="mx"><div class="r hd"><span></span><span class="v">${esc(g.away.abbr)}</span><span class="vs">rank of 32 (bars: vs league avg)</span><span class="v r2">${esc(g.home.abbr)}</span></div>
+  return injPanel(g) + `<div class="sec">Team ratings</div><div class="mx"><div class="r hd"><span></span><span class="v">${esc(g.away.abbr)}</span><span class="vs">rank of 32 (bars: vs league avg)</span><span class="v r2">${esc(g.home.abbr)}</span></div>
     ${MX.map(([l, k]) => rowH(l, k)).join("")}</div>${qb(g.away)}${qb(g.home)}
     <div class="hint">Offense and defense are opponent-adjusted EPA per play (garbage time removed), weighted toward recent games. Records: ${esc(g.away.abbr)} ${esc(A.record || "")}, ${esc(g.home.abbr)} ${esc(H.record || "")}.</div>`;
 }
@@ -415,7 +437,7 @@ function openInfo() {
   const b = D.meta.backtest || {}, f = x => x ? `${(100 * x[0]).toFixed(1)}% (${x[1]} games)` : "–";
   $("#sheet").innerHTML = `<div class="grab"></div><button class="iconbtn close" id="shx" aria-label="Close">✕</button>
     <div class="sh-t">How it works</div>
-    <div class="hint" style="font-size:14.5px">Teams are rated on opponent-adjusted <b>EPA per play</b> (expected points added) from nflverse play-by-play, plus points, with recent games weighted more. The starting QB is checked against the team's usual QB play. That gives a projected margin and total; final scores are spread around them with the real bumps on <b>3 and 7</b>. Tiles show the model's chance and the market's (median no-vig across US books${D.games.some(g => g.src === "odds") ? "" : "; posted lines until odds are pulled"}).</div>
+    <div class="hint" style="font-size:14.5px">Teams are rated on opponent-adjusted <b>EPA per play</b> (expected points added) from nflverse play-by-play, plus points, with recent games weighted more. The starting QB is checked against the team's usual QB play, and a ruled-out starter is swapped for his backup. Injured starters elsewhere (from ESPN's injury list, 40%+ snap players) cost about ${(D.meta.pts_per_starter || 0.85).toFixed(1)} points each. That gives a projected margin and total; final scores are spread around them with the real bumps on <b>3 and 7</b>. Tiles show the model's chance and the market's (median no-vig across US books${D.games.some(g => g.src === "odds") ? "" : "; posted lines until odds are pulled"}).</div>
     <div class="sec">Backtest vs closing lines, ${esc(D.meta.backtest_seasons || "")}</div>
     <div class="kv"><div><span>Margin error: model / close</span><b>${(b.mae_model || 0).toFixed(2)} / ${(b.mae_line || 0).toFixed(2)}</b></div>
       <div><span>Total error: model / close</span><b>${(b.tmae_model || 0).toFixed(2)} / ${(b.tmae_line || 0).toFixed(2)}</b></div>

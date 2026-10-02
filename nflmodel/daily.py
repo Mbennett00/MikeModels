@@ -17,7 +17,7 @@ import numpy as np
 import pandas as pd
 
 from . import backtest as B
-from . import data, model as M, odds as O
+from . import data, injuries as I, model as M, odds as O
 from .teams import info
 
 HERE = os.path.dirname(__file__)
@@ -113,8 +113,10 @@ def run(state: str = "state", log=print) -> dict:
     os.makedirs(web, exist_ok=True)
     now_et = pd.Timestamp.now(tz="America/New_York")
     sched, tg, qb = data.load(cache, log=log)
+    seasons = sorted(set(tg.season.astype(int)))
+    snaps, inj = data.load_rosters(cache, seasons, log=log)
     cfg = M.Config()
-    F = B.build_features(sched, tg, qb, cfg, log=lambda *a: None)
+    F = B.build_features(sched, tg, qb, cfg, log=lambda *a: None, snaps=snaps, inj=inj)
     bt_rows, bt = B.run(sched, tg, qb, cfg, F=F, log=lambda *a: None)
     cfg = B.fit_mapping(F, cfg)
     rows = M.team_rows(tg, sched)
@@ -137,6 +139,9 @@ def run(state: str = "state", log=print) -> dict:
             log(f"nfl odds: {e}")
     evs = O.match(cached["events"], wk) if cached else {}
 
+    S = I.prep_snaps(snaps, sched) if len(snaps) else None
+    live = injury_reports(inj, wk, log)
+
     ppath = os.path.join(site, "nfl_prices.json")   # last pre-kickoff prices, so finished games keep theirs
     try:
         frozen = json.load(open(ppath))
@@ -153,10 +158,22 @@ def run(state: str = "state", log=print) -> dict:
         if started:   # first seen after kickoff: price it with what was known before the game
             asof = kick.tz_convert("America/New_York").tz_localize(None).normalize()
             Rg, lvg = M.fit_ratings(rows, asof, cfg), M.qb_levels(qb, asof, cfg)
-        qh, idh = M.qb_adjust(qb, lvg, g.home_team, g.home_qb_name, asof, cfg)
-        qa, ida = M.qb_adjust(qb, lvg, g.away_team, g.away_qb_name, asof, cfg)
+        side = {}
+        for t, qbn in ((g.home_team, g.home_qb_name), (g.away_team, g.away_qb_name)):
+            rep = live[live.team == t] if live is not None else None
+            if S is not None and not started:
+                miss, det = I.missing(I.regulars(S, t, asof), rep)
+            else:
+                miss, det = {k: 0.0 for k in I.GROUPS}, []
+            qbn, qb_note = qb_starter(qb, t, qbn if isinstance(qbn, str) else None, rep, asof)
+            adj, qid = M.qb_adjust(qb, lvg, t, qbn, asof, cfg)
+            side[t] = dict(miss=miss, det=det, qb=qbn, qb_note=qb_note, qb_adj=adj, qb_id=qid,
+                           inj_pts=float(cfg.coef_m[-1] * sum(miss.values())), report=rep)
+        sh_, sa_ = side[g.home_team], side[g.away_team]
+        qh, idh, qa, ida = sh_["qb_adj"], sh_["qb_id"], sa_["qb_adj"], sa_["qb_id"]
         neutral = g.location == "Neutral"
-        xm, xt = M.features(Rg, g.home_team, g.away_team, neutral, qh, qa, g.roof, g.wind, g.temp)
+        xm, xt = M.features(Rg, g.home_team, g.away_team, neutral, qh, qa, g.roof, g.wind, g.temp,
+                            I.vector(sh_["miss"]), I.vector(sa_["miss"]))
         mm, tm = float(xm @ cfg.coef_m), float(xt @ cfg.coef_t)
         mk, src = {}, "line"
         if g.game_id in evs:
@@ -177,10 +194,13 @@ def run(state: str = "state", log=print) -> dict:
         km, pm = p["margin_pmf"]; kt, pt = p["total_pmf"]
         sel = (km >= -45) & (km <= 45); selt = (kt >= 10) & (kt <= 90)
         th, ta = info(g.home_team), info(g.away_team)
-        th.update(qb=g.home_qb_name if isinstance(g.home_qb_name, str) else None, qb_adj=_r(qh),
-                  qb_level=_r(lvg.level.get(idh)) if idh else None)
-        ta.update(qb=g.away_qb_name if isinstance(g.away_qb_name, str) else None, qb_adj=_r(qa),
-                  qb_level=_r(lvg.level.get(ida)) if ida else None)
+        for tinfo, sd, qid in ((th, sh_, idh), (ta, sa_, ida)):
+            tinfo.update(qb=pretty_qb(sd["qb"]), qb_note=sd["qb_note"], qb_adj=_r(sd["qb_adj"]),
+                         qb_level=_r(lvg.level.get(qid)) if qid else None,
+                         inj_pts=_r(sd["inj_pts"], 2), missing={k: _r(v, 2) for k, v in sd["miss"].items()},
+                         injuries=[dict(name=d["name"], pos=d["pos"], group=I.LABEL[d["group"]], status=d["status"],
+                                        share=d["share"]) for d in sd["det"]],
+                         others=injury_list(sd["report"], {d["name"] for d in sd["det"]}))
         rec = dict(game_id=g.game_id, week=int(g.week), start_utc=kick.isoformat(), home=th, away=ta,
                    neutral=bool(neutral), roof=g.roof if isinstance(g.roof, str) else None,
                    stadium=g.stadium if isinstance(g.stadium, str) else None,
@@ -201,6 +221,8 @@ def run(state: str = "state", log=print) -> dict:
                 data_through=str(tg.date.max().date()), games_this_season=int((played.season == season).sum()),
                 odds_at=cached["fetched_at"] if cached else None, book=os.environ.get("ODDS_BOOK_NAME", "Caesars"),
                 book_short=book_short, edge_flag=EDGE_FLAG,
+                inj_source="ESPN" if live is not None and "detail" in live else ("official report" if live is not None else None),
+                pts_per_starter=_r(-cfg.coef_m[-1], 2),
                 sd_margin=_r(cfg.sd_margin, 2), sd_total=_r(cfg.sd_total, 2),
                 backtest={k: (list(v) if isinstance(v, tuple) else _r(v)) for k, v in bt.items()},
                 backtest_seasons="2021-" + str(int(bt_rows.season.max())) if len(bt_rows) else None)
@@ -209,6 +231,54 @@ def run(state: str = "state", log=print) -> dict:
     log(f"nfl: week {meta['week']}, {len(games)} games, data through {meta['data_through']}, "
         f"odds {'from ' + str(meta['odds_at']) if cached else 'none (nflverse lines)'}")
     return out
+
+
+def injury_reports(inj: pd.DataFrame, wk: pd.DataFrame, log=print) -> pd.DataFrame | None:
+    """This week's statuses: ESPN's live list, else nflverse's copy of the official report."""
+    espn = I.fetch_espn(log)
+    if espn is not None:
+        return espn
+    if inj is None or inj.empty or wk.empty:
+        return None
+    season, week = int(wk.season.iloc[0]), int(wk.week.iloc[0])
+    r = I.history_reports(inj)
+    r = r[(r.season == season) & (r.week == week)].rename(columns={"full_name": "name"})
+    log(f"injuries: ESPN unavailable, using the official report ({len(r)} players, week {week})")
+    return r if len(r) else None
+
+
+def qb_starter(qb: pd.DataFrame, team: str, listed: str | None, rep, asof) -> tuple[str | None, str | None]:
+    """The listed starter, or his backup when the injury report has him out / doubtful."""
+    if not listed or rep is None or rep.empty:
+        return listed, None
+    hit = rep[rep.key == I.norm(listed)]
+    if hit.empty or I.miss_weight(hit.status.iloc[0]) < 0.85:
+        return listed, None
+    status = str(hit.status.iloc[0])
+    q = qb[(qb.team == team) & (qb.date < pd.Timestamp(asof)) & (qb.date >= pd.Timestamp(asof) - pd.Timedelta(days=400))]
+    last = I.norm(listed).split()[-1]
+    q = q[~q.name.fillna("").str.lower().str.replace(".", " ", regex=False).str.split().str[-1].eq(last)]
+    if q.empty:
+        return "Backup QB", f"{listed} {status}"
+    backup = q.groupby("name").dropbacks.sum().idxmax()
+    return backup, f"{listed} {status}"
+
+
+def pretty_qb(name):
+    if not isinstance(name, str):
+        return None
+    return name.replace(".", ". ", 1) if "." in name and " " not in name else name
+
+
+def injury_list(rep, skip: set, limit: int = 6) -> list:
+    """Other players listed for the team (not counted as starters), most serious first."""
+    if rep is None or rep.empty:
+        return []
+    r = rep.assign(w=rep.status.map(I.miss_weight))
+    r = r[r.w > 0].sort_values("w", ascending=False)
+    nm = "name" if "name" in r else "full_name"
+    out = [dict(name=x[nm], pos=x.pos, status=str(x.status)) for _, x in r.iterrows() if x[nm] not in skip]
+    return out[:limit]
 
 
 def implied_pair(h, a) -> float:

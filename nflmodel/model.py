@@ -34,6 +34,7 @@ class Config:
     sd_total: float = 13.4
     qb_weight: float = 1.0       # 0 = ignore starting-QB changes
     qb_shrink: float = 250.0     # dropbacks of prior toward the team's QB-neutral passing level
+    injuries: bool = True        # missing-starter features from the injury report
     coef_m: np.ndarray | None = None
     coef_t: np.ndarray | None = None
     key_m: dict = field(default_factory=dict)
@@ -150,8 +151,12 @@ def side(R: Ratings, off: str, dfn: str, home: float) -> np.ndarray:
     return np.array([R.mu[m] + R.home[m] * home + R.off[m].get(off, 0.0) + R.dfn[m].get(dfn, 0.0) for m in METRICS])
 
 
+N_INJ = 6   # injury groups (see nflmodel.injuries.GROUPS)
+
+
 def features(R: Ratings, home: str, away: str, neutral: bool = False, qb_h: float = 0.0, qb_a: float = 0.0,
-             roof: str | None = None, wind=None, temp=None) -> tuple[np.ndarray, np.ndarray]:
+             roof: str | None = None, wind=None, temp=None, inj_h=None, inj_a=None) -> tuple[np.ndarray, np.ndarray]:
+    """inj_h / inj_a: missing starter-equivalents per injury group for each side (zeros = full strength)."""
     h = 0.0 if neutral else 1.0
     sh, sa = side(R, home, away, h), side(R, away, home, 0.0)
     # a QB change moves passing EPA; about 55% of plays are dropbacks
@@ -159,7 +164,11 @@ def features(R: Ratings, home: str, away: str, neutral: bool = False, qb_h: floa
     dome = 1.0 if str(roof) in ("dome", "closed") else 0.0
     wd = 0.0 if dome or wind is None or pd.isna(wind) else max(float(wind) - 10.0, 0.0)
     cold = 0.0 if dome or temp is None or pd.isna(temp) else max(40.0 - float(temp), 0.0)
-    xm = np.r_[1.0, h, sh - sa]
+    # injuries: one number per side, missing non-QB starters (backtest: splitting by position group overfit,
+    # and injuries did not improve totals, so they only move the margin)
+    ih = 0.0 if inj_h is None else float(np.sum(inj_h))
+    ia = 0.0 if inj_a is None else float(np.sum(inj_a))
+    xm = np.r_[1.0, h, sh - sa, ih - ia]
     xt = np.r_[1.0, sh + sa, dome, wd, cold]
     return xm, xt
 

@@ -5,13 +5,18 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+from . import injuries as I
 from . import model as M
 
 FIRST_FEATURE_SEASON = 2019
 
 
-def build_features(sched, tg, qb, cfg: M.Config, seasons=None, log=print) -> pd.DataFrame:
+def build_features(sched, tg, qb, cfg: M.Config, seasons=None, log=print, snaps=None, inj=None) -> pd.DataFrame:
     rows = M.team_rows(tg, sched)
+    use_inj = cfg.injuries and snaps is not None and inj is not None and len(snaps)
+    if use_inj:
+        S = I.prep_snaps(snaps, sched)
+        REP = I.history_reports(inj).groupby(["season", "week", "team"])
     g = sched[(sched.season >= FIRST_FEATURE_SEASON) & sched.game_type.notna()].copy()
     if seasons is not None:
         g = g[g.season.isin(seasons)]
@@ -25,11 +30,19 @@ def build_features(sched, tg, qb, cfg: M.Config, seasons=None, log=print) -> pd.
         for x in wk.itertuples():
             qh, _ = M.qb_adjust(qb, lv, x.home_team, getattr(x, "home_qb_name", None), asof, cfg)
             qa, _ = M.qb_adjust(qb, lv, x.away_team, getattr(x, "away_qb_name", None), asof, cfg)
-            xm, xt = M.features(R, x.home_team, x.away_team, x.location == "Neutral", qh, qa, x.roof, x.wind, x.temp)
+            ih = ia = None
+            if use_inj:
+                vec = []
+                for t in (x.home_team, x.away_team):
+                    key = (season, week, t)
+                    rep = REP.get_group(key) if key in REP.groups else None
+                    vec.append(I.vector(I.missing(I.regulars(S, t, asof), rep)[0]))
+                ih, ia = vec
+            xm, xt = M.features(R, x.home_team, x.away_team, x.location == "Neutral", qh, qa, x.roof, x.wind, x.temp, ih, ia)
             out.append(dict(game_id=x.game_id, season=season, week=week, gameday=x.gameday, home=x.home_team,
                             away=x.away_team, result=x.result, total=x.total, spread_line=x.spread_line,
                             total_line=x.total_line, home_ml=x.home_moneyline, away_ml=x.away_moneyline,
-                            qb_h=qh, qb_a=qa, xm=xm, xt=xt))
+                            qb_h=qh, qb_a=qa, xm=xm, xt=xt, inj_h=ih, inj_a=ia))
         log(f"  {season} wk {week}: {len(wk)} games") if week == 1 else None
     return pd.DataFrame(out)
 
@@ -65,7 +78,7 @@ def run(sched, tg, qb, cfg: M.Config, test_seasons=range(2021, 2027), F=None, lo
         train, test = F[F.season < s], F[(F.season == s) & F.result.notna()]
         if train.empty or test.empty:
             continue
-        c = fit_mapping(train, M.Config(**{k: getattr(cfg, k) for k in ("half_life", "ridge", "qb_weight", "qb_shrink")}))
+        c = fit_mapping(train, M.Config(**{k: getattr(cfg, k) for k in ("half_life", "ridge", "qb_weight", "qb_shrink", "injuries")}))
         for x in test.itertuples():
             mm, tm = float(x.xm @ c.coef_m), float(x.xt @ c.coef_t)
             p = M.price_game(mm, tm, c, x.spread_line, x.total_line)

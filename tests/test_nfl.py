@@ -112,3 +112,44 @@ def test_week_games_picks_the_week_still_being_played():
                           result=[3.0, np.nan, np.nan]))
     w = week_games(s, pd.Timestamp("2026-10-02 12:00", tz="America/New_York"))
     assert list(w.game_id) == ["a", "b"]
+
+
+def test_injured_starters_count_by_snap_share_and_status():
+    from nflmodel import injuries as I
+    sched = pd.DataFrame(dict(game_id=[f"g{i}" for i in range(4)], gameday=pd.date_range("2026-09-07", periods=4, freq="7D")))
+    rows = []
+    for gid in sched.game_id:
+        rows += [dict(game_id=gid, team="KC", player="Star Receiver", position="WR", offense_pct=0.9, defense_pct=0.0),
+                 dict(game_id=gid, team="KC", player="Depth Guy", position="WR", offense_pct=0.2, defense_pct=0.0),
+                 dict(game_id=gid, team="KC", player="Top Corner Jr.", position="CB", offense_pct=0.0, defense_pct=1.0)]
+    S = I.prep_snaps(pd.DataFrame(rows), sched)
+    regs = I.regulars(S, "KC", "2026-10-05")
+    assert set(regs.index) == {"star receiver", "top corner"}
+    rep = pd.DataFrame(dict(key=["star receiver", "top corner", "depth guy"], status=["Out", "Questionable", "Out"], pos=["WR", "CB", "WR"]))
+    miss, det = I.missing(regs, rep)
+    assert abs(miss["REC"] - 0.9) < 1e-9 and abs(miss["DB"] - 0.25) < 1e-9
+    assert [d["name"] for d in det] == ["Star Receiver", "Top Corner Jr."]
+
+
+def test_espn_injury_parsing(monkeypatch):
+    from nflmodel import injuries as I
+
+    class R:
+        def raise_for_status(self): pass
+        def json(self):
+            return {"injuries": [{"displayName": "Los Angeles Rams", "injuries": [
+                {"status": "Out", "athlete": {"displayName": "Puka Nacua", "position": {"abbreviation": "WR"}},
+                 "details": {"type": "Ankle"}}]}]}
+    monkeypatch.setattr(I.requests, "get", lambda *a, **k: R())
+    d = I.fetch_espn(log=lambda *a: None)
+    assert d.iloc[0].team == "LA" and d.iloc[0].key == "puka nacua" and d.iloc[0].status == "Out"
+
+
+def test_ruled_out_qb_is_replaced_by_backup():
+    from nflmodel.daily import qb_starter
+    qb = pd.DataFrame(dict(team=["KC"] * 3, name=["P.Mahomes", "G.Minshew", "P.Mahomes"], dropbacks=[40, 12, 38],
+                           date=pd.to_datetime(["2026-09-14", "2026-09-14", "2026-09-21"])))
+    rep = pd.DataFrame(dict(key=["patrick mahomes"], status=["Out"]))
+    name, note = qb_starter(qb, "KC", "Patrick Mahomes", rep, "2026-10-01")
+    assert name == "G.Minshew" and "Out" in note
+    assert qb_starter(qb, "KC", "Patrick Mahomes", rep.assign(status="Questionable"), "2026-10-01")[0] == "Patrick Mahomes"
