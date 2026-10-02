@@ -349,8 +349,8 @@ def cmd_slate(a):
     if mode == "1":
         odds = odds_api.fetch(sched, roster if len(roster) else lineups, "bet", props=not a.no_props)
     elif mode == "lean" and os.environ.get("ODDS_PULL") == "1" and not upcoming:
-        # DraftKings game lines only: one call, 3 credits
-        odds = odds_api.fetch(sched, lineups, "bet", bookmakers="draftkings", game_only=True)
+        # one sportsbook's game lines only (Caesars by default): one call, 3 credits
+        odds = odds_api.fetch(sched, lineups, "bet", bookmakers=os.environ.get("ODDS_BOOK", "williamhill_us"), game_only=True)
         if len(odds) and os.environ.get("ODDS_CLOSE") == "1":
             # the evening pull is the closing line for games starting within the next ~2 hours
             st = pd.to_datetime(sched.start_utc, utc=True)
@@ -359,13 +359,14 @@ def cmd_slate(a):
             odds = pd.concat([odds, close], ignore_index=True)
     hist = _read(os.path.join(site, "odds_history.csv.gz"))
     if not len(odds) and mode == "lean" and len(hist):
-        # between pulls: reuse today's latest DraftKings prices
+        # between pulls: reuse today's latest prices from the chosen book
         h = hist[(pd.to_datetime(hist.date.astype(str), format="mixed").dt.normalize() == date)
-                 & (hist.snapshot == "bet") & hist.game_id.isin(sched.game_id)]
+                 & (hist.snapshot == "bet") & hist.game_id.isin(sched.game_id)
+                 & (hist.book == os.environ.get("ODDS_BOOK", "williamhill_us"))]
         if len(h):
             odds = h.sort_values("fetched_at").drop_duplicates(
                 ["game_id", "market", "player_id", "selection", "line", "book"], keep="last")
-            print(f"reusing {len(odds)} DraftKings prices from {odds.fetched_at.max()}")
+            print(f"reusing {len(odds)} {os.environ.get('ODDS_BOOK', 'williamhill_us')} prices from {odds.fetched_at.max()}")
     elif len(odds):
         hist = _append_odds(hist, odds)
         hist.to_csv(os.path.join(site, "odds_history.csv.gz"), index=False, compression="gzip")

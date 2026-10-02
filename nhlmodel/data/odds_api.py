@@ -117,7 +117,7 @@ def parse_event(ev: dict, schedule: pd.DataFrame, name_to_id: dict, snapshot: st
 def fetch(schedule: pd.DataFrame, lineups: pd.DataFrame, snapshot: str, api_key: str | None = None,
           regions: str = "us", props: bool = True, game_ids: set | None = None, log=print,
           bookmakers: str | None = None, game_only: bool = False) -> pd.DataFrame:
-    """game_only + bookmakers='draftkings' is the lean mode: one /odds call, 3 credits."""
+    """game_only + bookmakers='williamhill_us' (Caesars) is the lean mode: one /odds call, 3 credits."""
     import requests
     key = api_key or os.environ.get("ODDS_API_KEY")
     if not key:

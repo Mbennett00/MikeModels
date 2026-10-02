@@ -310,6 +310,9 @@ const decimal = o => 1 + (o > 0 ? o / 100 : 100 / -o);
 const UNIT = {sog: "shots", goals: "goals", assists: "assists", points: "points"};
 const MNAME = {goals: "Anytime goal", sog: "Shots on goal", assists: "Assists", points: "Points", moneyline: "Moneyline",
                puckline: "Puck line", total: "Total goals", team_total: "Team total", p1_total: "1st period total", p1_3way: "1st period winner"};
+const BOOK = () => (TODAY && TODAY.meta && TODAY.meta.book) || "Caesars";      // sportsbook you compare against
+const BOOKS = () => BOOK() + (BOOK().endsWith("s") ? "'" : "'s");   // possessive: Caesars' / DraftKings'
+const BK = () => (TODAY && TODAY.meta && TODAY.meta.book_short) || "CZR";
 let D = null, TODAY = null, PREV = null, TAB = "games", PSTATE = {q: "", game: "all", market: "sog"};
 let LIVE = {};   // game_id -> live/final info from ESPN (scores, clock, player box score)
 const OPEN = new Set();   // game cards with "More" expanded
@@ -490,20 +493,20 @@ function check() {
     const ln = Number(C.line ?? (market === "sog" ? 2.5 : 0.5));
     if (pl) { const po = propProb(pl, market, ln); p = po == null ? null : (C.dir === "over" ? po : 1 - po); label = `${pl.name}: ${C.dir} ${ln} ${UNIT[market]}`; }
   }
-  form += `<label class="f">DraftKings odds</label><input id="co" inputmode="text" placeholder="e.g. +140 or -115" value="${esc(C.odds)}">`;
+  form += `<label class="f">${BOOK()} odds</label><input id="co" inputmode="text" placeholder="e.g. +140 or -115" value="${esc(C.odds)}">`;
   let out = "";
   const o = parseFloat(String(C.odds).replace(/\s/g, ""));
   if (p == null || isNaN(p)) out = empty("🤔", "Can't price that one", "");
-  else if (!isFinite(o) || Math.abs(o) < 100) out = `<div class="card"><div class="vline">${esc(label)}</div><div class="vline">Our chance: <b>${pct(p)}</b> · fair price <b>${am(fair(p))}</b> · bet at <b>${betAt(p - thr(market))}</b> or better</div><div class="vline">Type DraftKings’ odds above to check it.</div></div>`;
+  else if (!isFinite(o) || Math.abs(o) < 100) out = `<div class="card"><div class="vline">${esc(label)}</div><div class="vline">Our chance: <b>${pct(p)}</b> · fair price <b>${am(fair(p))}</b> · bet at <b>${betAt(p - thr(market))}</b> or better</div><div class="vline">Type ${BOOK()}’ odds above to check it.</div></div>`;
   else {
     const cut = UNIT[market] ? 0.08 : 0.045, book = implied(o) / (1 + cut / 2), edge = p - book, ev = p * (decimal(o) - 1) * 100 - (1 - p) * 100;
     const [cls, v] = edge >= thr(market) ? ["good", "✅ Bet it"] : edge > 0 ? ["meh", "🤏 Small edge. Pass or bet small"] : ["bad", "❌ Pass"];
     out = `<div class="card"><div class="verdict ${cls}">${v}</div><div class="vline">${esc(label)} at <b>${am(o)}</b></div>
       <div class="vs"><div class="row"><span class="lab">Model</span><div class="bar"><div style="width:${100 * p}%;background:var(--green)"></div></div><span class="num">${pct(p)}</span></div>
-      <div class="row"><span class="lab">DK</span><div class="bar"><div style="width:${100 * book}%;background:var(--muted)"></div></div><span class="num">${pct(book)}</span></div></div>
+      <div class="row"><span class="lab">${BK()}</span><div class="bar"><div style="width:${100 * book}%;background:var(--muted)"></div></div><span class="num">${pct(book)}</span></div></div>
       <div class="vline">Edge <b>${(100 * edge >= 0 ? "+" : "") + (100 * edge).toFixed(1)} pts</b> · expected profit <b>${ev >= 0 ? "+" : "−"}$${Math.abs(ev).toFixed(2)}</b> per $100</div>
       <div class="vline">Fair price <b>${am(fair(p))}</b> · bet at <b>${betAt(p - thr(market))}</b> or better</div></div>
-      <div class="note">DK’s chance removes its usual cut (about 4.5% on game lines, 8% on props).</div>`;
+      <div class="note">${BOOKS()} chance removes its usual cut (about 4.5% on game lines, 8% on props).</div>`;
   }
   return `<div class="note">For lines that aren't on the board (say a 7.5 total or 3.5 points). Tip: everything else, just tap the price.</div><div class="card soft">${form}</div><div id="cout">${out}</div>`;
 }
@@ -575,7 +578,7 @@ function tile(g, label, market, sel, line) {
   const i = bet({g, market, sel, line, label, p, dk});
   return `<button class="tile ${cls} ${val ? "val" : ""}" data-bet="${i}"><span class="l">${ic ? ic + " " : ""}${esc(label)}</span>
     <span class="v"><span class="c">${pct(p)}</span><span class="b">${betAt(p - thr(market))}</span></span>
-    ${dk ? `<span class="dk">DK ${am(dk.price)}${dk.edge != null ? ` · <b class="${dk.edge >= 0 ? "pos" : "neg"}">${dk.edge >= 0 ? "+" : "−"}${Math.abs(100 * dk.edge).toFixed(1)}%</b>` : ""}${val ? " 💰" : ""}</span>` : ""}</button>`;
+    ${dk ? `<span class="dk">${BK()} ${am(dk.price)}${dk.edge != null ? ` · <b class="${dk.edge >= 0 ? "pos" : "neg"}">${dk.edge >= 0 ? "+" : "−"}${Math.abs(100 * dk.edge).toFixed(1)}%</b>` : ""}${val ? " 💰" : ""}</span>` : ""}</button>`;
 }
 function gameCard(g) {
   const a = g.away, h = g.home, ph = gameProb(g, "moneyline", "home"), L = LIVE[g.game_id] || {}, on = L.state === "in" || L.state === "post";
@@ -703,7 +706,7 @@ function record() {
   return `<div class="note">🏁 The model's favourite won <b>${fw} of ${fin.length}</b> finished games. ✅ won · ❌ lost · ➖ push</div>`;
 }
 // ---------- model likes: the strongest opinions on the slate ----------
-let LIKE = "value";   // falls back to anytime goal when there are no DraftKings prices
+let LIKE = "value";   // falls back to anytime goal when there are no sportsbook prices
 const LIKE_CATS = [["value", "💰 Best value"], ["goals", "🚨 Anytime goal"], ["win", "🏆 To win"], ["totals", "📊 Totals"], ["sog", "🎯 Shots"], ["points", "⭐ Points"]];
 function likeRows() {
   const out = [], gname = g => `${g.away.abbr} @ ${g.home.abbr}`;
@@ -713,7 +716,7 @@ function likeRows() {
       const t = x.s === "home" ? g.home : x.s === "away" ? g.away : null;
       const lab = x.m === "moneyline" ? `${t.name} to win` : x.m === "puckline" ? `${t.abbr} ${x.l > 0 ? "+" : ""}${x.l}` : `${x.s === "over" ? "Over" : "Under"} ${x.l}`;
       const p = gameProb(g, x.m, x.s, x.l);
-      out.push({p, edge: x.edge, label: lab, sub: `${gname(g)} · DK ${am(x.price)} · edge ${x.edge >= 0 ? "+" : "−"}${Math.abs(100 * x.edge).toFixed(1)}%`,
+      out.push({p, edge: x.edge, label: lab, sub: `${gname(g)} · ${BK()} ${am(x.price)} · edge ${x.edge >= 0 ? "+" : "−"}${Math.abs(100 * x.edge).toFixed(1)}%`,
                 b: {g, market: x.m, sel: x.s, line: x.l, label: `${gname(g)}: ${lab}`, dk: x}}); }
     return out.sort((a, b) => b.edge - a.edge).slice(0, 5);
   } else if (LIKE === "win") {
@@ -746,12 +749,12 @@ function likesHtml() {
       <span class="lk-p"><b>${pct(r.p)}</b><span>bet at ${betAt(r.p - thr(mk))}</span></span></button>`; }).join("");
   return `<div class="card likes"><div class="lk-h"><span>⭐ Model likes tonight</span></div>
     <div class="strip" style="padding:0;margin:8px 0 6px">${cats.map(([k, n]) => `<button class="chip ${LIKE === k ? "on" : ""}" data-like="${k}">${n}</button>`).join("")}</div>
-    ${rows}<div class="lk-note">${LIKE === "value" ? "Biggest edges vs DraftKings' last pulled price (model chance minus DK's no-vig chance). Lines move: tap to re-check the current price."
-      : "Highest chances on the slate, not guaranteed value: a big favourite can still be a bad price. Tap one to check DraftKings' odds."}</div></div>`;
+    ${rows}<div class="lk-note">${LIKE === "value" ? `Biggest edges vs ${BOOKS()} last pulled price (model chance minus ${BOOKS()} no-vig chance). Lines move: tap to re-check the current price.`
+      : `Highest chances on the slate, not guaranteed value: a big favourite can still be a bad price. Tap one to check ${BOOKS()} odds.`}</div></div>`;
 }
 function games() {
   if (!D.games.length) return empty("🧊", "No games on the board", "Check back on the next game day.");
-  return likesHtml() + record() + `<div class="note">👆 Tap any price to check DraftKings' odds.</div>` + D.games.map(gameCard).join("");
+  return likesHtml() + record() + `<div class="note">👆 Tap any price to check ${BOOK()}' odds.</div>` + D.games.map(gameCard).join("");
 }
 
 const LINES = {sog: [1.5, 2.5, 3.5, 4.5], goals: [0.5], points: [0.5, 1.5], assists: [0.5]};
@@ -836,7 +839,7 @@ function openPlayer(id) {
       <div class="sh-s">${esc(p.team)}${where ? " · " + esc(where) : ""} · ${esc(g ? gameLabel(g) : "")}${p.confirmed ? "" : " · projected lineup"}</div></div></div>
     <div class="plh"><span></span><span>Chance</span><span>Bet at</span></div>
     ${["sog", "goals", "points", "assists"].map(sec).join("")}
-    <div class="hint">Tap a line to check it against DraftKings.</div>`;
+    <div class="hint">Tap a line to check it against ${BOOK()}.</div>`;
   $("#shx").onclick = closeSheet;
   $("#sheet").querySelectorAll("[data-pb]").forEach(el => el.onclick = () => openSheet(PB[Number(el.dataset.pb)]));
   $("#scrim").classList.add("open"); $("#sheet").classList.add("open");
@@ -878,7 +881,7 @@ function verdictHtml(p, market, o) {
   const cut = UNIT[market] ? 0.08 : 0.045, book = implied(o) / (1 + cut / 2), edge = p - book, ev = p * (decimal(o) - 1) * 100 - (1 - p) * 100;
   const [cls, v] = edge >= thr(market) ? ["good", "✅ Bet it"] : edge > 0 ? ["meh", "🤏 Small edge, pass or bet small"] : ["bad", "❌ Pass"];
   return `<div class="verdict ${cls}"><div class="h">${v}</div>
-    <div class="d">Model ${pct(p)} vs DraftKings ${pct(book)} · edge ${(100 * edge >= 0 ? "+" : "") + (100 * edge).toFixed(1)} pts · ${ev >= 0 ? "+" : "−"}$${Math.abs(ev).toFixed(2)} per $100</div></div>`;
+    <div class="d">Model ${pct(p)} vs ${BOOK()} ${pct(book)} · edge ${(100 * edge >= 0 ? "+" : "") + (100 * edge).toFixed(1)} pts · ${ev >= 0 ? "+" : "−"}$${Math.abs(ev).toFixed(2)} per $100</div></div>`;
 }
 function drawSheet() {
   if (!SH) return;
@@ -889,10 +892,10 @@ function drawSheet() {
     <div class="kpis"><div class="kpi"><div class="k">Chance</div><div class="n">${pct(b.p)}</div></div>
       <div class="kpi"><div class="k">Fair</div><div class="n">${am(fair(b.p))}</div></div>
       <div class="kpi g"><div class="k">Bet at</div><div class="n">${betAt(b.p - thr(b.market))}</div></div></div>
-    <div class="sh-s" style="margin-bottom:6px">DraftKings odds</div>
+    <div class="sh-s" style="margin-bottom:6px">${BOOK()} odds</div>
     <div class="oddsrow"><div class="sign"><button data-s="1" class="${SH.sign > 0 ? "on" : ""}">+</button><button data-s="-1" class="${SH.sign < 0 ? "on" : ""}">−</button></div>
       <input class="odds" id="odds" inputmode="numeric" pattern="[0-9]*" placeholder="${Math.abs(Math.round(fair(b.p - thr(b.market)))) || 110}" value="${esc(SH.num)}"></div>
-    <div id="vd">${isFinite(o) && Math.abs(o) >= 100 ? verdictHtml(b.p, b.market, o) : `<div class="hint">Type the price from DraftKings to see if it's worth it. Anything at or better than the green “bet at” price is a bet.</div>`}</div>`;
+    <div id="vd">${isFinite(o) && Math.abs(o) >= 100 ? verdictHtml(b.p, b.market, o) : `<div class="hint">Type the price from ${BOOK()} to see if it's worth it. Anything at or better than the green “bet at” price is a bet.</div>`}</div>`;
   $("#shx").onclick = closeSheet;
   $("#sheet").querySelectorAll("[data-s]").forEach(x => x.onclick = () => { SH.sign = Number(x.dataset.s); drawSheet(); $("#odds").focus(); });
   $("#odds").oninput = e => { SH.num = e.target.value.replace(/[^0-9]/g, ""); const o2 = SH.sign * Number(SH.num);
@@ -903,7 +906,7 @@ function openInfo() {
     return `<div class="trust"><span>${esc(MNAME[r.market] || r.market)}</span><span>${i} ${l}</span></div>`; }).join("");
   $("#sheet").innerHTML = `<div class="grab"></div><button class="iconbtn close" id="shx" aria-label="Close">✕</button>
     <div class="sh-t">How it works</div>
-    <div class="hint" style="font-size:14.5px">Every price shows the model's <b>chance</b> and a green <b>bet at</b> price: the worst DraftKings odds that still leave an edge. Tap a price, type DK's odds, and you'll get a verdict. Lineups and goalies come from Daily Faceoff (🟢 confirmed, 🟡 likely); scores from ESPN.</div>
+    <div class="hint" style="font-size:14.5px">Every price shows the model's <b>chance</b> and a green <b>bet at</b> price: the worst ${BOOK()} odds that still leave an edge. Tap a price, type ${BOOKS()} odds, and you'll get a verdict. Lineups and goalies come from Daily Faceoff (🟢 confirmed, 🟡 likely); scores from ESPN.</div>
     ${rows ? `<div class="sec">How much to trust each market</div>${rows}` : ""}`;
   $("#shx").onclick = closeSheet;
   $("#scrim").classList.add("open"); $("#sheet").classList.add("open");

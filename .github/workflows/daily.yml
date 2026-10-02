@@ -34,9 +34,12 @@ jobs:
       web: ${{ steps.web.outputs.web }}
     env:
       GH_TOKEN: ${{ github.token }}
-      # DraftKings game lines from the-odds-api.com, pulled at the ~11am and ~6:40pm ET runs only
+      # One sportsbook's game lines from the-odds-api.com, pulled at the ~11am and ~6:40pm ET runs only
       # (3 credits each); other runs reuse the latest prices. "0" = no feed, "1" = full feed incl. props.
-      ODDS_ENABLED: "lean"   # DraftKings game lines, 2 pulls a day (~180 credits / month)
+      ODDS_ENABLED: "lean"   # game lines, 2 pulls a day (~180 credits / month)
+      ODDS_BOOK: williamhill_us     # Caesars (The Odds API key); e.g. draftkings, fanduel, betmgm
+      ODDS_BOOK_NAME: Caesars
+      ODDS_BOOK_SHORT: CZR
       ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
       PYTHONUNBUFFERED: "1"
     steps:

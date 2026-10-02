@@ -116,7 +116,8 @@ def build(state, plays: pd.DataFrame, meta: dict, news: dict | None, images: dic
         meta=dict(date=meta.get("date"), upcoming=bool(meta.get("upcoming")), generated_at=meta.get("generated_at"),
                   games=len(games), goalies_confirmed=int(sum(g[s]["goalie_confirmed"] for g in games
                                                               for s in ("home", "away"))),
-                  teams=2 * len(games), constants=meta.get("constants", "")),
+                  teams=2 * len(games), constants=meta.get("constants", ""),
+                  book=os.environ.get("ODDS_BOOK_NAME", "Caesars"), book_short=os.environ.get("ODDS_BOOK_SHORT", "CZR")),
         params=dict(r_sog=P.nb_r.get("sog", {}), r_ast=P.count_r.get("assists", 1e6),
                     r_pts=P.count_r.get("points", 1e6), thresholds=state.cfg.edge_threshold),
         games=games, players=players, lines=lines, trust=_trust(market_summary),
