@@ -345,19 +345,34 @@ def cmd_slate(a):
         json.dump(dict(injuries=inj, goalies=gl, fetched_at=pd.Timestamp.now(tz=ET).isoformat()),
                   open(os.path.join(site, "news.json"), "w"), indent=1)
     mode = os.environ.get("ODDS_ENABLED", "0")
+    book = os.environ.get("ODDS_BOOK", "williamhill_us")
     odds = pd.DataFrame()
+    hist = _read(os.path.join(site, "odds_history.csv.gz"))
     if mode == "1":
         odds = odds_api.fetch(sched, roster if len(roster) else lineups, "bet", props=not a.no_props)
-    elif mode == "lean" and os.environ.get("ODDS_PULL") == "1" and not upcoming:
-        # one sportsbook's game lines only (Caesars by default): one call, 3 credits
-        odds = odds_api.fetch(sched, lineups, "bet", bookmakers=os.environ.get("ODDS_BOOK", "williamhill_us"), game_only=True)
-        if len(odds) and os.environ.get("ODDS_CLOSE") == "1":
-            # the evening pull is the closing line for games starting within the next ~2 hours
-            st = pd.to_datetime(sched.start_utc, utc=True)
-            soon = set(sched[st <= pd.Timestamp.now(tz="UTC") + pd.Timedelta(hours=2)].game_id)
-            close = odds[odds.game_id.isin(soon)].assign(snapshot="close")
-            odds = pd.concat([odds, close], ignore_index=True)
-    hist = _read(os.path.join(site, "odds_history.csv.gz"))
+    elif mode == "lean" and not upcoming:
+        now_et = pd.Timestamp.now(tz=ET)
+        pf = os.path.join(site, "odds_pulls.json")
+        try:
+            pulls = json.load(open(pf)) if os.path.exists(pf) else {}
+        except ValueError:
+            pulls = {}
+        tried = pulls.get(str(now_et.date()), [])
+        window = lean_pull_window(now_et, hist, book, force=os.environ.get("ODDS_PULL") == "1", tried=tried)
+        if window:
+            pulls = {str(now_et.date()): tried + [window]}      # one attempt per window, even if empty
+            json.dump(pulls, open(pf, "w"))
+            # one sportsbook's game lines only (Caesars by default): one call, 3 credits
+            print(f"odds pull ({window})")
+            odds = odds_api.fetch(sched, lineups, "bet", bookmakers=book, game_only=True)
+            if len(odds) and window == "evening":
+                # closing line for games that have not started and start within ~2.5 hours
+                now = pd.Timestamp.now(tz="UTC")
+                st = pd.to_datetime(sched.start_utc, utc=True)
+                soon = set(sched[(st > now) & (st <= now + pd.Timedelta(hours=2.5))].game_id)
+                odds = pd.concat([odds, odds[odds.game_id.isin(soon)].assign(snapshot="close")], ignore_index=True)
+        else:
+            print("odds: outside a pull window or already pulled; reusing today's prices")
     if not len(odds) and mode == "lean" and len(hist):
         # between pulls: reuse today's latest prices from the chosen book
         h = hist[(pd.to_datetime(hist.date.astype(str), format="mixed").dt.normalize() == date)
@@ -446,6 +461,27 @@ def _publish_web(site, state, plays, meta):
             shutil.copy(prev, os.path.join(out, "prev.json"))
     except Exception as e:
         print(f"web page build failed: {e}")
+
+
+def lean_pull_window(now_et: pd.Timestamp, hist: pd.DataFrame, book: str, force: bool = False, tried=()):
+    """Which pull this run should make: 'morning', 'evening', 'manual' or None.
+
+    Scheduled GitHub runs can start hours late, so pulls go by the clock rather than the cron slot:
+    the first run after 10:30 ET pulls morning lines, the first run between 17:45 and 20:00 ET pulls
+    pre-game lines; each window pulls once a day (checked against odds_history)."""
+    if force:
+        return "manual"
+    t = now_et.hour + now_et.minute / 60
+    win = "morning" if 10.5 <= t < 17.75 else "evening" if 17.75 <= t < 20.0 else None
+    if win is None or win in tried:
+        return None
+    if len(hist) and "fetched_at" in hist:
+        f = pd.to_datetime(hist.fetched_at, utc=True, errors="coerce").dt.tz_convert(ET)
+        mine = f[(hist.book == book) & (f.dt.normalize() == now_et.normalize())]
+        start = now_et.normalize() + pd.Timedelta(hours=10.5 if win == "morning" else 17.75)
+        if (mine >= start).any():
+            return None
+    return win
 
 
 def _append_odds(hist: pd.DataFrame, new: pd.DataFrame) -> pd.DataFrame:

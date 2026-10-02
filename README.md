@@ -28,7 +28,8 @@ One-time setup: repo **Settings → Pages → Build and deployment → Source: G
 same release files but is no longer needed.
 
 **Caesars game lines (lean mode, default).** `ODDS_ENABLED: "lean"` pulls one book's moneyline (`ODDS_BOOK`, Caesars = `williamhill_us`),
-puck line and totals in one Odds API call (3 credits) at the ~11am and ~6:40pm ET runs only, about 180
+puck line and totals in one Odds API call (3 credits), once after 10:30am and once between 5:45 and 8pm ET (by the clock,
+since scheduled GitHub runs can start hours late; one attempt per window), about 180
 credits a month; the evening pull also records the closing line for games starting within two hours
 (CLV in the track record). Other runs reuse the day's latest prices. Needs the repo secret
 `ODDS_API_KEY`; without it the page works as before. Game tiles show the book's price and the edge, and Model
