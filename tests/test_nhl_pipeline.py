@@ -141,3 +141,29 @@ def test_lean_odds_mode_is_one_book_call(monkeypatch):
     assert calls[0][1]["bookmakers"] == "williamhill_us" and "regions" not in calls[0][1]
     assert calls[0][1]["markets"] == "h2h,spreads,totals"    # 3 credits
     assert set(out.selection) == {"home", "away"} and set(out.book) == {"williamhill_us"}
+
+
+def test_book_match_finds_caesars_by_name_whatever_its_key(monkeypatch):
+    import pandas as pd
+    import requests
+    from nhlmodel.data import odds_api
+
+    class R:
+        status_code = 200
+        headers = {"x-requests-remaining": "480"}
+        def raise_for_status(self): pass
+        def json(self):
+            h2h = lambda a, b: [dict(key="h2h", outcomes=[dict(name="Toronto Maple Leafs", price=a),
+                                                           dict(name="New York Islanders", price=b)])]
+            return [dict(id="e1", home_team="Toronto Maple Leafs", away_team="New York Islanders",
+                         commence_time="2026-10-02T23:00:00Z",
+                         bookmakers=[dict(key="draftkings", title="DraftKings", markets=h2h(-130, 110)),
+                                     dict(key="caesars", title="Caesars", markets=h2h(-125, 105))])]
+
+    calls = []
+    monkeypatch.setattr(requests, "get", lambda url, params=None, timeout=None: calls.append(params) or R())
+    sched = pd.DataFrame(dict(game_id=[1], home=["TOR"], away=["NYI"], date=[pd.Timestamp("2026-10-02")]))
+    out = odds_api.fetch(sched, pd.DataFrame(columns=["player_id", "name"]), "bet", api_key="k", regions="us",
+                         game_only=True, book_match=("williamhill_us", "Caesars"))
+    assert len(calls) == 1 and calls[0]["regions"] == "us"
+    assert set(out.book) == {"williamhill_us"} and sorted(out.price) == [-125, 105]   # Caesars only

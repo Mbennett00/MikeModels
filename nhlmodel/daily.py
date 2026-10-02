@@ -364,7 +364,9 @@ def cmd_slate(a):
             json.dump(pulls, open(pf, "w"))
             # one sportsbook's game lines only (Caesars by default): one call, 3 credits
             print(f"odds pull ({window})")
-            odds = odds_api.fetch(sched, lineups, "bet", bookmakers=book, game_only=True)
+            # all US books for the same 3 credits; keep the chosen one by key or name
+            odds = odds_api.fetch(sched, lineups, "bet", regions="us", game_only=True,
+                                  book_match=(book, os.environ.get("ODDS_BOOK_NAME", "")))
             if len(odds) and window == "evening":
                 # closing line for games that have not started and start within ~2.5 hours
                 now = pd.Timestamp.now(tz="UTC")
@@ -377,7 +379,7 @@ def cmd_slate(a):
         # between pulls: reuse today's latest prices from the chosen book
         h = hist[(pd.to_datetime(hist.date.astype(str), format="mixed").dt.normalize() == date)
                  & (hist.snapshot == "bet") & hist.game_id.isin(sched.game_id)
-                 & (hist.book == os.environ.get("ODDS_BOOK", "williamhill_us"))]
+                 & (hist.book == book)]
         if len(h):
             odds = h.sort_values("fetched_at").drop_duplicates(
                 ["game_id", "market", "player_id", "selection", "line", "book"], keep="last")

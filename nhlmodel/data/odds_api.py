@@ -116,7 +116,7 @@ def parse_event(ev: dict, schedule: pd.DataFrame, name_to_id: dict, snapshot: st
 
 def fetch(schedule: pd.DataFrame, lineups: pd.DataFrame, snapshot: str, api_key: str | None = None,
           regions: str = "us", props: bool = True, game_ids: set | None = None, log=print,
-          bookmakers: str | None = None, game_only: bool = False) -> pd.DataFrame:
+          bookmakers: str | None = None, game_only: bool = False, book_match: tuple | None = None) -> pd.DataFrame:
     """game_only + bookmakers='williamhill_us' (Caesars) is the lean mode: one /odds call, 3 credits."""
     import requests
     key = api_key or os.environ.get("ODDS_API_KEY")
@@ -135,8 +135,18 @@ def fetch(schedule: pd.DataFrame, lineups: pd.DataFrame, snapshot: str, api_key:
     log(f"odds api: {r.headers.get('x-requests-remaining')} credits left")
     rows, missing = [], set()
     events = r.json()
+    seen = sorted({(b["key"], b.get("title", "")) for ev in events for b in ev.get("bookmakers", [])})
+    if book_match:
+        # keep one book, matched by API key or by name (keys differ by account/region, e.g. Caesars)
+        keys = {k.lower() for k in book_match if k}
+        names = [n.lower() for n in book_match if n]
+        def ok(b):
+            return b["key"].lower() in keys or any(n in b.get("title", "").lower() for n in names)
+        for ev in events:
+            ev["bookmakers"] = [b for b in ev.get("bookmakers", []) if ok(b)]
     with_book = sum(1 for ev in events if ev.get("bookmakers"))
-    log(f"odds api: {len(events)} NHL events returned, {with_book} with {bookmakers or regions} prices")
+    log(f"odds api: {len(events)} NHL events returned, {with_book} with prices from "
+        f"{book_match or bookmakers or regions}; books seen: {', '.join(f'{k} ({t})' for k, t in seen[:20])}")
     for ev in events:
         rr, mm = parse_event(ev, schedule, name_to_id, snapshot, now)
         rows += rr; missing |= mm
@@ -155,6 +165,8 @@ def fetch(schedule: pd.DataFrame, lineups: pd.DataFrame, snapshot: str, api_key:
     if missing:
         log(f"odds api: {len(missing)} player names not matched to lineups, e.g. {sorted(missing)[:5]}")
     out = pd.DataFrame(rows)
+    if book_match and len(out):
+        out["book"] = book_match[0]       # one label for the chosen book, whatever key the API used
     if game_ids is not None and len(out):
         out = out[out.game_id.isin(game_ids)]
     return out
