@@ -38,6 +38,9 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .hdr .sub { font-size: 13px; font-weight: 800; color: var(--ink-2); }
 .iconbtn { width: 40px; height: 40px; border-radius: 50%; border: 2.5px solid var(--navy); background: var(--cream);
            box-shadow: 2px 3px 0 var(--navy); font-size: 18px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+.sport { display: flex; border: 2.5px solid var(--navy); border-radius: 999px; background: var(--cream); box-shadow: 2px 3px 0 var(--navy); overflow: hidden; }
+.sport a { padding: 6px 10px; font-weight: 800; font-size: 13px; color: var(--navy); text-decoration: none; }
+.sport a.on { background: var(--navy); color: var(--cream); }
 .strip { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0 0 12px; padding: 2px 4px 4px; }
 .strip::-webkit-scrollbar { display: none; }
 .chip { flex: 0 0 auto; border: 2.5px solid var(--navy); border-radius: 999px; background: var(--cream); padding: 6px 12px;
@@ -289,6 +292,7 @@ label.f { display: block; font-size: 13px; font-weight: 800; color: var(--ink-2)
 <body>
 <div class="wrap">
   <div class="hdr"><img src="apple-touch-icon.png" alt=""><div class="t"><h1 id="title">Loading…</h1><div class="sub" id="sub">Warming up the Zamboni</div></div>
+    <div class="sport"><a class="on" href="index.html">🏒</a><a href="nfl.html">🏈</a></div>
     <button class="iconbtn" id="infoBtn" aria-label="How it works">?</button></div>
   <div class="strip" id="strip"></div>
   <div id="view"></div>

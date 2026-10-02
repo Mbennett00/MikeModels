@@ -59,6 +59,40 @@ Notes: the repository is public, so the release files (your plays) are public to
 private, make the repo private and add a read-only GitHub token as the Streamlit secret
 `GITHUB_TOKEN`. GitHub pauses scheduled workflows in a repo with no activity for 60 days.
 
+## NFL (🏈 tab: `nfl.html`, package `nflmodel/`)
+
+Same idea as the hockey side, rebuilt for football. The 🏒 / 🏈 switch at the top of the page flips between them;
+the NFL page has a turf background, team-colour game cards, a Teams power ranking and a Check calculator.
+
+- **Data**: nflverse play-by-play (2018 onward) and schedule (results, lines, projected starting QBs). Every run
+  re-downloads the schedule and the current season, so the page is as fresh as nflverse (they refresh overnight
+  after each game day). Finished seasons are kept as small per-game tables in `state/intermediate/nfl/`.
+- **Ratings**: for EPA per play, EPA per dropback and points, a weighted ridge regression
+  `y = mu + home + offense[team] + defense[opponent]` over past games (half-life 140 days, garbage time removed).
+- **Starting QB**: each QB's EPA per dropback (shrunk toward replacement); when the listed starter differs from the
+  team's usual QB play, the passing numbers move by the difference.
+- **Game expectation**: margin and total are linear in the two sides' ratings (plus dome / wind / cold for totals),
+  fitted on past seasons. The margin distribution is a discretised normal reweighted by key-number factors measured
+  on past finals (3, 7, 10, 6, 14 ...), re-centred to keep its mean. Moneyline, spread, total and alt lines come from it.
+- **Market**: one Odds API call a day (`americanfootball_nfl`, h2h + spreads + totals, all US books, 3 credits),
+  the first run after 10:30am ET. Consensus = the line most books hang and the median no-vig chance at that line;
+  Caesars' price is shown when it is in the feed. Until a pull exists, the nflverse posted lines are used.
+  Manual pull: run the workflow with task `nfl-odds`.
+- **Backtest** (walk-forward, 2021-2026 regular + post season, 1,473 games, vs **closing** lines):
+
+  | | model | closing line |
+  |---|---|---|
+  | Margin mean abs. error | 10.22 | 9.78 |
+  | Total mean abs. error | 10.54 | 10.34 |
+  | Against the spread (all games / model off by 3+) | 47.8% / 48.8% | – |
+  | Over/under (all games / off by 3+) | 51.2% / 48.5% | – |
+  | Moneyline Brier score | 0.2243 | 0.2123 |
+
+  Closing lines are sharper than a public-data team model, as expected. The page says so, the 💰 flag needs a 6-point
+  edge, and the model is best used to find numbers worth a look early in the week and to price alt lines.
+  Starting-QB adjustment: margin error 10.28 → 10.22. Half-life 90-300 days and ridge 3-12 all landed within 0.08.
+- **Next**: player props (anytime TD, receptions, yards) and a field formation view.
+
 ## Layout (one module per section of the spec)
 
 | Spec section | Module |

@@ -193,3 +193,8 @@ def _write(out_dir: str, data: dict):
                        icons=[dict(src="icon-192.png", sizes="192x192", type="image/png"),
                               dict(src="icon-512.png", sizes="512x512", type="image/png")]), f)
     open(os.path.join(out_dir, ".nojekyll"), "w").close()
+    try:   # the NFL page lives next to this one (🏒 / 🏈 switch); keep it when only the NHL side rebuilds
+        from nflmodel.daily import install_page
+        install_page(out_dir)
+    except Exception:
+        pass

@@ -17,7 +17,7 @@ on:
         description: "What to run"
         type: choice
         default: slate
-        options: [slate, slate-odds, morning, update, grade, backtest, close, tune, dfo-probe, xg-compare]
+        options: [slate, slate-odds, morning, update, grade, backtest, close, tune, dfo-probe, xg-compare, nfl-odds]
 
 permissions:
   contents: write
@@ -47,7 +47,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install "numpy>=1.26" "pandas>=2.1" "scipy>=1.11" "requests>=2.31"
+      - run: pip install "numpy>=1.26" "pandas>=2.1" "scipy>=1.11" "requests>=2.31" "pyarrow>=14"
       - name: Pick task
         id: pick
         run: |
@@ -58,6 +58,7 @@ jobs:
             *) t="${{ inputs.task }}" ;;
           esac
           if [ "$t" = "slate-odds" ]; then t=slate; echo "ODDS_PULL=1" >> "$GITHUB_ENV"; fi   # manual pull (3 credits)
+          if [ "$t" = "nfl-odds" ]; then t=slate; echo "NFL_ODDS_PULL=1" >> "$GITHUB_ENV"; fi   # manual NFL odds pull (3 credits)
           echo "task=$t" >> "$GITHUB_OUTPUT"
           # odds pulls go by the clock (see daily.lean_pull_window), since scheduled runs can start late
           echo "Task: $t"
@@ -74,6 +75,11 @@ jobs:
       - name: Run ${{ steps.pick.outputs.task }}
         if: steps.pick.outputs.task != 'morning'
         run: python -m nhlmodel.daily ${{ steps.pick.outputs.task }}
+      - name: NFL (nflverse refresh, ratings, this week's prices; one odds pull a day)
+        # every run: cheap (current-season play-by-play only), and an NFL failure never blocks the NHL page
+        if: always() && steps.pull.outcome == 'success'
+        continue-on-error: true
+        run: python -m nflmodel.daily
       - name: Upload state
         # also after a failure, so checkpointed games from a long first load are kept
         if: always() && steps.pull.outcome == 'success'
