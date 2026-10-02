@@ -135,6 +135,8 @@ def fetch(schedule: pd.DataFrame, lineups: pd.DataFrame, snapshot: str, api_key:
     log(f"odds api: {r.headers.get('x-requests-remaining')} credits left")
     rows, missing = [], set()
     events = r.json()
+    with_book = sum(1 for ev in events if ev.get("bookmakers"))
+    log(f"odds api: {len(events)} NHL events returned, {with_book} with {bookmakers or regions} prices")
     for ev in events:
         rr, mm = parse_event(ev, schedule, name_to_id, snapshot, now)
         rows += rr; missing |= mm
