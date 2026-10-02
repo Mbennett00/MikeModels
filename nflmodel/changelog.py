@@ -35,8 +35,19 @@ def snapshot(out: dict) -> dict:
             pts[t["abbr"]] = t.get("inj_pts")
     for t, r in (out.get("injuries") or {}).items():
         inj[t] = {p["name"]: [p["status"], p.get("pos"), p.get("pts")] for p in r.get("counted", []) + r.get("qbs", [])}
+    teams = {t: dict(net=v.get("net"), off=v.get("off"), dfn=v.get("dfn")) for t, v in (out.get("teams") or {}).items()}
     return dict(time=m["generated_at"], week=m.get("week"), data_through=m.get("data_through"), odds_at=m.get("odds_at"),
-                pps=m.get("pts_per_starter"), games=games, inj=inj, qbs=qbs, pts=pts)
+                pps=m.get("pts_per_starter"), games=games, inj=inj, qbs=qbs, pts=pts, model=m.get("model") or {},
+                recal=m.get("recal") or {}, record=m.get("record") or {}, teams=teams)
+
+
+PARAMS = [("hfa", "Home-field edge", lambda v: f"{v:.2f} pts", 0.05),
+          ("sd_margin", "Spread of final margins (SD)", lambda v: f"{v:.2f}", 0.05),
+          ("sd_total", "Spread of final totals (SD)", lambda v: f"{v:.2f}", 0.05),
+          ("league_total", "League scoring this season", lambda v: f"{v:.1f} pts/game", 0.3)]
+RECAL = {"rec": "Receptions", "rec_yds": "Receiving yards", "rush_yds": "Rushing yards", "pass_yds": "Passing yards",
+         "td": "Anytime TD"}
+PLAYS = 65   # offensive plays per game, to show EPA/play as points
 
 
 def diff(prev: dict | None, cur: dict) -> list[dict]:
@@ -53,6 +64,35 @@ def diff(prev: dict | None, cur: dict) -> list[dict]:
         add("line", "📊", "Market lines pulled (consensus across US books).")
     if cur.get("pps") and prev.get("pps") and abs(cur["pps"] - prev["pps"]) >= 0.02:
         add("model", "⚙️", f"Points per missing starter: {prev['pps']:.2f} → {cur['pps']:.2f}")
+    pm, cm = prev.get("model") or {}, cur.get("model") or {}
+    for key, label, fmt, tol in PARAMS:
+        a, b = pm.get(key), cm.get(key)
+        if a is not None and b is not None and abs(b - a) >= tol:
+            add("model", "⚙️", f"{label}: {fmt(a)} → {fmt(b)}")
+    for k, lab in RECAL.items():
+        a, b = (prev.get("recal") or {}).get(k), (cur.get("recal") or {}).get(k)
+        if b and (not a or abs(b["level"] - a["level"]) >= 0.005):
+            was = f"{a['level']:.3f}" if a else "1.000"
+            add("recal", "🎯", f"{lab} props recalibrated on this season's results: level {was} → {b['level']:.3f} "
+                               f"({b['n']} player-games, raw {b['raw']:.2f})")
+    moves = []
+    for t, c in (cur.get("teams") or {}).items():
+        p = (prev.get("teams") or {}).get(t)
+        if not p or c.get("net") is None or p.get("net") is None:
+            continue
+        d = (c["net"] - p["net"]) * PLAYS
+        if abs(d) >= 0.4:
+            moves.append((abs(d), f"{t} {'+' if d > 0 else '−'}{abs(d):.1f}"))
+    if moves:
+        moves.sort(reverse=True)
+        add("teams", "📈", "Biggest team-strength moves (pts/game): " + ", ".join(m for _, m in moves[:6]))
+    pr, cr = (prev.get("record") or {}).get("lean"), (cur.get("record") or {}).get("lean")
+    if cr and (cr["w"] + cr["l"] + cr["p"]) > ((pr["w"] + pr["l"] + pr["p"]) if pr else 0):
+        n0 = (pr["w"] + pr["l"] + pr["p"]) if pr else 0
+        dw, dl = cr["w"] - (pr["w"] if pr else 0), cr["l"] - (pr["l"] if pr else 0)
+        du = cr["units"] - (pr["units"] if pr else 0)
+        add("record", "🧾", f"Graded {cr['w'] + cr['l'] + cr['p'] - n0} model leans: {dw}-{dl} ({du:+.1f}u). "
+                            f"Season: {cr['w']}-{cr['l']}{'-' + str(cr['p']) if cr['p'] else ''} ({cr['units']:+.1f}u)")
     same_week = cur.get("week") == prev.get("week")
     for t, q in cur.get("qbs", {}).items():
         pq = prev.get("qbs", {}).get(t)

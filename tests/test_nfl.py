@@ -228,3 +228,41 @@ def test_nfl_changelog_lists_injury_qb_and_line_moves():
     assert {"injury", "qb", "line"} <= kinds
     assert any("Questionable → Out" in i["text"] for i in items)
     assert any("CHI -3.5 → CHI -5" in i["text"] for i in items)
+
+
+def test_props_recalibrate_shrinks_toward_one():
+    from nflmodel import props as PP
+    rng = np.random.default_rng(0)
+    n = 300
+    g = pd.DataFrame(dict(rec=np.full(n, 5.0), rec_yds=np.full(n, 60.0), rush_yds=np.nan, pass_yds=np.nan,
+                          p_td=np.full(n, 0.3), a_rec=rng.poisson(5.5, n), a_rec_yds=np.full(n, 66.0),
+                          a_rush_yds=np.nan, a_pass_yds=np.nan, a_td=(rng.random(n) < 0.3).astype(float)))
+    lv = PP.recalibrate(g)
+    assert 1.0 < lv["rec_yds"]["level"] < 1.1                  # raw 1.10, pulled toward 1 by the prior
+    assert abs(lv["rec_yds"]["raw"] - 1.1) < 1e-9 and lv["rec_yds"]["n"] == n
+    assert 0.85 <= lv["td"]["level"] <= 1.15
+    assert "rush_yds" not in lv                                # no data, no change
+
+
+def test_grade_record_counts_leans_and_flags():
+    from nflmodel.daily import grade_record
+    sched = pd.DataFrame(dict(game_id=["2026_04_A_B"], result=[7.0], total=[40.0]))
+    frozen = {"2026_04_A_B": dict(week=4, spread=3.5, total_line=44.5, bets=[
+        dict(m="spread", s="home", edge=0.07, price=-110),     # home -3.5, won by 7: win, flagged
+        dict(m="total", s="over", edge=0.04, price=-110),      # 40 < 44.5: loss, lean only
+        dict(m="ml", s="away", edge=0.01, price=150)])}        # below 3 points: ignored
+    r = grade_record(frozen, sched, 2026)
+    assert (r["lean"]["w"], r["lean"]["l"]) == (1, 1) and (r["flag"]["w"], r["flag"]["l"]) == (1, 0)
+    assert abs(r["lean"]["units"] - (100 / 110 - 1)) < 0.01
+
+
+def test_changelog_reports_model_recal_teams_and_record():
+    from nflmodel import changelog as CL
+    def snap(hfa, lvl, net, w):
+        return dict(time="t", week=4, data_through="2026-10-01", games={}, inj={}, qbs={}, pts={},
+                    model=dict(hfa=hfa, sd_margin=13.0, sd_total=13.3, league_total=44.0),
+                    recal={"rec_yds": dict(level=lvl, raw=1.1, n=120)}, teams={"SEA": dict(net=net)},
+                    record={"lean": dict(w=w, l=2, p=0, units=0.5)})
+    items = CL.diff(snap(1.6, 1.0, 0.10, 3), snap(1.4, 1.03, 0.13, 5))
+    kinds = {i["kind"] for i in items}
+    assert {"model", "recal", "teams", "record"} <= kinds

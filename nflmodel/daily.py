@@ -217,10 +217,11 @@ def run(state: str = "state", log=print) -> dict:
         games.append(dict(rec, result=_result(g), state="post" if not pd.isna(g.result) else ("in" if started else "pre")))
     json.dump({k: v for k, v in frozen.items() if k.startswith(str(season))}, open(ppath, "w"), separators=(",", ":"))
     try:
-        players = player_props(cache, site, seasons, season, games, R, live, now_et, log)
+        players, recal = player_props(cache, site, seasons, season, games, R, live, now_et, log)
     except Exception as e:   # props never block the game page
         log(f"nfl props: {e}")
-        players = []
+        players, recal = [], {}
+    record = grade_record(frozen, sched, season)
 
     played = sched[sched.result.notna()]
     meta = dict(sport="nfl", generated_at=now_et.isoformat(), season=season,
@@ -234,6 +235,15 @@ def run(state: str = "state", log=print) -> dict:
                 backtest={k: (list(v) if isinstance(v, tuple) else _r(v)) for k, v in bt.items()},
                 backtest_seasons="2021-" + str(int(bt_rows.season.max())) if len(bt_rows) else None)
     pc = PP.PropConfig()
+    recent = rows[(rows.season == season) & (rows.season_type == "REG")]
+    # home edge in points: the direct term plus what the home bump in each rating adds through the margin fit
+    hfa = cfg.coef_m[1] + sum(cfg.coef_m[2 + i] * R.home[mk] for i, mk in enumerate(M.METRICS))
+    meta["model"] = dict(hfa=_r(hfa, 2), sd_margin=_r(cfg.sd_margin, 2), sd_total=_r(cfg.sd_total, 2),
+                         pts_per_starter=_r(-cfg.coef_m[-1], 2),
+                         league_total=_r(2 * recent.points.mean(), 1) if len(recent) else None,
+                         games_fit=int(F.result.notna().sum()))
+    meta["recal"] = {k: dict(level=_r(v["level"], 3), raw=_r(v["raw"], 3), n=v["n"]) for k, v in recal.items()}
+    meta["record"] = record
     meta["props"] = dict(r_rec=pc.r_rec, cv=dict(rec_yds=pc.cv_rec_yds, rush_yds=pc.cv_rush_yds, pass_yds=pc.cv_pass_yds),
                          shift=dict(rec_yds=pc.sh_rec_yds, rush_yds=pc.sh_rush_yds, pass_yds=pc.sh_pass_yds))
     attach_props(lineup, players)
@@ -289,6 +299,9 @@ def player_props(cache, site, seasons, season, games, R, live, now_et, log=print
         frozen = json.load(open(fpath))
     except (OSError, ValueError):
         frozen = {}
+    recal = PP.recalibrate(graded_props(frozen, pg))
+    cfg.level = {k: v["level"] for k, v in recal.items()}
+    lv = {k: round(v, 4) for k, v in cfg.level.items()}
     res = []
     if rows:
         asof = now_et.tz_localize(None)
@@ -309,7 +322,7 @@ def player_props(cache, site, seasons, season, games, R, live, now_et, log=print
                        headshot=info_.headshot_url if info_ is not None and isinstance(info_.headshot_url, str) else None,
                        status=q_keys.get((r.team, I.norm(full))),
                        tgt=_r(r.tgt, 2), rec=_r(r.rec, 2), rec_yds=_r(r.rec_yds, 1), car=_r(r.car, 2),
-                       rush_yds=_r(r.rush_yds, 1), lam_td=_r(r.lam_td, 4), p_td=_r(1 - math.exp(-r.lam_td), 4))
+                       rush_yds=_r(r.rush_yds, 1), lam_td=_r(r.lam_td, 4), p_td=_r(1 - math.exp(-r.lam_td), 4), lv=lv)
             if not pd.isna(getattr(r, "pass_yds", np.nan)):
                 rec.update(att=_r(r.att, 1), pass_yds=_r(r.pass_yds, 1), lam_pass_td=_r(r.lam_pass_td, 3))
             res.append(rec)
@@ -320,8 +333,63 @@ def player_props(cache, site, seasons, season, games, R, live, now_et, log=print
         if g["game_id"] not in pend_ids and g["game_id"] in frozen:
             res += frozen[g["game_id"]]
     json.dump({k: v for k, v in frozen.items() if k.startswith(str(season))}, open(fpath, "w"), separators=(",", ":"))
-    log(f"nfl props: {len(res)} players")
-    return res
+    log(f"nfl props: {len(res)} players; recalibration {lv or 'none yet'}")
+    return res, recal
+
+
+def graded_props(frozen: dict, pg: pd.DataFrame) -> pd.DataFrame:
+    """Pre-kickoff projections for finished games next to the box scores, with the live recalibration that was
+    applied at the time taken back out (so the levels don't feed on themselves)."""
+    rows = [p for gid, L in frozen.items() for p in L]
+    if not rows or pg.empty:
+        return pd.DataFrame()
+    d = pd.DataFrame(rows)
+    a = pg.assign(a_td=((pg.rec_td + pg.rush_td) > 0).astype(float))[
+        ["game_id", "player_id", "rec", "rec_yds", "rush_yds", "pass_yds", "a_td"]]
+    a = a.rename(columns={c: f"a_{c}" for c in ("rec", "rec_yds", "rush_yds", "pass_yds")})
+    d = d.merge(a, left_on=["game_id", "id"], right_on=["game_id", "player_id"], how="inner")
+    if "lv" not in d:
+        d["lv"] = None
+    for m in ("rec", "rec_yds", "rush_yds", "pass_yds"):
+        if m in d:
+            d[m] = d[m] / d.lv.map(lambda v: (v or {}).get(m, 1.0) if isinstance(v, dict) else 1.0)
+    if "p_td" in d:
+        c = d.lv.map(lambda v: (v or {}).get("td", 1.0) if isinstance(v, dict) else 1.0)
+        d["p_td"] = 1 - np.exp(np.log(1 - d.p_td.clip(upper=0.99)) / c)
+    if "pass_yds" not in d:
+        d["pass_yds"] = np.nan
+    return d
+
+
+def grade_record(frozen: dict, sched: pd.DataFrame, season: int) -> dict:
+    """This season's results for what the model liked (pre-kickoff prices): leans (3+ pt edge) and 💰 picks."""
+    res = sched.set_index("game_id")
+    out = {k: dict(w=0, l=0, p=0, units=0.0) for k in ("lean", "flag")}
+    weeks = {}
+    for gid, g in frozen.items():
+        if gid not in res.index or pd.isna(res.loc[gid, "result"]) or not gid.startswith(str(season)):
+            continue
+        m, t = float(res.loc[gid, "result"]), float(res.loc[gid, "total"])
+        for b in g.get("bets", []):
+            if b.get("edge") is None or b["edge"] < 0.03 or b.get("price") is None:
+                continue
+            if b["m"] == "ml":
+                v = m if b["s"] == "home" else -m
+            elif b["m"] == "spread":
+                v = (m - g["spread"]) if b["s"] == "home" else (g["spread"] - m)
+            else:
+                v = (t - g["total_line"]) if b["s"] == "over" else (g["total_line"] - t)
+            pr = float(b["price"])
+            u = 0.0 if v == 0 else (pr / 100 if pr > 0 else 100 / -pr) if v > 0 else -1.0
+            for k in ("lean",) + (("flag",) if b["edge"] >= EDGE_FLAG else ()):
+                o = out[k]
+                o["w" if v > 0 else "l" if v < 0 else "p"] += 1
+                o["units"] = round(o["units"] + u, 2)
+            wk = weeks.setdefault(int(g.get("week", 0)), dict(w=0, l=0, p=0, units=0.0))
+            wk["w" if v > 0 else "l" if v < 0 else "p"] += 1
+            wk["units"] = round(wk["units"] + u, 2)
+    out["weeks"] = {str(k): v for k, v in sorted(weeks.items())}
+    return out
 
 
 def injury_reports(inj: pd.DataFrame, wk: pd.DataFrame, log=print) -> pd.DataFrame | None:

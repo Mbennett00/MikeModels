@@ -55,6 +55,7 @@ class PropConfig:
     cv_pass_yds: float = 0.25
     sh_pass_yds: float = 50.0
     priors: dict = field(default_factory=dict)
+    level: dict = field(default_factory=dict)   # live recalibration from this season's graded props (1 = none)
 
 
 def role(r) -> str:
@@ -170,10 +171,11 @@ def project(pg: pd.DataFrame, tg: pd.DataFrame, asof, games: pd.DataFrame, cfg: 
             s_rz_t = cfg.rz_blend * sh["rz_tgt"][pid] + (1 - cfg.rz_blend) * sh["tgt"][pid]
             s_rz_c = cfg.rz_blend * sh["rz_car"][pid] + (1 - cfg.rz_blend) * sh["car"][pid]
             lam_td = lam_team * (pass_share_td * s_rz_t + (1 - pass_share_td) * s_rz_c)
-            sc = cfg.scale
+            sc = {k: cfg.scale.get(k, 1.0) * cfg.level.get(k, 1.0) for k in ("rec", "rec_yds", "rush_yds", "pass_yds", "pass_td")}
             row = dict(game_id=g.game_id, team=team, opp=g.opp, player_id=pid, name=r["name"], role=ro,
                        tgt=tgt, rec=rec * sc["rec"], rec_yds=rec_yds * sc["rec_yds"], car=car,
-                       rush_yds=rush_yds * sc["rush_yds"], lam_td=cfg.td_a * max(lam_td, 1e-6) ** cfg.td_b,
+                       rush_yds=rush_yds * sc["rush_yds"],
+                       lam_td=cfg.level.get("td", 1.0) * cfg.td_a * max(lam_td, 1e-6) ** cfg.td_b,
                        rz=s_rz_t + s_rz_c)
             if pid == starter:
                 ypa = (r.w_pass_yds + cfg.k_ypa * P["pass"]["ypa"]) / (r.w_att + cfg.k_ypa)
@@ -252,3 +254,38 @@ def backtest(pg: pd.DataFrame, game_preds: pd.DataFrame, cfg: PropConfig, season
         pr["season"], pr["week"] = s, w
         out.append(pr)
     return pd.concat(out, ignore_index=True) if out else pd.DataFrame()
+
+
+# ---------- live recalibration (like the NHL props) ----------
+
+MARKETS = {"rec": ("rec", 1.5), "rec_yds": ("rec_yds", 15), "rush_yds": ("rush_yds", 15), "pass_yds": ("pass_yds", 100)}
+N0 = {"rec": 400, "rec_yds": 400, "rush_yds": 300, "pass_yds": 120, "td": 600}   # player-games of prior on "no change"
+CLIP = (0.85, 1.15)
+
+
+def recalibrate(graded: pd.DataFrame) -> dict:
+    """Level for each market from this season's finished games: actual / projected, shrunk toward 1 by sample size.
+
+    graded: one row per player-game with the projection published before kickoff (rec, rec_yds, rush_yds,
+    pass_yds, p_td) and the box score (a_rec, a_rec_yds, a_rush_yds, a_pass_yds, a_td)."""
+    out = {}
+    if graded is None or graded.empty:
+        return out
+    for m, (col, cut) in MARKETS.items():
+        x = graded[graded[col].notna() & (graded[col] > cut) & graded[f"a_{col}"].notna()]
+        if len(x) < 20:
+            continue
+        raw = float(x[f"a_{col}"].sum() / x[col].sum())
+        n = len(x)
+        out[m] = dict(level=float(np.clip(1 + (raw - 1) * n / (n + N0[m]), *CLIP)), raw=raw, n=n)
+    x = graded[graded.p_td.notna() & (graded.p_td > 0.05) & graded.a_td.notna()]
+    if len(x) >= 50:
+        lam = -np.log(1 - x.p_td.clip(upper=0.95))
+        target = float(x.a_td.mean())
+        lo, hi = 0.5, 2.0
+        for _ in range(40):   # rate multiplier that makes the average chance match the scoring rate
+            c = (lo + hi) / 2
+            lo, hi = (c, hi) if (1 - np.exp(-c * lam)).mean() < target else (lo, c)
+        n = len(x)
+        out["td"] = dict(level=float(np.clip(1 + (c - 1) * n / (n + N0["td"]), *CLIP)), raw=float(c), n=n)
+    return out

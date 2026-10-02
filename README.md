@@ -87,6 +87,13 @@ the NFL page has a turf background, team-colour game cards, a Teams power rankin
   - Shown in the 📰 Updates tab: each team's counted players with their points, injured QBs, and everyone else
     listed with the reason they don't count. The Updates feed logs injury and QB changes, model and market line
     moves and data loads, with filter chips.
+- **Self-updating, like the NHL model**: every run refits the team ratings, home-field edge, margin / total spread,
+  key numbers and the points-per-injured-starter value on all finished games. Player props are recalibrated
+  against this season's box scores (projection published before kickoff vs result, per market, shrunk toward
+  no change until enough games are graded, capped at ±15%; the adjustment in force when a projection was made is
+  taken back out before grading so it can't feed on itself). The model's leans (3+ pt edge) and 💰 picks are graded
+  at their pre-kickoff prices. The Updates tab logs all of it with filters: settings changes, team-strength moves,
+  prop recalibration, graded record, injuries, QBs, model and market line moves, data loads.
 - **Formation** (game panel): each team's offense (11 personnel) and nickel defense from recent snap counts, with
   ruled-out players replaced by the next man up, skill players showing their projections.
 - **Game expectation**: margin and total are linear in the two sides' ratings (plus dome / wind / cold for totals),

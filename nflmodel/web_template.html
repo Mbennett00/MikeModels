@@ -349,7 +349,8 @@ function gameCard(g) {
 // missing starters: one line per team on the card, full list in the matchup panel
 const ST = s => { s = String(s || ""); return /^out/i.test(s) ? "Out" : /^doubt/i.test(s) ? "Doubtful" : /^quest/i.test(s) ? "Q" : /reserve|^ir/i.test(s) ? "IR" : s; };
 // ---------- updates: injuries and every adjustment, with filters ----------
-const UPD_KIND = {all: "All", injury: "🚑 Injuries", qb: "🏈 QBs", price: "💲 Model", line: "📊 Market", data: "📥 Data", model: "⚙️ Settings"};
+const UPD_KIND = {all: "All", injury: "🚑 Injuries", qb: "🏈 QBs", teams: "📈 Teams", recal: "🎯 Props", record: "🧾 Record",
+                  price: "💲 Model", line: "📊 Market", model: "⚙️ Settings", data: "📥 Data"};
 let UF = "all", IEXP = new Set();
 const fmtT = t => new Date(t).toLocaleString("en-US", {weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/New_York"}) + " ET";
 function injuryCard() {
@@ -373,10 +374,16 @@ function updates() {
   const runs = D.updates || [];
   const kinds = Object.keys(UPD_KIND).filter(k => k === "all" || k === "injury" || runs.some(r => r.items.some(i => i.kind === k)));
   const chips = `<div class="strip" style="padding-left:0">${kinds.map(k => `<button class="chip ${UF === k ? "on" : ""}" data-uf="${k}">${UPD_KIND[k]}</button>`).join("")}</div>`;
+  const MD = D.meta.model || {}, RC = D.meta.record || {}, RL = D.meta.recal || {};
+  const rec = r => r && (r.w + r.l + r.p) ? `${r.w}-${r.l}${r.p ? "-" + r.p : ""} (${r.units >= 0 ? "+" : ""}${r.units.toFixed(1)}u)` : "none graded";
+  const recalRows = Object.entries(RL).map(([k, v]) => `<div><span>${esc(PM[k] || k)}</span><b>×${v.level.toFixed(3)} <span style="font-size:12px;color:var(--muted)">${v.n} games</span></b></div>`).join("");
   const m = D.meta, now = UF === "all" ? `<div class="card"><div class="lk-h">Right now</div><div class="kv" style="margin-top:8px">
       <div><span>Results through</span><b>${esc(m.data_through)}</b></div><div><span>Market lines</span><b>${m.odds_at ? new Date(m.odds_at).toLocaleString("en-US", {weekday: "short", hour: "numeric", minute: "2-digit", timeZone: "America/New_York"}) : "posted lines"}</b></div>
-      <div><span>Per missing starter</span><b>${(m.pts_per_starter || 0).toFixed(2)} pts</b></div><div><span>Injury source</span><b>${esc(m.inj_source || "–")}</b></div></div>
-      <div class="hint">Refreshed every run: nflverse results and snap counts, ESPN injuries, starting QBs, then one market pull a day.</div></div>` : "";
+      <div><span>Per missing starter</span><b>${(m.pts_per_starter || 0).toFixed(2)} pts</b></div><div><span>Injury source</span><b>${esc(m.inj_source || "–")}</b></div>
+      ${MD.hfa != null ? `<div><span>Home-field edge</span><b>${MD.hfa.toFixed(2)} pts</b></div><div><span>League scoring</span><b>${MD.league_total ?? "–"} pts/game</b></div>` : ""}
+      <div><span>Model leans (3+ pt edge)</span><b>${rec(RC.lean)}</b></div><div><span>💰 picks (6+ pt edge)</span><b>${rec(RC.flag)}</b></div></div>
+      ${recalRows ? `<div class="sec">Prop recalibration (this season's results)</div><div class="kv">${recalRows}</div>` : ""}
+      <div class="hint">Every run refits the team ratings, home-field edge, score spread, key numbers and injury value on all finished games (${MD.games_fit || "–"} so far), and recalibrates player props against this season's box scores, the same way the hockey model updates. Changes are logged below.</div></div>` : "";
   const list = runs.map(r => { const it = r.items.filter(i => UF === "all" || i.kind === UF); if (!it.length) return "";
     return `<div class="card upd"><div class="ut">${esc(fmtT(r.time))}</div>${it.map(i => `<div class="ui"><span>${i.icon}</span><span>${esc(i.text)}</span></div>`).join("")}</div>`; }).join("");
   return chips + now + (UF === "all" || UF === "injury" ? injuryCard() : "")
