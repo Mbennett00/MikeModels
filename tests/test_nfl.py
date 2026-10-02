@@ -153,3 +153,14 @@ def test_ruled_out_qb_is_replaced_by_backup():
     name, note = qb_starter(qb, "KC", "Patrick Mahomes", rep, "2026-10-01")
     assert name == "G.Minshew" and "Out" in note
     assert qb_starter(qb, "KC", "Patrick Mahomes", rep.assign(status="Questionable"), "2026-10-01")[0] == "Patrick Mahomes"
+
+
+def test_long_term_ir_not_double_counted():
+    from nflmodel import injuries as I
+    sched = pd.DataFrame(dict(game_id=["g0", "g1", "g2"], gameday=pd.date_range("2026-09-07", periods=3, freq="7D")))
+    rows = [dict(game_id=g, team="KC", player="Old Injury", position="RB", offense_pct=0.7, defense_pct=0) for g in ("g0", "g1")]
+    rows += [dict(game_id=g, team="KC", player="New Injury", position="TE", offense_pct=0.8, defense_pct=0) for g in ("g0", "g1", "g2")]
+    regs = I.regulars(I.prep_snaps(pd.DataFrame(rows), sched), "KC", "2026-10-01")
+    rep = pd.DataFrame(dict(key=["old injury", "new injury"], status=["Injured Reserve", "Injured Reserve"], pos=["RB", "TE"]))
+    miss, det = I.missing(regs, rep)
+    assert miss["RB"] == 0 and abs(miss["REC"] - 0.8) < 1e-9

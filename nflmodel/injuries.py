@@ -5,6 +5,7 @@ over the team's last 6 games, among games he played (at least 2 of them, average
 adds his usual snap share to his group, scaled by how likely he is to sit:
 
     Out / IR / suspended 1.0   Doubtful 0.85   Questionable 0.25
+(IR / PUP / suspended only when he played the team's latest game: otherwise his absence is already in the ratings)
 
 Groups: offense RB, receivers (WR/TE), line; defense front (DL/edge), linebackers, secondary.
 QBs are handled separately (a ruled-out starter is swapped for the backup in the QB adjustment).
@@ -68,6 +69,7 @@ def regulars(snaps: pd.DataFrame, team: str, asof) -> pd.DataFrame:
     t = t[t.game_id.isin(games) & (t.share > 0)]
     g = t.groupby("key").agg(player=("player", "last"), group=("group", "last"), share=("share", "mean"),
                              gp=("game_id", "nunique"))
+    g["last"] = g.index.isin(t[t.game_id == (games.iloc[-1] if len(games) else None)].key)
     return g[(g.gp >= min(MIN_GAMES, len(games))) & (g.share >= MIN_SHARE)]
 
 
@@ -84,11 +86,18 @@ def missing(regs: pd.DataFrame, report: pd.DataFrame) -> tuple[dict, list]:
         p = regs.loc[r.key]
         if p.group not in out:
             continue
+        if long_term(r.status) and not p.get("last", True):
+            continue   # on IR / PUP for a while: his absence is already in the team's recent results
         out[p.group] += w * p.share
         det.append(dict(name=p.player, group=p.group, pos=getattr(r, "pos", None) or p.group, status=str(r.status),
                         share=round(float(p.share), 2), w=w))
     det.sort(key=lambda d: -d["w"] * d["share"])
     return out, det
+
+
+def long_term(status) -> bool:
+    s = str(status or "").lower()
+    return any(k in s for k in ("reserve", "pup", "physically unable", "non-football", "suspen")) or s.strip() == "ir"
 
 
 def history_reports(inj: pd.DataFrame) -> pd.DataFrame:
