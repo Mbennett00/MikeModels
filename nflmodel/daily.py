@@ -259,7 +259,8 @@ def player_props(cache, site, seasons, season, games, R, live, now_et, log=print
     if live is not None and len(live):
         for t, d in live.groupby("team"):
             out_keys[t] = set(d[d.status.map(I.miss_weight) >= 0.85].key)
-    q_keys = {(r.team, r.key): str(r.status) for r in live.itertuples()} if live is not None and len(live) else {}
+    q_keys = ({(r.team, r.key): str(r.status) for r in live.itertuples() if I.miss_weight(r.status) > 0}
+              if live is not None and len(live) else {})
     rows, starters, avail = [], {}, {}
     pending = [g for g in games if g.get("state") == "pre"]
     for g in pending:
