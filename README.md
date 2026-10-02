@@ -87,6 +87,19 @@ the NFL page has a turf background, team-colour game cards, a Teams power rankin
   - Shown in the 📰 Updates tab: each team's counted players with their points, injured QBs, and everyone else
     listed with the reason they don't count. The Updates feed logs injury and QB changes, model and market line
     moves and data loads, with filter chips.
+- **Weather** (`nflmodel/weather.py`, Open-Meteo: free, no key): the forecast for the 3 hours from kickoff at each
+  stadium (temperature, wind and gusts, chance and amount of rain, snow). Domes are ignored; retractable roofs are
+  treated as closed; open-air international venues nflverse marks as domes are fixed.
+  - Totals: rain at kickoff is a new model input, fitted on 2018-25 gamebook weather: about **-6.1 points**,
+    on top of the existing wind (over 10 mph) and cold (under 40F) terms. Total error 10.54 → 10.46 over all
+    games, and in rain / 15+ mph wind games 10.64 → 9.90 with the under-prediction bias halved (-3.2 → -1.5).
+    Snow didn't measure reliably (few games) and is left out.
+  - Before this, upcoming games had no weather at all (the schedule only fills it in after the game), so windy
+    games were priced as calm, and retractable-roof stadiums were treated as outdoors. Both fixed.
+  - Props: passing yards, receiving yards and receptions are trimmed in wind and rain, by the measured ratios
+    (wind 12-17 mph about -6 to -9%, 18+ mph -11 to -17%, rain -11 to -16%); rushing is unaffected.
+  - Shown on each card (icon, temperature, wind, rain chance and the effect on the total), in the Score panel, and
+    in the Updates feed when a forecast changes.
 - **Self-updating, like the NHL model**: every run refits the team ratings, home-field edge, margin / total spread,
   key numbers and the points-per-injured-starter value on all finished games. Player props are recalibrated
   against this season's box scores (projection published before kickoff vs result, per market, shrunk toward
@@ -108,7 +121,7 @@ the NFL page has a turf background, team-colour game cards, a Teams power rankin
   | | model | closing line |
   |---|---|---|
   | Margin mean abs. error | 10.19 | 9.78 |
-  | Total mean abs. error | 10.54 | 10.34 |
+  | Total mean abs. error | 10.46 | 10.34 |
   | Against the spread (all games / model off by 3+) | ~48% / 50.9% | – |
   | Over/under (all games / off by 3+) | 51.2% / 48.5% | – |
   | Moneyline Brier score | 0.2232 | 0.2123 |

@@ -28,8 +28,10 @@ def snapshot(out: dict) -> dict:
         if g.get("state") != "pre":
             continue
         h, a = g["home"]["abbr"], g["away"]["abbr"]
+        w = g.get("weather") or {}
         games[g["game_id"]] = dict(h=h, a=a, m=g["margin"], t=g["total"], sp=g["spread"], tl=g["total_line"],
-                                   src=g.get("src"))
+                                   src=g.get("src"), wind=w.get("wind"), rain=w.get("rain"), temp=w.get("temp"),
+                                   wxi=w.get("impact"), wtxt=w.get("text"))
         for t in (g["home"], g["away"]):
             qbs[t["abbr"]] = t.get("qb")
             pts[t["abbr"]] = t.get("inj_pts")
@@ -121,6 +123,12 @@ def diff(prev: dict | None, cur: dict) -> list[dict]:
                 add("price", "💲", f"{lab}: model total {p['t']:.1f} → {g['t']:.1f}")
             if g["sp"] is not None and p["sp"] is not None and abs(g["sp"] - p["sp"]) >= 1.0:
                 add("line", "📊", f"{lab}: market {_sp(g['h'], g['a'], p['sp'])} → {_sp(g['h'], g['a'], g['sp'])}")
+            if g.get("wtxt") and g.get("wind") is not None and (p.get("wind") is None or abs(g["wind"] - p["wind"]) >= 5
+                                                              or abs((g.get("rain") or 0) - (p.get("rain") or 0)) >= 0.25
+                                                              or abs((g.get("wxi") or 0) - (p.get("wxi") or 0)) >= 0.5):
+                icon = "🌧️" if (g.get("rain") or 0) >= 0.35 else "🌬️" if g["wind"] >= 15 else "🌦️"
+                was = f"{p['wtxt']} → " if p.get("wtxt") and p.get("wind") is not None else "first forecast: "
+                add("weather", icon, f"{lab} weather {was}{g['wtxt']} (total {g.get('wxi') or 0:+.1f} pts)")
             if g["tl"] is not None and p["tl"] is not None and abs(g["tl"] - p["tl"]) >= 1.0:
                 add("line", "📊", f"{lab}: market total {p['tl']:g} → {g['tl']:g}")
     return out

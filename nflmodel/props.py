@@ -22,6 +22,8 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
+from .weather import prop_factor
+
 STATS = ["tgt", "rz_tgt", "rec", "rec_yds", "rec_td", "car", "rz_car", "rush_yds", "rush_td", "att", "cmp",
          "pass_yds", "pass_td"]
 
@@ -171,7 +173,9 @@ def project(pg: pd.DataFrame, tg: pd.DataFrame, asof, games: pd.DataFrame, cfg: 
             s_rz_t = cfg.rz_blend * sh["rz_tgt"][pid] + (1 - cfg.rz_blend) * sh["tgt"][pid]
             s_rz_c = cfg.rz_blend * sh["rz_car"][pid] + (1 - cfg.rz_blend) * sh["car"][pid]
             lam_td = lam_team * (pass_share_td * s_rz_t + (1 - pass_share_td) * s_rz_c)
-            sc = {k: cfg.scale.get(k, 1.0) * cfg.level.get(k, 1.0) for k in ("rec", "rec_yds", "rush_yds", "pass_yds", "pass_td")}
+            wind, rain = float(getattr(g, "wind", 0) or 0), float(getattr(g, "rain", 0) or 0)
+            sc = {k: cfg.scale.get(k, 1.0) * cfg.level.get(k, 1.0) * prop_factor(k, wind, rain)
+                  for k in ("rec", "rec_yds", "rush_yds", "pass_yds", "pass_td")}
             row = dict(game_id=g.game_id, team=team, opp=g.opp, player_id=pid, name=r["name"], role=ro,
                        tgt=tgt, rec=rec * sc["rec"], rec_yds=rec_yds * sc["rec_yds"], car=car,
                        rush_yds=rush_yds * sc["rush_yds"],

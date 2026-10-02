@@ -24,7 +24,7 @@ PBP_COLS = ["game_id", "season", "week", "season_type", "game_date", "home_team"
             "passer_player_name", "qb_epa", "rusher_player_id", "down",
             "receiver_player_id", "receiver_player_name", "rusher_player_name", "complete_pass", "receiving_yards",
             "rushing_yards", "passing_yards", "pass_touchdown", "rush_touchdown", "yardline_100", "two_point_attempt",
-            "pass_attempt", "rush_attempt", "sack", "interception", "td_player_id", "td_team"]
+            "pass_attempt", "rush_attempt", "sack", "interception", "td_player_id", "td_team", "weather"]
 
 
 def _get(url: str) -> bytes:
@@ -137,6 +137,17 @@ def load_players(cache: str, seasons) -> pd.DataFrame:
     return d
 
 
+def load_weather(cache: str, seasons) -> dict:
+    """game_id -> gamebook weather text at kickoff (e.g. 'Rain Temp: 45° F, Humidity: 90%, Wind: NW 14 mph')."""
+    out = {}
+    for s in seasons:
+        f = os.path.join(cache, f"game_weather_{s}.csv")
+        if os.path.exists(f):
+            d = pd.read_csv(f)
+            out.update(dict(zip(d.game_id, d.weather)))
+    return out
+
+
 def rosters(season: int, cache: str, log=print) -> pd.DataFrame:
     """Latest weekly roster entry per player: position, status (ACT / RES ...), headshot."""
     f = os.path.join(cache, f"roster_{season}.csv")
@@ -168,13 +179,15 @@ def load(cache: str, seasons=None, log=print) -> tuple[pd.DataFrame, pd.DataFram
     for s in seasons:
         ft, fq = os.path.join(cache, f"team_games_{s}.csv"), os.path.join(cache, f"qb_games_{s}.csv")
         fp = os.path.join(cache, f"player_games_{s}.csv")
-        if s < cur and os.path.exists(ft) and os.path.exists(fq) and os.path.exists(fp):
+        fw = os.path.join(cache, f"game_weather_{s}.csv")
+        if s < cur and all(os.path.exists(x) for x in (ft, fq, fp, fw)):
             tgs.append(pd.read_csv(ft)); qbs.append(pd.read_csv(fq))
             continue
         try:
             raw = _pbp(s)
             tg, qb = reduce_pbp(raw)
             player_games(raw).to_csv(fp, index=False)
+            raw.drop_duplicates("game_id")[["game_id", "weather"]].to_csv(fw, index=False)
         except Exception as e:   # current season before week 1, or a network hiccup: keep the cached copy
             log(f"nfl pbp {s}: {e}")
             if os.path.exists(ft):

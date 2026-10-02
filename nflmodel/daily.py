@@ -19,6 +19,7 @@ import pandas as pd
 from . import backtest as B
 from . import changelog, data, injuries as I, model as M, odds as O
 from . import props as PP
+from . import weather as WX
 from .teams import info
 
 HERE = os.path.dirname(__file__)
@@ -117,7 +118,8 @@ def run(state: str = "state", log=print) -> dict:
     seasons = sorted(set(tg.season.astype(int)))
     snaps, inj = data.load_rosters(cache, seasons, log=log)
     cfg = M.Config()
-    F = B.build_features(sched, tg, qb, cfg, log=lambda *a: None, snaps=snaps, inj=inj)
+    wxt = data.load_weather(cache, seasons)
+    F = B.build_features(sched, tg, qb, cfg, log=lambda *a: None, snaps=snaps, inj=inj, wx=wxt)
     bt_rows, bt = B.run(sched, tg, qb, cfg, F=F, log=lambda *a: None)
     cfg = B.fit_mapping(F, cfg)
     rows = M.team_rows(tg, sched)
@@ -177,8 +179,16 @@ def run(state: str = "state", log=print) -> dict:
         sh_, sa_ = side[g.home_team], side[g.away_team]
         qh, idh, qa, ida = sh_["qb_adj"], sh_["qb_id"], sa_["qb_adj"], sa_["qb_id"]
         neutral = g.location == "Neutral"
-        xm, xt = M.features(Rg, g.home_team, g.away_team, neutral, qh, qa, g.roof, g.wind, g.temp,
-                            I.vector(sh_["miss"]), I.vector(sa_["miss"]))
+        expo = WX.exposure(g.stadium_id, g.roof)
+        fc = WX.forecast(g.stadium_id, kick, log) if expo == "outdoor" and not started else None
+        roof = "closed" if expo != "outdoor" else "outdoors"
+        wind = fc["wind"] if fc else g.wind
+        temp = fc["temp"] if fc else g.temp
+        rain = fc["rain"] if fc else (WX.rain_flag(wxt.get(g.game_id)) if started else 0.0)
+        xm, xt = M.features(Rg, g.home_team, g.away_team, neutral, qh, qa, roof, wind, temp,
+                            I.vector(sh_["miss"]), I.vector(sa_["miss"]), rain)
+        icon, wtxt = WX.describe(fc, expo)
+        wx_impact = float(cfg.coef_t[5] * xt[5] + cfg.coef_t[6] * xt[6] + cfg.coef_t[7] * xt[7])
         mm, tm = float(xm @ cfg.coef_m), float(xt @ cfg.coef_t)
         mk, src = {}, "line"
         if g.game_id in evs:
@@ -206,6 +216,8 @@ def run(state: str = "state", log=print) -> dict:
         rec = dict(game_id=g.game_id, week=int(g.week), start_utc=kick.isoformat(), home=th, away=ta,
                    neutral=bool(neutral), roof=g.roof if isinstance(g.roof, str) else None,
                    stadium=g.stadium if isinstance(g.stadium, str) else None,
+                   weather=dict(expo=expo, icon=icon, text=wtxt, impact=_r(wx_impact, 2),
+                                **({k: fc[k] for k in ("temp", "wind", "gust", "pp", "rain_mm", "snow_cm", "rain")} if fc else {})),
                    margin=_r(mm, 2), total=_r(tm, 2), pts_home=_r((tm + mm) / 2, 1), pts_away=_r((tm - mm) / 2, 1),
                    p_home=_r(p["p_home"]), spread=_r(spread, 1), total_line=_r(total, 1), src=src,
                    n_books=max([v.get("n", 0) for k, v in mk.items() if k != "posted"] + [0]),
@@ -238,6 +250,7 @@ def run(state: str = "state", log=print) -> dict:
     recent = rows[(rows.season == season) & (rows.season_type == "REG")]
     # home edge in points: the direct term plus what the home bump in each rating adds through the margin fit
     hfa = cfg.coef_m[1] + sum(cfg.coef_m[2 + i] * R.home[mk] for i, mk in enumerate(M.METRICS))
+    meta["weather"] = dict(rain_pts=_r(cfg.coef_t[7], 2), wind_pts=_r(cfg.coef_t[5], 2), cold_pts=_r(cfg.coef_t[6], 2))
     meta["model"] = dict(hfa=_r(hfa, 2), sd_margin=_r(cfg.sd_margin, 2), sd_total=_r(cfg.sd_total, 2),
                          pts_per_starter=_r(-cfg.coef_m[-1], 2),
                          league_total=_r(2 * recent.points.mean(), 1) if len(recent) else None,
@@ -281,7 +294,10 @@ def player_props(cache, site, seasons, season, games, R, live, now_et, log=print
         for side, opp, sign in (("home", "away", 1), ("away", "home", -1)):
             t = g[side]["abbr"]
             pts = g["pts_home"] if side == "home" else g["pts_away"]
-            rows.append(dict(game_id=g["game_id"], team=t, opp=g[opp]["abbr"], pts=pts, margin=sign * g["margin"]))
+            wx_ = g.get("weather") or {}
+            rows.append(dict(game_id=g["game_id"], team=t, opp=g[opp]["abbr"], pts=pts, margin=sign * g["margin"],
+                             wind=wx_.get("wind", 0) if wx_.get("expo") == "outdoor" else 0,
+                             rain=wx_.get("rain", 0) if wx_.get("expo") == "outdoor" else 0))
             if len(act):
                 mine = act[act.team == t]
                 avail[t] = {pid for pid, r in mine.iterrows() if I.norm(r.full_name) not in out_keys.get(t, set())}

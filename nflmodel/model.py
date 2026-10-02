@@ -155,7 +155,7 @@ N_INJ = 6   # injury groups (see nflmodel.injuries.GROUPS)
 
 
 def features(R: Ratings, home: str, away: str, neutral: bool = False, qb_h: float = 0.0, qb_a: float = 0.0,
-             roof: str | None = None, wind=None, temp=None, inj_h=None, inj_a=None) -> tuple[np.ndarray, np.ndarray]:
+             roof: str | None = None, wind=None, temp=None, inj_h=None, inj_a=None, rain: float = 0.0) -> tuple[np.ndarray, np.ndarray]:
     """inj_h / inj_a: missing starter-equivalents per injury group for each side (zeros = full strength)."""
     h = 0.0 if neutral else 1.0
     sh, sa = side(R, home, away, h), side(R, away, home, 0.0)
@@ -169,7 +169,8 @@ def features(R: Ratings, home: str, away: str, neutral: bool = False, qb_h: floa
     ih = 0.0 if inj_h is None else float(np.sum(inj_h))
     ia = 0.0 if inj_a is None else float(np.sum(inj_a))
     xm = np.r_[1.0, h, sh - sa, ih - ia]
-    xt = np.r_[1.0, sh + sa, dome, wd, cold]
+    rn = 0.0 if dome or rain is None or pd.isna(rain) else float(rain)   # rain at kickoff (0-1)
+    xt = np.r_[1.0, sh + sa, dome, wd, cold, rn]
     return xm, xt
 
 

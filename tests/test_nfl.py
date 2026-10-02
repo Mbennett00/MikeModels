@@ -266,3 +266,43 @@ def test_changelog_reports_model_recal_teams_and_record():
     items = CL.diff(snap(1.6, 1.0, 0.10, 3), snap(1.4, 1.03, 0.13, 5))
     kinds = {i["kind"] for i in items}
     assert {"model", "recal", "teams", "record"} <= kinds
+
+
+def test_weather_exposure_and_prop_factor():
+    from nflmodel import weather as WX
+    assert WX.exposure("BUF00", "outdoors") == "outdoor"
+    assert WX.exposure("DET00", "dome") == "dome"
+    assert WX.exposure("HOU00", float("nan")) == "retractable"
+    assert WX.exposure("PAR00", "dome") == "outdoor"           # nflverse marks Stade de France as a dome
+    assert WX.prop_factor("rush_yds", 25, 1.0) == 1.0
+    assert WX.prop_factor("pass_yds", 5, 0) == 1.0
+    assert WX.prop_factor("pass_yds", 20, 1.0) < WX.prop_factor("pass_yds", 14, 0) < 1.0
+    assert WX.rain_flag("Light Rain Temp: 45° F") == 1.0 and WX.rain_flag("Sunny Temp: 70° F") == 0.0
+
+
+def test_weather_forecast_window(monkeypatch):
+    from nflmodel import weather as WX
+    times = pd.date_range("2026-10-04 15:00", periods=8, freq="h").strftime("%Y-%m-%dT%H:%M").tolist()
+
+    class R:
+        def raise_for_status(self): pass
+        def json(self):
+            n = len(times)
+            return {"hourly": dict(time=times, temperature_2m=[50.0] * n, wind_speed_10m=[10, 12, 18, 20, 22, 9, 9, 9],
+                                   wind_gusts_10m=[20] * n, precipitation_probability=[0, 0, 80, 80, 80, 0, 0, 0],
+                                   rain=[0, 0, 1.0, 1.0, 1.0, 0, 0, 0], showers=[0] * n, snowfall=[0] * n, weather_code=[61] * n)}
+    monkeypatch.setattr(WX.requests, "get", lambda *a, **k: R())
+    w = WX.forecast("BUF00", pd.Timestamp("2026-10-04 17:00", tz="UTC"), log=lambda *a: None)
+    assert w["wind"] == 20.0 and w["pp"] == 0.8 and w["rain"] == 0.8
+    icon, txt = WX.describe(w, "outdoor")
+    assert icon == "🌧️" and "80% rain" in txt
+
+
+def test_rain_lowers_the_total_feature():
+    from nflmodel import model as M
+    R = M.Ratings(pd.Timestamp("2026-10-01"), {m: 0.0 for m in M.METRICS}, {m: 0.0 for m in M.METRICS},
+                  {m: {} for m in M.METRICS}, {m: {} for m in M.METRICS})
+    _, dry = M.features(R, "A", "B", roof="outdoors", wind=5, temp=60)
+    _, wet = M.features(R, "A", "B", roof="outdoors", wind=5, temp=60, rain=1.0)
+    _, dome = M.features(R, "A", "B", roof="dome", wind=25, temp=20, rain=1.0)
+    assert dry[-1] == 0 and wet[-1] == 1.0 and dome[-1] == 0 and dome[-2] == 0 and dome[-3] == 0

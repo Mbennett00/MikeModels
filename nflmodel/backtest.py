@@ -7,11 +7,12 @@ import pandas as pd
 
 from . import injuries as I
 from . import model as M
+from . import weather as WX
 
 FIRST_FEATURE_SEASON = 2019
 
 
-def build_features(sched, tg, qb, cfg: M.Config, seasons=None, log=print, snaps=None, inj=None) -> pd.DataFrame:
+def build_features(sched, tg, qb, cfg: M.Config, seasons=None, log=print, snaps=None, inj=None, wx=None) -> pd.DataFrame:
     rows = M.team_rows(tg, sched)
     use_inj = cfg.injuries and snaps is not None and inj is not None and len(snaps)
     if use_inj:
@@ -38,7 +39,8 @@ def build_features(sched, tg, qb, cfg: M.Config, seasons=None, log=print, snaps=
                     rep = REP.get_group(key) if key in REP.groups else None
                     vec.append(I.vector(I.missing(I.regulars(S, t, asof), rep)[0]))
                 ih, ia = vec
-            xm, xt = M.features(R, x.home_team, x.away_team, x.location == "Neutral", qh, qa, x.roof, x.wind, x.temp, ih, ia)
+            rn = WX.rain_flag((wx or {}).get(x.game_id))
+            xm, xt = M.features(R, x.home_team, x.away_team, x.location == "Neutral", qh, qa, x.roof, x.wind, x.temp, ih, ia, rn)
             out.append(dict(game_id=x.game_id, season=season, week=week, gameday=x.gameday, home=x.home_team,
                             away=x.away_team, result=x.result, total=x.total, spread_line=x.spread_line,
                             total_line=x.total_line, home_ml=x.home_moneyline, away_ml=x.away_moneyline,

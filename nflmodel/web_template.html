@@ -159,6 +159,8 @@ label.f { display: block; font-size: 13px; font-weight: 800; color: var(--ink-2)
 .verdict.bad { background: var(--red-soft); } .verdict.bad .h { color: var(--red); }
 .verdict .d { font-size: 14px; font-weight: 700; color: var(--ink-2); margin-top: 4px; }
 .close { position: absolute; right: 14px; top: 12px; }
+.wx { font-size: 12.5px; font-weight: 800; margin: -4px 0 6px; opacity: .92; } .wx b { font-weight: 900; }
+.wxc { font-size: 13px; font-weight: 700; color: var(--ink-2); background: #eef6ff; border: 2px solid var(--navy); border-radius: 12px; padding: 8px 10px; margin-top: 10px; line-height: 1.45; }
 /* formation */
 .rk-hd { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 8px; } .seg2 { display: flex; gap: 4px; } .seg2 .chip { padding: 5px 11px; }
 .field2 { position: relative; height: 400px; border: 3px solid var(--navy); border-radius: 16px; overflow: hidden;
@@ -326,6 +328,7 @@ function gameCard(g) {
   const status = s && s.state === "in" ? `<span class="live">LIVE</span><span>${esc(s.detail)}</span>`
     : s ? `<span class="final">${esc((s.detail || "Final").toUpperCase())}</span><span>model had ${esc(h.abbr)} ${sp(-Math.round(2 * g.margin) / 2)}</span>`
     : `<span>${kickLab(g.start_utc)}${g.neutral ? " · neutral site" : ""}</span><span>proj ${esc(a.abbr)} ${g.pts_away.toFixed(0)} – ${g.pts_home.toFixed(0)} ${esc(h.abbr)}</span>`;
+  const W = g.weather || {}, wchip = W.icon && !s ? `<div class="wx" style="color:${inkOf(a.color)[0]}">${W.icon} ${esc(W.text)}${W.impact && Math.abs(W.impact) >= 0.5 ? ` · <b>total ${W.impact > 0 ? "+" : "−"}${Math.abs(W.impact).toFixed(1)}</b>` : ""}</div>` : "";
   const [ia, ca] = inkOf(a.color), [ih, ch] = inkOf(h.color);
   const qbl = t => t.qb ? `QB ${esc(t.qb)}${t.qb_adj != null && Math.abs(t.qb_adj) >= 0.03 ? (t.qb_adj < 0 ? " ⬇️" : " ⬆️") : ""}` : "QB TBD";
   const trow = (t, p, mine, theirs, ink, cl) => `<div class="trow ${cl}" style="color:${ink}">${logo(t)}<div style="min-width:0"><div class="tname">${esc(t.city)} ${esc(t.name)}</div>
@@ -333,7 +336,7 @@ function gameCard(g) {
       <div class="right">${s ? `<div class="score ${s.state === "post" && mine < theirs ? "lose" : ""}">${mine}</div>` : `<div class="pct">${pct(p)}</div>`}</div></div>`;
   const bets = mkBets(g);
   let html = `<div class="card gc" style="background:linear-gradient(170deg, ${a.color} 0%, ${a.color} 22%, ${h.color} 62%, ${h.color} 100%)">
-    <div class="band"><div class="status" style="color:${ia}">${status}</div>
+    <div class="band"><div class="status" style="color:${ia}">${status}</div>${wchip}
     ${trow(a, 1 - ph, s && s.away, s && s.home, ia, ca)}${trow(h, ph, s && s.home, s && s.away, ih, ch)}
     <div class="bar"><div style="width:${100 * (1 - ph)}%;background:${a.color}"></div><div style="width:${100 * ph}%;background:${h.color}"></div></div></div>
     <div class="body"><div class="tiles">${bets.map(b => tile(g, b)).join("")}</div>`;
@@ -350,7 +353,7 @@ function gameCard(g) {
 const ST = s => { s = String(s || ""); return /^out/i.test(s) ? "Out" : /^doubt/i.test(s) ? "Doubtful" : /^quest/i.test(s) ? "Q" : /reserve|^ir/i.test(s) ? "IR" : s; };
 // ---------- updates: injuries and every adjustment, with filters ----------
 const UPD_KIND = {all: "All", injury: "🚑 Injuries", qb: "🏈 QBs", teams: "📈 Teams", recal: "🎯 Props", record: "🧾 Record",
-                  price: "💲 Model", line: "📊 Market", model: "⚙️ Settings", data: "📥 Data"};
+                  weather: "🌦️ Weather", price: "💲 Model", line: "📊 Market", model: "⚙️ Settings", data: "📥 Data"};
 let UF = "all", IEXP = new Set();
 const fmtT = t => new Date(t).toLocaleString("en-US", {weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/New_York"}) + " ET";
 function injuryCard() {
@@ -423,7 +426,7 @@ function scoreHtml(g) {
   const p3 = [3, -3].map(k => d.p[k - d.lo] || 0).reduce((x, y) => x + y, 0), p7 = [7, -7].map(k => d.p[k - d.lo] || 0).reduce((x, y) => x + y, 0);
   return `<div class="sec">Final margin (${esc(g.home.abbr)} minus ${esc(g.away.abbr)})</div><div class="dist">${bars.join("")}</div>
     <div class="dlab"><span>${esc(g.away.abbr)} by 28</span><span>tie</span><span>${esc(g.home.abbr)} by 28</span></div>
-    <div class="kv" style="margin-top:12px"><div><span>Projected score</span><b>${esc(g.away.abbr)} ${g.pts_away.toFixed(1)} – ${g.pts_home.toFixed(1)} ${esc(g.home.abbr)}</b></div>
+    ${weatherHtml(g)}<div class="kv" style="margin-top:12px"><div><span>Projected score</span><b>${esc(g.away.abbr)} ${g.pts_away.toFixed(1)} – ${g.pts_home.toFixed(1)} ${esc(g.home.abbr)}</b></div>
       <div><span>Model line</span><b>${esc(g.home.abbr)} ${sp(-Math.round(2 * g.margin) / 2)} · ${g.total.toFixed(1)}</b></div>
       <div><span>Decided by exactly 3</span><b>${pct(p3)}</b></div><div><span>Decided by exactly 7</span><b>${pct(p7)}</b></div></div>`;
 }
@@ -434,6 +437,17 @@ const SPOTS = {   // x, y in % of the field; offense snaps the ball going up, th
         QB: [[50, 56]], RB: [[50, 78]]},
   def: {DL: [[29, 68], [43, 68], [57, 68], [71, 68]], LB: [[36, 48], [64, 48]], CB: [[8, 66], [92, 66], [20, 54]], S: [[33, 22], [67, 22]]},
 };
+function weatherHtml(g) {
+  const W = g.weather || {}; if (!W.icon) return "";
+  const M = D.meta.weather || {};
+  if (W.expo !== "outdoor") return `<div class="wxc">${W.icon} <b>${esc(W.text)}</b>: weather doesn't affect this one.</div>`;
+  if (W.wind == null) return `<div class="wxc">${W.icon} <b>${esc(W.text)}</b>. Weather gets priced in once Open-Meteo's forecast reaches kickoff (about 2 weeks out).</div>`;
+  const parts = [`${Math.round(W.temp)}°F`, `wind ${Math.round(W.wind)} mph (gusts ${Math.round(W.gust)})`, `${Math.round(100 * W.pp)}% chance of rain`];
+  if (W.snow_cm > 0.05) parts.push("snow possible");
+  return `<div class="wxc">${W.icon} <b>Kickoff forecast</b>: ${parts.join(" · ")}<br>Effect on the total: <b class="${(W.impact || 0) < -0.05 ? "neg" : ""}">${(W.impact || 0) >= 0 ? "+" : "−"}${Math.abs(W.impact || 0).toFixed(1)} pts</b>.
+    Passing and receiving props are trimmed in wind 12+ mph and rain; rushing isn't.
+    <span class="ps">(Rain at kickoff has been worth ${(M.rain_pts || -6).toFixed(1)} pts on totals since 2018.)</span></div>`;
+}
 function fieldHtml(g) {
   const st = FORM[g.game_id] || (FORM[g.game_id] = {team: "home", unit: "off"});
   const t = g[st.team], L = ((D.lineups || {})[t.abbr] || {})[st.unit];
