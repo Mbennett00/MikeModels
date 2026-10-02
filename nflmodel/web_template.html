@@ -87,8 +87,6 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .mx .tr { display: flex; height: 12px; background: #efe7d6; border: 2px solid var(--navy); border-radius: 99px; overflow: hidden; }
 .mx .half { flex: 1; display: flex; } .mx .half.l { justify-content: flex-end; border-right: 2px solid var(--navy); } .mx .half div { height: 100%; }
 .mx .hd .v { font-size: 13px; } .mx .vs { text-align: center; font-size: 11px; font-weight: 800; color: var(--muted); text-transform: uppercase; }
-.injc { font-size: 12.5px; font-weight: 700; color: var(--ink-2); background: var(--cream); border: 2px solid var(--navy); border-radius: 12px; padding: 5px 9px; margin-bottom: 8px; line-height: 1.45; }
-.injc .inj { display: inline; } .injc .inj + .inj::before { content: ""; display: block; }
 .ih { display: flex; justify-content: space-between; font-family: 'Fredoka', sans-serif; font-weight: 600; color: var(--navy); margin-top: 8px; border-bottom: 2px solid var(--line); }
 .ir { display: flex; justify-content: space-between; gap: 8px; font-size: 13.5px; font-weight: 800; color: var(--navy); padding: 4px 0; border-bottom: 2px dashed var(--line); }
 .ps { font-size: 12px; font-weight: 700; color: var(--muted); } .tn2 { color: var(--navy); }
@@ -136,7 +134,7 @@ label.f { display: block; font-size: 13px; font-weight: 800; color: var(--ink-2)
 .nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; display: flex; justify-content: center; padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
        background: linear-gradient(180deg, rgba(47,125,58,0), rgba(47,125,58,.95) 35%); }
 .nav .in { display: flex; gap: 2px; background: var(--cream); border: 3px solid var(--navy); border-radius: 999px; padding: 5px; box-shadow: 3px 4px 0 var(--navy); width: 100%; max-width: 480px; }
-.nav button { flex: 1; border: 0; background: transparent; border-radius: 999px; height: 44px; font-family: 'Fredoka', sans-serif; font-weight: 600; font-size: 14px; color: var(--navy); white-space: nowrap; }
+.nav button { flex: 1; border: 0; background: transparent; border-radius: 999px; height: 44px; font-family: 'Fredoka', sans-serif; font-weight: 600; font-size: 12.5px; padding: 0 1px; color: var(--navy); white-space: nowrap; }
 .nav button.on { background: var(--navy); color: var(--cream); }
 .scrim { position: fixed; inset: 0; background: rgba(20,48,31,.45); z-index: 30; opacity: 0; pointer-events: none; transition: opacity .2s; }
 .scrim.open { opacity: 1; pointer-events: auto; }
@@ -161,6 +159,29 @@ label.f { display: block; font-size: 13px; font-weight: 800; color: var(--ink-2)
 .verdict.bad { background: var(--red-soft); } .verdict.bad .h { color: var(--red); }
 .verdict .d { font-size: 14px; font-weight: 700; color: var(--ink-2); margin-top: 4px; }
 .close { position: absolute; right: 14px; top: 12px; }
+/* formation */
+.rk-hd { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 8px; } .seg2 { display: flex; gap: 4px; } .seg2 .chip { padding: 5px 11px; }
+.field2 { position: relative; height: 400px; border: 3px solid var(--navy); border-radius: 16px; overflow: hidden;
+  background: repeating-linear-gradient(180deg, rgba(255,255,255,.45) 0 2px, transparent 2px 12.5%), repeating-linear-gradient(180deg, var(--turf) 0 12.5%, var(--turf-2) 12.5% 25%); }
+.fl-logo { position: absolute; left: 50%; top: 50%; width: 46%; transform: translate(-50%, -50%); opacity: .14; pointer-events: none; }
+.los { position: absolute; left: 0; right: 0; top: var(--los); height: 3px; background: rgba(110,190,255,.9); }
+.fp { position: absolute; transform: translate(-50%, -18px); display: flex; flex-direction: column; align-items: center; border: 0; background: transparent; padding: 0; width: 58px; }
+.fc { position: relative; width: 32px; height: 32px; border-radius: 50%; border: 2.5px solid var(--navy); display: flex; align-items: center; justify-content: center;
+      font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 11px; box-shadow: 0 0 0 3px rgba(255,255,255,.55); }
+.fc.q { box-shadow: 0 0 0 3px var(--gold); }
+.fq { position: absolute; top: -9px; right: -12px; background: var(--gold); color: var(--navy); border: 1.5px solid var(--navy); border-radius: 99px; font-size: 9px; padding: 0 4px; font-family: 'Nunito', sans-serif; font-weight: 800; }
+.fn { margin-top: 2px; font-weight: 800; font-size: 10.5px; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.8); white-space: nowrap; max-width: 50px; overflow: hidden; text-overflow: ellipsis; }
+.fv { font-size: 9.5px; font-weight: 800; color: #eaffea; text-shadow: 0 1px 2px rgba(0,0,0,.7); white-space: nowrap; }
+.link { width: 100%; margin-top: 8px; border: 0; background: transparent; font-weight: 800; font-size: 13.5px; color: var(--navy); text-decoration: underline; padding: 6px; text-align: left; }
+/* updates */
+.it { display: grid; grid-template-columns: 32px 1fr auto; gap: 10px; align-items: center; padding: 8px 0; border-top: 2px dashed var(--line); }
+.it:first-of-type { border-top: 0; } .it .logo { width: 32px; height: 32px; }
+.it b { color: var(--navy); font-size: 15px; } .pill { font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 14px; border: 2px solid var(--navy); border-radius: 99px; padding: 0 8px; background: #fff; }
+.pill.neg { background: var(--red-soft); color: var(--red); }
+.ilist { grid-column: 2 / 4; font-size: 12.5px; font-weight: 700; color: var(--ink-2); line-height: 1.55; }
+.ilist .x { color: var(--muted); }
+.upd .ut { font-family: 'Fredoka', sans-serif; font-weight: 600; font-size: 16px; color: var(--navy); margin-bottom: 6px; }
+.ui { display: grid; grid-template-columns: 24px 1fr; gap: 6px; font-size: 14px; font-weight: 700; color: var(--ink-2); padding: 6px 0; border-top: 2px dashed var(--line); }
 /* small logo pair for game totals */
 .duo { display: inline-flex; vertical-align: -3px; margin-right: 4px; } .duo img { width: 16px; height: 16px; object-fit: contain; }
 .duo img + img { margin-left: -3px; }
@@ -306,8 +327,7 @@ function gameCard(g) {
     : s ? `<span class="final">${esc((s.detail || "Final").toUpperCase())}</span><span>model had ${esc(h.abbr)} ${sp(-Math.round(2 * g.margin) / 2)}</span>`
     : `<span>${kickLab(g.start_utc)}${g.neutral ? " · neutral site" : ""}</span><span>proj ${esc(a.abbr)} ${g.pts_away.toFixed(0)} – ${g.pts_home.toFixed(0)} ${esc(h.abbr)}</span>`;
   const [ia, ca] = inkOf(a.color), [ih, ch] = inkOf(h.color);
-  const qbl = t => (t.qb ? `QB ${esc(t.qb)}${t.qb_adj != null && Math.abs(t.qb_adj) >= 0.03 ? (t.qb_adj < 0 ? " ⬇️" : " ⬆️") : ""}` : "QB TBD")
-    + (t.qb_note ? ` · 🚑 ${esc(t.qb_note)}` : "");
+  const qbl = t => t.qb ? `QB ${esc(t.qb)}${t.qb_adj != null && Math.abs(t.qb_adj) >= 0.03 ? (t.qb_adj < 0 ? " ⬇️" : " ⬆️") : ""}` : "QB TBD";
   const trow = (t, p, mine, theirs, ink, cl) => `<div class="trow ${cl}" style="color:${ink}">${logo(t)}<div style="min-width:0"><div class="tname">${esc(t.city)} ${esc(t.name)}</div>
       <div class="qb">${qbl(t)}</div></div>
       <div class="right">${s ? `<div class="score ${s.state === "post" && mine < theirs ? "lose" : ""}">${mine}</div>` : `<div class="pct">${pct(p)}</div>`}</div></div>`;
@@ -316,10 +336,10 @@ function gameCard(g) {
     <div class="band"><div class="status" style="color:${ia}">${status}</div>
     ${trow(a, 1 - ph, s && s.away, s && s.home, ia, ca)}${trow(h, ph, s && s.home, s && s.away, ih, ch)}
     <div class="bar"><div style="width:${100 * (1 - ph)}%;background:${a.color}"></div><div style="width:${100 * ph}%;background:${h.color}"></div></div></div>
-    <div class="body">${injStrip(g)}<div class="tiles">${bets.map(b => tile(g, b)).join("")}</div>`;
+    <div class="body"><div class="tiles">${bets.map(b => tile(g, b)).join("")}</div>`;
   if (OPEN.has(g.game_id)) {
     const view = PANEL[g.game_id] || "matchup";
-    const tabs = [["matchup", "Matchup"], ["players", "Players"], ["bets", "Lines"], ["score", "Score"], ["field", "Field"]]
+    const tabs = [["matchup", "Matchup"], ["players", "Players"], ["field", "Formation"], ["bets", "Lines"], ["score", "Score"]]
       .map(([k, n]) => `<button class="${view === k ? "on" : ""}" data-pv="${g.game_id}|${k}">${n}</button>`).join("");
     const body = view === "matchup" ? matchupHtml(g) : view === "players" ? gamePlayers(g) : view === "bets" ? altHtml(g) : view === "score" ? scoreHtml(g) : fieldHtml(g);
     html += `<div class="panel"><div class="ptabs">${tabs}</div>${body}</div>`;
@@ -328,20 +348,41 @@ function gameCard(g) {
 }
 // missing starters: one line per team on the card, full list in the matchup panel
 const ST = s => { s = String(s || ""); return /^out/i.test(s) ? "Out" : /^doubt/i.test(s) ? "Doubtful" : /^quest/i.test(s) ? "Q" : /reserve|^ir/i.test(s) ? "IR" : s; };
-function injStrip(g) {
-  const row = t => (t.injuries || []).length ? `<div class="inj"><b class="tn2">${esc(t.abbr)}</b> <b class="neg">${t.inj_pts.toFixed(1)} pts</b> · ${t.injuries.slice(0, 3).map(i => `${esc(i.name)} (${esc(i.pos)}) <b>${ST(i.status)}</b>`).join(", ")}${t.injuries.length > 3 ? ` +${t.injuries.length - 3}` : ""}</div>` : "";
-  const h = row(g.away) + row(g.home);
-  return h ? `<div class="injc">🚑 ${h}</div>` : "";
+// ---------- updates: injuries and every adjustment, with filters ----------
+const UPD_KIND = {all: "All", injury: "🚑 Injuries", qb: "🏈 QBs", price: "💲 Model", line: "📊 Market", data: "📥 Data", model: "⚙️ Settings"};
+let UF = "all", IEXP = new Set();
+const fmtT = t => new Date(t).toLocaleString("en-US", {weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/New_York"}) + " ET";
+function injuryCard() {
+  const all = Object.values(D.injuries || {}).sort((a, b) => (a.inj_pts ?? 0) - (b.inj_pts ?? 0));
+  if (!all.length) return "";
+  const teams = all.filter(t => t.counted.length || t.qbs.length), full = all.filter(t => !t.counted.length && !t.qbs.length);
+  const rows = teams.map(t => {
+    const T = teamOf(t.abbr), open = IEXP.has(t.abbr);
+    const c = t.counted.map(p => `${esc(p.name)} <span class="x">${esc(p.pos)}</span> ${esc(ST(p.status))} <b class="neg">${p.pts.toFixed(1)}</b>`).join(" · ");
+    const q = t.qbs.map(p => `🏈 ${esc(p.name)} (QB) ${esc(ST(p.status))}: ${esc(p.note)}`).join("<br>");
+    const more = open && t.listed.length ? `<div class="x" style="margin-top:4px">Listed but not counted: ${t.listed.map(p => `${esc(p.name)} (${esc(p.pos)}, ${esc(ST(p.status))}: ${esc(p.note)})`).join("; ")}</div>` : "";
+    return `<div class="it">${logo(T)}<div><b>${esc(T.city || "")} ${esc(T.name || t.abbr)}</b></div>
+      <span class="pill ${t.inj_pts < -0.05 ? "neg" : ""}">${t.inj_pts < -0.05 ? t.inj_pts.toFixed(1) + " pts" : "full"}</span>
+      <div class="ilist">${c || `<span class="x">No regulars out.</span>`}${q ? "<br>" + q : ""}${more}
+      ${t.listed.length ? `<button class="link" style="padding:2px 0;margin:0;font-size:12px" data-iexp="${esc(t.abbr)}">${open ? "Hide" : `+${t.listed.length} more listed`}</button>` : ""}</div></div>`; }).join("");
+  return `<div class="card"><div class="lk-h">🚑 Injury report · Week ${esc(D.meta.week || "")}</div>${rows || `<div class="hint">No regulars listed yet.</div>`}
+    ${full.length ? `<div class="hint">✅ No regulars out: ${full.map(t => esc(t.abbr)).join(", ")}</div>` : ""}
+    <div class="hint">Points = how much each absence moves the team's projected margin. A player counts for the snaps he has in the team's ratings (recent games weighted, like the ratings), so a starter who has played every week counts fully, someone already out for weeks or just traded in counts less. Out ×1, Doubtful ×0.99, Questionable ×0.33 (how often each actually sat, 2021-25). About ${(D.meta.pts_per_starter || 1).toFixed(2)} pts per full-time starter. Injured QBs are handled by starting the backup. Source: ${esc(D.meta.inj_source || "–")}.</div></div>`;
 }
-function injPanel(g) {
-  const team = t => {
-    const s = (t.injuries || []).map(i => `<div class="ir"><span>${esc(i.name)} <span class="ps">${esc(i.pos)} · ${esc(i.group)} · ${Math.round(100 * i.share)}% of snaps</span></span><b class="${ST(i.status) === "Q" ? "" : "neg"}">${esc(i.status)}</b></div>`).join("");
-    const o = (t.others || []).map(i => `${esc(i.name)} (${esc(i.pos)}) ${esc(ST(i.status))}`).join(", ");
-    return `<div class="ih"><b>${esc(t.abbr)}</b><span class="${t.inj_pts < -0.05 ? "neg" : ""}">${t.inj_pts != null ? (t.inj_pts < -0.05 ? t.inj_pts.toFixed(1) + " pts" : "full strength") : ""}</span></div>
-      ${s || `<div class="ps">No starters listed.</div>`}${o ? `<div class="ps" style="margin-top:4px">Also listed (not regular starters): ${o}</div>` : ""}${t.qb_note ? `<div class="ps">QB: ${esc(t.qb_note)}, so ${esc(t.qb)} is projected to start.</div>` : ""}`; };
-  return `<div class="sec">Injuries</div>${team(g.away)}${team(g.home)}
-    <div class="hint">A starter = 40%+ of snaps over the last 6 games. Each missing full-time starter costs about ${(D.meta.pts_per_starter || 0.85).toFixed(1)} points of margin (Out counts fully, Doubtful 85%, Questionable 25%), measured on past seasons. Source: ${esc(D.meta.inj_source || "–")}.</div>`;
+function updates() {
+  const runs = D.updates || [];
+  const kinds = Object.keys(UPD_KIND).filter(k => k === "all" || k === "injury" || runs.some(r => r.items.some(i => i.kind === k)));
+  const chips = `<div class="strip" style="padding-left:0">${kinds.map(k => `<button class="chip ${UF === k ? "on" : ""}" data-uf="${k}">${UPD_KIND[k]}</button>`).join("")}</div>`;
+  const m = D.meta, now = UF === "all" ? `<div class="card"><div class="lk-h">Right now</div><div class="kv" style="margin-top:8px">
+      <div><span>Results through</span><b>${esc(m.data_through)}</b></div><div><span>Market lines</span><b>${m.odds_at ? new Date(m.odds_at).toLocaleString("en-US", {weekday: "short", hour: "numeric", minute: "2-digit", timeZone: "America/New_York"}) : "posted lines"}</b></div>
+      <div><span>Per missing starter</span><b>${(m.pts_per_starter || 0).toFixed(2)} pts</b></div><div><span>Injury source</span><b>${esc(m.inj_source || "–")}</b></div></div>
+      <div class="hint">Refreshed every run: nflverse results and snap counts, ESPN injuries, starting QBs, then one market pull a day.</div></div>` : "";
+  const list = runs.map(r => { const it = r.items.filter(i => UF === "all" || i.kind === UF); if (!it.length) return "";
+    return `<div class="card upd"><div class="ut">${esc(fmtT(r.time))}</div>${it.map(i => `<div class="ui"><span>${i.icon}</span><span>${esc(i.text)}</span></div>`).join("")}</div>`; }).join("");
+  return chips + now + (UF === "all" || UF === "injury" ? injuryCard() : "")
+    + (list || `<div class="note" style="color:#e6f3e6">No ${UF === "all" ? "" : UPD_KIND[UF].replace(/^\S+ /, "").toLowerCase() + " "}changes logged yet. They'll show here after the next runs.</div>`);
 }
+
 const MX = [["⚡ Offense", "off"], ["🎯 Passing", "pas"], ["🛡️ Defense", "dfn"], ["🧤 Pass defense", "pdef"], ["🏆 Points rating", "pts"]];
 function matchupHtml(g) {
   const A = D.teams[g.away.abbr] || {}, H = D.teams[g.home.abbr] || {};
@@ -352,8 +393,11 @@ function matchupHtml(g) {
       <div class="tr"><div class="half l"><div style="width:${w(va)}%;background:${col(va, g.away)}"></div></div><div class="half"><div style="width:${w(vh)}%;background:${col(vh, g.home)}"></div></div></div>
       <span class="v r2">#${rh ?? "–"}</span></div>`; };
   const qb = t => t.qb ? `<div class="hint">🏈 <b>${esc(t.abbr)}</b>: ${esc(t.qb)}${t.qb_level != null ? ` · ${(t.qb_level >= 0 ? "+" : "")}${t.qb_level.toFixed(2)} EPA/dropback` : ""}${t.qb_adj != null && Math.abs(t.qb_adj) >= 0.03 ? ` · <b class="${t.qb_adj < 0 ? "neg" : "pos"}">${t.qb_adj < 0 ? "below" : "above"} their usual QB play (${(t.qb_adj >= 0 ? "+" : "") + t.qb_adj.toFixed(2)})</b>` : ""}</div>` : "";
-  return injPanel(g) + `<div class="sec">Team ratings</div><div class="mx"><div class="r hd"><span></span><span class="v">${esc(g.away.abbr)}</span><span class="vs">rank of 32 (bars: vs league avg)</span><span class="v r2">${esc(g.home.abbr)}</span></div>
+  const ip = t => t.inj_pts != null && t.inj_pts < -0.05 ? `${esc(t.abbr)} ${t.inj_pts.toFixed(1)}` : null;
+  const injl = [ip(g.away), ip(g.home)].filter(Boolean);
+  return `<div class="mx"><div class="r hd"><span></span><span class="v">${esc(g.away.abbr)}</span><span class="vs">rank of 32 (bars: vs league avg)</span><span class="v r2">${esc(g.home.abbr)}</span></div>
     ${MX.map(([l, k]) => rowH(l, k)).join("")}</div>${qb(g.away)}${qb(g.home)}
+    ${injl.length ? `<button class="link" data-goinj="1">🚑 Injury adjustment: ${injl.join(" pts, ")} pts · details in Updates →</button>` : ""}
     <div class="hint">Offense and defense are opponent-adjusted EPA per play (garbage time removed), weighted toward recent games. Records: ${esc(g.away.abbr)} ${esc(A.record || "")}, ${esc(g.home.abbr)} ${esc(H.record || "")}.</div>`;
 }
 function altHtml(g) {
@@ -376,12 +420,32 @@ function scoreHtml(g) {
       <div><span>Model line</span><b>${esc(g.home.abbr)} ${sp(-Math.round(2 * g.margin) / 2)} · ${g.total.toFixed(1)}</b></div>
       <div><span>Decided by exactly 3</span><b>${pct(p3)}</b></div><div><span>Decided by exactly 7</span><b>${pct(p7)}</b></div></div>`;
 }
+// formation view: who lines up for each side, on the field (offense going up, defense facing down)
+const FORM = {};   // game_id -> {team: "home"|"away", unit: "off"|"def"}
+const SPOTS = {   // x, y in % of the field; offense snaps the ball going up, the defense lines up facing it
+  off: {OL: [[18, 33], [34, 33], [50, 33], [66, 33], [82, 33]], TE: [[91, 45]], WR: [[8, 50], [92, 62], [30, 46]],
+        QB: [[50, 56]], RB: [[50, 78]]},
+  def: {DL: [[29, 68], [43, 68], [57, 68], [71, 68]], LB: [[36, 48], [64, 48]], CB: [[8, 66], [92, 66], [20, 54]], S: [[33, 22], [67, 22]]},
+};
 function fieldHtml(g) {
-  // the ball sits where the model's margin puts it: home end zone on the right, 1 yard per point of margin (capped)
-  const m = Math.max(-21, Math.min(21, g.margin)), left = 50 + m * (42 / 21);
-  return `<div class="field" style="--ez-a:${g.away.color};--ez-h:${g.home.color}"><div class="ez a">${esc(g.away.name.toUpperCase())}</div><div class="ez h">${esc(g.home.name.toUpperCase())}</div>
-    <div class="fb" style="left:${left}%">🏈</div><div class="fl" style="left:${left}%">${m >= 0 ? esc(g.home.abbr) : esc(g.away.abbr)} by ${Math.abs(g.margin).toFixed(1)}</div></div>
-    <div class="hint">The ball leans toward the team the model favours: midfield is a coin flip, each yard line is about 4 points. Market line: ${esc(g.home.abbr)} ${sp(-g.spread)}.</div>`;
+  const st = FORM[g.game_id] || (FORM[g.game_id] = {team: "home", unit: "off"});
+  const t = g[st.team], L = ((D.lineups || {})[t.abbr] || {})[st.unit];
+  const seg = `<div class="rk-hd"><div class="seg2">${["away", "home"].map(k => `<button class="chip ${st.team === k ? "on" : ""}" data-fm="${g.game_id}|team|${k}">${esc(g[k].abbr)}</button>`).join("")}</div>
+    <div class="seg2">${[["off", "Offense"], ["def", "Defense"]].map(([k, n]) => `<button class="chip ${st.unit === k ? "on" : ""}" data-fm="${g.game_id}|unit|${k}">${n}</button>`).join("")}</div></div>`;
+  if (!L || !L.players.length) return seg + `<div class="hint">No snap data for this team yet.</div>`;
+  const [ink] = inkOf(t.color), used = {};
+  const dots = L.players.map(p => {
+    const sp = (SPOTS[st.unit][p.slot] || [])[used[p.slot] = (used[p.slot] ?? -1) + 1]; if (!sp) return "";
+    const last = p.name.split(" ").slice(-1)[0].replace(/^(Jr\.?|Sr\.?|II|III|IV)$/, "") || p.name.split(" ").slice(-2)[0];
+    const q = p.status ? `<span class="fq">${esc(ST(p.status))}</span>` : "";
+    const sub = p.proj ? esc(p.proj) : `${Math.round(100 * p.share)}%`;
+    return `<button class="fp" style="left:${sp[0]}%;top:${sp[1]}%" ${p.id ? `data-pp="${esc(p.id)}|${esc(g.game_id)}"` : ""}>
+      <span class="fc ${p.status ? "q" : ""}" style="background:${esc(t.color)};color:${ink}">${esc(p.slot === "OL" ? ["LT", "LG", "C", "RG", "RT"][used.OL] : p.slot)}${q}</span>
+      <span class="fn">${esc(p.name.split(" ").length > 2 && /^(Jr|Sr|II|III|IV)/.test(last) ? p.name.split(" ")[1] : last)}</span><span class="fv">${sub}</span></button>`;
+  }).join("");
+  const outs = L.out.length ? `<div class="hint">🚑 Not playing: ${L.out.map(o => `${esc(o.name)} (${esc(o.pos)}) <b class="neg">${esc(ST(o.status))}</b>`).join(", ")}. Next man up shown.</div>` : "";
+  return seg + `<div class="field2 ${st.unit}" style="--los:${st.unit === "off" ? 27 : 75}%"><img class="fl-logo" src="${esc(t.logo)}" alt="" onerror="this.remove()"><div class="los"></div>${dots}</div>${outs}
+    <div class="hint">${st.unit === "off" ? "11 personnel (1 RB, 1 TE, 3 WR). Numbers are this week's projections; linemen show their share of snaps" : "Nickel (4 DL, 2 LB, 3 CB, 2 S). Numbers are each player's share of defensive snaps"} over the last few games. Gold ring = questionable. Tap a skill player for his props.</div>`;
 }
 function likeRows() {
   const out = [];
@@ -643,13 +707,17 @@ function strip() {
   $("#strip").innerHTML = h; $("#strip").style.display = h ? "" : "none";
 }
 function nav() {
-  const T = [["games", "🏈 Games"], ["props", "👤 Props"], ["teams", "📈 Teams"], ["check", "✅ Check"]];
+  const T = [["games", "🏈 Games"], ["props", "👤 Props"], ["teams", "📈 Teams"], ["check", "✅ Check"], ["updates", "📰 Updates"]];
   $("#nav").innerHTML = T.map(([k, n]) => `<button class="${TAB === k ? "on" : ""}" data-k="${k}">${n}</button>`).join("");
   $("#nav").querySelectorAll("button").forEach(b => b.onclick = () => { TAB = b.dataset.k; render(); window.scrollTo(0, 0); });
 }
 function render() {
   BETS = []; header(); strip(); nav();
-  $("#view").innerHTML = {games, props, teams, check}[TAB]();
+  $("#view").innerHTML = {games, props, teams, check, updates}[TAB]();
+  document.querySelectorAll("[data-uf]").forEach(b => b.onclick = () => { UF = b.dataset.uf; render(); });
+  document.querySelectorAll("[data-iexp]").forEach(b => b.onclick = () => { const k = b.dataset.iexp; IEXP.has(k) ? IEXP.delete(k) : IEXP.add(k); render(); });
+  document.querySelectorAll("[data-goinj]").forEach(b => b.onclick = () => { TAB = "updates"; UF = "injury"; render(); window.scrollTo(0, 0); });
+  document.querySelectorAll("[data-fm]").forEach(b => b.onclick = e => { e.stopPropagation(); const [id, k, v] = b.dataset.fm.split("|"); FORM[id][k] = v; render(); });
   if (TAB === "check") wireCheck();
   if (TAB === "props") wireProps();
   $("#view").querySelectorAll("[data-pp]").forEach(el => el.onclick = e => { e.stopPropagation(); const [id, gid] = el.dataset.pp.split("|"); openPlayer(id, gid); });

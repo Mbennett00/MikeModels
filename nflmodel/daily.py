@@ -17,7 +17,7 @@ import numpy as np
 import pandas as pd
 
 from . import backtest as B
-from . import data, injuries as I, model as M, odds as O
+from . import changelog, data, injuries as I, model as M, odds as O
 from . import props as PP
 from .teams import info
 
@@ -141,6 +141,7 @@ def run(state: str = "state", log=print) -> dict:
     evs = O.match(cached["events"], wk) if cached else {}
 
     S = I.prep_snaps(snaps, sched) if len(snaps) else None
+    injuries, lineup = {}, {}
     live = injury_reports(inj, wk, log)
 
     ppath = os.path.join(site, "nfl_prices.json")   # last pre-kickoff prices, so finished games keep theirs
@@ -162,14 +163,17 @@ def run(state: str = "state", log=print) -> dict:
         side = {}
         for t, qbn in ((g.home_team, g.home_qb_name), (g.away_team, g.away_qb_name)):
             rep = live[live.team == t] if live is not None else None
+            regs_all = I.regulars(S, t, asof, min_base=0.0) if S is not None else None
             if S is not None and not started:
-                miss, det = I.missing(I.regulars(S, t, asof), rep)
+                miss, det = I.missing(regs_all[regs_all.share >= I.MIN_BASE], rep)
+                lineup[t] = depth(S, t, asof, rep)
             else:
                 miss, det = {k: 0.0 for k in I.GROUPS}, []
             qbn, qb_note = qb_starter(qb, t, qbn if isinstance(qbn, str) else None, rep, asof)
             adj, qid = M.qb_adjust(qb, lvg, t, qbn, asof, cfg)
             side[t] = dict(miss=miss, det=det, qb=qbn, qb_note=qb_note, qb_adj=adj, qb_id=qid,
                            inj_pts=float(cfg.coef_m[-1] * sum(miss.values())), report=rep)
+            injuries[t] = injury_detail(t, side[t], regs_all, cfg.coef_m[-1])
         sh_, sa_ = side[g.home_team], side[g.away_team]
         qh, idh, qa, ida = sh_["qb_adj"], sh_["qb_id"], sa_["qb_adj"], sa_["qb_id"]
         neutral = g.location == "Neutral"
@@ -198,10 +202,7 @@ def run(state: str = "state", log=print) -> dict:
         for tinfo, sd, qid in ((th, sh_, idh), (ta, sa_, ida)):
             tinfo.update(qb=pretty_qb(sd["qb"]), qb_note=sd["qb_note"], qb_adj=_r(sd["qb_adj"]),
                          qb_level=_r(lvg.level.get(qid)) if qid else None,
-                         inj_pts=_r(sd["inj_pts"], 2), missing={k: _r(v, 2) for k, v in sd["miss"].items()},
-                         injuries=[dict(name=d["name"], pos=d["pos"], group=I.LABEL[d["group"]], status=d["status"],
-                                        share=d["share"]) for d in sd["det"]],
-                         others=injury_list(sd["report"], {d["name"] for d in sd["det"]}))
+                         inj_pts=_r(sd["inj_pts"], 2), missing={k: _r(v, 2) for k, v in sd["miss"].items()})
         rec = dict(game_id=g.game_id, week=int(g.week), start_utc=kick.isoformat(), home=th, away=ta,
                    neutral=bool(neutral), roof=g.roof if isinstance(g.roof, str) else None,
                    stadium=g.stadium if isinstance(g.stadium, str) else None,
@@ -235,7 +236,10 @@ def run(state: str = "state", log=print) -> dict:
     pc = PP.PropConfig()
     meta["props"] = dict(r_rec=pc.r_rec, cv=dict(rec_yds=pc.cv_rec_yds, rush_yds=pc.cv_rush_yds, pass_yds=pc.cv_pass_yds),
                          shift=dict(rec_yds=pc.sh_rec_yds, rush_yds=pc.sh_rush_yds, pass_yds=pc.sh_pass_yds))
-    out = dict(meta=meta, games=games, players=players, teams=team_table(R, rows, season), key_m=cfg.key_m, key_t=cfg.key_t)
+    attach_props(lineup, players)
+    out = dict(meta=meta, games=games, players=players, teams=team_table(R, rows, season), key_m=cfg.key_m, key_t=cfg.key_t,
+               injuries=injuries, lineups=lineup)
+    out["updates"] = changelog.update(site, out)
     write(site, out)
     log(f"nfl: week {meta['week']}, {len(games)} games, data through {meta['data_through']}, "
         f"odds {'from ' + str(meta['odds_at']) if cached else 'none (nflverse lines)'}")
@@ -357,15 +361,96 @@ def pretty_qb(name):
     return name.replace(".", ". ", 1) if "." in name and " " not in name else name
 
 
-def injury_list(rep, skip: set, limit: int = 6) -> list:
-    """Other players listed for the team (not counted as starters), most serious first."""
-    if rep is None or rep.empty:
-        return []
-    r = rep.assign(w=rep.status.map(I.miss_weight))
-    r = r[r.w > 0].sort_values("w", ascending=False)
-    nm = "name" if "name" in r else "full_name"
-    out = [dict(name=x[nm], pos=x.pos, status=str(x.status)) for _, x in r.iterrows() if x[nm] not in skip]
-    return out[:limit]
+def injury_detail(team: str, sd: dict, regs_all, coef: float) -> dict:
+    """Everything the Updates tab shows for one team: who is counted (and for how much), injured QBs, and the
+    rest of the list with the reason each one is not counted."""
+    counted = [dict(name=d["name"], pos=d["pos"], group=I.LABEL[d["group"]], status=d["status"], share=d["share"],
+                    usual=d["usual"], presence=d["presence"], pts=_r(coef * d["w"] * d["share"], 2)) for d in sd["det"]]
+    done = {d["key"] for d in sd["det"]}
+    qbs, listed = [], []
+    rep = sd["report"]
+    if rep is not None and len(rep):
+        r = rep.assign(_w=rep.status.map(I.miss_weight))
+        r = r[r._w > 0].sort_values("_w", ascending=False).drop_duplicates("key")
+        nm = "name" if "name" in r else "full_name"
+        for _, x in r.iterrows():
+            if x.key in done:
+                continue
+            row = dict(name=x[nm], pos=x.pos, status=str(x.status))
+            if str(x.pos).upper() == "QB":
+                row["note"] = f"{pretty_qb(sd['qb']) or 'the backup'} projected to start" if sd.get("qb_note") else "not the projected starter"
+                qbs.append(row)
+                continue
+            b = float(regs_all.share.get(x.key, 0.0)) if regs_all is not None and len(regs_all) else 0.0
+            row["note"] = ("hasn't played for them in the past year" if b == 0 else
+                           f"only {round(100 * b)}% of snaps in the ratings")
+            listed.append(row)
+    return dict(abbr=team, inj_pts=_r(sd["inj_pts"], 2), qb=pretty_qb(sd["qb"]), qb_note=sd.get("qb_note"),
+                counted=counted, qbs=qbs, listed=listed[:12])
+
+
+# formation slots: (group of snap positions, how many)
+OFF_SLOTS = [("QB", ("QB",), 1), ("RB", ("RB", "FB", "HB"), 1), ("WR", ("WR",), 3), ("TE", ("TE",), 1),
+             ("OL", ("T", "G", "C", "OL", "OT", "OG"), 5)]
+DEF_SLOTS = [("DL", ("DE", "DT", "NT", "DL", "EDGE"), 4), ("LB", ("LB", "ILB", "OLB", "MLB"), 2),
+             ("CB", ("CB",), 3), ("S", ("S", "SS", "FS", "SAF", "DB"), 2)]   # nickel, the most common look
+
+
+def depth(S: pd.DataFrame, team: str, asof, rep) -> dict:
+    """Who is lining up now: the most-used players at each spot over the last few games (half-life 3 weeks),
+    with anyone ruled out (Out / Doubtful / IR) replaced by the next man up."""
+    t = S[(S.team == team) & (S.gameday < pd.Timestamp(asof)) & (S.gameday >= pd.Timestamp(asof) - pd.Timedelta(days=300))]
+    if t.empty:
+        return {}
+    games = t.groupby("game_id").gameday.first()
+    w = 0.5 ** ((pd.Timestamp(asof) - games).dt.days.astype(float) / 21.0)
+    t = t.assign(w=t.game_id.map(w)).sort_values("gameday")
+    use = t.assign(ws=t.w * t.share).groupby("key").agg(player=("player", "last"), pos=("position", "last"),
+                                                        ws=("ws", "sum"))
+    use["share"] = use.ws / float(w.sum())
+    status = {}
+    if rep is not None and len(rep):
+        for x in rep.itertuples():
+            if I.miss_weight(x.status) > 0:
+                status[x.key] = str(x.status)
+    out = {}
+    for side, slots in (("off", OFF_SLOTS), ("def", DEF_SLOTS)):
+        rows, outs = [], []
+        for slot, poss, n in slots:
+            cand = use[use.pos.isin(poss)].sort_values("share", ascending=False)
+            picked = []
+            for k, r in cand.iterrows():
+                st = status.get(k)
+                if st and I.miss_weight(st) >= 0.99:
+                    if len(picked) + len(outs) < n + 2 and r.share >= 0.3:
+                        outs.append(dict(name=r.player, pos=r.pos, status=st))
+                    continue
+                if r.share < 0.2 and slot not in ("QB", "OL"):
+                    break          # nobody else really plays there (e.g. no true nickel corner)
+                picked.append(dict(slot=slot, name=r.player, key=k, pos=r.pos, share=round(float(r.share), 2), status=st))
+                if len(picked) == n:
+                    break
+            rows += picked
+        out[side] = dict(players=rows, out=outs)
+    return out
+
+
+def attach_props(lineup: dict, players: list):
+    """Put each skill player's headline projection on his formation spot."""
+    by = {(p["team"], I.norm(p["name"])): p for p in players}
+    for t, L in lineup.items():
+        for p in (L.get("off") or {}).get("players", []):
+            q = by.get((t, p["key"]))
+            if not q:
+                continue
+            if p["slot"] == "QB" and q.get("pass_yds") is not None:
+                p["proj"] = f"{round(q['pass_yds'])} pass yds"
+            elif p["slot"] == "RB":
+                p["proj"] = f"{round(q['rush_yds'])} rush yds"
+            elif p["slot"] in ("WR", "TE"):
+                p["proj"] = f"{round(q['rec_yds'])} rec yds"
+            p["td"] = q.get("p_td")
+            p["id"] = q.get("id")
 
 
 def implied_pair(h, a) -> float:

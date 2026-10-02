@@ -120,14 +120,16 @@ def test_injured_starters_count_by_snap_share_and_status():
     rows = []
     for gid in sched.game_id:
         rows += [dict(game_id=gid, team="KC", player="Star Receiver", position="WR", offense_pct=0.9, defense_pct=0.0),
-                 dict(game_id=gid, team="KC", player="Depth Guy", position="WR", offense_pct=0.2, defense_pct=0.0),
+                 dict(game_id=gid, team="KC", player="Depth Guy", position="WR", offense_pct=0.05, defense_pct=0.0),
                  dict(game_id=gid, team="KC", player="Top Corner Jr.", position="CB", offense_pct=0.0, defense_pct=1.0)]
     S = I.prep_snaps(pd.DataFrame(rows), sched)
     regs = I.regulars(S, "KC", "2026-10-05")
-    assert set(regs.index) == {"star receiver", "top corner"}
-    rep = pd.DataFrame(dict(key=["star receiver", "top corner", "depth guy"], status=["Out", "Questionable", "Out"], pos=["WR", "CB", "WR"]))
+    assert set(regs.index) == {"star receiver", "top corner"}           # 5% snap player is below the floor
+    rep = pd.DataFrame(dict(key=["star receiver", "top corner", "depth guy", "star receiver"],
+                            status=["Out", "Questionable", "Out", "Questionable"], pos=["WR", "CB", "WR", "WR"]))
     miss, det = I.missing(regs, rep)
-    assert abs(miss["REC"] - 0.9) < 1e-9 and abs(miss["DB"] - 0.25) < 1e-9
+    assert abs(miss["REC"] - 0.9) < 1e-9                                # duplicate row counted once, most severe
+    assert abs(miss["DB"] - 0.33) < 1e-9
     assert [d["name"] for d in det] == ["Star Receiver", "Top Corner Jr."]
 
 
@@ -155,15 +157,17 @@ def test_ruled_out_qb_is_replaced_by_backup():
     assert qb_starter(qb, "KC", "Patrick Mahomes", rep.assign(status="Questionable"), "2026-10-01")[0] == "Patrick Mahomes"
 
 
-def test_long_term_ir_not_double_counted():
+def test_baseline_reflects_how_much_he_is_in_the_ratings():
     from nflmodel import injuries as I
-    sched = pd.DataFrame(dict(game_id=["g0", "g1", "g2"], gameday=pd.date_range("2026-09-07", periods=3, freq="7D")))
-    rows = [dict(game_id=g, team="KC", player="Old Injury", position="RB", offense_pct=0.7, defense_pct=0) for g in ("g0", "g1")]
-    rows += [dict(game_id=g, team="KC", player="New Injury", position="TE", offense_pct=0.8, defense_pct=0) for g in ("g0", "g1", "g2")]
-    regs = I.regulars(I.prep_snaps(pd.DataFrame(rows), sched), "KC", "2026-10-01")
-    rep = pd.DataFrame(dict(key=["old injury", "new injury"], status=["Injured Reserve", "Injured Reserve"], pos=["RB", "TE"]))
-    miss, det = I.missing(regs, rep)
-    assert miss["RB"] == 0 and abs(miss["REC"] - 0.8) < 1e-9
+    sched = pd.DataFrame(dict(game_id=["g0", "g1", "g2", "g3"], gameday=pd.date_range("2026-09-07", periods=4, freq="7D")))
+    rows = [dict(game_id=g, team="KC", player="Every Week", position="TE", offense_pct=0.8, defense_pct=0) for g in sched.game_id]
+    rows += [dict(game_id=g, team="KC", player="Hurt Early", position="RB", offense_pct=0.8, defense_pct=0) for g in ("g0",)]
+    rows += [dict(game_id="g0", team="CLE", player="Traded In", position="DE", offense_pct=0, defense_pct=0.9)]
+    rows += [dict(game_id=g, team="KC", player="Traded In", position="DE", offense_pct=0, defense_pct=0.9) for g in ("g3",)]
+    regs = I.regulars(I.prep_snaps(pd.DataFrame(rows), sched), "KC", "2026-10-05")
+    assert abs(regs.loc["every week", "share"] - 0.8) < 1e-9 and abs(regs.loc["every week", "presence"] - 1) < 1e-9
+    assert regs.loc["hurt early", "share"] < 0.25                      # mostly gone from the ratings already
+    assert 0.2 < regs.loc["traded in", "share"] < 0.3                   # only his game for KC counts
 
 
 def _box(n_games=6):
@@ -207,3 +211,20 @@ def test_prop_probabilities_behave():
     assert 0.3 < PP.p_over(row, "rush_yds", 65.5, cfg) < 0.7
     assert abs(PP.p_over(row, "td", 0.5, cfg) - (1 - np.exp(-0.5))) < 1e-9
     assert PP.p_over(row, "pass_td", 0.5, cfg) > PP.p_over(row, "pass_td", 1.5, cfg)
+
+
+def test_nfl_changelog_lists_injury_qb_and_line_moves():
+    from nflmodel import changelog as CL
+    def out(status, qb, spread, week=4):
+        g = dict(game_id="g1", state="pre", home=dict(abbr="CHI", qb="Caleb Williams", inj_pts=-1.0),
+                 away=dict(abbr="NYJ", qb=qb, inj_pts=-2.0), margin=5.0, total=44.0, spread=spread, total_line=43.0, src="odds")
+        return dict(meta=dict(generated_at="2026-10-02T12:00:00-04:00", week=week, data_through="2026-10-01", odds_at=None,
+                              pts_per_starter=1.07), games=[g],
+                    injuries={"NYJ": dict(counted=[dict(name="Breece Hall", status=status, pos="RB", pts=-0.6)], qbs=[])})
+    first = CL.diff(None, CL.snapshot(out("Questionable", "Geno Smith", 3.5)))
+    assert first[0]["kind"] == "data"
+    items = CL.diff(CL.snapshot(out("Questionable", "Geno Smith", 3.5)), CL.snapshot(out("Out", "Tyrod Taylor", 5.0)))
+    kinds = {i["kind"] for i in items}
+    assert {"injury", "qb", "line"} <= kinds
+    assert any("Questionable → Out" in i["text"] for i in items)
+    assert any("CHI -3.5 → CHI -5" in i["text"] for i in items)

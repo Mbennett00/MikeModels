@@ -1,11 +1,15 @@
-"""Missing starters: how much of each position group a team is without this week.
+"""Missing players: how much of each position group a team is without this week, relative to its ratings.
 
-Who counts as a starter comes from snap counts: a player's average share of offensive (or defensive) snaps
-over the team's last 6 games, among games he played (at least 2 of them, average 40%+). Each injured starter
-adds his usual snap share to his group, scaled by how likely he is to sit:
+The team ratings are a recency-weighted average of past games, so a player matters to them in proportion to how
+much he played in those games. For each player, his baseline = his snap share (offense or defense) in each of the
+team's games over the last year, weighted exactly like the ratings weight games (half-life 140 days), zero for
+games he missed. An injured player removes his baseline from his group, scaled by how likely he is to sit:
 
-    Out / IR / suspended 1.0   Doubtful 0.85   Questionable 0.25
-(IR / PUP / suspended only when he played the team's latest game: otherwise his absence is already in the ratings)
+    Out / IR / suspended 1.0   Doubtful 0.99   Questionable 0.33
+
+(measured on 2021-25 official reports against snap counts: 99.9% of Out, 99.3% of Doubtful and 33% of
+Questionable players sat). So a starter who has played every week counts fully; one already out for weeks counts
+only for what is left of him in the ratings; a player just traded in counts for the games he has played here.
 
 Groups: offense RB, receivers (WR/TE), line; defense front (DL/edge), linebackers, secondary.
 QBs are handled separately (a ruled-out starter is swapped for the backup in the QB adjustment).
@@ -34,8 +38,8 @@ OFF, DEF = ("RB", "REC", "OL"), ("DL", "LB", "DB")
 GROUPS = OFF + DEF
 LABEL = {"RB": "RB", "REC": "WR/TE", "OL": "O-line", "DL": "D-line", "LB": "LB", "DB": "secondary"}
 MISS = {"out": 1.0, "injured reserve": 1.0, "ir": 1.0, "suspension": 1.0, "suspended": 1.0, "pup": 1.0,
-        "physically unable to perform": 1.0, "non-football injury": 1.0, "doubtful": 0.85, "questionable": 0.25}
-WINDOW, MIN_GAMES, MIN_SHARE = 6, 2, 0.4
+        "physically unable to perform": 1.0, "non-football injury": 1.0, "doubtful": 0.99, "questionable": 0.33}
+HALF_LIFE, MIN_BASE = 140.0, 0.10   # days (same as the team ratings); smallest baseline worth listing
 ESPN_URL = "https://site.api.espn.com/apis/site/v2/sports/football/nfl/injuries"
 ESPN_FIX = {"LAR": "LA", "WSH": "WAS"}
 
@@ -59,18 +63,28 @@ def prep_snaps(snaps: pd.DataFrame, sched: pd.DataFrame) -> pd.DataFrame:
     s = s[s.group.notna()].copy()
     s["share"] = np.where(s.group.isin(DEF), s.defense_pct, s.offense_pct).astype(float)
     s["key"] = s.player.map(norm)
-    return s[["game_id", "gameday", "team", "player", "key", "group", "share"]]
+    return s[["game_id", "gameday", "team", "player", "key", "position", "group", "share"]]
 
 
-def regulars(snaps: pd.DataFrame, team: str, asof) -> pd.DataFrame:
-    """Usual starters for `team` before `asof`: key -> (player, group, share)."""
-    t = snaps[(snaps.team == team) & (snaps.gameday < pd.Timestamp(asof))]
-    games = t.drop_duplicates("game_id").sort_values("gameday").game_id.tail(WINDOW)
-    t = t[t.game_id.isin(games) & (t.share > 0)]
-    g = t.groupby("key").agg(player=("player", "last"), group=("group", "last"), share=("share", "mean"),
-                             gp=("game_id", "nunique"))
-    g["last"] = g.index.isin(t[t.game_id == (games.iloc[-1] if len(games) else None)].key)
-    return g[(g.gp >= min(MIN_GAMES, len(games))) & (g.share >= MIN_SHARE)]
+def regulars(snaps: pd.DataFrame, team: str, asof, half_life: float = HALF_LIFE, min_base: float = MIN_BASE) -> pd.DataFrame:
+    """Players built into `team`'s ratings before `asof`: key -> player, group, share (baseline), usual, presence.
+
+    baseline = sum over the team's games of weight x his snap share / sum of weights (missed games count 0),
+    usual    = his average share in the games he played, presence = baseline / usual."""
+    asof = pd.Timestamp(asof)
+    t = snaps[(snaps.team == team) & (snaps.gameday < asof) & (snaps.gameday >= asof - pd.Timedelta(days=400))]
+    if t.empty:
+        return pd.DataFrame(columns=["player", "group", "share", "usual", "presence", "last"])
+    games = t.groupby("game_id").gameday.first()
+    w = 0.5 ** ((asof - games).dt.days.astype(float) / half_life)
+    tot = float(w.sum())
+    t = t[t.share > 0].assign(w=t.game_id.map(w))
+    g = t.assign(ws=t.w * t.share).groupby("key").agg(player=("player", "last"), group=("group", "last"),
+                                                      ws=("ws", "sum"), wp=("w", "sum"), usual=("share", "mean"))
+    g["share"] = g.ws / tot
+    g["presence"] = g.wp / tot
+    g["last"] = g.index.isin(t[t.game_id == games.idxmax()].key)
+    return g[g.share >= min_base][["player", "group", "share", "usual", "presence", "last"]]
 
 
 def missing(regs: pd.DataFrame, report: pd.DataFrame) -> tuple[dict, list]:
@@ -79,6 +93,8 @@ def missing(regs: pd.DataFrame, report: pd.DataFrame) -> tuple[dict, list]:
     det = []
     if report is None or report.empty or regs.empty:
         return out, det
+    report = (report.assign(_w=report.status.map(miss_weight)).sort_values("_w", ascending=False)
+              .drop_duplicates("key"))
     for r in report.itertuples():
         w = miss_weight(r.status)
         if w <= 0 or r.key not in regs.index:
@@ -86,11 +102,10 @@ def missing(regs: pd.DataFrame, report: pd.DataFrame) -> tuple[dict, list]:
         p = regs.loc[r.key]
         if p.group not in out:
             continue
-        if long_term(r.status) and not p.get("last", True):
-            continue   # on IR / PUP for a while: his absence is already in the team's recent results
         out[p.group] += w * p.share
-        det.append(dict(name=p.player, group=p.group, pos=getattr(r, "pos", None) or p.group, status=str(r.status),
-                        share=round(float(p.share), 2), w=w))
+        det.append(dict(name=p.player, key=r.key, group=p.group, pos=getattr(r, "pos", None) or p.group,
+                        status=str(r.status), share=round(float(p.share), 2), usual=round(float(p.usual), 2),
+                        presence=round(float(p.presence), 2), w=w))
     det.sort(key=lambda d: -d["w"] * d["share"])
     return out, det
 
