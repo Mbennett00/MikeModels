@@ -506,7 +506,7 @@ def total_bias(bt: pd.DataFrame, n: int = 272) -> float:
     return 0.0 if len(x) < 50 else float((x.t_model - x.total).mean())
 
 
-FEATURE_VERSION = "v5-inj-value-rain"   # bump when the game features change, to rebuild cached seasons
+FEATURE_VERSION = "v6-inj-value-rain"   # bump when the game features change, to rebuild cached seasons
 
 
 def cached_features(cache, sched, tg, qb, cfg, snaps, inj, wxt, con, pg, log=print) -> pd.DataFrame:

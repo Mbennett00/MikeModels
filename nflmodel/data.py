@@ -138,13 +138,18 @@ def load_players(cache: str, seasons) -> pd.DataFrame:
 
 
 def contracts(cache: str, log=print) -> pd.DataFrame:
-    """OverTheCap contract history via nflverse (APY as a share of the cap), refreshed each run."""
+    """OverTheCap contract history via nflverse (APY as a share of the cap), refreshed each run.
+
+    The parquet file is the current one; the csv.gz on the same release is an older snapshot without recent
+    extensions, so it isn't used."""
     f = os.path.join(cache, "contracts.csv.gz")
-    cols = ["player", "position", "team", "year_signed", "years", "apy", "apy_cap_pct", "gsis_id", "draft_year", "draft_round"]
+    cols = ["player", "position", "team", "year_signed", "years", "apy", "apy_cap_pct", "gsis_id", "draft_year",
+            "draft_round"]
     try:
-        raw = open(os.path.join(LOCAL, "historical_contracts.csv.gz"), "rb").read() if LOCAL else \
-            _get(REL + "/contracts/historical_contracts.csv.gz")
-        d = pd.read_csv(io.BytesIO(raw), compression="gzip", usecols=lambda c: c in cols)
+        if LOCAL:
+            d = pd.read_parquet(os.path.join(LOCAL, "historical_contracts.parquet"), columns=cols)
+        else:
+            d = pd.read_parquet(io.BytesIO(_get(REL + "/contracts/historical_contracts.parquet")), columns=cols)
         d.to_csv(f, index=False, compression="gzip")
         return d
     except Exception as e:
