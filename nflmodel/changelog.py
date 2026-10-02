@@ -44,6 +44,9 @@ def snapshot(out: dict) -> dict:
 
 
 PARAMS = [("hfa", "Home-field edge", lambda v: f"{v:.2f} pts", 0.05),
+          ("w_side", "Weight on the model for sides (vs market)", lambda v: f"{100 * v:.0f}%", 0.05),
+          ("w_total", "Weight on the model for totals (vs market)", lambda v: f"{100 * v:.0f}%", 0.05),
+          ("t_bias", "Totals scoring correction", lambda v: f"{-v:+.2f} pts", 0.1),
           ("sd_margin", "Spread of final margins (SD)", lambda v: f"{v:.2f}", 0.05),
           ("sd_total", "Spread of final totals (SD)", lambda v: f"{v:.2f}", 0.05),
           ("league_total", "League scoring this season", lambda v: f"{v:.1f} pts/game", 0.3)]

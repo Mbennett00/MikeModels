@@ -87,6 +87,15 @@ the NFL page has a turf background, team-colour game cards, a Teams power rankin
   - Shown in the 📰 Updates tab: each team's counted players with their points, injured QBs, and everyone else
     listed with the reason they don't count. The Updates feed logs injury and QB changes, model and market line
     moves and data loads, with filter chips.
+- **Model vs market (why the edges got smaller)**: on 2021-26 the model sat about 2.3 points from the closing
+  line on both sides and totals (3+ points apart in 29% of games). Regressing results on the close and the
+  model's gap: on **sides the gap carries no information** (weight about 0), on **totals it carries some**
+  (about 0.27), and the model's totals ran about 1 point high. So prices now start from the market and move toward
+  the model by the weight that tests best (refit every run: currently 0% on sides, 30% on totals), after
+  correcting the totals scoring level over the last season of games. Edges are only the shift the model causes
+  (the same score distribution centred on the market is the reference), so key numbers and pushes can't create
+  fake edges. Blended totals beat the closing line on the backtest (MAE 10.31 vs 10.34); sides follow the market.
+  Each game shows the model's own line next to the market and our price (Score panel).
 - **Weather** (`nflmodel/weather.py`, Open-Meteo: free, no key): the forecast for the 3 hours from kickoff at each
   stadium (temperature, wind and gusts, chance and amount of rain, snow). Domes are ignored; retractable roofs are
   treated as closed; open-air international venues nflverse marks as domes are fixed.

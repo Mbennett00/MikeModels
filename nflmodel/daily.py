@@ -79,11 +79,25 @@ def team_table(R: M.Ratings, rows: pd.DataFrame, season: int) -> dict:
     return out
 
 
-def bets_for(p: dict, mk: dict, src: str, book_short: str) -> list:
-    """Model vs market for ML, spread and total. mk sides are home / over first."""
+def bets_for(p: dict, mk: dict, src: str, book_short: str, p0: dict | None = None) -> list:
+    """Model vs market for ML, spread and total. mk sides are home / over first.
+
+    With p0 (the same distribution centred on the market's spread and total), the chance shown is the market's
+    no-vig chance plus the shift the model causes, so the shape of the score distribution (key numbers, pushes)
+    and the vig assumption can't create an edge on their own."""
     out = []
+    shift = {}
+    if p0 is not None:
+        shift = {("ml", "home"): p["p_home"] - p0["p_home"], ("ml", "away"): p["p_away"] - p0["p_away"]}
+        if "p_home_cover" in p:
+            shift.update({("spread", "home"): p["p_home_cover"] - p0["p_home_cover"],
+                          ("spread", "away"): p0["p_home_cover"] - p["p_home_cover"]})
+        if "p_over" in p:
+            shift.update({("total", "over"): p["p_over"] - p0["p_over"], ("total", "under"): p0["p_over"] - p["p_over"]})
 
     def add(m, s, label, pm, pk, price):
+        if pk is not None and (m, s) in shift:
+            pm = float(np.clip(pk + shift[(m, s)], 0.01, 0.99))
         edge = None if pk is None else pm - pk
         if price is None and src != "odds" and pk is not None:
             price = mk.get("posted", {}).get((m, s), -110.0)   # posted lines: moneylines as listed, spreads/totals at -110
@@ -122,6 +136,8 @@ def run(state: str = "state", log=print) -> dict:
     F = B.build_features(sched, tg, qb, cfg, log=lambda *a: None, snaps=snaps, inj=inj, wx=wxt)
     bt_rows, bt = B.run(sched, tg, qb, cfg, F=F, log=lambda *a: None)
     cfg = B.fit_mapping(F, cfg)
+    w_side, w_total = blend_weights(bt_rows)
+    t_bias = total_bias(bt_rows)
     rows = M.team_rows(tg, sched)
     wk = week_games(sched, now_et)
     R = M.fit_ratings(rows, now_et.tz_localize(None), cfg)
@@ -205,7 +221,17 @@ def run(state: str = "state", log=print) -> dict:
             mk["spread"] = dict(p_first=0.5)
         if "total" not in mk and not pd.isna(g.total_line) and src == "line":
             mk["total"] = dict(p_first=0.5)
+        # price off the market, moved toward the model only as far as the backtest says the model adds information
+        tm = tm - t_bias            # recent scoring level (the fit spans seasons with more scoring)
+        mm_raw, tm_raw = mm, tm
+        if spread is not None and not pd.isna(spread):
+            mm = float(spread + w_side * (mm_raw - spread))
+        if total is not None and not pd.isna(total):
+            tm = float(total + w_total * (tm_raw - total))
         p = M.price_game(mm, tm, cfg, spread, total)
+        # the same distribution centred on the market's own numbers: an edge is only what the model moves
+        p0 = M.price_game(spread if spread is not None and not pd.isna(spread) else mm,
+                          total if total is not None and not pd.isna(total) else tm, cfg, spread, total)
         km, pm = p["margin_pmf"]; kt, pt = p["total_pmf"]
         sel = (km >= -45) & (km <= 45); selt = (kt >= 10) & (kt <= 90)
         th, ta = info(g.home_team), info(g.away_team)
@@ -218,10 +244,10 @@ def run(state: str = "state", log=print) -> dict:
                    stadium=g.stadium if isinstance(g.stadium, str) else None,
                    weather=dict(expo=expo, icon=icon, text=wtxt, impact=_r(wx_impact, 2),
                                 **({k: fc[k] for k in ("temp", "wind", "gust", "pp", "rain_mm", "snow_cm", "rain")} if fc else {})),
-                   margin=_r(mm, 2), total=_r(tm, 2), pts_home=_r((tm + mm) / 2, 1), pts_away=_r((tm - mm) / 2, 1),
+                   margin=_r(mm, 2), total=_r(tm, 2), model_margin=_r(mm_raw, 2), model_total=_r(tm_raw, 2), pts_home=_r((tm + mm) / 2, 1), pts_away=_r((tm - mm) / 2, 1),
                    p_home=_r(p["p_home"]), spread=_r(spread, 1), total_line=_r(total, 1), src=src,
                    n_books=max([v.get("n", 0) for k, v in mk.items() if k != "posted"] + [0]),
-                   bets=bets_for(p, mk, src, book_short),
+                   bets=bets_for(p, mk, src, book_short, p0),
                    mpmf=dict(lo=int(km[sel][0]), p=[round(float(v), 6) for v in pm[sel]]),
                    tpmf=dict(lo=int(kt[selt][0]), p=[round(float(v), 6) for v in pt[selt]]))
         if not started:
@@ -250,11 +276,13 @@ def run(state: str = "state", log=print) -> dict:
     recent = rows[(rows.season == season) & (rows.season_type == "REG")]
     # home edge in points: the direct term plus what the home bump in each rating adds through the margin fit
     hfa = cfg.coef_m[1] + sum(cfg.coef_m[2 + i] * R.home[mk] for i, mk in enumerate(M.METRICS))
+    meta["blend"] = dict(side=_r(w_side, 2), total=_r(w_total, 2), total_bias=_r(t_bias, 2))
     meta["weather"] = dict(rain_pts=_r(cfg.coef_t[7], 2), wind_pts=_r(cfg.coef_t[5], 2), cold_pts=_r(cfg.coef_t[6], 2))
     meta["model"] = dict(hfa=_r(hfa, 2), sd_margin=_r(cfg.sd_margin, 2), sd_total=_r(cfg.sd_total, 2),
                          pts_per_starter=_r(-cfg.coef_m[-1], 2),
                          league_total=_r(2 * recent.points.mean(), 1) if len(recent) else None,
-                         games_fit=int(F.result.notna().sum()))
+                         games_fit=int(F.result.notna().sum()), w_side=_r(w_side, 2), w_total=_r(w_total, 2),
+                         t_bias=_r(t_bias, 2))
     meta["recal"] = {k: dict(level=_r(v["level"], 3), raw=_r(v["raw"], 3), n=v["n"]) for k, v in recal.items()}
     meta["record"] = record
     meta["props"] = dict(r_rec=pc.r_rec, cv=dict(rec_yds=pc.cv_rec_yds, rush_yds=pc.cv_rush_yds, pass_yds=pc.cv_pass_yds),
@@ -443,6 +471,30 @@ def pretty_qb(name):
     if not isinstance(name, str):
         return None
     return name.replace(".", ". ", 1) if "." in name and " " not in name else name
+
+
+def total_bias(bt: pd.DataFrame, n: int = 272) -> float:
+    """How far the model's totals have run above results over the last season of graded games (rolling test:
+    full correction beat half or none, blended total MAE 10.324 -> 10.305)."""
+    if bt is None or bt.empty:
+        return 0.0
+    x = bt[bt.total.notna()].tail(n)
+    return 0.0 if len(x) < 50 else float((x.t_model - x.total).mean())
+
+
+def blend_weights(bt: pd.DataFrame) -> tuple[float, float]:
+    """How far to move from the market line toward the model, for sides and totals: the weight w (0..1) in
+    line + w * (model - line) that minimises the error against results in the walk-forward backtest."""
+    def best(y, mk, md):
+        ok = y.notna() & mk.notna() & md.notna()
+        if ok.sum() < 200:
+            return 0.0
+        y, mk, md = y[ok], mk[ok], md[ok]
+        grid = np.round(np.arange(0, 1.0001, 0.05), 2)
+        return float(min(grid, key=lambda w: float((y - (mk + w * (md - mk))).abs().mean())))
+    if bt is None or bt.empty:
+        return 0.0, 0.3
+    return best(bt.result, bt.spread_line, bt.m_model), best(bt.total, bt.total_line, bt.t_model)
 
 
 def injury_detail(team: str, sd: dict, regs_all, coef: float) -> dict:

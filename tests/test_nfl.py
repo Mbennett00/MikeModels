@@ -306,3 +306,24 @@ def test_rain_lowers_the_total_feature():
     _, wet = M.features(R, "A", "B", roof="outdoors", wind=5, temp=60, rain=1.0)
     _, dome = M.features(R, "A", "B", roof="dome", wind=25, temp=20, rain=1.0)
     assert dry[-1] == 0 and wet[-1] == 1.0 and dome[-1] == 0 and dome[-2] == 0 and dome[-3] == 0
+
+
+def test_blend_weights_and_market_shift_edges():
+    from nflmodel.daily import blend_weights, bets_for, total_bias
+    from nflmodel import model as M
+    rng = np.random.default_rng(1)
+    n = 600
+    close = rng.normal(0, 6, n)
+    noise_model = close + rng.normal(0, 3, n)                  # model = market + pure noise
+    result = close + rng.normal(0, 13, n)
+    tl = rng.normal(45, 4, n); truth = tl + rng.normal(0, 2, n)
+    tmod = truth + rng.normal(0, 2, n) + 1.0                   # model knows something about totals, runs 1 pt high
+    tot = truth + rng.normal(0, 12, n)
+    bt = pd.DataFrame(dict(result=result, spread_line=close, m_model=noise_model, total=tot, total_line=tl, t_model=tmod))
+    ws, wt = blend_weights(bt)
+    assert ws <= 0.15 and wt >= 0.2
+    assert 0.5 < total_bias(bt) < 1.5
+    cfg = M.Config(key_m={7: 2.0, 3: 2.5}, key_t={})
+    p = M.price_game(-7.0, 44.0, cfg, -7.0, 44.0)               # model centred exactly on the market
+    rows = bets_for(p, {"spread": dict(p_first=0.5), "total": dict(p_first=0.5)}, "line", "CZR", p0=p)
+    assert all(abs(b["edge"]) < 1e-9 for b in rows if b["m"] in ("spread", "total"))

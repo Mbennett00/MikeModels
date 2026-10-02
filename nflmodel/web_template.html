@@ -63,7 +63,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .score { font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 28px; line-height: 1; } .score.lose { opacity: .5; }
 .bar { display: flex; height: 8px; border-radius: 99px; overflow: hidden; border: 2px solid var(--navy); gap: 2px; background: var(--navy); margin: 6px 0 10px; }
 .card.gc { padding: 0; overflow: hidden; }
-.gc .band { padding: 12px 14px 4px; }
+.gc .band { padding: 12px 14px 8px; }
 .gc .body { padding: 0 14px 14px; }
 .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .tile { border: 2.5px solid var(--navy); border-radius: 14px; background: #fff; padding: 8px 10px; text-align: left; display: flex; flex-direction: column; gap: 2px; min-height: 58px; box-shadow: 2px 2px 0 var(--navy); }
@@ -159,6 +159,16 @@ label.f { display: block; font-size: 13px; font-weight: 800; color: var(--ink-2)
 .verdict.bad { background: var(--red-soft); } .verdict.bad .h { color: var(--red); }
 .verdict .d { font-size: 14px; font-weight: 700; color: var(--ink-2); margin-top: 4px; }
 .close { position: absolute; right: 14px; top: 12px; }
+.mk3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.mcol { border: 2.5px solid var(--navy); border-radius: 14px; background: #fff; padding: 7px 6px; display: flex; flex-direction: column; align-items: center; gap: 1px; box-shadow: 2px 2px 0 var(--navy); min-width: 0; }
+.mcol:active { transform: translate(2px, 2px); box-shadow: none; }
+.mcol .mt { font-size: 10.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.mcol .mm { font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 17px; color: var(--navy); white-space: nowrap; }
+.mcol .ms { font-size: 11.5px; font-weight: 700; color: var(--ink-2); white-space: nowrap; }
+.mcol .me { margin-top: 3px; font-size: 11px; font-weight: 800; border-radius: 99px; padding: 1px 7px; background: var(--green-soft); color: var(--green); border: 1.5px solid var(--green); white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.mcol .me.none { background: transparent; border-color: transparent; color: var(--muted); font-weight: 700; }
+.mcol .me.lost { background: #eee; color: var(--muted); border-color: #ccc; }
+.mcol.hot { border-color: var(--green); box-shadow: 2px 2px 0 var(--green); }
 .wx { font-size: 12.5px; font-weight: 800; margin: -4px 0 6px; opacity: .92; } .wx b { font-weight: 900; }
 .wxc { font-size: 13px; font-weight: 700; color: var(--ink-2); background: #eef6ff; border: 2px solid var(--navy); border-radius: 12px; padding: 8px 10px; margin-top: 10px; line-height: 1.45; }
 /* formation */
@@ -324,31 +334,48 @@ function customTile(g, m, side, line) {
 
 // ---------- games ----------
 function gameCard(g) {
-  const a = g.away, h = g.home, ph = g.p_home, s = scoreOf(g);
+  if (g.model_margin == null) g.model_margin = g.margin;
+  if (g.model_total == null) g.model_total = g.total;
+  const a = g.away, h = g.home, ph = g.p_home, s = scoreOf(g), W = g.weather || {};
+  const wx = W.icon ? ` · ${W.icon}${W.temp != null ? " " + Math.round(W.temp) + "°" : ""}` : "";
   const status = s && s.state === "in" ? `<span class="live">LIVE</span><span>${esc(s.detail)}</span>`
-    : s ? `<span class="final">${esc((s.detail || "Final").toUpperCase())}</span><span>model had ${esc(h.abbr)} ${sp(-Math.round(2 * g.margin) / 2)}</span>`
-    : `<span>${kickLab(g.start_utc)}${g.neutral ? " · neutral site" : ""}</span><span>proj ${esc(a.abbr)} ${g.pts_away.toFixed(0)} – ${g.pts_home.toFixed(0)} ${esc(h.abbr)}</span>`;
-  const W = g.weather || {}, wchip = W.icon && !s ? `<div class="wx" style="color:${inkOf(a.color)[0]}">${W.icon} ${esc(W.text)}${W.impact && Math.abs(W.impact) >= 0.5 ? ` · <b>total ${W.impact > 0 ? "+" : "−"}${Math.abs(W.impact).toFixed(1)}</b>` : ""}</div>` : "";
+    : s ? `<span class="final">${esc((s.detail || "Final").toUpperCase())}</span><span></span>`
+    : `<span>${kickLab(g.start_utc)}${wx}${g.neutral ? " · neutral" : ""}</span><span></span>`;
   const [ia, ca] = inkOf(a.color), [ih, ch] = inkOf(h.color);
-  const qbl = t => t.qb ? `QB ${esc(t.qb)}${t.qb_adj != null && Math.abs(t.qb_adj) >= 0.03 ? (t.qb_adj < 0 ? " ⬇️" : " ⬆️") : ""}` : "QB TBD";
-  const trow = (t, p, mine, theirs, ink, cl) => `<div class="trow ${cl}" style="color:${ink}">${logo(t)}<div style="min-width:0"><div class="tname">${esc(t.city)} ${esc(t.name)}</div>
-      <div class="qb">${qbl(t)}</div></div>
+  const trow = (t, p, mine, theirs, ink, cl) => `<div class="trow ${cl}" style="color:${ink}">${logo(t)}<div style="min-width:0"><div class="tname">${esc(t.name)}</div>
+      <div class="qb">${t.qb ? esc(t.qb) : "QB TBD"}</div></div>
       <div class="right">${s ? `<div class="score ${s.state === "post" && mine < theirs ? "lose" : ""}">${mine}</div>` : `<div class="pct">${pct(p)}</div>`}</div></div>`;
   const bets = mkBets(g);
+  // one column per market: market line big, the model's own number small, an edge tag only when it's real
+  const best = m => bets.filter(b => b.m === m).sort((x, y) => (y.edge ?? -9) - (x.edge ?? -9))[0];
+  const fav = g.spread >= 0 ? h : a, favLine = Math.abs(g.spread);
+  const modelFav = g.model_margin >= 0 ? h : a;
+  const col = (title, main, sub, b) => {
+    const e = b && b.edge != null && b.edge >= 0.03, i = b ? bet({g, b, p: b.p, label: label(g, b)}) : null;
+    const res = b ? settle(g, b) : "";
+    return `<button class="mcol ${e ? "hot" : ""}" ${i != null ? `data-bet="${i}"` : ""}><span class="mt">${title}</span><span class="mm">${main}</span><span class="ms">${sub}</span>
+      ${e ? `<span class="me ${res}">${res === "won" ? "✅ " : res === "lost" ? "❌ " : ""}${esc(b.m === "total" ? (b.s === "over" ? "Over" : "Under") : b.m === "ml" ? (b.s === "home" ? h.abbr : a.abbr) : label(g, b))} +${(100 * b.edge).toFixed(0)}%</span>` : `<span class="me none">no edge</span>`}</button>`; };
+  const mkt = bets.find(b => b.m === "ml" && b.s === "home");
+  const mlFav = (mkt && mkt.mkt != null ? mkt.mkt : ph) >= 0.5 ? h : a, mlP = mlFav === h ? (mkt && mkt.mkt != null ? mkt.mkt : ph) : 1 - (mkt && mkt.mkt != null ? mkt.mkt : ph);
   let html = `<div class="card gc" style="background:linear-gradient(170deg, ${a.color} 0%, ${a.color} 22%, ${h.color} 62%, ${h.color} 100%)">
-    <div class="band"><div class="status" style="color:${ia}">${status}</div>${wchip}
-    ${trow(a, 1 - ph, s && s.away, s && s.home, ia, ca)}${trow(h, ph, s && s.home, s && s.away, ih, ch)}
-    <div class="bar"><div style="width:${100 * (1 - ph)}%;background:${a.color}"></div><div style="width:${100 * ph}%;background:${h.color}"></div></div></div>
-    <div class="body"><div class="tiles">${bets.map(b => tile(g, b)).join("")}</div>`;
+    <div class="band"><div class="status" style="color:${ia}">${status}</div>
+    ${trow(a, 1 - ph, s && s.away, s && s.home, ia, ca)}${trow(h, ph, s && s.home, s && s.away, ih, ch)}</div>
+    <div class="body"><div class="mk3">
+      ${col("Spread", favLine ? `${esc(fav.abbr)} −${favLine}` : "Pick'em", `model ${esc(modelFav.abbr)} −${Math.abs(Math.round(2 * g.model_margin) / 2)}`, best("spread"))}
+      ${col("Total", `O/U ${g.total_line}`, `model ${g.model_total.toFixed(1)}`, best("total"))}
+      ${col("To win", `${esc(mlFav.abbr)} ${pct(mlP)}`, `model ${esc(ph >= 0.5 ? h.abbr : a.abbr)} ${pct(Math.max(ph, 1 - ph))}`, best("ml"))}
+    </div>`;
   if (OPEN.has(g.game_id)) {
-    const view = PANEL[g.game_id] || "matchup";
-    const tabs = [["matchup", "Matchup"], ["players", "Players"], ["field", "Formation"], ["bets", "Lines"], ["score", "Score"]]
+    const view = PANEL[g.game_id] || "bets";
+    const tabs = [["bets", "Bets"], ["matchup", "Matchup"], ["players", "Players"], ["field", "Formation"], ["score", "Score"]]
       .map(([k, n]) => `<button class="${view === k ? "on" : ""}" data-pv="${g.game_id}|${k}">${n}</button>`).join("");
-    const body = view === "matchup" ? matchupHtml(g) : view === "players" ? gamePlayers(g) : view === "bets" ? altHtml(g) : view === "score" ? scoreHtml(g) : fieldHtml(g);
+    const body = view === "bets" ? `<div class="tiles">${bets.map(b => tile(g, b)).join("")}</div>${altHtml(g)}`
+      : view === "matchup" ? matchupHtml(g) : view === "players" ? gamePlayers(g) : view === "field" ? fieldHtml(g) : scoreHtml(g);
     html += `<div class="panel"><div class="ptabs">${tabs}</div>${body}</div>`;
   }
-  return html + `<button class="more" data-more="${g.game_id}">${OPEN.has(g.game_id) ? "Less ▴" : "Matchup, more lines & score ▾"}</button></div></div>`;
+  return html + `<button class="more" data-more="${g.game_id}">${OPEN.has(g.game_id) ? "Less ▴" : "More ▾"}</button></div></div>`;
 }
+
 // missing starters: one line per team on the card, full list in the matchup panel
 const ST = s => { s = String(s || ""); return /^out/i.test(s) ? "Out" : /^doubt/i.test(s) ? "Doubtful" : /^quest/i.test(s) ? "Q" : /reserve|^ir/i.test(s) ? "IR" : s; };
 // ---------- updates: injuries and every adjustment, with filters ----------
@@ -426,7 +453,7 @@ function scoreHtml(g) {
   const p3 = [3, -3].map(k => d.p[k - d.lo] || 0).reduce((x, y) => x + y, 0), p7 = [7, -7].map(k => d.p[k - d.lo] || 0).reduce((x, y) => x + y, 0);
   return `<div class="sec">Final margin (${esc(g.home.abbr)} minus ${esc(g.away.abbr)})</div><div class="dist">${bars.join("")}</div>
     <div class="dlab"><span>${esc(g.away.abbr)} by 28</span><span>tie</span><span>${esc(g.home.abbr)} by 28</span></div>
-    ${weatherHtml(g)}<div class="kv" style="margin-top:12px"><div><span>Projected score</span><b>${esc(g.away.abbr)} ${g.pts_away.toFixed(1)} – ${g.pts_home.toFixed(1)} ${esc(g.home.abbr)}</b></div>
+    ${weatherHtml(g)}${blendHtml(g)}<div class="kv" style="margin-top:12px"><div><span>Projected score</span><b>${esc(g.away.abbr)} ${g.pts_away.toFixed(1)} – ${g.pts_home.toFixed(1)} ${esc(g.home.abbr)}</b></div>
       <div><span>Model line</span><b>${esc(g.home.abbr)} ${sp(-Math.round(2 * g.margin) / 2)} · ${g.total.toFixed(1)}</b></div>
       <div><span>Decided by exactly 3</span><b>${pct(p3)}</b></div><div><span>Decided by exactly 7</span><b>${pct(p7)}</b></div></div>`;
 }
@@ -437,6 +464,14 @@ const SPOTS = {   // x, y in % of the field; offense snaps the ball going up, th
         QB: [[50, 56]], RB: [[50, 78]]},
   def: {DL: [[29, 68], [43, 68], [57, 68], [71, 68]], LB: [[36, 48], [64, 48]], CB: [[8, 66], [92, 66], [20, 54]], S: [[33, 22], [67, 22]]},
 };
+function blendHtml(g) {
+  if (g.model_margin == null) return "";
+  const B = D.meta.blend || {}, fl = (m, ab) => `${m >= 0 ? esc(g.home.abbr) : esc(g.away.abbr)} −${Math.abs(Math.round(2 * m) / 2)}`;
+  return `<div class="wxc" style="background:#f6f1e4">📐 <b>Model vs market</b><br>
+    Spread: model alone ${fl(g.model_margin)}, market ${fl(g.spread)}, our price ${fl(g.margin)}<br>
+    Total: model alone ${g.model_total.toFixed(1)}, market ${g.total_line}, our price ${g.total.toFixed(1)}<br>
+    <span class="ps">Prices start from the market and move ${Math.round(100 * (B.side || 0))}% of the way to the model on sides and ${Math.round(100 * (B.total || 0))}% on totals: the weights that tested best against results since 2021 (refit every run). On sides the market has been sharper, so the model's gap isn't treated as an edge.</span></div>`;
+}
 function weatherHtml(g) {
   const W = g.weather || {}; if (!W.icon) return "";
   const M = D.meta.weather || {};
@@ -471,7 +506,7 @@ function fieldHtml(g) {
 function likeRows() {
   const out = [];
   D.games.forEach(g => { if (g.state !== "pre" && !g.result) return; mkBets(g).forEach(b => { if (b.edge != null && b.edge > 0.03) out.push({g, b}); }); });
-  return out.sort((x, y) => y.b.edge - x.b.edge).slice(0, 6);
+  return out.sort((x, y) => y.b.edge - x.b.edge).slice(0, 3);
 }
 function likesHtml() {
   const rows = likeRows(); if (!rows.length) return "";
@@ -480,7 +515,7 @@ function likesHtml() {
     return `<button class="likerow ${cls}" data-bet="${j}"><span class="lk-n">${i + 1}</span>${r.b.m === "total" ? duo(r.g, true) : logo(t)}
       <span class="lk-t"><b>${esc(label(r.g, r.b))}</b><span>${esc(r.g.away.abbr)} @ ${esc(r.g.home.abbr)} · model ${pct(r.b.p)} vs market ${pct(r.b.mkt)}</span></span>
       <span class="lk-p"><b>${am(r.b.price)}</b><span>+${(100 * r.b.edge).toFixed(1)}% edge</span></span></button>`; }).join("")}
-    <div class="hint">Edges against the ${D.games.some(g => g.src === "odds") ? "market consensus (median no-vig across US books)" : "posted lines"}. The model has not beaten closing lines in testing, so treat these as leans and shop for the best number.</div></div>`;
+    <div class="hint">Edges after blending the model with the ${D.games.some(g => g.src === "odds") ? "market consensus" : "posted line"} (see Score in each game). Leans, not locks: shop for the best number.</div></div>`;
 }
 function games() {
   if (!D.games.length) return empty("🏟️", "No games this week", "The schedule will show here once the next week is set.");
@@ -698,7 +733,7 @@ function openInfo() {
   const b = D.meta.backtest || {}, f = x => x ? `${(100 * x[0]).toFixed(1)}% (${x[1]} games)` : "–";
   $("#sheet").innerHTML = `<div class="grab"></div><button class="iconbtn close" id="shx" aria-label="Close">✕</button>
     <div class="sh-t">How it works</div>
-    <div class="hint" style="font-size:14.5px">Teams are rated on opponent-adjusted <b>EPA per play</b> (expected points added) from nflverse play-by-play, plus points, with recent games weighted more. The starting QB is checked against the team's usual QB play, and a ruled-out starter is swapped for his backup. Injured starters elsewhere (from ESPN's injury list, 40%+ snap players) cost about ${(D.meta.pts_per_starter || 0.85).toFixed(1)} points each. That gives a projected margin and total; final scores are spread around them with the real bumps on <b>3 and 7</b>. Tiles show the model's chance and the market's (median no-vig across US books${D.games.some(g => g.src === "odds") ? "" : "; posted lines until odds are pulled"}).</div>
+    <div class="hint" style="font-size:14.5px">Teams are rated on opponent-adjusted <b>EPA per play</b> (expected points added) from nflverse play-by-play, plus points, with recent games weighted more. The starting QB is checked against the team's usual QB play, and a ruled-out starter is swapped for his backup. Injured starters elsewhere (from ESPN's injury list, 40%+ snap players) cost about ${(D.meta.pts_per_starter || 0.85).toFixed(1)} points each. That gives the model's own margin and total. Prices then start from the market and move toward the model only as far as it has earned in testing (about ${Math.round(100 * ((D.meta.blend || {}).total || 0))}% on totals, ${Math.round(100 * ((D.meta.blend || {}).side || 0))}% on sides), and final scores are spread around them with the real bumps on <b>3 and 7</b>. Tiles show the model's chance and the market's (median no-vig across US books${D.games.some(g => g.src === "odds") ? "" : "; posted lines until odds are pulled"}).</div>
     <div class="sec">Backtest vs closing lines, ${esc(D.meta.backtest_seasons || "")}</div>
     <div class="kv"><div><span>Margin error: model / close</span><b>${(b.mae_model || 0).toFixed(2)} / ${(b.mae_line || 0).toFixed(2)}</b></div>
       <div><span>Total error: model / close</span><b>${(b.tmae_model || 0).toFixed(2)} / ${(b.tmae_line || 0).toFixed(2)}</b></div>
