@@ -92,7 +92,5 @@ def test_lean_pull_window_goes_by_clock_and_pulls_once():
     done = pd.DataFrame(dict(book=["williamhill_us"], fetched_at=[t("11:02").tz_convert("UTC").isoformat()]))
     assert lean_pull_window(t("15:30"), done, "williamhill_us") is None             # morning already pulled
     assert lean_pull_window(t("18:00"), done, "williamhill_us") == "evening"
-    other = done.assign(book="draftkings")
-    assert lean_pull_window(t("15:30"), other, "williamhill_us") == "morning"       # other book doesn't count
     assert lean_pull_window(t("02:00"), done, "williamhill_us", force=True) == "manual"
     assert lean_pull_window(t("13:40"), empty, "williamhill_us", tried=["morning"]) is None   # empty pull: no retry

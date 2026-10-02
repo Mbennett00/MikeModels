@@ -16,6 +16,7 @@ import pandas as pd
 
 from .data.teams import DISPLAY
 from .player_model import project_team_players
+from .pricing import fair_american
 from .team_model import TeamModel
 
 HERE = os.path.dirname(__file__)
@@ -75,11 +76,22 @@ def build(state, plays: pd.DataFrame, meta: dict, news: dict | None, images: dic
                         (h["goalie_confirmed"], a["goalie_confirmed"]), sk)
         gp_by[int(g.game_id)] = gp
         dk = []
-        if len(plays) and "best_price" in plays:
-            gp_ = plays[(plays.game_id == g.game_id) & (plays.player.fillna("") == "") & plays.best_price.notna()]
+        book = os.environ.get("ODDS_BOOK", "williamhill_us")
+        bo = state.odds if state.odds is not None and len(state.odds) else None
+        if len(plays) and "p_novig" in plays:
+            gp_ = plays[(plays.game_id == g.game_id) & (plays.player.fillna("") == "") & plays.p_novig.notna()]
             for r in gp_.itertuples():
-                dk.append(dict(m=r.market, s=r.selection, l=_num(r.line), price=_num(r.best_price, 0),
-                               nv=_num(r.p_novig), edge=_num(r.edge)))
+                price, src = None, "Mkt"
+                if bo is not None:
+                    m = bo[(bo.game_id == g.game_id) & (bo.market == r.market) & (bo.selection == r.selection)
+                           & (bo.book == book) & (bo.snapshot == "bet")
+                           & ((bo.line.isna() & pd.isna(r.line)) | (bo.line == r.line))]
+                    if len(m):
+                        price, src = _num(m.sort_values("fetched_at").price.iloc[-1], 0), "book"
+                if price is None:
+                    price = _num(fair_american(r.p_novig), 0)    # the market's fair price
+                dk.append(dict(m=r.market, s=r.selection, l=_num(r.line), price=price, src=src,
+                               nv=_num(r.p_novig), edge=_num(r.edge), n=int(r.n_books or 0)))
         games.append(dict(game_id=int(g.game_id), start_utc=getattr(g, "start_utc", None), away=a, home=h, dk=dk,
                           mx=_matchup(tm, gp, g.home, g.away, lu),
                           lam_home=_num(gp.lam_home), lam_away=_num(gp.lam_away), p_ot_home=_num(gp.p_ot_home),

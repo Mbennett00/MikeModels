@@ -364,9 +364,9 @@ def cmd_slate(a):
             json.dump(pulls, open(pf, "w"))
             # one sportsbook's game lines only (Caesars by default): one call, 3 credits
             print(f"odds pull ({window})")
-            # all US books for the same 3 credits; keep the chosen one by key or name
-            odds = odds_api.fetch(sched, lineups, "bet", regions="us", game_only=True,
-                                  book_match=(book, os.environ.get("ODDS_BOOK_NAME", "")))
+            # every US book for the same 3 credits: edges are measured against the market consensus
+            # (median no-vig across books); the page shows the Caesars price whenever Caesars is listed
+            odds = odds_api.fetch(sched, lineups, "bet", regions="us", game_only=True)
             if len(odds) and window == "evening":
                 # closing line for games that have not started and start within ~2.5 hours
                 now = pd.Timestamp.now(tz="UTC")
@@ -378,12 +378,11 @@ def cmd_slate(a):
     if not len(odds) and mode == "lean" and len(hist):
         # between pulls: reuse today's latest prices from the chosen book
         h = hist[(pd.to_datetime(hist.date.astype(str), format="mixed").dt.normalize() == date)
-                 & (hist.snapshot == "bet") & hist.game_id.isin(sched.game_id)
-                 & (hist.book == book)]
+                 & (hist.snapshot == "bet") & hist.game_id.isin(sched.game_id)]
         if len(h):
             odds = h.sort_values("fetched_at").drop_duplicates(
                 ["game_id", "market", "player_id", "selection", "line", "book"], keep="last")
-            print(f"reusing {len(odds)} {os.environ.get('ODDS_BOOK', 'williamhill_us')} prices from {odds.fetched_at.max()}")
+            print(f"reusing {len(odds)} prices ({odds.book.nunique()} books) from {odds.fetched_at.max()}")
     elif len(odds):
         hist = _append_odds(hist, odds)
         hist.to_csv(os.path.join(site, "odds_history.csv.gz"), index=False, compression="gzip")
@@ -479,7 +478,7 @@ def lean_pull_window(now_et: pd.Timestamp, hist: pd.DataFrame, book: str, force:
         return None
     if len(hist) and "fetched_at" in hist:
         f = pd.to_datetime(hist.fetched_at, utc=True, errors="coerce").dt.tz_convert(ET)
-        mine = f[(hist.book == book) & (f.dt.normalize() == now_et.normalize())]
+        mine = f[f.dt.normalize() == now_et.normalize()]
         start = now_et.normalize() + pd.Timedelta(hours=10.5 if win == "morning" else 17.75)
         if (mine >= start).any():
             return None

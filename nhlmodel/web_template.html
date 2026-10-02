@@ -578,7 +578,7 @@ function tile(g, label, market, sel, line) {
   const i = bet({g, market, sel, line, label, p, dk});
   return `<button class="tile ${cls} ${val ? "val" : ""}" data-bet="${i}"><span class="l">${ic ? ic + " " : ""}${esc(label)}</span>
     <span class="v"><span class="c">${pct(p)}</span><span class="b">${betAt(p - thr(market))}</span></span>
-    ${dk ? `<span class="dk">${BK()} ${am(dk.price)}${dk.edge != null ? ` · <b class="${dk.edge >= 0 ? "pos" : "neg"}">${dk.edge >= 0 ? "+" : "−"}${Math.abs(100 * dk.edge).toFixed(1)}%</b>` : ""}${val ? " 💰" : ""}</span>` : ""}</button>`;
+    ${dk ? `<span class="dk">${dk.src === "book" ? BK() : "Mkt"} ${am(dk.price)}${dk.edge != null ? ` · <b class="${dk.edge >= 0 ? "pos" : "neg"}">${dk.edge >= 0 ? "+" : "−"}${Math.abs(100 * dk.edge).toFixed(1)}%</b>` : ""}${val ? " 💰" : ""}</span>` : ""}</button>`;
 }
 function gameCard(g) {
   const a = g.away, h = g.home, ph = gameProb(g, "moneyline", "home"), L = LIVE[g.game_id] || {}, on = L.state === "in" || L.state === "post";
@@ -716,7 +716,7 @@ function likeRows() {
       const t = x.s === "home" ? g.home : x.s === "away" ? g.away : null;
       const lab = x.m === "moneyline" ? `${t.name} to win` : x.m === "puckline" ? `${t.abbr} ${x.l > 0 ? "+" : ""}${x.l}` : `${x.s === "over" ? "Over" : "Under"} ${x.l}`;
       const p = gameProb(g, x.m, x.s, x.l);
-      out.push({p, edge: x.edge, label: lab, sub: `${gname(g)} · ${BK()} ${am(x.price)} · edge ${x.edge >= 0 ? "+" : "−"}${Math.abs(100 * x.edge).toFixed(1)}%`,
+      out.push({p, edge: x.edge, label: lab, sub: `${gname(g)} · ${x.src === "book" ? BK() : "Mkt"} ${am(x.price)} · edge ${x.edge >= 0 ? "+" : "−"}${Math.abs(100 * x.edge).toFixed(1)}%`,
                 b: {g, market: x.m, sel: x.s, line: x.l, label: `${gname(g)}: ${lab}`, dk: x}}); }
     return out.sort((a, b) => b.edge - a.edge).slice(0, 5);
   } else if (LIKE === "win") {
@@ -749,7 +749,7 @@ function likesHtml() {
       <span class="lk-p"><b>${pct(r.p)}</b><span>bet at ${betAt(r.p - thr(mk))}</span></span></button>`; }).join("");
   return `<div class="card likes"><div class="lk-h"><span>⭐ Model likes tonight</span></div>
     <div class="strip" style="padding:0;margin:8px 0 6px">${cats.map(([k, n]) => `<button class="chip ${LIKE === k ? "on" : ""}" data-like="${k}">${n}</button>`).join("")}</div>
-    ${rows}<div class="lk-note">${LIKE === "value" ? `Biggest edges vs ${BOOKS()} last pulled price (model chance minus ${BOOKS()} no-vig chance). Lines move: tap to re-check the current price.`
+    ${rows}<div class="lk-note">${LIKE === "value" ? `Biggest edges vs the market: model chance minus the average no-vig chance across the US books (CZR = Caesars' price, Mkt = the market's fair price). Check ${BOOKS()} current price before betting: tap a pick.`
       : `Highest chances on the slate, not guaranteed value: a big favourite can still be a bad price. Tap one to check ${BOOKS()} odds.`}</div></div>`;
 }
 function games() {
@@ -870,7 +870,7 @@ function updates() {
 // ---------- tap-a-price sheet ----------
 let SH = null;   // {b, sign, num}
 function openSheet(b) {
-  SH = b.dk && b.dk.price ? {b, sign: b.dk.price < 0 ? -1 : 1, num: String(Math.abs(Math.round(b.dk.price)))}
+  SH = b.dk && b.dk.price && b.dk.src === "book" ? {b, sign: b.dk.price < 0 ? -1 : 1, num: String(Math.abs(Math.round(b.dk.price)))}
                           : {b, sign: fair(b.p) < 0 ? -1 : 1, num: ""};
   drawSheet();
   $("#scrim").classList.add("open"); $("#sheet").classList.add("open");

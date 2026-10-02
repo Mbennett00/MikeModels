@@ -136,6 +136,10 @@ def fetch(schedule: pd.DataFrame, lineups: pd.DataFrame, snapshot: str, api_key:
     rows, missing = [], set()
     events = r.json()
     seen = sorted({(b["key"], b.get("title", "")) for ev in events for b in ev.get("bookmakers", [])})
+    for ev in events:   # one stable key for Caesars, whatever the API calls it
+        for b in ev.get("bookmakers", []):
+            if "caesars" in b.get("title", "").lower():
+                b["key"] = "williamhill_us"
     if book_match:
         # keep one book, matched by API key or by name (keys differ by account/region, e.g. Caesars)
         keys = {k.lower() for k in book_match if k}

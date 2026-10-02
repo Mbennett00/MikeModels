@@ -27,13 +27,14 @@ One-time setup: repo **Settings → Pages → Build and deployment → Source: G
 *Add to Home Screen*. The older Streamlit dashboard (`app/streamlit_app.py`) still works from the
 same release files but is no longer needed.
 
-**Caesars game lines (lean mode, default).** `ODDS_ENABLED: "lean"` pulls one book's moneyline (`ODDS_BOOK`, Caesars = `williamhill_us`),
-puck line and totals in one Odds API call (3 credits), once after 10:30am and once between 5:45 and 8pm ET (by the clock,
-since scheduled GitHub runs can start hours late; one attempt per window), about 180
-credits a month; the evening pull also records the closing line for games starting within two hours
-(CLV in the track record). Other runs reuse the day's latest prices. Needs the repo secret
-`ODDS_API_KEY`; without it the page works as before. Game tiles show the book's price and the edge, and Model
-likes gets a Best value tab. Props are not pulled (too many credits).
+**Market consensus game lines (lean mode, default).** `ODDS_ENABLED: "lean"` pulls moneyline, puck line
+and totals for every US book in one Odds API call (`regions=us`, 3 credits), once after 10:30am and once
+between 5:45 and 8pm ET (by the clock, since scheduled GitHub runs can start late; one attempt per
+window), about 180 credits a month. Edges are the model's chance minus the market consensus (median
+no-vig chance across books). Tiles show Caesars' price when Caesars is in the feed (matched by name; as
+of Oct 2026 the feed carries BetMGM, BetOnline, BetRivers, BetUS, Bovada, DraftKings, FanDuel, LowVig and
+MyBookie for NHL, not Caesars), otherwise the market's fair price ("Mkt"). The evening pull also records
+the close for games starting within 2.5 hours. Needs the repo secret `ODDS_API_KEY`.
 
 **Previously: no odds feed.** The site is a price sheet: for every bet it shows the model's chance, the
 fair price and a "bet at or better than" price (fair chance minus the market's edge threshold, with
