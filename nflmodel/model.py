@@ -35,6 +35,7 @@ class Config:
     qb_weight: float = 1.0       # 0 = ignore starting-QB changes
     qb_shrink: float = 250.0     # dropbacks of prior toward the team's QB-neutral passing level
     injuries: bool = True        # missing-starter features from the injury report
+    value_power: float = 1.0     # star weighting of missing players by contract cap share (0 = all starters equal)
     coef_m: np.ndarray | None = None
     coef_t: np.ndarray | None = None
     key_m: dict = field(default_factory=dict)

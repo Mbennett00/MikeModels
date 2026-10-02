@@ -137,6 +137,21 @@ def load_players(cache: str, seasons) -> pd.DataFrame:
     return d
 
 
+def contracts(cache: str, log=print) -> pd.DataFrame:
+    """OverTheCap contract history via nflverse (APY as a share of the cap), refreshed each run."""
+    f = os.path.join(cache, "contracts.csv.gz")
+    cols = ["player", "position", "team", "year_signed", "years", "apy", "apy_cap_pct", "gsis_id", "draft_year", "draft_round"]
+    try:
+        raw = open(os.path.join(LOCAL, "historical_contracts.csv.gz"), "rb").read() if LOCAL else \
+            _get(REL + "/contracts/historical_contracts.csv.gz")
+        d = pd.read_csv(io.BytesIO(raw), compression="gzip", usecols=lambda c: c in cols)
+        d.to_csv(f, index=False, compression="gzip")
+        return d
+    except Exception as e:
+        log(f"nfl contracts: {e}")
+        return pd.read_csv(f) if os.path.exists(f) else pd.DataFrame(columns=cols)
+
+
 def load_weather(cache: str, seasons) -> dict:
     """game_id -> gamebook weather text at kickoff (e.g. 'Rain Temp: 45° F, Humidity: 90%, Wind: NW 14 mph')."""
     out = {}

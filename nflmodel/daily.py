@@ -133,7 +133,9 @@ def run(state: str = "state", log=print) -> dict:
     snaps, inj = data.load_rosters(cache, seasons, log=log)
     cfg = M.Config()
     wxt = data.load_weather(cache, seasons)
-    F = B.build_features(sched, tg, qb, cfg, log=lambda *a: None, snaps=snaps, inj=inj, wx=wxt)
+    con = data.contracts(cache, log)
+    CV = I.contract_values(con) if len(con) else None
+    F = cached_features(cache, sched, tg, qb, cfg, snaps, inj, wxt, con, data.load_players(cache, seasons), log)
     bt_rows, bt = B.run(sched, tg, qb, cfg, F=F, log=lambda *a: None)
     cfg = B.fit_mapping(F, cfg)
     w_side, w_total = blend_weights(bt_rows)
@@ -157,8 +159,17 @@ def run(state: str = "state", log=print) -> dict:
         except Exception as e:
             log(f"nfl odds: {e}")
     evs = O.match(cached["events"], wk) if cached else {}
+    npath = os.path.join(site, "nfl_line_news.json")
+    try:
+        ln = json.load(open(npath))
+    except (OSError, ValueError):
+        ln = {}
+    if not cached or ln.get("odds_at") != cached.get("fetched_at"):
+        ln = dict(odds_at=cached.get("fetched_at") if cached else None, games={})   # new pull: news resets
+    line_news = ln["games"]
 
     S = I.prep_snaps(snaps, sched) if len(snaps) else None
+    PGall = data.load_players(cache, seasons)
     injuries, lineup = {}, {}
     live = injury_reports(inj, wk, log)
 
@@ -183,7 +194,8 @@ def run(state: str = "state", log=print) -> dict:
             rep = live[live.team == t] if live is not None else None
             regs_all = I.regulars(S, t, asof, min_base=0.0) if S is not None else None
             if S is not None and not started:
-                miss, det = I.missing(regs_all[regs_all.share >= I.MIN_BASE], rep)
+                val = I.team_values(CV, season, t, cfg.value_power, I.skill_shares(PGall, t, asof))
+                miss, det = I.missing(regs_all[regs_all.share >= I.MIN_BASE], rep, val)
                 lineup[t] = depth(S, t, asof, rep)
             else:
                 miss, det = {k: 0.0 for k in I.GROUPS}, []
@@ -224,10 +236,18 @@ def run(state: str = "state", log=print) -> dict:
         # price off the market, moved toward the model only as far as the backtest says the model adds information
         tm = tm - t_bias            # recent scoring level (the fit spans seasons with more scoring)
         mm_raw, tm_raw = mm, tm
+        # news in points: injuries and QB changes move the margin, weather moves the total
+        qbp = (cfg.coef_m[2] * 0.55 + cfg.coef_m[3]) * (qh - qa)
+        news = dict(inj_h=sh_["inj_pts"], inj_a=sa_["inj_pts"], qb=float(qbp),
+                    m=float(sh_["inj_pts"] - sa_["inj_pts"] + qbp), t=float(wx_impact))
+        base = (line_news.get(g.game_id) if src == "odds" else None) or news
+        dm, dt = news["m"] - base["m"], news["t"] - base["t"]
         if spread is not None and not pd.isna(spread):
-            mm = float(spread + w_side * (mm_raw - spread))
+            mm = float(spread + w_side * (mm_raw - spread) + (1 - w_side) * dm)
         if total is not None and not pd.isna(total):
-            tm = float(total + w_total * (tm_raw - total))
+            tm = float(total + w_total * (tm_raw - total) + (1 - w_total) * dt)
+        if src == "odds" and g.game_id not in line_news and not started:
+            line_news[g.game_id] = news           # what was known when this market line was pulled
         p = M.price_game(mm, tm, cfg, spread, total)
         # the same distribution centred on the market's own numbers: an edge is only what the model moves
         p0 = M.price_game(spread if spread is not None and not pd.isna(spread) else mm,
@@ -244,7 +264,9 @@ def run(state: str = "state", log=print) -> dict:
                    stadium=g.stadium if isinstance(g.stadium, str) else None,
                    weather=dict(expo=expo, icon=icon, text=wtxt, impact=_r(wx_impact, 2),
                                 **({k: fc[k] for k in ("temp", "wind", "gust", "pp", "rain_mm", "snow_cm", "rain")} if fc else {})),
-                   margin=_r(mm, 2), total=_r(tm, 2), model_margin=_r(mm_raw, 2), model_total=_r(tm_raw, 2), pts_home=_r((tm + mm) / 2, 1), pts_away=_r((tm - mm) / 2, 1),
+                   margin=_r(mm, 2), total=_r(tm, 2), model_margin=_r(mm_raw, 2), model_total=_r(tm_raw, 2),
+                   news=dict(m=_r(dm, 2), t=_r(dt, 2), inj_h=_r(news["inj_h"] - base["inj_h"], 2),
+                             inj_a=_r(news["inj_a"] - base["inj_a"], 2), qb=_r(news["qb"] - base["qb"], 2)), pts_home=_r((tm + mm) / 2, 1), pts_away=_r((tm - mm) / 2, 1),
                    p_home=_r(p["p_home"]), spread=_r(spread, 1), total_line=_r(total, 1), src=src,
                    n_books=max([v.get("n", 0) for k, v in mk.items() if k != "posted"] + [0]),
                    bets=bets_for(p, mk, src, book_short, p0),
@@ -254,6 +276,7 @@ def run(state: str = "state", log=print) -> dict:
             frozen[g.game_id] = rec
         games.append(dict(rec, result=_result(g), state="post" if not pd.isna(g.result) else ("in" if started else "pre")))
     json.dump({k: v for k, v in frozen.items() if k.startswith(str(season))}, open(ppath, "w"), separators=(",", ":"))
+    json.dump(ln, open(npath, "w"), separators=(",", ":"))
     try:
         players, recal = player_props(cache, site, seasons, season, games, R, live, now_et, log)
     except Exception as e:   # props never block the game page
@@ -276,7 +299,8 @@ def run(state: str = "state", log=print) -> dict:
     recent = rows[(rows.season == season) & (rows.season_type == "REG")]
     # home edge in points: the direct term plus what the home bump in each rating adds through the margin fit
     hfa = cfg.coef_m[1] + sum(cfg.coef_m[2 + i] * R.home[mk] for i, mk in enumerate(M.METRICS))
-    meta["blend"] = dict(side=_r(w_side, 2), total=_r(w_total, 2), total_bias=_r(t_bias, 2))
+    meta["blend"] = dict(side=_r(w_side, 2), total=_r(w_total, 2), total_bias=_r(t_bias, 2),
+                         value_power=cfg.value_power)
     meta["weather"] = dict(rain_pts=_r(cfg.coef_t[7], 2), wind_pts=_r(cfg.coef_t[5], 2), cold_pts=_r(cfg.coef_t[6], 2))
     meta["model"] = dict(hfa=_r(hfa, 2), sd_margin=_r(cfg.sd_margin, 2), sd_total=_r(cfg.sd_total, 2),
                          pts_per_starter=_r(-cfg.coef_m[-1], 2),
@@ -482,6 +506,29 @@ def total_bias(bt: pd.DataFrame, n: int = 272) -> float:
     return 0.0 if len(x) < 50 else float((x.t_model - x.total).mean())
 
 
+FEATURE_VERSION = "v5-inj-value-rain"   # bump when the game features change, to rebuild cached seasons
+
+
+def cached_features(cache, sched, tg, qb, cfg, snaps, inj, wxt, con, pg, log=print) -> pd.DataFrame:
+    """Backtest features: finished seasons are built once and kept; the current season is rebuilt every run."""
+    import pickle
+    played = sched[sched.result.notna()]
+    cur = int(played.season.max()) if len(played) else B.FIRST_FEATURE_SEASON
+    parts = []
+    for s in range(B.FIRST_FEATURE_SEASON, cur + 1):
+        f = os.path.join(cache, f"features_{s}_{FEATURE_VERSION}.pkl")
+        if s < cur and os.path.exists(f):
+            parts.append(pickle.load(open(f, "rb")))
+            continue
+        d = B.build_features(sched, tg, qb, cfg, seasons=[s], log=lambda *a: None, snaps=snaps, inj=inj, wx=wxt,
+                             contracts=con, pg=pg)
+        if s < cur:
+            pickle.dump(d, open(f, "wb"))
+            log(f"nfl features {s}: built and cached ({len(d)} games)")
+        parts.append(d)
+    return pd.concat(parts, ignore_index=True)
+
+
 def blend_weights(bt: pd.DataFrame) -> tuple[float, float]:
     """How far to move from the market line toward the model, for sides and totals: the weight w (0..1) in
     line + w * (model - line) that minimises the error against results in the walk-forward backtest."""
@@ -501,7 +548,8 @@ def injury_detail(team: str, sd: dict, regs_all, coef: float) -> dict:
     """Everything the Updates tab shows for one team: who is counted (and for how much), injured QBs, and the
     rest of the list with the reason each one is not counted."""
     counted = [dict(name=d["name"], pos=d["pos"], group=I.LABEL[d["group"]], status=d["status"], share=d["share"],
-                    usual=d["usual"], presence=d["presence"], pts=_r(coef * d["w"] * d["share"], 2)) for d in sd["det"]]
+                    usual=d["usual"], presence=d["presence"], value=d["value"],
+                    pts=_r(coef * d["w"] * d["share"] * d["value"], 2)) for d in sd["det"]]
     done = {d["key"] for d in sd["det"]}
     qbs, listed = [], []
     rep = sd["report"]

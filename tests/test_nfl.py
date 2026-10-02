@@ -327,3 +327,21 @@ def test_blend_weights_and_market_shift_edges():
     p = M.price_game(-7.0, 44.0, cfg, -7.0, 44.0)               # model centred exactly on the market
     rows = bets_for(p, {"spread": dict(p_first=0.5), "total": dict(p_first=0.5)}, "line", "CZR", p0=p)
     assert all(abs(b["edge"]) < 1e-9 for b in rows if b["m"] in ("spread", "total"))
+
+
+def test_star_values_team_aware_and_usage():
+    from nflmodel import injuries as I
+    con = pd.DataFrame(dict(player=["Justin Jefferson", "Justin Jefferson", "Puka Nacua", "Top Pick"],
+                            team=["Vikings", "Browns", "Rams", "Jets"], position=["WR", "WR", "WR", "CB"],
+                            year_signed=[2024, 2026, 2023, 2025], years=[4, 4, 4, 4], apy_cap_pct=[0.137, 0.004, 0.004, 0.02],
+                            draft_year=[2020, 2026, 2023, 2025], draft_round=[1, 7, 5, 1]))
+    cv = I.contract_values(con)
+    v_min = I.team_values(cv, 2026, "MIN", 1.0)
+    assert I.value_of(v_min, "justin jefferson") == 2.5                 # the Vikings' star, not the namesake
+    v_cle = I.team_values(cv, 2026, "CLE", 1.0)
+    assert I.value_of(v_cle, "justin jefferson") == 0.5
+    v_la = I.team_values(cv, 2026, "LA", 1.0, shares={"p nacua": (0.30, 0.0)})
+    assert 1.8 < I.value_of(v_la, "puka nacua") <= 2.5                  # rookie deal, but a 30% target share
+    v_nyj = I.team_values(cv, 2026, "NYJ", 1.0)
+    assert I.value_of(v_nyj, "top pick") == 1.25                        # first-round rookie floor
+    assert I.value_of(v_nyj, "nobody") == 1.0

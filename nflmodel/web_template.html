@@ -168,6 +168,7 @@ label.f { display: block; font-size: 13px; font-weight: 800; color: var(--ink-2)
 .mcol .me { margin-top: 3px; font-size: 11px; font-weight: 800; border-radius: 99px; padding: 1px 7px; background: var(--green-soft); color: var(--green); border: 1.5px solid var(--green); white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 .mcol .me.none { background: transparent; border-color: transparent; color: var(--muted); font-weight: 700; }
 .mcol .me.lost { background: #eee; color: var(--muted); border-color: #ccc; }
+.mcol .mn { font-size: 10.5px; font-weight: 800; color: #9a6a12; white-space: nowrap; }
 .mcol.hot { border-color: var(--green); box-shadow: 2px 2px 0 var(--green); }
 .wx { font-size: 12.5px; font-weight: 800; margin: -4px 0 6px; opacity: .92; } .wx b { font-weight: 900; }
 .wxc { font-size: 13px; font-weight: 700; color: var(--ink-2); background: #eef6ff; border: 2px solid var(--navy); border-radius: 12px; padding: 8px 10px; margin-top: 10px; line-height: 1.45; }
@@ -350,10 +351,12 @@ function gameCard(g) {
   const best = m => bets.filter(b => b.m === m).sort((x, y) => (y.edge ?? -9) - (x.edge ?? -9))[0];
   const fav = g.spread >= 0 ? h : a, favLine = Math.abs(g.spread);
   const modelFav = g.model_margin >= 0 ? h : a;
-  const col = (title, main, sub, b) => {
+  const N = g.news || {};
+  const newsTag = (v, unit) => v != null && Math.abs(v) >= 0.5 ? `<span class="mn">${unit} ${v > 0 ? "+" : "−"}${Math.abs(v).toFixed(1)} since line</span>` : "";
+  const col = (title, main, sub, b, extra = "") => {
     const e = b && b.edge != null && b.edge >= 0.03, i = b ? bet({g, b, p: b.p, label: label(g, b)}) : null;
     const res = b ? settle(g, b) : "";
-    return `<button class="mcol ${e ? "hot" : ""}" ${i != null ? `data-bet="${i}"` : ""}><span class="mt">${title}</span><span class="mm">${main}</span><span class="ms">${sub}</span>
+    return `<button class="mcol ${e ? "hot" : ""}" ${i != null ? `data-bet="${i}"` : ""}><span class="mt">${title}</span><span class="mm">${main}</span><span class="ms">${sub}</span>${extra}
       ${e ? `<span class="me ${res}">${res === "won" ? "✅ " : res === "lost" ? "❌ " : ""}${esc(b.m === "total" ? (b.s === "over" ? "Over" : "Under") : b.m === "ml" ? (b.s === "home" ? h.abbr : a.abbr) : label(g, b))} +${(100 * b.edge).toFixed(0)}%</span>` : `<span class="me none">no edge</span>`}</button>`; };
   const mkt = bets.find(b => b.m === "ml" && b.s === "home");
   const mlFav = (mkt && mkt.mkt != null ? mkt.mkt : ph) >= 0.5 ? h : a, mlP = mlFav === h ? (mkt && mkt.mkt != null ? mkt.mkt : ph) : 1 - (mkt && mkt.mkt != null ? mkt.mkt : ph);
@@ -361,8 +364,8 @@ function gameCard(g) {
     <div class="band"><div class="status" style="color:${ia}">${status}</div>
     ${trow(a, 1 - ph, s && s.away, s && s.home, ia, ca)}${trow(h, ph, s && s.home, s && s.away, ih, ch)}</div>
     <div class="body"><div class="mk3">
-      ${col("Spread", favLine ? `${esc(fav.abbr)} −${favLine}` : "Pick'em", `model ${esc(modelFav.abbr)} −${Math.abs(Math.round(2 * g.model_margin) / 2)}`, best("spread"))}
-      ${col("Total", `O/U ${g.total_line}`, `model ${g.model_total.toFixed(1)}`, best("total"))}
+      ${col("Spread", favLine ? `${esc(fav.abbr)} −${favLine}` : "Pick'em", `model ${esc(modelFav.abbr)} −${Math.abs(Math.round(2 * g.model_margin) / 2)}`, best("spread"), newsTag(N.m != null ? N.m : null, "🚑 " + esc(h.abbr)))}
+      ${col("Total", `O/U ${g.total_line}`, `model ${g.model_total.toFixed(1)}`, best("total"), newsTag(N.t, "🌦️"))}
       ${col("To win", `${esc(mlFav.abbr)} ${pct(mlP)}`, `model ${esc(ph >= 0.5 ? h.abbr : a.abbr)} ${pct(Math.max(ph, 1 - ph))}`, best("ml"))}
     </div>`;
   if (OPEN.has(g.game_id)) {
@@ -389,7 +392,7 @@ function injuryCard() {
   const teams = all.filter(t => t.counted.length || t.qbs.length), full = all.filter(t => !t.counted.length && !t.qbs.length);
   const rows = teams.map(t => {
     const T = teamOf(t.abbr), open = IEXP.has(t.abbr);
-    const c = t.counted.map(p => `${esc(p.name)} <span class="x">${esc(p.pos)}</span> ${esc(ST(p.status))} <b class="neg">${p.pts.toFixed(1)}</b>`).join(" · ");
+    const c = t.counted.map(p => `${p.value >= 1.5 ? "⭐ " : ""}${esc(p.name)} <span class="x">${esc(p.pos)}</span> ${esc(ST(p.status))} <b class="neg">${p.pts.toFixed(1)}</b>`).join(" · ");
     const q = t.qbs.map(p => `🏈 ${esc(p.name)} (QB) ${esc(ST(p.status))}: ${esc(p.note)}`).join("<br>");
     const more = open && t.listed.length ? `<div class="x" style="margin-top:4px">Listed but not counted: ${t.listed.map(p => `${esc(p.name)} (${esc(p.pos)}, ${esc(ST(p.status))}: ${esc(p.note)})`).join("; ")}</div>` : "";
     return `<div class="it">${logo(T)}<div><b>${esc(T.city || "")} ${esc(T.name || t.abbr)}</b></div>
@@ -398,7 +401,7 @@ function injuryCard() {
       ${t.listed.length ? `<button class="link" style="padding:2px 0;margin:0;font-size:12px" data-iexp="${esc(t.abbr)}">${open ? "Hide" : `+${t.listed.length} more listed`}</button>` : ""}</div></div>`; }).join("");
   return `<div class="card"><div class="lk-h">🚑 Injury report · Week ${esc(D.meta.week || "")}</div>${rows || `<div class="hint">No regulars listed yet.</div>`}
     ${full.length ? `<div class="hint">✅ No regulars out: ${full.map(t => esc(t.abbr)).join(", ")}</div>` : ""}
-    <div class="hint">Points = how much each absence moves the team's projected margin. A player counts for the snaps he has in the team's ratings (recent games weighted, like the ratings), so a starter who has played every week counts fully, someone already out for weeks or just traded in counts less. Out ×1, Doubtful ×0.99, Questionable ×0.33 (how often each actually sat, 2021-25). About ${(D.meta.pts_per_starter || 1).toFixed(2)} pts per full-time starter. Injured QBs are handled by starting the backup. Source: ${esc(D.meta.inj_source || "–")}.</div></div>`;
+    <div class="hint">Points = how much each absence moves the team's projected margin. A player counts for the snaps he has in the team's ratings (recent games weighted, like the ratings), so a starter who has played every week counts fully, someone already out for weeks or just traded in counts less. Out ×1, Doubtful ×0.99, Questionable ×0.33 (how often each actually sat, 2021-25). ⭐ = star: players count more by contract (cap share vs an average starter, from 0.5× up to 2.5×), which tested better than counting every starter the same. About ${(D.meta.pts_per_starter || 1).toFixed(2)} pts per full-time starter. Injured QBs are handled by starting the backup. Source: ${esc(D.meta.inj_source || "–")}.</div></div>`;
 }
 function updates() {
   const runs = D.updates || [];
@@ -464,13 +467,23 @@ const SPOTS = {   // x, y in % of the field; offense snaps the ball going up, th
         QB: [[50, 56]], RB: [[50, 78]]},
   def: {DL: [[29, 68], [43, 68], [57, 68], [71, 68]], LB: [[36, 48], [64, 48]], CB: [[8, 66], [92, 66], [20, 54]], S: [[33, 22], [67, 22]]},
 };
+function newsLine(g) {
+  const N = g.news || {}; if (N.m == null) return "";
+  const parts = [];
+  if (Math.abs(N.inj_h || 0) >= 0.1) parts.push(`${esc(g.home.abbr)} injuries ${N.inj_h.toFixed(1)}`);
+  if (Math.abs(N.inj_a || 0) >= 0.1) parts.push(`${esc(g.away.abbr)} injuries ${N.inj_a.toFixed(1)}`);
+  if (Math.abs(N.qb || 0) >= 0.1) parts.push(`QB change ${N.qb > 0 ? "+" : ""}${N.qb.toFixed(1)} for ${esc(g.home.abbr)}`);
+  if (Math.abs(N.t || 0) >= 0.1) parts.push(`weather ${N.t > 0 ? "+" : ""}${N.t.toFixed(1)} on the total`);
+  return `🗞️ <b>News since the market line</b> (added in full): ${parts.length ? parts.join(" · ") : "none yet"}<br>`;
+}
 function blendHtml(g) {
   if (g.model_margin == null) return "";
   const B = D.meta.blend || {}, fl = (m, ab) => `${m >= 0 ? esc(g.home.abbr) : esc(g.away.abbr)} −${Math.abs(Math.round(2 * m) / 2)}`;
   return `<div class="wxc" style="background:#f6f1e4">📐 <b>Model vs market</b><br>
     Spread: model alone ${fl(g.model_margin)}, market ${fl(g.spread)}, our price ${fl(g.margin)}<br>
     Total: model alone ${g.model_total.toFixed(1)}, market ${g.total_line}, our price ${g.total.toFixed(1)}<br>
-    <span class="ps">Prices start from the market and move ${Math.round(100 * (B.side || 0))}% of the way to the model on sides and ${Math.round(100 * (B.total || 0))}% on totals: the weights that tested best against results since 2021 (refit every run). On sides the market has been sharper, so the model's gap isn't treated as an edge.</span></div>`;
+    ${newsLine(g)}
+    <span class="ps">Prices start from the market line, move ${Math.round(100 * (B.side || 0))}% of the way to the model on sides and ${Math.round(100 * (B.total || 0))}% on totals (the weights that tested best against results since 2021, refit every run), then add any injury, QB or weather news since the line was pulled at full value.</span></div>`;
 }
 function weatherHtml(g) {
   const W = g.weather || {}; if (!W.icon) return "";

@@ -87,7 +87,87 @@ def regulars(snaps: pd.DataFrame, team: str, asof, half_life: float = HALF_LIFE,
     return g[g.share >= min_base][["player", "group", "share", "usual", "presence", "last"]]
 
 
-def missing(regs: pd.DataFrame, report: pd.DataFrame) -> tuple[dict, list]:
+def contract_values(contracts: pd.DataFrame) -> pd.DataFrame:
+    """Contracts as rows key, team, start, end, cap_pct (share of the salary cap per year, OverTheCap via nflverse),
+    plus whether it's a first-round rookie deal."""
+    c = contracts[contracts.apy_cap_pct.notna() & contracts.year_signed.notna()].copy()
+    c["key"] = c.player.map(norm)
+    c["start"] = c.year_signed.astype(int)
+    c["end"] = c.start + c.years.fillna(1).clip(lower=1).astype(int) - 1
+    c["team"] = c.get("team", pd.Series("", index=c.index)).fillna("").astype(str)
+    r1 = (c.get("draft_round", pd.Series(np.nan, index=c.index)) == 1) & (c.get("draft_year", pd.Series(np.nan, index=c.index)) == c.start)
+    c["rookie_r1"] = r1.fillna(False)
+    return c[["key", "team", "position", "start", "end", "apy_cap_pct", "rookie_r1"]]
+
+
+def skill_shares(pg: pd.DataFrame, team: str, asof, games: int = 8) -> dict:
+    """'first-initial last' -> (target share, carry share) over the team's last few games (box scores)."""
+    if pg is None or pg.empty:
+        return {}
+    x = pg[(pg.team == team) & (pg.date < pd.Timestamp(asof)) & (pg.date >= pd.Timestamp(asof) - pd.Timedelta(days=300))]
+    gids = x.drop_duplicates("game_id").sort_values("date").game_id.tail(games)
+    x = x[x.game_id.isin(gids)]
+    if x.empty:
+        return {}
+    T, C = max(x.tgt.sum(), 1), max(x.car.sum(), 1)
+    g = x.groupby("name").agg(tgt=("tgt", "sum"), car=("car", "sum"))
+    return {short(n): (r.tgt / T, r.car / C) for n, r in g.iterrows()}
+
+
+def short(name) -> str:
+    """'Puka Nacua' / 'P.Nacua' -> 'p nacua' (how box scores and snap counts can be matched)."""
+    n = norm(str(name).replace(".", " "))
+    p = n.split()
+    return f"{p[0][0]} {p[-1]}" if len(p) >= 2 else n
+
+
+def team_values(cv: pd.DataFrame | None, season: int, team: str, power: float, shares: dict | None = None,
+                ref: float = 0.03, lo: float = 0.5, hi: float = 2.5) -> dict:
+    """key -> how much a player matters relative to an average starter, for one team:
+       contract  (cap% / 3%) ** power  (same-name players told apart by team),
+       usage     receivers / backs: target share / 16% or carry share / 45% (stars on rookie deals),
+       first-round rookie deals at least 1.25; the largest of these, clipped to [0.5, 2.5]."""
+    if power == 0:
+        return {}
+    out = {}
+    if cv is not None and len(cv):
+        from .teams import TEAMS
+        nick = TEAMS.get(team, (team, team))[1]
+        x = cv[(cv.start <= season) & (cv.end >= season)].copy()
+        x["mine"] = x.team.str.contains(nick, case=False, regex=False) | x.team.str.contains(rf"\b{team}\b", regex=True)
+        x = x.sort_values(["mine", "start", "apy_cap_pct"]).drop_duplicates("key", keep="last")
+        for r in x.itertuples():
+            v = (max(r.apy_cap_pct, 0.004) / ref) ** power
+            if r.rookie_r1:
+                v = max(v, 1.25)
+            out[r.key] = v
+    return _with_usage(out, shares, lo, hi)
+
+
+def _with_usage(out: dict, shares: dict | None, lo: float, hi: float) -> dict:
+    res = {k: float(np.clip(v, lo, hi)) for k, v in out.items()}
+    for k_short, (ts, cs) in (shares or {}).items():
+        u = max(ts / 0.16, cs / 0.45)
+        res[("~", k_short)] = float(np.clip(u, lo, hi))
+    return res
+
+
+def value_of(values: dict, key: str) -> float:
+    v = values.get(key)
+    u = values.get(("~", short(key)))
+    if v is None and u is None:
+        return 1.0
+    return max(x for x in (v, u) if x is not None)
+
+
+def value_mult(cv, season, power, **kw) -> dict:   # kept for older callers: contract part only, no team
+    if cv is None or cv.empty or power == 0:
+        return {}
+    x = cv[(cv.start <= season) & (cv.end >= season)].sort_values("start").drop_duplicates("key", keep="last")
+    return dict(zip(x.key, np.clip((x.apy_cap_pct.clip(lower=0.004) / 0.03) ** power, 0.5, 2.5)))
+
+
+def missing(regs: pd.DataFrame, report: pd.DataFrame, value: dict | None = None) -> tuple[dict, list]:
     """report: rows with key, status (for this team). Returns (group -> missing starter-equivalents, details)."""
     out = {g: 0.0 for g in GROUPS}
     det = []
@@ -102,11 +182,12 @@ def missing(regs: pd.DataFrame, report: pd.DataFrame) -> tuple[dict, list]:
         p = regs.loc[r.key]
         if p.group not in out:
             continue
-        out[p.group] += w * p.share
+        v = value_of(value or {}, r.key)
+        out[p.group] += w * p.share * v
         det.append(dict(name=p.player, key=r.key, group=p.group, pos=getattr(r, "pos", None) or p.group,
                         status=str(r.status), share=round(float(p.share), 2), usual=round(float(p.usual), 2),
-                        presence=round(float(p.presence), 2), w=w))
-    det.sort(key=lambda d: -d["w"] * d["share"])
+                        presence=round(float(p.presence), 2), w=w, value=round(float(v), 2)))
+    det.sort(key=lambda d: -d["w"] * d["share"] * d["value"])
     return out, det
 
 

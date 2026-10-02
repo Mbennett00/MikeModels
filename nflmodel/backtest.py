@@ -12,12 +12,14 @@ from . import weather as WX
 FIRST_FEATURE_SEASON = 2019
 
 
-def build_features(sched, tg, qb, cfg: M.Config, seasons=None, log=print, snaps=None, inj=None, wx=None) -> pd.DataFrame:
+def build_features(sched, tg, qb, cfg: M.Config, seasons=None, log=print, snaps=None, inj=None, wx=None,
+                   contracts=None, pg=None) -> pd.DataFrame:
     rows = M.team_rows(tg, sched)
     use_inj = cfg.injuries and snaps is not None and inj is not None and len(snaps)
     if use_inj:
         S = I.prep_snaps(snaps, sched)
         REP = I.history_reports(inj).groupby(["season", "week", "team"])
+        CV = I.contract_values(contracts) if contracts is not None and len(contracts) else None
     g = sched[(sched.season >= FIRST_FEATURE_SEASON) & sched.game_type.notna()].copy()
     if seasons is not None:
         g = g[g.season.isin(seasons)]
@@ -27,6 +29,7 @@ def build_features(sched, tg, qb, cfg: M.Config, seasons=None, log=print, snaps=
         if rows[rows.date < asof].empty:
             continue
         R = M.fit_ratings(rows, asof, cfg)
+
         lv = M.qb_levels(qb, asof, cfg)
         for x in wk.itertuples():
             qh, _ = M.qb_adjust(qb, lv, x.home_team, getattr(x, "home_qb_name", None), asof, cfg)
@@ -37,7 +40,9 @@ def build_features(sched, tg, qb, cfg: M.Config, seasons=None, log=print, snaps=
                 for t in (x.home_team, x.away_team):
                     key = (season, week, t)
                     rep = REP.get_group(key) if key in REP.groups else None
-                    vec.append(I.vector(I.missing(I.regulars(S, t, asof), rep)[0]))
+                    val = I.team_values(CV, int(season), t, cfg.value_power,
+                                        I.skill_shares(pg, t, asof) if pg is not None else None) if rep is not None else {}
+                    vec.append(I.vector(I.missing(I.regulars(S, t, asof), rep, val)[0]))
                 ih, ia = vec
             rn = WX.rain_flag((wx or {}).get(x.game_id))
             xm, xt = M.features(R, x.home_team, x.away_team, x.location == "Neutral", qh, qa, x.roof, x.wind, x.temp, ih, ia, rn)

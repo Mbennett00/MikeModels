@@ -87,6 +87,17 @@ the NFL page has a turf background, team-colour game cards, a Teams power rankin
   - Shown in the 📰 Updates tab: each team's counted players with their points, injured QBs, and everyone else
     listed with the reason they don't count. The Updates feed logs injury and QB changes, model and market line
     moves and data loads, with filter chips.
+- **Big names and news since the line**:
+  - Injured players are weighted by how much they matter, not just snaps: contract cap share vs an average starter
+    (same-name players told apart by team), or for receivers and backs their target / carry share when that's
+    higher (stars on rookie deals), with first-round rookie deals at least 1.25×; clipped to 0.5×-2.5×.
+    Backtest margin error 10.190 → 10.182 vs counting every starter the same. A star like Jefferson, Chase,
+    Gonzalez or Trent Williams out is now worth about 2 points, a role player a few tenths. ⭐ marks them in Updates.
+  - Sides price off the market (the model's ratings add nothing on top of the closing line), but anything that
+    happened **after the market line was pulled** is added at full value: injury status changes (with the star
+    weights), starting-QB changes, and weather changes on totals. Each card flags it ("🚑 BUF −1.2 since line")
+    and the Score panel itemises it. The news baseline resets with every odds pull.
+  - Past seasons' backtest features are cached (rebuilt only when the feature version changes), so runs stay fast.
 - **Model vs market (why the edges got smaller)**: on 2021-26 the model sat about 2.3 points from the closing
   line on both sides and totals (3+ points apart in 29% of games). Regressing results on the close and the
   model's gap: on **sides the gap carries no information** (weight about 0), on **totals it carries some**
