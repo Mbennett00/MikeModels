@@ -319,6 +319,35 @@ label.f { display: block; font-size: 13px; font-weight: 800; color: var(--ink-2)
 .pc-line:has(.pl1) { display: block; }   /* NHL button: line + chance on top, bet-at price below */
 .pcount { font-size: 12.5px; font-weight: 800; color: #56708a; margin: 0 4px 8px; display: flex; justify-content: space-between; }
 @media (min-width: 700px) { .pgrid { grid-template-columns: repeat(3, 1fr); gap: 16px; } }
+/* props as a sportsbook market: one section per game, slim player rows, line button on the right */
+.gsec { padding: 0; overflow: hidden; margin: 0 4px 16px 0; }
+.gsec-h { display: flex; align-items: center; gap: 8px; padding: 11px 14px; background: #f3ecdc; border-bottom: 2px solid var(--navy); }
+.gsec-h .duo3 { display: flex; } .gsec-h .duo3 img { width: 24px; height: 24px; object-fit: contain; } .gsec-h .duo3 img + img { margin-left: -4px; }
+.gsec-h b { font-family: 'Fredoka', sans-serif; font-weight: 600; font-size: 15.5px; color: var(--navy); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gsec-h span { font-size: 12px; font-weight: 800; color: var(--ink-2); white-space: nowrap; }
+.prow3 { width: 100%; display: grid; grid-template-columns: 54px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 12px 10px 14px;
+         border: 0; border-top: 1.5px solid var(--line); background: transparent; text-align: left; min-height: 72px; }
+.prow3:first-of-type { border-top: 0; }
+.prow3:active { background: rgba(0,0,0,.03); }
+.ph3 { position: relative; width: 54px; height: 54px; border-radius: 16px; overflow: hidden; border: 2px solid var(--navy);
+       display: flex; align-items: center; justify-content: center; font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 17px; color: rgba(255,255,255,.9); }
+.ph3::before { content: ""; position: absolute; inset: 0; background: radial-gradient(110% 80% at 50% 15%, rgba(255,255,255,.3), rgba(255,255,255,0) 65%); }
+.ph3 img { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 100%; object-fit: contain; object-position: center bottom; }
+.pt3 { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.pn3 { font-weight: 800; font-size: 15.5px; color: var(--navy); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pm3 { font-size: 12px; font-weight: 700; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pp3 { font-size: 12.5px; font-weight: 700; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pp3 b { font-family: 'Fredoka', sans-serif; font-size: 15px; color: var(--navy); }
+.pq3 { display: inline-block; margin-left: 4px; font-size: 10.5px; font-weight: 800; padding: 0 6px; border-radius: 99px; background: var(--gold-soft); color: #9a6a12; border: 1.5px solid #e2ae45; vertical-align: 1px; }
+.pb3 { min-width: 82px; min-height: 48px; border: 2px solid var(--navy); border-radius: 13px; background: #fff; box-shadow: 2px 2px 0 var(--navy);
+       display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; padding: 4px 8px; }
+.pb3:active { transform: translate(2px, 2px); box-shadow: none; }
+.pb3 b { font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 15px; color: var(--navy); white-space: nowrap; }
+.pb3 span { font-weight: 800; font-size: 12.5px; color: var(--green); white-space: nowrap; }
+.pb3.won { background: var(--green-soft); } .pb3.lost { opacity: .5; }
+.gmore { width: 100%; border: 0; border-top: 1.5px solid var(--line); background: transparent; padding: 11px; font-weight: 800; font-size: 13.5px; color: var(--navy); }
+.pcount2 { display: flex; justify-content: space-between; font-size: 12.5px; font-weight: 800; margin: 2px 4px 10px; }
+.hdr .sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /*CALIB_CSS*/
 </style>
 </head>
@@ -838,6 +867,33 @@ function badge(p) {   // top-right: team logo + jersey number
   const u = teamLogoUrl(p.team);
   return `<span class="pc-badge">${u ? `<img src="${esc(u)}" alt="${esc(p.team)}" onerror="this.outerHTML='${esc(p.team)}'">` : esc(p.team)}${p.num != null ? `<b>#${esc(p.num)}</b>` : ""}</span>`;
 }
+// sportsbook-style market: one section per game, a slim row per player, the line button on the right
+const GOPEN = new Set();
+function prow(p, mk) {
+  const L = LIVE[p.game_id] || {}, s = playerStat(p), lam = p.lam[mk], col = (D.colors || {})[p.team] || "#7a8894";
+  const {l, pr} = SHEET_LINES[mk].map(l => ({l, pr: propProb(p, mk, l)})).sort((x, y) => Math.abs(x.pr - 0.5) - Math.abs(y.pr - 0.5))[0];
+  const [cls] = RES(s && !s.dnp ? cmpLine(s[mk], l, "over", L.state === "post") : undefined);
+  const i = bet({player: p, market: mk, line: l, p: pr, label: `${p.name} ${mk === "goals" && l === 0.5 ? "to score" : `over ${l} ${PNAME[mk]}`}`});
+  const live = s && !s.dnp ? ` · <b style="color:var(--red)">${L.state === "in" ? "LIVE" : "FINAL"} ${s[mk]}</b>` : "";
+  return `<div class="prow3" data-player="${p.id}" role="button">
+    <div class="ph3" style="background-color:${esc(col)}"><span>${esc(initials(p.name))}</span>${p.headshot ? `<img src="${esc(p.headshot)}" alt="" loading="lazy" onload="this.previousElementSibling.style.visibility='hidden'" onerror="this.remove()">` : ""}</div>
+    <div class="pt3"><div class="pn3">${esc(p.name)}</div>
+      <div class="pm3">${esc(p.pos || "")} · ${esc(p.team)}${p.num != null ? " #" + esc(p.num) : ""} ${esc(matchupOf(p).split(" · ")[0])}</div>
+      <div class="pp3">Proj <b>${lam.toFixed(mk === "goals" ? 2 : 1)}</b> ${PNAME[mk]} · ${pct(pr)}${live}</div></div>
+    <button class="pb3 ${cls}" data-bet="${i}"><b>${mk === "goals" && l === 0.5 ? "Scores" : "O " + l}</b><span>${am(fair(pr))}</span></button></div>`;
+}
+function sectionsNHL(list, mk) {
+  const S = PSTATE, by = {};
+  list.forEach(p => (by[p.game_id] = by[p.game_id] || []).push(p));
+  const showAll = S.q || S.game !== "all";
+  return D.games.filter(g => by[g.game_id]).map(g => {
+    const rows = by[g.game_id], open = showAll || GOPEN.has(g.game_id), k = open ? rows.length : Math.min(6, rows.length);
+    return `<div class="card gsec"><div class="gsec-h"><span class="duo3"><img src="${esc(g.away.logo)}" alt="" onerror="this.remove()"><img src="${esc(g.home.logo)}" alt="" onerror="this.remove()"></span>
+        <b>${esc(g.away.abbr)} @ ${esc(g.home.abbr)}</b><span>${g.start_utc ? timeET(g.start_utc) : ""}</span></div>
+      ${rows.slice(0, k).map(p => prow(p, mk)).join("")}
+      ${rows.length > 6 && !showAll ? `<button class="gmore" data-gopen="${g.game_id}">${open ? "Show fewer ▴" : `Show all ${rows.length} ▾`}</button>` : ""}</div>`;
+  }).join("");
+}
 function props() {
   if (!D.players.length) return empty("👤", "No player projections yet", "");
   const S = PSTATE, mk = S.market;
@@ -854,14 +910,13 @@ function props() {
   return `<div class="ptabs props-seg">${mkt}</div>
     <div class="strip" style="padding-left:0">${gms}</div>
     ${S.search || S.q ? `<input class="search" id="pq" placeholder="Find a player" value="${esc(S.q)}" autocomplete="off">` : ""}
-    <div class="pcount"><span>${total} player${total === 1 ? "" : "s"}</span><span>sorted by projection</span></div>
-    ${list.length ? `<div class="pgrid">${list.slice(0, n).map(p => pcard(p, mk)).join("")}</div>` : `<div class="note">No players match.</div>`}
-    ${total > n ? `<button class="more" style="margin-top:4px" data-showmore="1">Show more (${total - n})</button>` : ""}`;
+    ${list.length ? sectionsNHL(list, mk) : `<div class="note">No players match.</div>`}`;
 }
 function wireProps() {
   const q = $("#pq");
   if (q) q.oninput = () => { PSTATE.q = q.value; const pos = q.selectionStart; render(); const n = $("#pq"); n.focus(); n.setSelectionRange(pos, pos); };
   document.querySelectorAll("[data-m]").forEach(b => b.onclick = () => { PSTATE.market = b.dataset.m; PSTATE.n = 20; render(); });
+  document.querySelectorAll("[data-gopen]").forEach(b => b.onclick = () => { const k = Number(b.dataset.gopen); GOPEN.has(k) ? GOPEN.delete(k) : GOPEN.add(k); render(); });
   document.querySelectorAll("[data-g]").forEach(b => b.onclick = () => { PSTATE.game = b.dataset.g; PSTATE.n = 20; render(); });
   document.querySelectorAll("[data-search]").forEach(b => b.onclick = () => {
     PSTATE.search = !(PSTATE.search || PSTATE.q); if (!PSTATE.search) PSTATE.q = ""; render(); $("#pq")?.focus(); });
