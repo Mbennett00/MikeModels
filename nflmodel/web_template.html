@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#2f7d3a">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="NFL Model">
-<title>NFL Model</title>
+<meta name="apple-mobile-web-app-title" content="MikeModels">
+<title>MikeModels · NFL</title>
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -30,7 +30,7 @@ body {
 button { font: inherit; color: inherit; cursor: pointer; }
 .wrap { max-width: 720px; margin: 0 auto; padding: calc(10px + env(safe-area-inset-top)) 16px calc(var(--nav-h) + 28px + env(safe-area-inset-bottom)); }
 .hdr { display: flex; align-items: center; gap: 12px; margin: 4px 4px 12px; }
-.appicon { width: 44px; height: 44px; border-radius: 12px; border: 2.5px solid var(--navy); box-shadow: 2px 3px 0 var(--navy); background: #0b0d0c; }
+.hdr .mlogo { height: 56px; width: auto; flex: none; margin: -4px -2px -4px 0; filter: drop-shadow(1px 2px 0 rgba(0,0,0,.25)); }
 .ball { width: 44px; height: 44px; border-radius: 12px; border: 2.5px solid var(--navy); box-shadow: 2px 3px 0 var(--navy); background: var(--cream);
         display: flex; align-items: center; justify-content: center; font-size: 26px; }
 .hdr .t { flex: 1; min-width: 0; }
@@ -305,7 +305,7 @@ label.f { display: block; font-size: 13px; font-weight: 800; color: var(--ink-2)
 </head>
 <body>
 <div class="wrap">
-  <div class="hdr"><img class="appicon" src="apple-touch-icon.png" alt=""><div class="t"><h1 id="title">Loading…</h1><div class="sub" id="sub">Lining the field</div></div>
+  <div class="hdr"><img class="mlogo" src="logo-nfl.png" alt="MikeModels"><div class="t"><h1 id="title">Loading…</h1><div class="sub" id="sub">Lining the field</div></div>
     <div class="sport"><a href="index.html">🏒</a><a class="on" href="nfl.html">🏈</a></div>
     <button class="iconbtn" id="gearBtn" aria-label="How the model is weighted">⚙️</button>
     <button class="iconbtn" id="infoBtn" aria-label="How it works">?</button></div>

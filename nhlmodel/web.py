@@ -191,7 +191,7 @@ def _write(out_dir: str, data: dict):
     for name in os.listdir(os.path.join(HERE, "web_assets")):   # home-screen icons
         shutil.copy(os.path.join(HERE, "web_assets", name), os.path.join(out_dir, name))
     with open(os.path.join(out_dir, "manifest.webmanifest"), "w") as f:
-        json.dump(dict(name="NHL Model", short_name="NHL Model", start_url=".", display="standalone",
+        json.dump(dict(name="MikeModels", short_name="MikeModels", start_url=".", display="standalone",
                        background_color="#bfe0f2", theme_color="#bfe0f2",
                        icons=[dict(src="icon-192.png", sizes="192x192", type="image/png"),
                               dict(src="icon-512.png", sizes="512x512", type="image/png")]), f)

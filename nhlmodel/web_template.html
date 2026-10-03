@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#bfe0f2">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="NHL Model">
-<title>NHL Model</title>
+<meta name="apple-mobile-web-app-title" content="MikeModels">
+<title>MikeModels · NHL</title>
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
@@ -32,7 +32,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 
 /* header */
 .hdr { display: flex; align-items: center; gap: 12px; margin: 4px 4px 12px; }
-.hdr img { width: 44px; height: 44px; border-radius: 12px; border: 2.5px solid var(--navy); box-shadow: 2px 3px 0 var(--navy); background: #0a0b0e; }
+.hdr .mlogo { height: 56px; width: auto; flex: none; margin: -4px -2px -4px 0; filter: drop-shadow(1px 2px 0 rgba(0,0,0,.25)); }
 .hdr .t { flex: 1; min-width: 0; }
 .hdr h1 { font-family: 'Fredoka', sans-serif; font-size: 24px; margin: 0; line-height: 1.1; color: var(--navy); }
 .hdr .sub { font-size: 13px; font-weight: 800; color: var(--ink-2); }
@@ -353,7 +353,7 @@ label.f { display: block; font-size: 13px; font-weight: 800; color: var(--ink-2)
 </head>
 <body>
 <div class="wrap">
-  <div class="hdr"><img src="apple-touch-icon.png" alt=""><div class="t"><h1 id="title">Loading…</h1><div class="sub" id="sub">Warming up the Zamboni</div></div>
+  <div class="hdr"><img class="mlogo" src="logo-nhl.png" alt="MikeModels"><div class="t"><h1 id="title">Loading…</h1><div class="sub" id="sub">Warming up the Zamboni</div></div>
     <div class="sport"><a class="on" href="index.html">🏒</a><a href="nfl.html">🏈</a></div>
     <button class="iconbtn" id="gearBtn" aria-label="How the model is weighted">⚙️</button>
     <button class="iconbtn" id="infoBtn" aria-label="How it works">?</button></div>
