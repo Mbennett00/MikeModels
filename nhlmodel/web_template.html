@@ -126,7 +126,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
          transform: translateY(105%); transition: transform .25s ease; max-height: 88vh; overflow-y: auto; }
 .sheet.open { transform: none; }
 .grab { width: 44px; height: 5px; border-radius: 9px; background: #cfc6b4; margin: 2px auto 10px; }
-.sh-t { font-family: 'Fredoka', sans-serif; font-weight: 600; font-size: 22px; color: var(--navy); line-height: 1.15; }
+.sh-t { font-family: 'Fredoka', sans-serif; font-weight: 600; font-size: 22px; color: var(--navy); line-height: 1.15; padding-right: 48px; }
 .sh-s { font-size: 13.5px; font-weight: 700; color: var(--ink-2); margin-top: 2px; }
 .kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 14px 0; }
 .kpi { border: 2.5px solid var(--navy); border-radius: 14px; padding: 8px; text-align: center; background: #fff; }
@@ -325,14 +325,14 @@ label.f { display: block; font-size: 13px; font-weight: 800; color: var(--ink-2)
 .gsec-h .duo3 { display: flex; } .gsec-h .duo3 img { width: 24px; height: 24px; object-fit: contain; } .gsec-h .duo3 img + img { margin-left: -4px; }
 .gsec-h b { font-family: 'Fredoka', sans-serif; font-weight: 600; font-size: 15.5px; color: var(--navy); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gsec-h span { font-size: 12px; font-weight: 800; color: var(--ink-2); white-space: nowrap; }
-.prow3 { width: 100%; display: grid; grid-template-columns: 54px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 12px 10px 14px;
-         border: 0; border-top: 1.5px solid var(--line); background: transparent; text-align: left; min-height: 72px; }
+.prow3 { width: 100%; display: grid; grid-template-columns: 72px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 12px 10px 14px;
+         border: 0; border-top: 1.5px solid var(--line); background: transparent; text-align: left; min-height: 90px; }
 .prow3:first-of-type { border-top: 0; }
 .prow3:active { background: rgba(0,0,0,.03); }
-.ph3 { position: relative; width: 54px; height: 54px; border-radius: 16px; overflow: hidden; border: 2px solid var(--navy);
+.ph3 { position: relative; width: 72px; height: 72px; border-radius: 18px; overflow: hidden; border: 2px solid var(--navy);
        display: flex; align-items: center; justify-content: center; font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 17px; color: rgba(255,255,255,.9); }
 .ph3::before { content: ""; position: absolute; inset: 0; background: radial-gradient(110% 80% at 50% 15%, rgba(255,255,255,.3), rgba(255,255,255,0) 65%); }
-.ph3 img { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 100%; object-fit: contain; object-position: center bottom; }
+.ph3 img { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 100%; object-fit: cover; object-position: center top; }
 .pt3 { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .pn3 { font-weight: 800; font-size: 15.5px; color: var(--navy); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pm3 { font-size: 12px; font-weight: 700; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -355,6 +355,7 @@ label.f { display: block; font-size: 13px; font-weight: 800; color: var(--ink-2)
 <div class="wrap">
   <div class="hdr"><img src="apple-touch-icon.png" alt=""><div class="t"><h1 id="title">Loading…</h1><div class="sub" id="sub">Warming up the Zamboni</div></div>
     <div class="sport"><a class="on" href="index.html">🏒</a><a href="nfl.html">🏈</a></div>
+    <button class="iconbtn" id="gearBtn" aria-label="How the model is weighted">⚙️</button>
     <button class="iconbtn" id="infoBtn" aria-label="How it works">?</button></div>
   <div class="strip" id="strip"></div>
   <div id="view"></div>
@@ -1041,6 +1042,13 @@ function render() {
 }
 $("#scrim").onclick = closeSheet;
 $("#infoBtn").onclick = () => D && openInfo();
+function openWeights() {
+  $("#sheet").innerHTML = `<div class="grab"></div><button class="iconbtn close" id="shx" aria-label="Close">✕</button>
+    <div class="sh-t">⚙️ How the model is weighted</div>${weightsHtml(((TODAY || D).calib || {}).weights)}`;
+  $("#shx").onclick = closeSheet;
+  $("#scrim").classList.add("open"); $("#sheet").classList.add("open"); $("#sheet").scrollTop = 0;
+}
+$("#gearBtn").onclick = () => D && openWeights();
 fetch("data.json?v=" + Date.now()).then(r => r.json()).then(async d => {
   D = TODAY = d; render();
   try { const p = await (await fetch("prev.json?v=" + Date.now())).json(); if (p.meta && p.meta.date !== d.meta.date && p.games.length) PREV = p; } catch (e) {}

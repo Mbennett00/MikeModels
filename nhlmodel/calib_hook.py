@@ -149,3 +149,46 @@ def use_live(site: str):
     cal = CE.Live(site, SPORT)
     team_model.CALIBRATION = cal if cal.params else None
     return cal
+
+
+LABELS = {"off": ("Attack (5-on-5 + finishing)", "team's chance creation, recent games weighted"),
+          "def_opp": ("Opponent defence", "chances the opponent allows"),
+          "goalie_opp": ("Opposing goalie", "starter's save quality vs average"),
+          "pp_pk": ("Special teams", "power play vs penalty kill and penalties drawn"),
+          "pace": ("Pace", "how much both teams play at speed"),
+          "rest": ("Rest / back-to-back", "tired legs and travel"),
+          "lineup": ("Lineup / injuries", "missing regulars (off until it tests better)"),
+          "home": ("Home ice", "constant edge for the home team")}
+
+
+def model_weights(site: str, cfg, cal) -> dict:
+    """What moves NHL goal projections: the rate is a product of components, so each one's typical swing in goals
+    is the average rate x the spread of its log across recent team-games (from the prediction database)."""
+    d = db.graded(site, SPORT, "team_goals")
+    if d.empty:
+        return {}
+    d = d.tail(1500)
+    lam = float(d.original.fillna(d.projection).mean())
+    items = []
+    for k, (name, desc) in LABELS.items():
+        v = pd.to_numeric(d.inputs.map(lambda i: (i or {}).get(k)), errors="coerce").dropna()
+        v = v[v > 0]
+        if len(v) < 20:
+            continue
+        lg = np.log(v)
+        sw = lam * (float(lg.abs().mean()) if k == "home" else float(lg.std()))
+        if sw < 0.005:
+            desc += " · not moving projections right now"
+        items.append(dict(name=name, swing=round(sw, 3), desc=desc))
+    stages = [dict(name="Model price", value="100% model", desc="team ratings x goalie x special teams x pace x rest x home"),
+              dict(name="Recent form window", value=f"half-life {getattr(cfg, 'half_life_games', '–')} games",
+                   desc="how fast ratings react to recent games"),
+              dict(name="Last season's weight", value=f"{round(100 * getattr(cfg, 'prior_season_weight', 0))}%",
+                   desc="how much last season still counts"),
+              dict(name="Market", value="compared, not blended", desc="edges = model chance minus market no-vig chance"),
+              dict(name="Calibration layer", value=f"v{cal.version if cal else '1.0'}",
+                   desc="small capped correction learned from past misses" if cal and cal.params else "none applied (model tested unbiased)")]
+    ch = CE.weight_changes(getattr(cal, "params", None), SPORT, getattr(cal, "version", "1.0"))
+    return dict(sport="NHL", unit="goals", groups=[dict(title="What moves a team's goal projection",
+                                                        items=sorted(items, key=lambda r: -r["swing"]))],
+                stages=stages, calib=ch, base=round(lam, 2))

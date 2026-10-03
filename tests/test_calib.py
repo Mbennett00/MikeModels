@@ -149,3 +149,11 @@ def test_slate_projections_are_picklable():
     import pandas as pd
     row = next(pd.DataFrame(dict(game_id=[1], home=["A"], away=["B"])).itertuples(index=False))
     pickle.dumps(SimpleNamespace(**row._asdict()))
+
+
+def test_weight_changes_labels_and_effective_size():
+    from calib.engine import weight_changes, SPECS
+    f = next(iter(SPECS["nfl"].features))
+    w = weight_changes({"features": [f], "coef": [2.0], "sd": [0.5], "shrink": 0.5, "blend": 0.5}, "nfl", "1.1")
+    assert w["version"] == "1.1" and w["items"][0]["signed"] == 0.25 and w["items"][0]["name"][0].isupper()
+    assert weight_changes({}, "nfl", "1.0") is None

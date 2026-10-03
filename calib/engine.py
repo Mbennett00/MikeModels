@@ -257,6 +257,20 @@ def describe_changes(params: dict, spec: Spec, implied: dict, unit: str, d: pd.D
     return out or ["No component met the significance bar: projections unchanged"]
 
 
+def weight_changes(params: dict | None, sport: str, version: str) -> dict | None:
+    """The calibration layer's live corrections for the ⚙️ sheet: per component, the shift per typical swing."""
+    if not params or not params.get("features"):
+        return None
+    spec = SPECS[sport]
+    eff = params.get("shrink", 0) * params.get("blend", 0)
+    items = []
+    for f, c, sd in zip(params["features"], params["coef"], params.get("sd", [1.0] * len(params["features"]))):
+        lab = spec.features[f][0] if f in spec.features else f
+        items.append(dict(name=lab[:1].upper() + lab[1:], signed=round(eff * c * sd, 3),
+                          swing=round(abs(eff * c * sd), 3)))
+    return dict(version=version, items=sorted(items, key=lambda r: -r["swing"]))
+
+
 def recalibrate(site: str, sport: str, cfg: CalibConfig | None = None, log=print) -> dict:
     """Pull graded predictions, find meaningful biases, test adjustments walk-forward, and apply only if better.
     Always records the attempt as a model version. Returns a summary for the page."""

@@ -40,3 +40,20 @@
 .mh-seg button { border: 2px solid var(--navy); border-radius: 999px; background: var(--cream); padding: 3px 10px; font-weight: 800; font-size: 12px; color: var(--navy); }
 .mh-seg button.on { background: var(--navy); color: var(--cream); }
 @media (max-width: 380px) { .mh-tiles { grid-template-columns: repeat(2, 1fr); } .mh-charts { grid-template-columns: 1fr; } }
+/* ⚙️ weights sheet */
+.wsec { font-family: 'Fredoka', sans-serif; font-weight: 600; font-size: 16px; color: var(--navy); margin: 18px 0 8px; }
+.wrow { padding: 8px 0 10px; border-bottom: 1px solid rgba(0,0,0,.07); }
+.wtop { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.wn { font-weight: 800; font-size: 14.5px; color: var(--ink, #222); }
+.wv { font-weight: 800; font-size: 13.5px; color: var(--navy); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.wv i { font-style: normal; color: #7a7f86; font-weight: 700; margin-left: 6px; }
+.wbar, .wdiv { height: 10px; border-radius: 6px; background: rgba(0,0,0,.06); margin: 6px 0 4px; position: relative; overflow: hidden; }
+.wbar b { display: block; height: 100%; border-radius: 6px; background: #3a6ea5; }
+.wdiv::after { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; background: #9aa5ad; }
+.wdiv b { position: absolute; top: 0; height: 100%; }
+.wdiv b.pos { left: 50%; background: #2e8b57; border-radius: 0 6px 6px 0; }
+.wdiv b.neg { right: 50%; background: #c0504d; border-radius: 6px 0 0 6px; }
+.wd { font-size: 12.5px; color: #6b7178; font-weight: 600; }
+.wst { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; border-bottom: 1px solid rgba(0,0,0,.07); }
+.wst > div { flex: 1; min-width: 0; }
+.wi { flex: none; width: 24px; height: 24px; border-radius: 50%; background: var(--navy); color: var(--cream, #fff); font-weight: 800; font-size: 12.5px; display: grid; place-items: center; }

@@ -467,6 +467,19 @@ def _publish_web(site, state, plays, meta):
             calib = health.build(site, "nhl")
         except Exception as e:
             print(f"model health failed: {e}")
+        if calib is not None:
+            try:   # the ⚙️ sheet: what the model weighs and how much
+                from .calib_hook import model_weights
+                from calib.engine import Live
+                tc = os.path.join(site, "tuned_config.json")
+                if os.path.exists(tc):
+                    from .tuning import load_config
+                    cfg = load_config(tc)
+                else:
+                    cfg = DEFAULT
+                calib["weights"] = model_weights(site, cfg, Live(site, "nhl"))
+            except Exception as e:
+                print(f"model weights failed: {e}")
         out = web.build(state, plays, meta, js("news.json"), js("images.json"), msd, os.path.join(site, "web"),
                         updates=updates, calib=calib)
         # keep the previous slate so the page can show last night's settled games

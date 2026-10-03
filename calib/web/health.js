@@ -112,3 +112,28 @@ function healthHtml(H, sport, repo) {
 function wireHealth(render) {
   document.querySelectorAll("[data-mhs]").forEach(b => b.onclick = () => { MH_SEG = b.dataset.mhs; render(); });
 }
+
+// ---------- ⚙️ MODEL WEIGHTS SHEET ----------
+// W = {sport, unit, groups:[{title, items:[{name, swing, desc}]}], stages:[{name, value, desc}], calib:{version, items:[{name, signed}]}}
+// Bars: one colour, sorted, length = typical swing (1 SD of that input's effect across recent games); share = its slice of all swings.
+function weightsHtml(W) {
+  if (!W || !W.groups) return `<div class="hint">Weights appear after the next model run.</div>`;
+  const u = W.unit || "";
+  const grp = g => {
+    const tot = g.items.reduce((s, r) => s + r.swing, 0) || 1, hi = Math.max(...g.items.map(r => r.swing), 1e-9);
+    return `<div class="wsec">${esc(g.title)}</div>` + g.items.map(r => `<div class="wrow">
+      <div class="wtop"><span class="wn">${esc(r.name)}</span><span class="wv">±${mhF(r.swing, u === "goals" ? 2 : 1)} ${esc(u)} <i>${Math.round(100 * r.swing / tot)}%</i></span></div>
+      <div class="wbar"><b style="width:${Math.max(1.5, 100 * r.swing / hi).toFixed(1)}%"></b></div>
+      <div class="wd">${esc(r.desc || "")}</div></div>`).join("");
+  };
+  const stages = (W.stages || []).map((s, i) => `<div class="wst"><span class="wi">${i + 1}</span><div><div class="wtop"><span class="wn">${esc(s.name)}</span><span class="wv">${esc(s.value)}</span></div><div class="wd">${esc(s.desc || "")}</div></div></div>`).join("");
+  const c = W.calib, cal = c && c.items && c.items.length ? (() => {
+    const hi = Math.max(...c.items.map(r => Math.abs(r.signed)), 1e-9);
+    return `<div class="wsec">Calibration v${esc(c.version)}: live corrections</div>` + c.items.map(r => `<div class="wrow">
+      <div class="wtop"><span class="wn">${esc(r.name)}</span><span class="wv">${mhS(r.signed, 2)} ${esc(u)}</span></div>
+      <div class="wdiv"><b class="${r.signed < 0 ? "neg" : "pos"}" style="width:${(50 * Math.abs(r.signed) / hi).toFixed(1)}%"></b></div></div>`).join("")
+      + `<div class="hint">Per typical swing of that input, after shrinkage. Capped at ±15% of any projection.</div>`;
+  })() : "";
+  return `<div class="hint" style="margin-top:4px">How much each input typically moves a ${W.sport === "NHL" ? "team's projected goals" : "game's projection"} (bar = typical swing over recent games; % = its share of all movement). Bigger bar = weighs more.</div>`
+    + W.groups.map(grp).join("") + `<div class="wsec">How the final number is built</div>${stages}` + cal;
+}

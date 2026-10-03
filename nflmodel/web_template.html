@@ -178,12 +178,15 @@ label.f { display: block; font-size: 13px; font-weight: 800; color: var(--ink-2)
   background: repeating-linear-gradient(180deg, rgba(255,255,255,.45) 0 2px, transparent 2px 12.5%), repeating-linear-gradient(180deg, var(--turf) 0 12.5%, var(--turf-2) 12.5% 25%); }
 .fl-logo { position: absolute; left: 50%; top: 50%; width: 46%; transform: translate(-50%, -50%); opacity: .14; pointer-events: none; }
 .los { position: absolute; left: 0; right: 0; top: var(--los); height: 3px; background: rgba(110,190,255,.9); }
-.fp { position: absolute; transform: translate(-50%, -18px); display: flex; flex-direction: column; align-items: center; border: 0; background: transparent; padding: 0; width: 58px; }
+.fp { position: absolute; transform: translate(-50%, -18px); display: flex; flex-direction: column; align-items: center; border: 0; background: transparent; padding: 0; width: 60px; }
+.fp.ol .fn { display: none; }
+.fp.dl .fn { font-size: 10px; max-width: 52px; }
+.olrow { font-size: 12.5px; font-weight: 700; color: var(--ink-2); margin: 8px 2px 0; } .olrow b { color: var(--navy); }
 .fc { position: relative; width: 32px; height: 32px; border-radius: 50%; border: 2.5px solid var(--navy); display: flex; align-items: center; justify-content: center;
       font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 11px; box-shadow: 0 0 0 3px rgba(255,255,255,.55); }
 .fc.q { box-shadow: 0 0 0 3px var(--gold); }
 .fq { position: absolute; top: -9px; right: -12px; background: var(--gold); color: var(--navy); border: 1.5px solid var(--navy); border-radius: 99px; font-size: 9px; padding: 0 4px; font-family: 'Nunito', sans-serif; font-weight: 800; }
-.fn { margin-top: 2px; font-weight: 800; font-size: 10.5px; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.8); white-space: nowrap; max-width: 50px; overflow: hidden; text-overflow: ellipsis; }
+.fn { margin-top: 2px; font-weight: 800; font-size: 10.5px; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.8); white-space: nowrap; max-width: 58px; overflow: hidden; text-overflow: ellipsis; }
 .fv { font-size: 9.5px; font-weight: 800; color: #eaffea; text-shadow: 0 1px 2px rgba(0,0,0,.7); white-space: nowrap; }
 .link { width: 100%; margin-top: 8px; border: 0; background: transparent; font-weight: 800; font-size: 13.5px; color: var(--navy); text-decoration: underline; padding: 6px; text-align: left; }
 .fg { position: absolute; top: -8px; left: -14px; font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 10px; border: 1.5px solid var(--navy); border-radius: 99px; padding: 0 4px; background: #fff; color: var(--navy); }
@@ -274,14 +277,14 @@ label.f { display: block; font-size: 13px; font-weight: 800; color: var(--ink-2)
 .gsec-h .duo3 { display: flex; } .gsec-h .duo3 img { width: 24px; height: 24px; object-fit: contain; } .gsec-h .duo3 img + img { margin-left: -4px; }
 .gsec-h b { font-family: 'Fredoka', sans-serif; font-weight: 600; font-size: 15.5px; color: var(--navy); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gsec-h span { font-size: 12px; font-weight: 800; color: var(--ink-2); white-space: nowrap; }
-.prow3 { width: 100%; display: grid; grid-template-columns: 54px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 12px 10px 14px;
-         border: 0; border-top: 1.5px solid var(--line); background: transparent; text-align: left; min-height: 72px; }
+.prow3 { width: 100%; display: grid; grid-template-columns: 72px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 12px 10px 14px;
+         border: 0; border-top: 1.5px solid var(--line); background: transparent; text-align: left; min-height: 90px; }
 .prow3:first-of-type { border-top: 0; }
 .prow3:active { background: rgba(0,0,0,.03); }
-.ph3 { position: relative; width: 54px; height: 54px; border-radius: 16px; overflow: hidden; border: 2px solid var(--navy);
+.ph3 { position: relative; width: 72px; height: 72px; border-radius: 18px; overflow: hidden; border: 2px solid var(--navy);
        display: flex; align-items: center; justify-content: center; font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 17px; color: rgba(255,255,255,.9); }
 .ph3::before { content: ""; position: absolute; inset: 0; background: radial-gradient(110% 80% at 50% 15%, rgba(255,255,255,.3), rgba(255,255,255,0) 65%); }
-.ph3 img { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 100%; object-fit: contain; object-position: center bottom; }
+.ph3 img { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 100%; object-fit: cover; object-position: center top; }
 .pt3 { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .pn3 { font-weight: 800; font-size: 15.5px; color: var(--navy); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pm3 { font-size: 12px; font-weight: 700; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -304,6 +307,7 @@ label.f { display: block; font-size: 13px; font-weight: 800; color: var(--ink-2)
 <div class="wrap">
   <div class="hdr"><img class="appicon" src="apple-touch-icon.png" alt=""><div class="t"><h1 id="title">Loading…</h1><div class="sub" id="sub">Lining the field</div></div>
     <div class="sport"><a href="index.html">🏒</a><a class="on" href="nfl.html">🏈</a></div>
+    <button class="iconbtn" id="gearBtn" aria-label="How the model is weighted">⚙️</button>
     <button class="iconbtn" id="infoBtn" aria-label="How it works">?</button></div>
   <div class="strip" id="strip"></div>
   <div id="view"></div>
@@ -534,9 +538,9 @@ function scoreHtml(g) {
 // formation view: who lines up for each side, on the field (offense going up, defense facing down)
 const FORM = {};   // game_id -> {team: "home"|"away", unit: "off"|"def"}
 const SPOTS = {   // x, y in % of the field; offense snaps the ball going up, the defense lines up facing it
-  off: {OL: [[18, 33], [34, 33], [50, 33], [66, 33], [82, 33]], TE: [[91, 45]], WR: [[8, 50], [92, 62], [30, 46]],
-        QB: [[50, 56]], RB: [[50, 78]]},
-  def: {DL: [[29, 68], [43, 68], [57, 68], [71, 68]], LB: [[36, 48], [64, 48]], CB: [[8, 66], [92, 66], [20, 54]], S: [[33, 22], [67, 22]]},
+  off: {OL: [[22, 17], [36, 17], [50, 17], [64, 17], [78, 17]], TE: [[88, 31]], WR: [[11, 31], [88, 60], [28, 47]],
+        QB: [[50, 44]], RB: [[50, 70]]},
+  def: {DL: [[20, 80], [40, 80], [60, 80], [80, 80]], LB: [[38, 48], [66, 48]], CB: [[12, 63], [88, 63], [14, 40]], S: [[30, 16], [70, 16]]},
 };
 function newsLine(g) {
   const N = g.news || {}; if (N.m == null) return "";
@@ -579,16 +583,18 @@ function fieldHtml(g) {
     const last = p.name.split(" ").slice(-1)[0].replace(/^(Jr\.?|Sr\.?|II|III|IV)$/, "") || p.name.split(" ").slice(-2)[0];
     const q = p.status ? `<span class="fq">${esc(ST(p.status))}</span>` : "";
     const gr = p.grade && st.unit === "off" ? `<span class="fg g-${p.grade[0]}">${esc(p.grade)}</span>` : "";
-    const sub = p.proj ? esc(p.proj) : `${Math.round(100 * p.share)}%`;
-    return `<button class="fp" style="left:${sp[0]}%;top:${sp[1]}%" ${p.id ? `data-pp="${esc(p.id)}|${esc(g.game_id)}"` : ""}>
+    const sub = p.proj ? esc(p.proj) : p.slot === "OL" ? "" : `${Math.round(100 * p.share)}%`;
+    return `<button class="fp${p.slot === "OL" ? " ol" : p.slot === "DL" ? " dl" : ""}" style="left:${sp[0]}%;top:${sp[1]}%" ${p.id ? `data-pp="${esc(p.id)}|${esc(g.game_id)}"` : ""}>
       <span class="fc ${p.status ? "q" : ""}" style="background:${esc(t.color)};color:${ink}">${esc(p.slot === "OL" ? ["LT", "LG", "C", "RG", "RT"][used.OL] : p.slot)}${q}</span>
-      ${gr}<span class="fn">${esc(p.name.split(" ").length > 2 && /^(Jr|Sr|II|III|IV)/.test(last) ? p.name.split(" ")[1] : last)}</span><span class="fv">${sub}</span></button>`;
+      ${gr}<span class="fn">${esc(p.name.split(" ").length > 2 && /^(Jr|Sr|II|III|IV)/.test(last) ? p.name.split(" ")[1] : last)}</span>${sub ? `<span class="fv">${sub}</span>` : ""}</button>`;
   }).join("");
   const G = ((D.lineups || {})[t.abbr] || {}).grades, opp = ((D.lineups || {})[t.abbr] || {}).opp;
   const grades = st.unit === "off" && G ? `<div class="grades">Matchup vs ${esc(opp)} D: ${["QB", "RB", "WR", "TE"].map(k => `<span>${k} <b class="fg g-${G[k].g[0]}">${esc(G[k].g)}</b></span>`).join("")}</div>` : "";
+  const ol = L.players.filter(p => p.slot === "OL"), olRow = st.unit === "off" && ol.length
+    ? `<div class="olrow">🧱 <b>Line</b> (LT → RT): ${ol.map(p => esc(p.name.split(" ").slice(1).join(" ") || p.name)).join(" · ")}</div>` : "";
   const outs = L.out.length ? `<div class="hint">🚑 Not playing: ${L.out.map(o => `${esc(o.name)} (${esc(o.pos)}) <b class="neg">${esc(ST(o.status))}</b>`).join(", ")}. Next man up shown.</div>` : "";
-  return seg + grades + `<div class="field2 ${st.unit}" style="--los:${st.unit === "off" ? 27 : 75}%"><img class="fl-logo" src="${esc(t.logo)}" alt="" onerror="this.remove()"><div class="los"></div>${dots}</div>${outs}
-    <div class="hint">${st.unit === "off" ? "11 personnel (1 RB, 1 TE, 3 WR). Grades: how many yards this opponent has allowed to each position over its last 10 games vs league average (A+ = soft matchup, F = tough). Numbers are this week's projections; linemen show their share of snaps" : "Nickel (4 DL, 2 LB, 3 CB, 2 S). Numbers are each player's share of defensive snaps"} over the last few games. Gold ring = questionable. Tap a skill player for his props.</div>`;
+  return seg + grades + `<div class="field2 ${st.unit}" style="--los:${st.unit === "off" ? 12 : 85}%"><img class="fl-logo" src="${esc(t.logo)}" alt="" onerror="this.remove()"><div class="los"></div>${dots}</div>${olRow}${outs}
+    <div class="hint">${st.unit === "off" ? "11 personnel. Grade = yards this defense allows to that position vs league average, last 10 games (A = soft, F = tough). Numbers are this week's projections" : "Nickel (4 DL, 2 LB, 3 CB, 2 S). Numbers are each player's share of defensive snaps over the last few games"}. Gold ring = questionable. Tap a skill player for props.</div>`;
 }
 function likeRows() {
   const out = [];
@@ -908,6 +914,13 @@ function render() {
 }
 $("#scrim").onclick = closeSheet;
 $("#infoBtn").onclick = () => D && openInfo();
+function openWeights() {
+  $("#sheet").innerHTML = `<div class="grab"></div><button class="iconbtn close" id="shx" aria-label="Close">✕</button>
+    <div class="sh-t">⚙️ How the model is weighted</div>${weightsHtml((D.meta || {}).weights)}`;
+  $("#shx").onclick = closeSheet;
+  $("#scrim").classList.add("open"); $("#sheet").classList.add("open"); $("#sheet").scrollTop = 0;
+}
+$("#gearBtn").onclick = () => D && openWeights();
 fetch("nfl.json?v=" + Date.now()).then(r => r.json()).then(async d => {
   D = d; render(); await loadLive(); render();
   setInterval(async () => { if (D.games.some(g => (LIVE[g.game_id] || {}).state === "in")) { await loadLive(); render(); } }, 60000);

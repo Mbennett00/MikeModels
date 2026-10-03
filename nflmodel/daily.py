@@ -348,6 +348,10 @@ def run(state: str = "state", log=print) -> dict:
     except Exception as e:      # the health page never blocks the projections
         log(f"calib: {e}")
     meta["model_version"] = CAL.version
+    try:
+        meta["weights"] = model_weights(F, cfg, season, w_side, w_total, t_bias, CAL)
+    except Exception as e:
+        log(f"model weights: {e}")
     meta["repo"] = os.environ.get("GITHUB_REPOSITORY", "Mbennett00/NHLModel")
     out["updates"] = changelog.update(site, out)
     write(site, out)
@@ -562,6 +566,51 @@ def cached_features(cache, sched, tg, qb, cfg, snaps, inj, wxt, con, pg, log=pri
             log(f"nfl features {s}: built and cached ({len(d)} games)")
         parts.append(d)
     return pd.concat(parts, ignore_index=True)
+
+
+def model_weights(F: pd.DataFrame, cfg, season: int, w_side: float, w_total: float, t_bias: float, cal) -> dict:
+    """What moves NFL projections, from the fitted model itself: each input's typical swing (standard deviation of
+    its contribution across the last two seasons of games, in points), then how the final price is assembled."""
+    x = F[(F.season >= season - 1)]
+    if x.empty:
+        return {}
+    Xm, Xt = np.vstack(x.xm), np.vstack(x.xt)
+    cm, ct = cfg.coef_m, cfg.coef_t
+    dq = (x.qb_h.fillna(0) - x.qb_a.fillna(0)).to_numpy() if "qb_h" in x else np.zeros(len(x))
+    qb = (cm[2] * 0.55 + cm[3]) * dq   # the QB term is folded into the two EPA features; split it back out
+    side = [("Team efficiency (EPA per play)", cm[2] * (Xm[:, 2] - 0.55 * dq), "offense vs defense, opponent-adjusted"),
+            ("Passing efficiency (EPA per dropback)", cm[3] * (Xm[:, 3] - dq), "air game vs pass defense"),
+            ("Points rating", cm[4] * Xm[:, 4], "scoring margin, opponent-adjusted"),
+            ("Starting QB", qb, "listed starter vs the team's usual QB play"),
+            ("Injuries", cm[5] * Xm[:, 5] if Xm.shape[1] > 5 else np.zeros(len(x)), "missing starters, stars weighted more"),
+            ("Home field", cm[1] * Xm[:, 1], "constant edge for the home team")]
+    out_side = []
+    for name, v, desc in side:
+        v = np.asarray(v, float)
+        sw = float(np.mean(np.abs(v))) if name == "Home field" else float(np.std(v))
+        out_side.append(dict(name=name, swing=round(sw, 2), desc=desc))
+    outdoor = Xt[:, 4] == 0
+    wx = Xt[:, 5:8] @ ct[5:8] if Xt.shape[1] >= 8 else np.zeros(len(x))
+    total = [("Both offenses vs both defenses", Xt[:, 1:4] @ ct[1:4], "the four team ratings together"),
+             ("Weather (wind, cold, rain)", wx[outdoor] if outdoor.any() else wx, "outdoor games only"),
+             ("Dome", np.array([ct[4]]), "indoor games vs outdoor")]
+    out_total = [dict(name=n, swing=round(float(np.abs(v).mean()) if n == "Dome" else float(np.std(v)), 2), desc=d)
+                 for n, v, d in total]
+    stages = [dict(name="Model alone", value="100%", desc="team ratings + QB + injuries + weather → margin and total"),
+              dict(name="Market blend: sides", value=f"{round(100 * w_side)}% model / {round(100 - 100 * w_side)}% market",
+                   desc="weight that tested best against results since 2021"),
+              dict(name="Market blend: totals", value=f"{round(100 * w_total)}% model / {round(100 - 100 * w_total)}% market",
+                   desc=f"after a {-t_bias:+.1f} pt scoring correction"),
+              dict(name="News since the market line", value="100%", desc="injury, QB and weather changes after the odds pull"),
+              dict(name="Calibration layer", value=f"v{cal.version}", desc="small capped correction learned from past misses" if cal.params else "none applied")]
+    return dict(sport="NFL", unit="pts", groups=[dict(title="What moves the spread", items=sorted(out_side, key=lambda r: -r["swing"])),
+                                                 dict(title="What moves the total", items=sorted(out_total, key=lambda r: -r["swing"]))],
+                stages=stages, calib=_calib_changes(cal))
+
+
+def _calib_changes(cal) -> dict | None:
+    from calib.engine import weight_changes
+    return weight_changes(getattr(cal, "params", None), "nfl", getattr(cal, "version", "1.0"))
 
 
 def blend_weights(bt: pd.DataFrame) -> tuple[float, float]:
