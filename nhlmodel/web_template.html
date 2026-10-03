@@ -990,18 +990,27 @@ function mixedNHL() {
           why: `+${(100 * l.b.edge).toFixed(1)}% vs market`}; }), p: P.p, dec: P.dec, worth: P.legs.reduce((a, l) => a / Math.max(l.p - 0.02, 0.02), 1), priced: true},
       "edge", "The biggest model edges over the market, one per game, in markets rated “Trust it”. Prices are the market median.");
   }
-  const P = mixParlay(poolNHL(), "nhl|" + (D.meta.date || ""), {side: 1, total: 2, sog: 2, pts: 2, goal: 1}, 0.02);
-  return mixCardHtml(P, "mix", `A random mix of game lines and player props, one per game, drawn from legs the model rates as live: shots, points and goals come from each player's projection against tonight's opponent and goalie, injured players are skipped, and confirmed lineups and goalies get more weight. Game lines only count with no negative edge. “Fair” legs have no book price in our feed, so the payout is the model's fair odds; “Worth it at” is the shortest parlay price still worth taking. Stays put between model updates unless you spin.`);
+  const P = mixParlay(poolNHL(), "nhl|" + (D.meta.date || ""), {side: 1, total: 2, sog: 2, pts: 2, goal: 1}, 0.02, {key: "mix"});
+  return mixCardHtml(P, "mix", `Random legs, one per game, from what the model rates as live: player chances are vs tonight's opponent and goalie, injured players skipped, confirmed lineups and goalies weighted up. “Fair” = model price (no book prop odds in our feed). “Worth it at” = shortest parlay price still worth taking.`);
+}
+
+// 🥅 Need some ginos: anytime-goal parlay. Same pool and filters as the mix (injured skipped, lineup/goalie weighting,
+// chance vs tonight's goalie), goal legs only, one per game so a single blowout can't decide it.
+function ginosNHL() {
+  const pool = poolNHL().filter(c => c.kind === "goal");
+  const P = mixParlay(pool, "nhl|" + (D.meta.date || ""), {goal: 3}, 0.02, {key: "ginos", n: 3, lo: 0.015, hi: 0.2});
+  return mixCardHtml(P, "mix", `Three goal scorers from three different games, picked at random from shooters the model gives a 33%+ chance tonight, weighted toward confirmed lineups and top units. Goals are streaky: this hits a few times in 100, so lottery-ticket stakes.`,
+    {key: "ginos", title: "🥅 Need some ginos", sub: "Anytime goal scorer parlay", empty: "Not enough likely scorers on the board yet (lineups usually land in the afternoon)."});
 }
 function luckyNHL() {
   const lad = ladderNHL();
-  return mixedNHL() + `<div class="card lucky"><div class="lk-h">🪜 Ladder the shots</div>
+  return mixedNHL() + ginosNHL() + `<div class="card lucky"><div class="lk-h">🪜 Ladder the shots</div>
     <div class="note" style="margin-top:2px">Shooters with the most upside tonight. Ladder = small bets on each rung (3+, 4+, 5+…), bigger stake low, smaller high. Each rung shows the model's chance and the <b>worst odds still worth it</b>; tap one to check ${BOOKS()} price.</div>
     ${lad.length ? lad.map(ladderCard).join("") : `<div class="note">No high-volume shooters on the board yet.</div>`}
     <div class="note">Checked on 72,000 past player-games: the model's 3+, 4+ and 5+ shot chances matched what happened; 6+ ran a bit hot, so it's trimmed 15%.</div></div>`;
 }
 function luckyBanner() {
-  const P = mixParlay(poolNHL(), "nhl|" + (D.meta.date || ""), {side: 1, total: 2, sog: 2, pts: 2, goal: 1}, 0.02); if (!P) return "";
+  const P = mixParlay(poolNHL(), "nhl|" + (D.meta.date || ""), {side: 1, total: 2, sog: 2, pts: 2, goal: 1}, 0.02, {key: "mix"}); if (!P) return "";
   return `<button class="lk-banner" data-golucky="1"><em>🍀</em><span class="lb-t"><b>Parlay of the day</b><i>${P.legs.length} legs · ${P.priced ? "pays" : "fair"} ${am(amOf(P.dec))}</i></span><span class="lb-go">Feeling lucky →</span></button>`;
 }
 function props() {

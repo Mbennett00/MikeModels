@@ -790,12 +790,21 @@ function mixedNFL() {
           why: `+${(100 * l.b.edge).toFixed(1)}% vs market`}; }), p: P.p, dec: P.dec, worth: P.legs.reduce((a, l) => a / Math.max(l.b.p - THR, 0.02), 1), priced: true},
       "edge", "The biggest model edges over the market after the blend, one per game (the same edges as 💡 Model likes). Prices are the market median.");
   }
-  const P = mixParlay(poolNFL(), "nfl|" + (D.meta.week || ""), {side: 1, total: 1, td: 1, yds: 2, rec: 1}, THR);
-  return mixCardHtml(P, "mix", `A random mix of game lines and player props, one per game, drawn from legs the model rates as live. Player lines come from each player's projection with this week's starting QB, ESPN injuries (out and doubtful players removed, their targets and carries passed on) and kickoff weather; questionable players are skipped and good position matchups get more weight. Prop lines are set a notch below the projection (60-80% chance). “Fair” legs have no book price in our feed; “Worth it at” is the shortest parlay price still worth taking. Stays put between model updates unless you spin.`);
+  const P = mixParlay(poolNFL(), "nfl|" + (D.meta.week || ""), {side: 1, total: 1, td: 1, yds: 2, rec: 1}, THR, {key: "mix"});
+  return mixCardHtml(P, "mix", `Random legs, one per game, from what the model rates as live: player chances include this week's starting QB, ESPN injuries and weather, questionable players skipped, soft matchups weighted up. “Fair” = model price (no book prop odds in our feed). “Worth it at” = shortest parlay price still worth taking.`);
+}
+
+// 🏈 Need some tudders: anytime-TD parlay. Same pool and filters as the mix (questionable skipped, matchup grade
+// weighting, chances with this week's QB, injuries and weather), TD legs only, one per game.
+function tuddersNFL() {
+  const pool = poolNFL().filter(c => c.kind === "td");
+  const P = mixParlay(pool, "nfl|" + (D.meta.week || ""), {td: 3}, THR, {key: "tudders", n: 3, lo: 0.02, hi: 0.25});
+  return mixCardHtml(P, "mix", `Three anytime touchdown scorers from three different games, picked at random from players the model gives a 35%+ chance (calibrated on 2022-26 results), weighted toward soft matchups. Hits several times in 100: lottery-ticket stakes.`,
+    {key: "tudders", title: "🏈 Need some tudders", sub: "Anytime touchdown parlay", empty: "Not enough likely scorers on the board yet."});
 }
 function luckyNFL() {
   const D2 = dartsNFL();
-  return mixedNFL() + `<div class="card lucky"><div class="lk-h">🎯 Throwing darts</div>
+  return mixedNFL() + tuddersNFL() + `<div class="card lucky"><div class="lk-h">🎯 Throwing darts</div>
     <div class="note" style="margin-top:2px">Longshot anytime-TD guys the model gives a real shot. Small stakes, spread across a few. “Bet at” is the <b>shortest odds still worth it</b>; books often hang longer.</div>
     ${D2.live.length ? `<div class="sec">Live darts · roughly +250 to +400</div>${D2.live.map(dartRow).join("")}` : ""}
     ${D2.deep.length ? `<div class="sec">Deep darts · roughly +400 to +730</div>${D2.deep.map(dartRow).join("")}` : ""}
