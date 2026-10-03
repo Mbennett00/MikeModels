@@ -349,7 +349,7 @@ def run(state: str = "state", log=print) -> dict:
         log(f"calib: {e}")
     meta["model_version"] = CAL.version
     try:
-        meta["weights"] = model_weights(F, cfg, season, w_side, w_total, t_bias, CAL)
+        meta["weights"] = model_weights(F, cfg, season, w_side, w_total, t_bias, CAL, hfa=hfa)
     except Exception as e:
         log(f"model weights: {e}")
     meta["repo"] = os.environ.get("GITHUB_REPOSITORY", "Mbennett00/NHLModel")
@@ -568,7 +568,7 @@ def cached_features(cache, sched, tg, qb, cfg, snaps, inj, wxt, con, pg, log=pri
     return pd.concat(parts, ignore_index=True)
 
 
-def model_weights(F: pd.DataFrame, cfg, season: int, w_side: float, w_total: float, t_bias: float, cal) -> dict:
+def model_weights(F: pd.DataFrame, cfg, season: int, w_side: float, w_total: float, t_bias: float, cal, hfa=None) -> dict:
     """What moves NFL projections, from the fitted model itself: each input's typical swing (standard deviation of
     its contribution across the last two seasons of games, in points), then how the final price is assembled."""
     x = F[(F.season >= season - 1)]
@@ -587,7 +587,7 @@ def model_weights(F: pd.DataFrame, cfg, season: int, w_side: float, w_total: flo
     out_side = []
     for name, v, desc in side:
         v = np.asarray(v, float)
-        sw = float(np.mean(np.abs(v))) if name == "Home field" else float(np.std(v))
+        sw = (abs(float(hfa)) if hfa is not None else float(np.mean(np.abs(v)))) if name == "Home field" else float(np.std(v))
         out_side.append(dict(name=name, swing=round(sw, 2), desc=desc))
     outdoor = Xt[:, 4] == 0
     wx = Xt[:, 5:8] @ ct[5:8] if Xt.shape[1] >= 8 else np.zeros(len(x))
