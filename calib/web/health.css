@@ -95,3 +95,4 @@
 .lb-t b { font-size: 15.5px; } .lb-t i { font-style: normal; font-size: 13px; font-weight: 800; color: #2e6b2e; }
 .lb-go { margin-left: auto; font-weight: 800; white-space: nowrap; font-size: 13.5px; }
 .hv button, .props-seg button { white-space: nowrap; flex: 1 1 auto; padding-left: 6px; padding-right: 6px; }
+.leg .duo3 { display: flex; align-items: center; width: 52px; } .leg .duo3 img { width: 26px; height: 26px; object-fit: contain; flex: none; } .leg .duo3 img + img { margin-left: -6px; }
