@@ -821,7 +821,7 @@ function likesHtml() {
 }
 function games() {
   if (!D.games.length) return empty("🧊", "No games on the board", "Check back on the next game day.");
-  return likesHtml() + record() + `<div class="note">👆 Tap any price to check ${BOOK()}' odds.</div>` + D.games.map(gameCard).join("");
+  return luckyBanner() + likesHtml() + record() + `<div class="note">👆 Tap any price to check ${BOOK()}' odds.</div>` + D.games.map(gameCard).join("");
 }
 
 const LINES = {sog: [1.5, 2.5, 3.5, 4.5], goals: [0.5], points: [0.5, 1.5], assists: [0.5]};
@@ -895,16 +895,82 @@ function sectionsNHL(list, mk) {
       ${rows.length > 6 && !showAll ? `<button class="gmore" data-gopen="${g.game_id}">${open ? "Show fewer ▴" : `Show all ${rows.length} ▾`}</button>` : ""}</div>`;
   }).join("");
 }
+
+// ---------- 🍀 FEELING LUCKY: parlay of the day + shot ladders ----------
+// Parlay: only legs priced by the market with a positive model edge, in markets the model is trusted on, one per game.
+const MNAME_L = {moneyline: "ML", puckline: "Puck line", total: "Total"};
+const decOf = a => a > 0 ? 1 + a / 100 : 1 + 100 / -a;
+const amOf = d => d >= 2 ? 100 * (d - 1) : -100 / (d - 1);
+function trustOK(m) { const t = (D.trust || []).find(r => r.market === m); return !t || t.status === "OK"; }
+function notStarted(g) { const L = LIVE[g.game_id]; return (!L || !L.state || L.state === "pre") && (!g.start_utc || new Date(g.start_utc) > Date.now() - 6e4); }
+function legLabel(g, b) { return b.m === "total" ? `${b.s === "over" ? "Over" : "Under"} ${b.l}` : b.m === "moneyline" ? `${(b.s === "home" ? g.home : g.away).abbr} win`
+  : `${(b.s === "home" ? g.home : g.away).abbr} ${b.l > 0 ? "+" : ""}${b.l}`; }
+function parlayNHL() {
+  const legs = [];
+  for (const g of D.games) { if (!notStarted(g)) continue;
+    const c = (g.dk || []).filter(b => b.edge != null && b.edge >= 0.015 && b.price && trustOK(b.m) && (b.nv + b.edge) >= 0.45 && b.price <= 200)
+      .sort((x, y) => y.edge - x.edge)[0];
+    if (c) legs.push({g, b: c, p: c.nv + c.edge}); }
+  legs.sort((x, y) => y.b.edge - x.b.edge);
+  if (legs.length < 3) return null;
+  const pick = legs.slice(0, legs.length >= 4 && legs[3].b.edge >= 0.025 ? 4 : 3);
+  const dec = pick.reduce((a, l) => a * decOf(l.b.price), 1), p = pick.reduce((a, l) => a * l.p, 1), mk = pick.reduce((a, l) => a * l.b.nv, 1);
+  return {legs: pick, dec, p, mk, ev: p * dec - 1};
+}
+function parlayCard(P, sport) {
+  if (!P) return `<div class="card lucky"><div class="lk-h">🎟️ Parlay of the day</div><div class="note">Not enough priced edges on today's board for a 3-leg parlay. The model won't force one.</div></div>`;
+  const rows = P.legs.map((l, i) => { const st = settle(l.g, l.b.m, l.b.s, l.b.l), [cls, ic] = RES(st);
+    const k = bet({g: l.g, market: l.b.m, sel: l.b.s, line: l.b.l, p: l.p, label: `${gameLabel(l.g)} ${legLabel(l.g, l.b)}`});
+    return `<button class="leg ${cls}" data-bet="${k}"><span class="lg-n">${ic || i + 1}</span><span class="duo3"><img src="${esc(l.g.away.logo)}" alt="" onerror="this.remove()"><img src="${esc(l.g.home.logo)}" alt="" onerror="this.remove()"></span>
+      <span class="lg-t"><b>${esc(legLabel(l.g, l.b))}</b><span>${esc(l.g.away.abbr)} @ ${esc(l.g.home.abbr)} · model ${pct(l.p)}</span></span>
+      <span class="lg-p">${am(l.b.price)}</span></button>`; }).join("");
+  return `<div class="card lucky"><div class="lk-h">🎟️ Parlay of the day <span class="pl-tag">${P.legs.length} legs</span></div>${rows}
+    <div class="pl-sum"><div><span>Pays</span><b>${am(amOf(P.dec))}</b></div><div><span>Model hits</span><b>${(100 * P.p).toFixed(1)}%</b></div><div><span>Market says</span><b>${(100 * P.mk).toFixed(1)}%</b></div></div>
+    <div class="note">Each leg is a different game with a model edge over the market's no-vig price (${sport === "NHL" ? "totals and other markets rated “Trust it”" : "spreads and moneylines only when the model beats the blend"}). Prices are the market median; parlay at the best book you can find. Fun-size stakes: even good parlays miss most nights.</div></div>`;
+}
+const LADDER = [3, 4, 5, 6], L6_TRIM = 0.85;   // backtest: 6+ shots ran ~15% below the model's chance; 3+-5+ were on target
+function ladderNHL() {
+  const r = (D.params.r_sog || {}), out = [], perTeam = {};
+  const pool = D.players.filter(p => p.lam.sog >= 2.9 && notStarted(D.games.find(g => g.game_id === p.game_id) || {})).map(p => {
+    const rungs = LADDER.map(k => { let pr = nbSF(k - 0.5, p.lam.sog, r[p.pos] || 8); if (k === 6) pr *= L6_TRIM; return {k, p: pr}; });
+    return {p, rungs, score: rungs[2].p}; }).sort((a, b) => b.score - a.score);
+  for (const x of pool) { if ((perTeam[x.p.team] || 0) >= 1) continue; perTeam[x.p.team] = 1; out.push(x); if (out.length >= 6) break; }
+  return out;
+}
+function ladderCard(x) {
+  const p = x.p, col = (D.colors || {})[p.team] || "#7a8894", slot = D.lines.find(l => l.team === p.team && normName(l.name) === normName(p.name));
+  const role = slot ? [slot.line, slot.pp ? `PP${slot.pp}` : ""].filter(Boolean).join(" · ") : p.pos;
+  const s = playerStat(p), L = LIVE[p.game_id] || {};
+  const rungs = x.rungs.filter(r => r.p >= 0.06).map(r => { const res = s && !s.dnp ? cmpLine(s.sog, r.k - 0.5, "over", L.state === "post") : undefined, [cls] = RES(res);
+    const k = bet({player: p, market: "sog", line: r.k - 0.5, p: r.p, label: `${p.name} ${r.k}+ shots`});
+    return `<button class="rung ${cls}" data-bet="${k}"><b>${r.k}+</b><span class="rp">${pct(r.p)}</span><span class="ra">${betAt(r.p - thr("sog"))}</span></button>`; }).join("");
+  return `<div class="lad"><div class="lad-h"><div class="ph3 sm" style="background-color:${esc(col)}"><span>${esc(initials(p.name))}</span>${p.headshot ? `<img src="${esc(p.headshot)}" alt="" loading="lazy" onload="this.previousElementSibling.style.visibility='hidden'" onerror="this.remove()">` : ""}</div>
+    <div class="pt3"><div class="pn3">${esc(p.name)}</div><div class="pm3">${esc(p.team)} ${esc(matchupOf(p).split(" · ")[0])} · ${esc(role)}${p.confirmed ? " · 🟢" : ""}</div>
+    <div class="pp3">Proj <b>${p.lam.sog.toFixed(1)}</b> shots</div></div></div><div class="rungs">${rungs}</div></div>`;
+}
+function luckyNHL() {
+  const lad = ladderNHL();
+  return parlayCard(parlayNHL(), "NHL") + `<div class="card lucky"><div class="lk-h">🪜 Ladder the shots</div>
+    <div class="note" style="margin-top:2px">Shooters with the most upside tonight. Ladder = small bets on each rung (3+, 4+, 5+…), bigger stake low, smaller high. Each rung shows the model's chance and the <b>worst odds still worth it</b>; tap one to check ${BOOKS()} price.</div>
+    ${lad.length ? lad.map(ladderCard).join("") : `<div class="note">No high-volume shooters on the board yet.</div>`}
+    <div class="note">Checked on 72,000 past player-games: the model's 3+, 4+ and 5+ shot chances matched what happened; 6+ ran a bit hot, so it's trimmed 15%.</div></div>`;
+}
+function luckyBanner() {
+  const P = parlayNHL(); if (!P) return "";
+  return `<button class="lk-banner" data-golucky="1"><em>🍀</em><span class="lb-t"><b>Parlay of the day</b><i>${P.legs.length} legs · pays ${am(amOf(P.dec))}</i></span><span class="lb-go">Feeling lucky →</span></button>`;
+}
 function props() {
   if (!D.players.length) return empty("👤", "No player projections yet", "");
   const S = PSTATE, mk = S.market;
+  const mkt0 = [["lucky", "🍀 Lucky"], ["sog", "Shots"], ["goals", "Goals"], ["points", "Points"], ["assists", "Assists"]]
+    .map(([k, nm]) => `<button class="${mk === k ? "on" : ""}" data-m="${k}">${nm}</button>`).join("");
+  if (mk === "lucky") return `<div class="ptabs props-seg">${mkt0}</div>` + luckyNHL();
   let list = D.players.filter(p => p.lam[mk] != null);
   if (S.q) list = list.filter(p => normName(p.name).includes(normName(S.q)));
   if (S.game !== "all") list = list.filter(p => String(p.game_id) === S.game);
   list.sort((x, y) => y.lam[mk] - x.lam[mk]);
   const total = list.length, n = S.n || 20;
-  const mkt = [["sog", "Shots"], ["goals", "Goals"], ["points", "Points"], ["assists", "Assists"]]
-    .map(([k, nm]) => `<button class="${mk === k ? "on" : ""}" data-m="${k}">${nm}</button>`).join("");
+  const mkt = mkt0;
   const gms = `<button class="chip ${S.search || S.q ? "on" : ""}" data-search="1">🔍</button>`
     + `<button class="chip ${S.game === "all" ? "on" : ""}" data-g="all">All games</button>`
     + D.games.map(g => `<button class="chip ${S.game === String(g.game_id) ? "on" : ""}" data-g="${g.game_id}">${esc(g.away.abbr)} @ ${esc(g.home.abbr)}</button>`).join("");
@@ -1036,6 +1102,7 @@ function render() {
   $("#view").querySelectorAll("[data-player]").forEach(el => el.onclick = () => openPlayer(el.dataset.player));
   $("#view").querySelectorAll("[data-rk]").forEach(el => el.onclick = e => { e.stopPropagation(); const [id, k, v] = el.dataset.rk.split("|"); RINK[id][k] = v; render(); });
   $("#view").querySelectorAll("[data-pv]").forEach(el => el.onclick = () => { const [id, k] = el.dataset.pv.split("|"); PANEL[id] = k; render(); });
+  $("#view").querySelectorAll("[data-golucky]").forEach(el => el.onclick = () => { PSTATE.market = "lucky"; TAB = "props"; render(); window.scrollTo(0, 0); });
   $("#view").querySelectorAll("[data-allprops]").forEach(el => el.onclick = () => { PSTATE.game = el.dataset.allprops; PSTATE.q = ""; TAB = "props"; render(); window.scrollTo(0, 0); });
   $("#view").querySelectorAll("[data-more]").forEach(el => el.onclick = () => {
     const id = Number(el.dataset.more); OPEN.has(id) ? OPEN.delete(id) : OPEN.add(id); render(); });

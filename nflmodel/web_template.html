@@ -612,7 +612,7 @@ function likesHtml() {
 }
 function games() {
   if (!D.games.length) return empty("🏟️", "No games this week", "The schedule will show here once the next week is set.");
-  return likesHtml() + D.games.map(gameCard).join("");
+  return luckyBanner() + likesHtml() + D.games.map(gameCard).join("");
 }
 
 
@@ -658,7 +658,7 @@ function initials(n) { const q = String(n).split(" ").filter(Boolean); return q.
 function avatar(p) { const t = teamOf(p.team);
   return `<div class="av" style="background:${esc(t.color)}"><span>${esc(initials(p.name))}</span>${p.headshot ? `<img src="${esc(p.headshot)}" alt="" loading="lazy" onerror="this.remove()">` : ""}</div>`; }
 let PS = {m: "td", game: "all", q: "", n: 24};
-const PCHIPS = [["td", "🏈 TD"], ["rec_yds", "🙌 Rec"], ["rush_yds", "🏃 Rush"], ["pass_yds", "🎯 Pass"]];
+const PCHIPS = [["lucky", "🍀 Lucky"], ["td", "🏈 TD"], ["rec_yds", "🙌 Rec"], ["rush_yds", "🏃 Rush"], ["pass_yds", "🎯 Pass"]];
 function propPool() {
   const P = (D.players || []).filter(p => PS.game === "all" || p.game_id === PS.game);
   const q = PS.q.trim().toLowerCase(), m = PS.m;
@@ -702,9 +702,69 @@ function prow(p) {
       <div class="pm3">${esc(p.pos)} · ${esc(p.team)}${p.num != null ? " #" + esc(p.num) : ""} ${esc(where)}</div><div class="pp3">${proj}</div></div>
     <button class="pb3" data-pp="${esc(p.id)}|${esc(p.game_id)}">${btn}</button></div>`;
 }
+
+// ---------- 🍀 FEELING LUCKY: parlay of the day + anytime-TD darts ----------
+const decOf = a => a > 0 ? 1 + a / 100 : 1 + 100 / -a;
+const amOf = d => d >= 2 ? 100 * (d - 1) : -100 / (d - 1);
+const MN = {ml: "ML", spread: "Spread", total: "Total"};
+function parlayNFL() {
+  const legs = [];
+  for (const g of D.games) { if (g.state !== "pre" || g.src !== "odds") continue;
+    const c = mkBets(g).filter(b => b.edge != null && b.mkt != null && b.edge >= 0.015 && b.p >= 0.45 && b.price && b.price <= 200).sort((x, y) => y.edge - x.edge)[0];
+    if (c) legs.push({g, b: c}); }
+  legs.sort((x, y) => y.b.edge - x.b.edge);
+  if (legs.length < 3) return null;
+  const pick = legs.slice(0, legs.length >= 4 && legs[3].b.edge >= 0.025 ? 4 : 3);
+  const dec = pick.reduce((a, l) => a * decOf(l.b.price), 1), p = pick.reduce((a, l) => a * l.b.p, 1), mk = pick.reduce((a, l) => a * l.b.mkt, 1);
+  return {legs: pick, dec, p, mk};
+}
+function parlayCardNFL(P) {
+  if (!P) return `<div class="card lucky"><div class="lk-h">🎟️ Parlay of the day</div><div class="note">Not enough priced edges this week for a 3-leg parlay. The model won't force one.</div></div>`;
+  const rows = P.legs.map((l, i) => { const cls = settle(l.g, l.b), ic = cls === "won" ? "✅" : cls === "lost" ? "❌" : cls === "push" ? "➖" : "";
+    const k = bet({g: l.g, b: l.b, p: l.b.p, label: label(l.g, l.b)});
+    return `<button class="leg ${cls}" data-bet="${k}"><span class="lg-n">${ic || i + 1}</span><span class="duo3"><img src="${esc(l.g.away.logo)}" alt="" onerror="this.remove()"><img src="${esc(l.g.home.logo)}" alt="" onerror="this.remove()"></span>
+      <span class="lg-t"><b>${esc(label(l.g, l.b))}</b><span>${esc(l.g.away.abbr)} @ ${esc(l.g.home.abbr)} · model ${pct(l.b.p)}</span></span>
+      <span class="lg-p">${am(l.b.price)}</span></button>`; }).join("");
+  return `<div class="card lucky"><div class="lk-h">🎟️ Parlay of the day <span class="pl-tag">${P.legs.length} legs</span></div>${rows}
+    <div class="pl-sum"><div><span>Pays</span><b>${am(amOf(P.dec))}</b></div><div><span>Model hits</span><b>${(100 * P.p).toFixed(1)}%</b></div><div><span>Market says</span><b>${(100 * P.mk).toFixed(1)}%</b></div></div>
+    <div class="note">One leg per game, each with a model edge over the market's no-vig price after the blend (the same edges as 💡 Model likes). Prices are the market median; shop the best book. Fun-size stakes: even good parlays miss most weeks.</div></div>`;
+}
+// darts: anytime TD at long odds. Backtest 2022-26: the calibrated TD chance matched results from 10% to 40%
+// (below 10% it under-shoots), so darts stay in the 12-29% band (fair +245 to +730).
+function dartsNFL() {
+  const seen = {}, pool = (D.players || []).filter(p => p.role !== "QB" && p.p_td >= 0.12 && p.p_td < 0.29 && (gameOf(p) || {}).state === "pre")
+    .sort((a, b) => b.p_td - a.p_td);
+  const live = [], deep = [];
+  for (const p of pool) { if (seen[p.team]) continue;
+    const L = p.p_td >= 0.2 ? live : deep; if (L.length >= 4) continue; L.push(p); seen[p.team] = 1; }
+  return {live, deep};
+}
+function dartRow(p) {
+  const t = teamOf(p.team), g = gameOf(p), lu = (D.lineups || {})[p.team] || {}, G = (lu.grades || {})[p.pos === "FB" ? "RB" : p.pos];
+  const tp = g ? (g.home.abbr === p.team ? g.pts_home : g.pts_away) : null;
+  const why = [p.role === "RB" ? `${p.car.toFixed(0)} car` : `${p.tgt.toFixed(1)} tgt`, G ? `matchup ${G.g}` : "", tp ? `team ${tp.toFixed(0)} pts` : "", p.status ? ST(p.status) : ""].filter(Boolean);
+  return `<button class="dart" data-pp="${esc(p.id)}|${esc(p.game_id)}|td"><div class="ph3 sm" style="background-color:${esc(t.color)}"><span>${esc(initials(p.name))}</span>${p.headshot ? `<img src="${esc(p.headshot)}" alt="" loading="lazy" onload="this.previousElementSibling.style.visibility='hidden'" onerror="this.remove()">` : ""}</div>
+    <div class="pt3"><div class="pn3">${esc(p.name)}</div><div class="pm3">${esc(p.pos)} · ${esc(p.team)}${p.num != null ? " #" + esc(p.num) : ""} ${g ? (g.home.abbr === p.team ? "vs " : "@ ") + esc(p.opp) : ""}</div>
+      <div class="dt-why">${why.map(esc).join(" · ")}</div></div>
+    <span class="dt-p"><b>${pct(p.p_td)}</b><span>bet at ${am(fair(p.p_td - THR))}</span></span></button>`;
+}
+function luckyNFL() {
+  const D2 = dartsNFL();
+  return parlayCardNFL(parlayNFL()) + `<div class="card lucky"><div class="lk-h">🎯 Throwing darts</div>
+    <div class="note" style="margin-top:2px">Longshot anytime-TD guys the model gives a real shot. Small stakes, spread across a few. “Bet at” is the <b>shortest odds still worth it</b>; books often hang longer.</div>
+    ${D2.live.length ? `<div class="sec">Live darts · roughly +250 to +400</div>${D2.live.map(dartRow).join("")}` : ""}
+    ${D2.deep.length ? `<div class="sec">Deep darts · roughly +400 to +730</div>${D2.deep.map(dartRow).join("")}` : ""}
+    ${D2.live.length || D2.deep.length ? "" : `<div class="note">No longshots on the board yet.</div>`}
+    <div class="note">Checked on 19,000 past player-games (2022-26): when the model said 12-29%, players scored at about that rate. One per team so a single game script can't sink them all.</div></div>`;
+}
+function luckyBanner() {
+  const P = parlayNFL(); if (!P) return "";
+  return `<button class="lk-banner" data-golucky="1"><em>🍀</em><span class="lb-t"><b>Parlay of the day</b><i>${P.legs.length} legs · pays ${am(amOf(P.dec))}</i></span><span class="lb-go">Feeling lucky →</span></button>`;
+}
 function props() {
   if (!(D.players || []).length) return empty("👤", "No player props yet", "Projections show up once this week's games are priced.");
   const gs = D.games.filter(g => (D.players || []).some(p => p.game_id === g.game_id));
+  if (PS.m === "lucky") return `<div class="hv">${PCHIPS.map(([k, n]) => `<button class="${PS.m === k ? "on" : ""}" data-pm="${k}">${n}</button>`).join("")}</div>` + luckyNFL();
   const L = propPool();
   return `<div class="hv">${PCHIPS.map(([k, n]) => `<button class="${PS.m === k ? "on" : ""}" data-pm="${k}">${n}</button>`).join("")}</div>
     <div class="strip" style="padding-left:0"><button class="chip ${PS.search || PS.q ? "on" : ""}" data-psearch="1" aria-label="Search">🔍</button><button class="chip ${PS.game === "all" ? "on" : ""}" data-pg="all">All games</button>${gs.map(g => `<button class="chip ${PS.game === g.game_id ? "on" : ""}" data-pg="${esc(g.game_id)}">${esc(g.away.abbr)} @ ${esc(g.home.abbr)}</button>`).join("")}</div>
@@ -747,9 +807,9 @@ function gamePlayers(g) {
 }
 // player sheet: projections + check any line
 let PSH = null;
-function openPlayer(id, gid) {
+function openPlayer(id, gid, m0) {
   const p = (D.players || []).find(x => x.id === id && x.game_id === gid); if (!p) return;
-  const m = marketsFor(p)[0]; PSH = {p, m, line: m === "td" ? null : fairLine(pMean(p, m), m, p), side: "over", sign: -1, num: ""};
+  const m = m0 && marketsFor(p).includes(m0) ? m0 : marketsFor(p)[0]; PSH = {p, m, line: m === "td" ? null : fairLine(pMean(p, m), m, p), side: "over", sign: -1, num: ""};
   drawPlayer(); $("#scrim").classList.add("open"); $("#sheet").classList.add("open");
 }
 function drawPlayer() {
@@ -905,7 +965,8 @@ function render() {
   document.querySelectorAll("[data-fm]").forEach(b => b.onclick = e => { e.stopPropagation(); const [id, k, v] = b.dataset.fm.split("|"); FORM[id][k] = v; render(); });
   if (TAB === "check") wireCheck();
   if (TAB === "props") wireProps();
-  $("#view").querySelectorAll("[data-pp]").forEach(el => el.onclick = e => { e.stopPropagation(); const [id, gid] = el.dataset.pp.split("|"); openPlayer(id, gid); });
+  $("#view").querySelectorAll("[data-pp]").forEach(el => el.onclick = e => { e.stopPropagation(); const [id, gid, m] = el.dataset.pp.split("|"); openPlayer(id, gid, m); });
+  $("#view").querySelectorAll("[data-golucky]").forEach(el => el.onclick = () => { PS.m = "lucky"; TAB = "props"; render(); window.scrollTo(0, 0); });
   $("#view").querySelectorAll("[data-allprops]").forEach(el => el.onclick = () => { PS.game = el.dataset.allprops; PS.q = ""; TAB = "props"; render(); window.scrollTo(0, 0); });
   document.querySelectorAll("[data-ts]").forEach(b => b.onclick = () => { TSORT = b.dataset.ts; render(); });
   $("#view").querySelectorAll("[data-bet]").forEach(el => el.onclick = e => { e.stopPropagation(); openSheet(BETS[Number(el.dataset.bet)]); });

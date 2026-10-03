@@ -57,3 +57,41 @@
 .wst { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; border-bottom: 1px solid rgba(0,0,0,.07); }
 .wst > div { flex: 1; min-width: 0; }
 .wi { flex: none; width: 24px; height: 24px; border-radius: 50%; background: var(--navy); color: var(--cream, #fff); font-weight: 800; font-size: 12.5px; display: grid; place-items: center; }
+/* 🍀 Feeling lucky: parlay of the day, shot ladders, TD darts */
+.lucky { background: linear-gradient(160deg, #eefbe9, var(--cream)); }
+.lucky .lk-h { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.pl-tag { font-family: 'Nunito', sans-serif; font-size: 12px; font-weight: 800; background: var(--navy); color: var(--cream); border-radius: 99px; padding: 1px 9px; }
+.leg { width: 100%; display: grid; grid-template-columns: 22px 52px minmax(0, 1fr) auto; gap: 10px; align-items: center; border: 0; border-top: 2px dashed var(--line);
+       background: transparent; padding: 10px 2px; text-align: left; }
+.leg:first-of-type { border-top: 0; }
+.lg-n { width: 22px; height: 22px; border-radius: 50%; background: var(--navy); color: var(--cream); font-weight: 800; font-size: 12px; display: grid; place-items: center; }
+.lg-t { min-width: 0; display: flex; flex-direction: column; }
+.lg-t b { font-size: 15.5px; color: var(--navy); }
+.lg-t span { font-size: 12px; font-weight: 700; color: var(--muted, #6b7178); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lg-p { font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 17px; color: var(--navy); }
+.leg.won .lg-p { color: #2e8b57; } .leg.lost { opacity: .55; }
+.pl-sum { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 10px 0 4px; }
+.pl-sum div { background: #fff; border: 2px solid var(--navy); border-radius: 14px; padding: 6px 4px; text-align: center; }
+.pl-sum span { display: block; font-size: 11px; font-weight: 800; color: var(--muted, #6b7178); text-transform: uppercase; letter-spacing: .03em; }
+.pl-sum b { font-family: 'Fredoka', sans-serif; font-size: 19px; color: var(--navy); }
+.pl-sum div:first-child { background: var(--navy); } .pl-sum div:first-child span { color: rgba(255,255,255,.75); } .pl-sum div:first-child b { color: #b7f36b; }
+.lad, .dart { padding: 12px 0; border-top: 2px dashed var(--line); }
+.lad-h, .dart { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 12px; align-items: center; }
+.dart { grid-template-columns: 56px minmax(0, 1fr) auto; width: 100%; border-left: 0; border-right: 0; border-bottom: 0; background: transparent; text-align: left; }
+.ph3.sm { width: 56px; height: 56px; border-radius: 15px; }
+.rungs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 10px; }
+.rung { border: 2px solid var(--navy); border-radius: 14px; background: #fff; padding: 6px 2px; display: flex; flex-direction: column; align-items: center; line-height: 1.15; box-shadow: 2px 2px 0 var(--navy); }
+.rung b { font-family: 'Fredoka', sans-serif; font-size: 16px; color: var(--navy); }
+.rung .rp { font-size: 13px; font-weight: 800; color: var(--ink-2, #333); }
+.rung .ra { font-size: 11.5px; font-weight: 800; color: #2e8b57; }
+.rung.won { background: #c9f0d3; } .rung.lost { opacity: .5; }
+.dt-p { display: flex; flex-direction: column; align-items: flex-end; border: 2px solid var(--navy); border-radius: 14px; padding: 6px 10px; background: #fff; box-shadow: 2px 2px 0 var(--navy); }
+.dt-p b { font-family: 'Fredoka', sans-serif; font-size: 16px; color: var(--navy); } .dt-p span { font-size: 11.5px; font-weight: 800; color: #2e8b57; }
+.dt-why { font-size: 12.5px; font-weight: 700; color: var(--ink-2, #333); line-height: 1.3; }
+.lk-banner { width: 100%; display: flex; align-items: center; gap: 6px; border: 3px solid var(--navy); border-radius: 18px; background: linear-gradient(90deg, #d9f7c4, #fff7df);
+             box-shadow: 3px 4px 0 var(--navy); padding: 12px 14px; margin-bottom: 14px; font-size: 14.5px; font-weight: 700; color: var(--navy); text-align: left; }
+.lk-banner em { font-style: normal; font-size: 22px; }
+.lb-t { display: flex; flex-direction: column; line-height: 1.2; min-width: 0; }
+.lb-t b { font-size: 15.5px; } .lb-t i { font-style: normal; font-size: 13px; font-weight: 800; color: #2e6b2e; }
+.lb-go { margin-left: auto; font-weight: 800; white-space: nowrap; font-size: 13.5px; }
+.hv button, .props-seg button { white-space: nowrap; flex: 1 1 auto; padding-left: 6px; padding-right: 6px; }
