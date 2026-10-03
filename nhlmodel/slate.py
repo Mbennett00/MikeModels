@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from types import SimpleNamespace
+
 import numpy as np
 import pandas as pd
 
@@ -115,7 +117,7 @@ def price_state(st: SlateState, lineups: pd.DataFrame | None = None, odds: pd.Da
         ag, aconf = _goalie(lu, g.away)
         sk = {t: lu[(lu.team == t) & lu.pos.isin(["F", "D"])] for t in (g.home, g.away)}
         gp = tm.project(g.home, g.away, hg, ag, date, (hconf, aconf), sk)
-        st.projections.append((g, gp))
+        st.projections.append((SimpleNamespace(**g._asdict()), gp))   # plain object: the state is pickled
         matchup = f"{g.away} @ {g.home}"
         start = getattr(g, "start_utc", None)
         gflags = "; ".join(gp.flags)

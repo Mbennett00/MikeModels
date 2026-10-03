@@ -141,3 +141,11 @@ def test_walk_forward_never_trains_on_the_future(tmp_path, monkeypatch):
     monkeypatch.setattr(E, "fit", spy)
     E.walk_forward(d, feats, CalibConfig(), 0.5)
     assert seen and all(last < asof for last, asof in seen)
+
+
+def test_slate_projections_are_picklable():
+    import pickle
+    from types import SimpleNamespace
+    import pandas as pd
+    row = next(pd.DataFrame(dict(game_id=[1], home=["A"], away=["B"])).itertuples(index=False))
+    pickle.dumps(SimpleNamespace(**row._asdict()))
