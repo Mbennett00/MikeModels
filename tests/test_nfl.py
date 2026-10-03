@@ -345,3 +345,21 @@ def test_star_values_team_aware_and_usage():
     v_nyj = I.team_values(cv, 2026, "NYJ", 1.0)
     assert I.value_of(v_nyj, "top pick") == 1.25                        # first-round rookie floor
     assert I.value_of(v_nyj, "nobody") == 1.0
+
+
+def test_matchup_grades_from_yards_allowed():
+    from nflmodel.daily import defense_allowed, grade
+    rows = []
+    d0 = pd.Timestamp("2026-09-07")
+    for k in range(6):
+        for off, dfn, wr in (("A", "SOFT", 250), ("B", "HARD", 90)):
+            gid = f"g{k}{dfn}"
+            base = dict(game_id=gid, date=d0 + pd.Timedelta(days=7 * k), team=off, opp=dfn, tgt=0, car=0, rec_yds=0,
+                        rush_yds=0, pass_yds=0)
+            rows += [dict(base, player_id=f"{off}wr", tgt=10, rec_yds=wr), dict(base, player_id=f"{off}rb", car=15, rush_yds=80),
+                     dict(base, player_id=f"{off}qb", pass_yds=wr + 30)]
+    pg = pd.DataFrame(rows)
+    a = defense_allowed(pg, None, "2026-10-30")
+    assert a["SOFT"]["WR"] > 1.1 > 0.9 > a["HARD"]["WR"]
+    assert grade(a["SOFT"]["WR"]) in ("A", "A+") and grade(a["HARD"]["WR"]) in ("D", "F")
+    assert grade(1.0) == "B"

@@ -69,6 +69,28 @@ def espn_headshots(teams) -> dict:
                 f"https://a.espncdn.com/i/headshots/nhl/players/full/{a['id']}.png" if a.get("id") else "")
             if name and href:
                 out[norm_name(name)] = href
+            if name and a.get("jersey"):
+                ESPN_JERSEY[norm_name(name)] = a.get("jersey")
+    return out
+
+
+ESPN_JERSEY: dict = {}
+
+
+def nhl_numbers(teams) -> dict:
+    """Sweater number by NHL player id, from each team's current roster (api-web.nhle.com)."""
+    out = {}
+
+    def one(t):
+        try:
+            rj = requests.get(f"https://api-web.nhle.com/v1/roster/{t}/current", headers=UA, timeout=15).json()
+        except Exception:
+            return {}
+        return {str(p["id"]): p.get("sweaterNumber") for grp in ("forwards", "defensemen", "goalies")
+                for p in rj.get(grp, []) if p.get("id") and p.get("sweaterNumber") is not None}
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        for d in ex.map(one, teams):
+            out.update(d)
     return out
 
 
@@ -82,6 +104,11 @@ def resolve(teams, players, log=print) -> dict:
         heads = list(ex.map(lambda p: _first_ok([p.get("headshot") or "", espn.get(norm_name(p["name"]), "")]),
                             players))
     faces = {str(int(p["player_id"])): h for p, h in zip(players, heads) if h}
+    nums = nhl_numbers(teams)
+    for p in players:
+        k = str(int(p["player_id"]))
+        if k not in nums and ESPN_JERSEY.get(norm_name(p["name"])):
+            nums[k] = ESPN_JERSEY[norm_name(p["name"])]
     log(f"images: {sum(bool(v) for v in logos.values())}/{len(teams)} logos, {len(faces)}/{len(players)} headshots "
         f"({len(espn)} ESPN roster photos found)")
-    return {"logos": logos, "headshots": faces}
+    return {"logos": logos, "headshots": faces, "numbers": {k: str(v) for k, v in nums.items()}}

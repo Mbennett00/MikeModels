@@ -54,6 +54,7 @@ def build(state, plays: pd.DataFrame, meta: dict, news: dict | None, images: dic
     inj = news.get("injuries", [])
     logos = images.get("logos", {})
     faces = images.get("headshots", {})
+    numbers = images.get("numbers", {})
     games, gp_by = [], {}
     for g in state.schedule.itertuples():
         side = {}
@@ -105,7 +106,7 @@ def build(state, plays: pd.DataFrame, meta: dict, news: dict | None, images: dic
         players.append(dict(id=int(pid), name=r0.player, team=r0.team, pos=r0.get("pos", "F"),
                             game_id=int(r0.game_id), confirmed=bool(r0.confirmed),
                             headshot=faces.get(str(int(pid))) or (r0.headshot if isinstance(r0.get("headshot"), str) else ""),
-                            lam=lam))
+                            num=numbers.get(str(int(pid))), lam=lam))
     # per-player matchup effect (tonight vs an average opponent at a neutral rink) for the rink view
     mxp = {}
     for g in state.schedule.itertuples():

@@ -269,13 +269,15 @@ label.f { display: block; font-size: 13px; font-weight: 800; color: var(--ink-2)
 .pgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 0 4px 12px 0; }
 .pc { background: var(--cream); border: 3px solid var(--navy); border-radius: 20px; box-shadow: 4px 5px 0 var(--navy); overflow: hidden; cursor: pointer; display: flex; flex-direction: column; }
 .pc:active { transform: translate(2px, 2px); box-shadow: 2px 3px 0 var(--navy); }
-.pc-top { position: relative; height: 104px; border-bottom: 3px solid var(--navy); display: flex; align-items: flex-end; justify-content: center;
+.pc-top { position: relative; height: 132px; border-bottom: 3px solid var(--navy); display: flex; align-items: flex-end; justify-content: center;
           background-image: radial-gradient(circle at 50% 30%, rgba(255,255,255,.35), rgba(255,255,255,0) 65%); }
-.pc-ph { position: relative; width: 96px; height: 96px; display: flex; align-items: center; justify-content: center; }
+.pc-ph { position: relative; width: 128px; height: 126px; display: flex; align-items: center; justify-content: center; }
 .pc-ph span { font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 30px; color: rgba(255,255,255,.9); text-shadow: 0 2px 0 rgba(0,0,0,.2); }
 .pc-ph img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: top; }
+.pc-badge { position: absolute; right: 7px; top: 7px; z-index: 2; display: flex; align-items: center; gap: 3px; background: var(--cream); border: 2px solid var(--navy); border-radius: 999px; padding: 1px 7px 1px 3px; font-size: 12px; font-weight: 800; color: var(--navy); }
+.pc-badge img { width: 20px; height: 20px; object-fit: contain; } .pc-badge b { font-family: 'Fredoka', sans-serif; }
 .pc-team { position: absolute; left: 8px; top: 8px; background: var(--cream); border: 2px solid var(--navy); border-radius: 999px; font-size: 11px; font-weight: 800; padding: 0 7px; }
-.pc-live { position: absolute; right: 8px; top: 8px; border: 2px solid var(--navy); border-radius: 999px; font-size: 11px; font-weight: 800; padding: 0 7px; background: #fff; }
+.pc-live { position: absolute; left: 8px; bottom: 8px; z-index: 2; border: 2px solid var(--navy); border-radius: 999px; font-size: 11px; font-weight: 800; padding: 0 7px; background: #fff; }
 .pc-live.in { background: var(--red); color: #fff; }
 .pc-body { padding: 8px 10px 10px; display: flex; flex-direction: column; flex: 1; }
 .pc-first { font-size: 12px; font-weight: 800; color: var(--ink-2); line-height: 1.1; min-height: 13px; }
@@ -788,11 +790,16 @@ function pcard(p, mk) {
   const parts = p.name.split(" "), last = parts.slice(1).join(" ") || parts[0];
   const live = s && !s.dnp ? `<span class="pc-live ${L.state}">${L.state === "in" ? "LIVE" : "FINAL"} ${s[mk]}</span>` : "";
   return `<div class="pc ${cls}" data-player="${p.id}">
-    <div class="pc-top" style="background:linear-gradient(160deg, ${col}, ${col}cc)">${live}<span class="pc-team">${esc(p.team)}</span>
+    <div class="pc-top" style="background:linear-gradient(160deg, ${col}, ${col}cc)">${live}${p.pos ? `<span class="pc-team">${esc(p.pos)}</span>` : ""}${badge(p)}
       <div class="pc-ph"><span>${esc(initials(p.name))}</span>${p.headshot ? `<img src="${esc(p.headshot)}" alt="" loading="lazy" onload="this.previousElementSibling.style.visibility='hidden'" onerror="this.remove()">` : ""}</div></div>
     <div class="pc-body"><div class="pc-first">${esc(parts.length > 1 ? parts[0] : "")}</div><div class="pc-last">${esc(last)}</div>
       <div class="pc-proj">proj <b>${lam.toFixed(mk === "goals" ? 2 : 1)}</b> ${PNAME[mk]}</div>
       <button class="pc-line" data-bet="${i}"><span class="pl1">${ic ? ic + " " : ""}${lineLabel(mk, l)} · ${pct(pr)}</span><span class="pl2">bet at ${betAt(pr - thr(mk))}</span></button></div></div>`;
+}
+function teamLogoUrl(abbr) { for (const g of D.games) for (const t of [g.home, g.away]) if (t.abbr === abbr && t.logo) return t.logo; return null; }
+function badge(p) {   // top-right: team logo + jersey number
+  const u = teamLogoUrl(p.team);
+  return `<span class="pc-badge">${u ? `<img src="${esc(u)}" alt="${esc(p.team)}" onerror="this.outerHTML='${esc(p.team)}'">` : esc(p.team)}${p.num != null ? `<b>#${esc(p.num)}</b>` : ""}</span>`;
 }
 function props() {
   if (!D.players.length) return empty("👤", "No player projections yet", "");

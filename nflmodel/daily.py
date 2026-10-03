@@ -311,6 +311,10 @@ def run(state: str = "state", log=print) -> dict:
     meta["record"] = record
     meta["props"] = dict(r_rec=pc.r_rec, cv=dict(rec_yds=pc.cv_rec_yds, rush_yds=pc.cv_rush_yds, pass_yds=pc.cv_pass_yds),
                          shift=dict(rec_yds=pc.sh_rec_yds, rush_yds=pc.sh_rush_yds, pass_yds=pc.sh_pass_yds))
+    try:
+        attach_grades(lineup, games, PGall, data.rosters(season, cache, log=lambda *a: None), now_et.tz_localize(None))
+    except Exception as e:
+        log(f"nfl matchup grades: {e}")
     attach_props(lineup, players)
     out = dict(meta=meta, games=games, players=players, teams=team_table(R, rows, season), key_m=cfg.key_m, key_t=cfg.key_t,
                injuries=injuries, lineups=lineup)
@@ -386,7 +390,7 @@ def player_props(cache, site, seasons, season, games, R, live, now_et, log=print
             full = info_.full_name if info_ is not None else r.name
             rec = dict(id=r.player_id, game_id=r.game_id, team=r.team, opp=r.opp, name=full, role=r.role,
                        pos=info_.position if info_ is not None else r.role,
-                       num=_r(info_.jersey_number, 0) if info_ is not None else None,
+                       num=int(info_.jersey_number) if info_ is not None and pd.notna(info_.jersey_number) else None,
                        headshot=info_.headshot_url if info_ is not None and isinstance(info_.headshot_url, str) else None,
                        status=q_keys.get((r.team, I.norm(full))),
                        tgt=_r(r.tgt, 2), rec=_r(r.rec, 2), rec_yds=_r(r.rec_yds, 1), car=_r(r.car, 2),
@@ -617,6 +621,63 @@ def depth(S: pd.DataFrame, team: str, asof, rep) -> dict:
             rows += picked
         out[side] = dict(players=rows, out=outs)
     return out
+
+
+GRADES = [(1.15, "A+"), (1.08, "A"), (1.03, "B+"), (0.97, "B"), (0.92, "C+"), (0.86, "C"), (0.80, "D"), (0.0, "F")]
+
+
+def grade(r: float) -> str:
+    return next(g for cut, g in GRADES if r >= cut)
+
+
+def defense_allowed(pg: pd.DataFrame, ros: pd.DataFrame, asof, window: int = 10, half_life: float = 5.0, k: float = 3.0) -> dict:
+    """team -> {QB, RB, WR, TE: yards allowed per game vs league average} over its last `window` games
+    (recent weighted; shrunk toward average by k games). QB = passing yards; RB = rushing + receiving by backs;
+    WR / TE = receiving yards (positions from the current roster, else backs = more carries than targets)."""
+    x = pg[(pg.date < pd.Timestamp(asof)) & (pg.date >= pd.Timestamp(asof) - pd.Timedelta(days=400))].copy()
+    if x.empty:
+        return {}
+    pos = ros.position.to_dict() if ros is not None and len(ros) else {}
+    x["role"] = [pos.get(p) if pos.get(p) in ("WR", "TE", "RB", "FB", "QB") else ("RB" if c > t else "WR")
+                 for p, c, t in zip(x.player_id, x.car, x.tgt)]
+    x["role"] = x.role.replace({"FB": "RB"})
+    per = pd.DataFrame({
+        "QB": x.groupby(["game_id", "opp"]).pass_yds.sum(),
+        "RB": x[x.role == "RB"].assign(y=lambda d: d.rush_yds + d.rec_yds).groupby(["game_id", "opp"]).y.sum(),
+        "WR": x[x.role == "WR"].groupby(["game_id", "opp"]).rec_yds.sum(),
+        "TE": x[x.role == "TE"].groupby(["game_id", "opp"]).rec_yds.sum(),
+    }).fillna(0.0).reset_index()
+    per = per.merge(x.groupby("game_id").date.first().rename("date"), on="game_id")
+    avg = per[["QB", "RB", "WR", "TE"]].mean()
+    out = {}
+    for team, d in per.groupby("opp"):
+        d = d.sort_values("date", ascending=False).head(window)
+        w = 0.5 ** (np.arange(len(d)) / half_life)
+        r = {}
+        for m in ("QB", "RB", "WR", "TE"):
+            val = (float((w * d[m]).sum()) + k * avg[m]) / (float(w.sum()) + k)
+            r[m] = val / avg[m] if avg[m] > 0 else 1.0
+        out[team] = r
+    return out
+
+
+def attach_grades(lineup: dict, games: list, pg, ros, asof):
+    """Matchup grade for each offense's QB, RBs, WRs and TEs against this week's opponent."""
+    allowed = defense_allowed(pg, ros, asof)
+    for g in games:
+        if g.get("state") != "pre":
+            continue
+        for side, opp in (("home", "away"), ("away", "home")):
+            t, o = g[side]["abbr"], g[opp]["abbr"]
+            L = lineup.get(t)
+            a = allowed.get(o)
+            if not L or not a:
+                continue
+            L["grades"] = {m: dict(r=_r(a[m], 3), g=grade(a[m])) for m in ("QB", "RB", "WR", "TE")}
+            L["opp"] = o
+            for p in (L.get("off") or {}).get("players", []):
+                if p["slot"] in L["grades"]:
+                    p["grade"] = L["grades"][p["slot"]]["g"]
 
 
 def attach_props(lineup: dict, players: list):

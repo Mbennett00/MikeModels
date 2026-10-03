@@ -186,6 +186,12 @@ label.f { display: block; font-size: 13px; font-weight: 800; color: var(--ink-2)
 .fn { margin-top: 2px; font-weight: 800; font-size: 10.5px; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.8); white-space: nowrap; max-width: 50px; overflow: hidden; text-overflow: ellipsis; }
 .fv { font-size: 9.5px; font-weight: 800; color: #eaffea; text-shadow: 0 1px 2px rgba(0,0,0,.7); white-space: nowrap; }
 .link { width: 100%; margin-top: 8px; border: 0; background: transparent; font-weight: 800; font-size: 13.5px; color: var(--navy); text-decoration: underline; padding: 6px; text-align: left; }
+.fg { position: absolute; top: -8px; left: -14px; font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 10px; border: 1.5px solid var(--navy); border-radius: 99px; padding: 0 4px; background: #fff; color: var(--navy); }
+.grades .fg, .grades b { position: static; }
+.fp .fg { position: absolute; top: -6px; left: 2px; z-index: 3; }
+.g-A { background: #c9f0d3 !important; } .g-B { background: #e9f5d0 !important; } .g-C { background: #fbefd2 !important; } .g-D, .g-F { background: #fbd9d4 !important; }
+.grades { display: flex; flex-wrap: wrap; gap: 6px 10px; font-size: 12.5px; font-weight: 800; color: var(--ink-2); margin: 0 2px 8px; }
+.grades b { font-family: 'Fredoka', sans-serif; border: 1.5px solid var(--navy); border-radius: 99px; padding: 0 6px; color: var(--navy); }
 /* updates */
 .it { display: grid; grid-template-columns: 32px 1fr auto; gap: 10px; align-items: center; padding: 8px 0; border-top: 2px dashed var(--line); }
 .it:first-of-type { border-top: 0; } .it .logo { width: 32px; height: 32px; }
@@ -204,13 +210,15 @@ label.f { display: block; font-size: 13px; font-weight: 800; color: var(--ink-2)
 .pgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 0 4px 12px 0; }
 .pc { background: var(--cream); border: 3px solid var(--navy); border-radius: 20px; box-shadow: 4px 5px 0 var(--navy); overflow: hidden; cursor: pointer; display: flex; flex-direction: column; text-align: left; padding: 0; }
 .pc:active { transform: translate(2px, 2px); box-shadow: 2px 3px 0 var(--navy); }
-.pc-top { position: relative; height: 96px; border-bottom: 3px solid var(--navy); display: flex; align-items: flex-end; justify-content: center; overflow: hidden;
+.pc-top { position: relative; height: 128px; border-bottom: 3px solid var(--navy); display: flex; align-items: flex-end; justify-content: center; overflow: hidden;
           background-image: radial-gradient(circle at 50% 30%, rgba(255,255,255,.3), rgba(255,255,255,0) 65%); }
-.pc-ph { position: relative; width: 92px; height: 88px; display: flex; align-items: center; justify-content: center; }
+.pc-ph { position: relative; width: 126px; height: 122px; display: flex; align-items: center; justify-content: center; }
 .pc-ph span { font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 28px; color: rgba(255,255,255,.9); }
 .pc-ph img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: top; }
-.pc-team { position: absolute; left: 7px; top: 7px; background: var(--cream); border: 2px solid var(--navy); border-radius: 999px; font-size: 11px; font-weight: 800; padding: 0 7px; color: var(--navy); }
-.pc-tag { position: absolute; right: 7px; top: 7px; border: 2px solid var(--navy); border-radius: 999px; font-size: 11px; font-weight: 800; padding: 0 7px; background: var(--gold-soft); color: var(--navy); }
+.pc-team { position: absolute; z-index: 2; left: 7px; top: 7px; background: var(--cream); border: 2px solid var(--navy); border-radius: 999px; font-size: 11px; font-weight: 800; padding: 0 7px; color: var(--navy); }
+.pc-badge { position: absolute; right: 7px; top: 7px; z-index: 2; display: flex; align-items: center; gap: 3px; background: var(--cream); border: 2px solid var(--navy); border-radius: 999px; padding: 1px 7px 1px 3px; font-size: 12px; font-weight: 800; color: var(--navy); }
+.pc-badge img { width: 20px; height: 20px; object-fit: contain; } .pc-badge b { font-family: 'Fredoka', sans-serif; }
+.pc-tag { position: absolute; left: 7px; top: 31px; z-index: 2; border: 2px solid var(--navy); border-radius: 999px; font-size: 11px; font-weight: 800; padding: 0 7px; background: var(--gold-soft); color: var(--navy); }
 .pc-body { padding: 8px 10px 10px; display: flex; flex-direction: column; flex: 1; }
 .pc-first { font-size: 12px; font-weight: 800; color: var(--ink-2); line-height: 1.1; min-height: 13px; }
 .pc-last { font-family: 'Fredoka', sans-serif; font-weight: 600; font-size: 18px; line-height: 1.1; color: var(--navy); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -507,14 +515,17 @@ function fieldHtml(g) {
     const sp = (SPOTS[st.unit][p.slot] || [])[used[p.slot] = (used[p.slot] ?? -1) + 1]; if (!sp) return "";
     const last = p.name.split(" ").slice(-1)[0].replace(/^(Jr\.?|Sr\.?|II|III|IV)$/, "") || p.name.split(" ").slice(-2)[0];
     const q = p.status ? `<span class="fq">${esc(ST(p.status))}</span>` : "";
+    const gr = p.grade && st.unit === "off" ? `<span class="fg g-${p.grade[0]}">${esc(p.grade)}</span>` : "";
     const sub = p.proj ? esc(p.proj) : `${Math.round(100 * p.share)}%`;
     return `<button class="fp" style="left:${sp[0]}%;top:${sp[1]}%" ${p.id ? `data-pp="${esc(p.id)}|${esc(g.game_id)}"` : ""}>
       <span class="fc ${p.status ? "q" : ""}" style="background:${esc(t.color)};color:${ink}">${esc(p.slot === "OL" ? ["LT", "LG", "C", "RG", "RT"][used.OL] : p.slot)}${q}</span>
-      <span class="fn">${esc(p.name.split(" ").length > 2 && /^(Jr|Sr|II|III|IV)/.test(last) ? p.name.split(" ")[1] : last)}</span><span class="fv">${sub}</span></button>`;
+      ${gr}<span class="fn">${esc(p.name.split(" ").length > 2 && /^(Jr|Sr|II|III|IV)/.test(last) ? p.name.split(" ")[1] : last)}</span><span class="fv">${sub}</span></button>`;
   }).join("");
+  const G = ((D.lineups || {})[t.abbr] || {}).grades, opp = ((D.lineups || {})[t.abbr] || {}).opp;
+  const grades = st.unit === "off" && G ? `<div class="grades">Matchup vs ${esc(opp)} D: ${["QB", "RB", "WR", "TE"].map(k => `<span>${k} <b class="fg g-${G[k].g[0]}">${esc(G[k].g)}</b></span>`).join("")}</div>` : "";
   const outs = L.out.length ? `<div class="hint">🚑 Not playing: ${L.out.map(o => `${esc(o.name)} (${esc(o.pos)}) <b class="neg">${esc(ST(o.status))}</b>`).join(", ")}. Next man up shown.</div>` : "";
-  return seg + `<div class="field2 ${st.unit}" style="--los:${st.unit === "off" ? 27 : 75}%"><img class="fl-logo" src="${esc(t.logo)}" alt="" onerror="this.remove()"><div class="los"></div>${dots}</div>${outs}
-    <div class="hint">${st.unit === "off" ? "11 personnel (1 RB, 1 TE, 3 WR). Numbers are this week's projections; linemen show their share of snaps" : "Nickel (4 DL, 2 LB, 3 CB, 2 S). Numbers are each player's share of defensive snaps"} over the last few games. Gold ring = questionable. Tap a skill player for his props.</div>`;
+  return seg + grades + `<div class="field2 ${st.unit}" style="--los:${st.unit === "off" ? 27 : 75}%"><img class="fl-logo" src="${esc(t.logo)}" alt="" onerror="this.remove()"><div class="los"></div>${dots}</div>${outs}
+    <div class="hint">${st.unit === "off" ? "11 personnel (1 RB, 1 TE, 3 WR). Grades: how many yards this opponent has allowed to each position over its last 10 games vs league average (A+ = soft matchup, F = tough). Numbers are this week's projections; linemen show their share of snaps" : "Nickel (4 DL, 2 LB, 3 CB, 2 S). Numbers are each player's share of defensive snaps"} over the last few games. Gold ring = questionable. Tap a skill player for his props.</div>`;
 }
 function likeRows() {
   const out = [];
@@ -599,7 +610,8 @@ function pcard(p) {
     sub = m === "rec_yds" ? `${p.rec.toFixed(1)} catches · ${p.tgt.toFixed(1)} targets` : m === "rush_yds" ? `${p.car.toFixed(1)} carries · TD ${pct(p.p_td)}` : `${p.lam_pass_td.toFixed(1)} pass TD · ${Math.round(p.att)} att`;
     line = `<b>O ${L}</b><span>${pct(po)} · ${am(fair(po))}</span>`; }
   const tag = p.status ? `<span class="pc-tag">${esc(ST(p.status))}</span>` : "";
-  return `<button class="pc" data-pp="${esc(p.id)}|${esc(p.game_id)}"><div class="pc-top" style="background-color:${esc(t.color)}"><span class="pc-team">${esc(p.team)} ${esc(p.pos)}</span>${tag}
+  const badge = `<span class="pc-badge"><img src="${esc(t.logo || "")}" alt="${esc(p.team)}" onerror="this.outerHTML='${esc(p.team)}'">${p.num != null ? `<b>#${esc(p.num)}</b>` : ""}</span>`;
+  return `<button class="pc" data-pp="${esc(p.id)}|${esc(p.game_id)}"><div class="pc-top" style="background-color:${esc(t.color)}"><span class="pc-team">${esc(p.pos)}</span>${tag}${badge}
     <div class="pc-ph"><span>${esc(initials(p.name))}</span>${p.headshot ? `<img src="${esc(p.headshot)}" alt="" loading="lazy" onerror="this.remove()">` : ""}</div></div>
     <div class="pc-body"><div class="pc-first">${esc(first)}</div><div class="pc-last">${esc(last)}</div><div class="pc-big">${big}</div><div class="pc-sub">${sub}</div><div class="pc-line">${line}</div></div></button>`;
 }
