@@ -12,7 +12,7 @@ python -m pytest -q                       # 37 tests, ~60 s
 ## Website (phone + desktop) and daily automation
 
 ```
-GitHub Actions (.github/workflows/daily.yml)              GitHub Pages: https://mbennett00.github.io/NHLModel/
+GitHub Actions (.github/workflows/daily.yml)              GitHub Pages: https://mbennett00.github.io/MikeModels/
   ~6am ET   fetch last night's games from the NHL API,       plain HTML page (nhlmodel/web_template.html) +
             grade logged plays, walk-forward backtest         data.json written by nhlmodel/web.py on every
   11am, 1pm, 3:30pm, 5:30pm, 6:40pm ET                        slate run: Tonight, Players, Check, Lineups,

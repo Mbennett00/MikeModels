@@ -183,7 +183,7 @@ def _trust(market_summary) -> list:
 
 def _write(out_dir: str, data: dict):
     data.setdefault("colors", {k: v[1] for k, v in DISPLAY.items()})
-    data.setdefault("meta", {})["repo"] = os.environ.get("GITHUB_REPOSITORY", "Mbennett00/NHLModel")
+    data.setdefault("meta", {})["repo"] = os.environ.get("GITHUB_REPOSITORY", "Mbennett00/MikeModels")
     with open(os.path.join(out_dir, "data.json"), "w") as f:
         json.dump(data, f, separators=(",", ":"), default=str, allow_nan=False)
     from calib.webassets import install as _install   # inlines the shared Model Health component

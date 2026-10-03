@@ -2,7 +2,7 @@
 
 Data comes from the `data-latest` GitHub release written by the daily workflow.
 Settings (Streamlit secrets or environment variables):
-  NHLMODEL_REPO       owner/repo (default Mbennett00/NHLModel)
+  NHLMODEL_REPO       owner/repo (default Mbennett00/MikeModels)
   GITHUB_TOKEN        only needed if the repository is private
   NHLMODEL_SITE_DIR   read files from a local folder instead (development)
 """
@@ -244,7 +244,7 @@ def setting(name, default=None):
     return os.environ.get(name, default)
 
 
-REPO = setting("NHLMODEL_REPO", "Mbennett00/NHLModel")
+REPO = setting("NHLMODEL_REPO", "Mbennett00/MikeModels")
 TOKEN = setting("GITHUB_TOKEN")
 LOCAL = setting("NHLMODEL_SITE_DIR")
 

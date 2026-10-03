@@ -352,7 +352,7 @@ def run(state: str = "state", log=print) -> dict:
         meta["weights"] = model_weights(F, cfg, season, w_side, w_total, t_bias, CAL, hfa=hfa)
     except Exception as e:
         log(f"model weights: {e}")
-    meta["repo"] = os.environ.get("GITHUB_REPOSITORY", "Mbennett00/NHLModel")
+    meta["repo"] = os.environ.get("GITHUB_REPOSITORY", "Mbennett00/MikeModels")
     out["updates"] = changelog.update(site, out)
     write(site, out)
     log(f"nfl: week {meta['week']}, {len(games)} games, data through {meta['data_through']}, "
