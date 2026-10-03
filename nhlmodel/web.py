@@ -40,14 +40,14 @@ def _mat(m, cut=1e-7):
 
 
 def build(state, plays: pd.DataFrame, meta: dict, news: dict | None, images: dict | None,
-          market_summary: pd.DataFrame | None, out_dir: str, updates: list | None = None) -> str:
+          market_summary: pd.DataFrame | None, out_dir: str, updates: list | None = None, calib: dict | None = None) -> str:
     os.makedirs(out_dir, exist_ok=True)
     news, images = news or {}, images or {}
     if state is None:   # no games scheduled: still publish a page that says so
         _write(out_dir, dict(meta=dict(date=meta.get("date"), upcoming=bool(meta.get("upcoming")),
                                        generated_at=meta.get("generated_at"), games=0, goalies_confirmed=0, teams=0),
                              params={}, games=[], players=[], lines=[], trust=_trust(market_summary),
-                             updates=updates or []))
+                             updates=updates or [], calib=calib))
         return out_dir
     lu = state.lineups
     tm = TeamModel(state.cfg, state.snap, state.params)
@@ -134,7 +134,7 @@ def build(state, plays: pd.DataFrame, meta: dict, news: dict | None, images: dic
         params=dict(r_sog=P.nb_r.get("sog", {}), r_ast=P.count_r.get("assists", 1e6),
                     r_pts=P.count_r.get("points", 1e6), thresholds=state.cfg.edge_threshold),
         games=games, players=players, lines=lines, trust=_trust(market_summary),
-        updates=updates or [],
+        updates=updates or [], calib=calib,
         model=dict(data_through=meta.get("data_through"), half_life=state.cfg.half_life_games,
                    prior_w=state.cfg.prior_season_weight, home_edge=_num(state.snap.league["home_ratio"] - 1),
                    goals_pg=_num(state.snap.league["goals_pg"]), lam_scale=_num(state.params.lam_scale)))
@@ -183,9 +183,11 @@ def _trust(market_summary) -> list:
 
 def _write(out_dir: str, data: dict):
     data.setdefault("colors", {k: v[1] for k, v in DISPLAY.items()})
+    data.setdefault("meta", {})["repo"] = os.environ.get("GITHUB_REPOSITORY", "Mbennett00/NHLModel")
     with open(os.path.join(out_dir, "data.json"), "w") as f:
         json.dump(data, f, separators=(",", ":"), default=str, allow_nan=False)
-    shutil.copy(os.path.join(HERE, "web_template.html"), os.path.join(out_dir, "index.html"))
+    from calib.webassets import install as _install   # inlines the shared Model Health component
+    _install(os.path.join(HERE, "web_template.html"), os.path.join(out_dir, "index.html"))
     for name in os.listdir(os.path.join(HERE, "web_assets")):   # home-screen icons
         shutil.copy(os.path.join(HERE, "web_assets", name), os.path.join(out_dir, name))
     with open(os.path.join(out_dir, "manifest.webmanifest"), "w") as f:

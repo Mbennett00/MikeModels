@@ -49,7 +49,13 @@ def build_features(sched, tg, qb, cfg: M.Config, seasons=None, log=print, snaps=
             out.append(dict(game_id=x.game_id, season=season, week=week, gameday=x.gameday, home=x.home_team,
                             away=x.away_team, result=x.result, total=x.total, spread_line=x.spread_line,
                             total_line=x.total_line, home_ml=x.home_moneyline, away_ml=x.away_moneyline,
-                            qb_h=qh, qb_a=qa, xm=xm, xt=xt, inj_h=ih, inj_a=ia))
+                            qb_h=qh, qb_a=qa, xm=xm, xt=xt, inj_h=ih, inj_a=ia,
+                            # rating components at prediction time (for the calibration engine)
+                            off_h=R.off["epa_play"].get(x.home_team), off_a=R.off["epa_play"].get(x.away_team),
+                            dfn_h=R.dfn["epa_play"].get(x.home_team), dfn_a=R.dfn["epa_play"].get(x.away_team),
+                            pass_h=R.off["epa_db"].get(x.home_team), pass_a=R.off["epa_db"].get(x.away_team),
+                            rest_h=getattr(x, "home_rest", np.nan), rest_a=getattr(x, "away_rest", np.nan),
+                            neutral=x.location == "Neutral"))
         log(f"  {season} wk {week}: {len(wk)} games") if week == 1 else None
     return pd.DataFrame(out)
 
@@ -89,10 +95,19 @@ def run(sched, tg, qb, cfg: M.Config, test_seasons=range(2021, 2027), F=None, lo
         for x in test.itertuples():
             mm, tm = float(x.xm @ c.coef_m), float(x.xt @ c.coef_t)
             p = M.price_game(mm, tm, c, x.spread_line, x.total_line)
+            g = x._asdict()
+            ih = float(np.sum(g.get("inj_h") if g.get("inj_h") is not None else 0.0))
+            ia = float(np.sum(g.get("inj_a") if g.get("inj_a") is not None else 0.0))
+            wx = float(np.dot(c.coef_t[5:], np.asarray(x.xt)[5:])) if len(x.xt) > 5 else 0.0
             res.append(dict(game_id=x.game_id, season=s, week=x.week, home=x.home, away=x.away, result=x.result,
                             total=x.total, spread_line=x.spread_line, total_line=x.total_line, m_model=mm, t_model=tm,
                             p_home=p["p_home"], p_cover=p.get("p_home_cover"), p_over=p.get("p_over"),
-                            p_mkt=_novig(x.home_ml, x.away_ml) if not pd.isna(x.home_ml) else np.nan))
+                            p_mkt=_novig(x.home_ml, x.away_ml) if not pd.isna(x.home_ml) else np.nan,
+                            gameday=g.get("gameday"), off_h=g.get("off_h"), off_a=g.get("off_a"), dfn_h=g.get("dfn_h"),
+                            dfn_a=g.get("dfn_a"), pass_h=g.get("pass_h"), pass_a=g.get("pass_a"),
+                            qb_h=g.get("qb_h"), qb_a=g.get("qb_a"), inj_h_pts=float(c.coef_m[-1]) * ih,
+                            inj_a_pts=float(c.coef_m[-1]) * ia, wx_pts=wx, rest_h=g.get("rest_h"),
+                            rest_a=g.get("rest_a"), neutral=g.get("neutral")))
     R = pd.DataFrame(res)
     return R, summarize(R)
 

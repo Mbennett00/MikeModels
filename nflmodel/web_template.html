@@ -239,6 +239,7 @@ label.f { display: block; font-size: 13px; font-weight: 800; color: var(--ink-2)
 .phd { display: flex; gap: 12px; align-items: center; padding-right: 44px; } .phd .av { width: 56px; height: 56px; font-size: 18px; }
 @media (min-width: 700px) { .pgrid { grid-template-columns: repeat(3, 1fr); } }
 @media (min-width: 700px) { .tiles { grid-template-columns: repeat(3, 1fr); } }
+/*CALIB_CSS*/
 </style>
 </head>
 <body>
@@ -411,7 +412,11 @@ function injuryCard() {
     ${full.length ? `<div class="hint">✅ No regulars out: ${full.map(t => esc(t.abbr)).join(", ")}</div>` : ""}
     <div class="hint">Points = how much each absence moves the team's projected margin. A player counts for the snaps he has in the team's ratings (recent games weighted, like the ratings), so a starter who has played every week counts fully, someone already out for weeks or just traded in counts less. Out ×1, Doubtful ×0.99, Questionable ×0.33 (how often each actually sat, 2021-25). ⭐ = star: players count more by contract (cap share vs an average starter, from 0.5× up to 2.5×), which tested better than counting every starter the same. About ${(D.meta.pts_per_starter || 1).toFixed(2)} pts per full-time starter. Injured QBs are handled by starting the backup. Source: ${esc(D.meta.inj_source || "–")}.</div></div>`;
 }
+/*CALIB_JS*/
+let HV = "feed";   // Updates tab: feed or model health
+function hvSwitch() { return `<div class="hv"><button class="${HV === "feed" ? "on" : ""}" data-hv="feed">📰 Feed</button><button class="${HV === "health" ? "on" : ""}" data-hv="health">🩺 Model health</button></div>`; }
 function updates() {
+  if (HV === "health") return hvSwitch() + healthHtml(D.calib, "NFL", (D.meta || {}).repo);
   const runs = D.updates || [];
   const kinds = Object.keys(UPD_KIND).filter(k => k === "all" || k === "injury" || runs.some(r => r.items.some(i => i.kind === k)));
   const chips = `<div class="strip" style="padding-left:0">${kinds.map(k => `<button class="chip ${UF === k ? "on" : ""}" data-uf="${k}">${UPD_KIND[k]}</button>`).join("")}</div>`;
@@ -427,7 +432,7 @@ function updates() {
       <div class="hint">Every run refits the team ratings, home-field edge, score spread, key numbers and injury value on all finished games (${MD.games_fit || "–"} so far), and recalibrates player props against this season's box scores, the same way the hockey model updates. Changes are logged below.</div></div>` : "";
   const list = runs.map(r => { const it = r.items.filter(i => UF === "all" || i.kind === UF); if (!it.length) return "";
     return `<div class="card upd"><div class="ut">${esc(fmtT(r.time))}</div>${it.map(i => `<div class="ui"><span>${i.icon}</span><span>${esc(i.text)}</span></div>`).join("")}</div>`; }).join("");
-  return chips + now + (UF === "all" || UF === "injury" ? injuryCard() : "")
+  return hvSwitch() + chips + now + (UF === "all" || UF === "injury" ? injuryCard() : "")
     + (list || `<div class="note" style="color:#e6f3e6">No ${UF === "all" ? "" : UPD_KIND[UF].replace(/^\S+ /, "").toLowerCase() + " "}changes logged yet. They'll show here after the next runs.</div>`);
 }
 
@@ -796,6 +801,8 @@ function render() {
   BETS = []; header(); strip(); nav();
   $("#view").innerHTML = {games, props, teams, check, updates}[TAB]();
   document.querySelectorAll("[data-uf]").forEach(b => b.onclick = () => { UF = b.dataset.uf; render(); });
+  document.querySelectorAll("[data-hv]").forEach(b => b.onclick = () => { HV = b.dataset.hv; render(); });
+  if (TAB === "updates" && HV === "health") wireHealth(render);
   document.querySelectorAll("[data-iexp]").forEach(b => b.onclick = () => { const k = b.dataset.iexp; IEXP.has(k) ? IEXP.delete(k) : IEXP.add(k); render(); });
   document.querySelectorAll("[data-goinj]").forEach(b => b.onclick = () => { TAB = "updates"; UF = "injury"; render(); window.scrollTo(0, 0); });
   document.querySelectorAll("[data-fm]").forEach(b => b.onclick = e => { e.stopPropagation(); const [id, k, v] = b.dataset.fm.split("|"); FORM[id][k] = v; render(); });

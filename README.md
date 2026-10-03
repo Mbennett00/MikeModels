@@ -172,6 +172,60 @@ the NFL page has a turf background, team-colour game cards, a Teams power rankin
   - No prop odds are pulled (the per-game prop endpoint would cost ~75 credits a week); type the book's line and
     price into the player sheet for a verdict. The green price leaves a 4-point cushion for prop hold.
 
+## Self-calibrating model engine (`calib/`, 🩺 Model health in each Updates tab)
+
+The projections learn from their own track record without replacing the models. Code: `calib/` (shared),
+`nhlmodel/calib_hook.py`, `nflmodel/calib_hook.py`; tests: `tests/test_calib.py`.
+
+**Prediction database**: `state/site/model_db.sqlite` (synced to the data-latest release as `model_db.sqlite.gz`).
+- `predictions`: every projection with sport, date, game, teams, projection type, the published number and the
+  uncalibrated original, confidence (win probability of the projected side), model version, timestamp, game start
+  and the input components at that moment (NHL: attack, opponent defence, opposing goalie, PP/PK, pace, rest /
+  back-to-back, home ice, lineup, scale; NFL: offensive and defensive EPA/play, passing EPA/dropback, QB adjustment,
+  own and opponent injury points, weather points, rest days). Types: NHL `team_goals`, `game_total`,
+  `home_win_prob`, `player_sog`, `player_goals`; NFL `team_points`, `game_total_pts`, `home_win_prob`,
+  `player_rec_yds`, `player_rush_yds`, `player_rec`, `player_pass_yds`, `player_td`.
+- `results`: actual outcomes, recorded after the game, insert-only.
+- `model_versions`: every calibration attempt (baseline, applied, rejected, insufficient) with weights before and
+  after, reason, sample size and performance before and after.
+- SQLite triggers make all three append-only: history can't be updated or deleted. Live projections are stored
+  each run only when they change; grading uses the last projection made before the game started.
+- Seeded once from the walk-forward backtests (each game priced with earlier data only), so there is a meaningful
+  sample from day one: NFL 2021-26 team games, NHL the backtest window plus its last 90 days of player props.
+
+**Error tracking**: MAE, RMSE, bias / mean error, absolute percentage error, by projection type, team, opponent,
+player, home / road, recent-form bucket and confidence bucket, over the last 10 / 25 / 50 / 100, the season and
+everything; win-probability calibration (Brier, expected calibration error, buckets).
+
+**Bias detection** (`calib/bias.py`): a bias is reported only with 25+ graded predictions in the segment, a
+significant mean error (t-test), and after Benjamini-Hochberg false-discovery control across every segment tested.
+Overconfidence is checked per win-probability bucket with a binomial test.
+
+**Recalibration** (`calib/engine.py`): residual = actual - original is regressed (weighted ridge, robust standard
+errors) on the projection's own components plus recent form (the team's average miss over its previous 10 graded
+games, earlier dates only). A component is kept only if |t| >= 2. Its sign against the model's own effect says
+whether that input is over- or under-weighted.
+- Shrinkage by sample size (`calib/config.py`, `CALIB_TIERS`): < 25 none, 25-50 10%, 50-100 25%, 100-250 50%,
+  250+ 75% of the fitted correction; then a 50% (or 25%) blend with the original; every projection capped at
+  ±15%; predictions weighted with a one-year half-life so streaks can't dominate.
+- Walk-forward backtest: the whole procedure is refit week by week on predictions graded before each week and
+  judged on the weeks after; compared with the published model over the last 25 / 50 / 100 and all held-out
+  predictions. Applied only if it improves the full walk-forward MAE by 0.2%+ and isn't more than 1% worse over the
+  last 100; otherwise rejected and recorded. Needs 100+ graded predictions to try at all.
+- Applied versions are used live: NHL on each team's goal rate inside the team model (never in the backtest that
+  produces its training data), NFL on each team's points before the market blend.
+
+**Running it**: automatically every Monday morning; the page's **RECALIBRATE MODEL** button opens the
+`recalibrate model` workflow (press Run workflow); or locally `python -m calib recalibrate --sport nhl|nfl|all`
+(`status`, `health` also available).
+
+**First results** (local runs on the walk-forward history):
+- NFL, 2,946 team-points predictions: v1.1 applied. Walk-forward MAE 7.409 → 7.373 on 2,816 held-out predictions
+  (bias +0.26 → +0.14); flat over the last 100. One meaningful bias: team points overestimated by ~1 point in
+  medium-confidence (55-65%) games.
+- NHL, 3,998 team-goal predictions: essentially unbiased (+0.001 goals); the best adjustment improved MAE by less
+  than 0.2% (1.2474 → 1.2472), so it was rejected and the model is unchanged.
+
 ## Layout (one module per section of the spec)
 
 | Spec section | Module |

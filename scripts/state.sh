@@ -15,12 +15,19 @@ case "$1" in
     gh release download "$TAG" -D state/dl --clobber || true
     if [ -f state/dl/intermediate.tar.gz ]; then tar xzf state/dl/intermediate.tar.gz -C state; fi
     find state/dl -maxdepth 1 -type f ! -name intermediate.tar.gz -exec mv -f {} state/site/ \;
+    # the prediction database travels gzipped
+    if [ -f state/site/model_db.sqlite.gz ]; then gunzip -f state/site/model_db.sqlite.gz; fi
     ls -la state/site state/intermediate
     ;;
   push)
     tar czf state/intermediate.tar.gz -C state intermediate
     files=(state/intermediate.tar.gz)
-    for f in state/site/*; do [ -f "$f" ] && files+=("$f"); done
+    if [ -f state/site/model_db.sqlite ]; then gzip -kf state/site/model_db.sqlite; fi
+    for f in state/site/*; do
+      [ -f "$f" ] || continue
+      [ "$(basename "$f")" = "model_db.sqlite" ] && continue     # uploaded as model_db.sqlite.gz
+      files+=("$f")
+    done
     gh release upload "$TAG" "${files[@]}" --clobber
     ;;
   *) echo "usage: $0 pull|push"; exit 2 ;;

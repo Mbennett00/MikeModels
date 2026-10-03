@@ -202,6 +202,9 @@ def apply_en(m: np.ndarray, en_trans: dict) -> np.ndarray:
     return out
 
 
+CALIBRATION = None   # calib.engine.Live for live slates only (set by nhlmodel.calib_hook.use_live; None in backtests)
+
+
 class TeamModel:
     def __init__(self, cfg: ModelConfig, snap: Snapshot, params: FittedParams):
         self.cfg, self.snap, self.params = cfg, snap, params
@@ -259,6 +262,12 @@ class TeamModel:
                              lineup=lf[a.team], lineup_info=lf_info.get(a.team, {}),
                              scale=P.lam_scale,
                              pp_time=pp_time, opp_shots_against=d.shots_against)
+        if CALIBRATION is not None:   # self-calibration layer (calib/): small, shrunk, capped correction
+            for side, team in (("home", home), ("away", away)):
+                o = out[side]
+                o["lam_orig"] = o["lam"]
+                o["lam"] = CALIBRATION(o["lam"], {k: o[k] for k in ("off", "def_opp", "goalie_opp", "pp_pk", "pace", "rest")},
+                                       team, 1 if side == "home" else 0)
         return out, flags
 
     def project(self, home, away, home_goalie=None, away_goalie=None, date=None,

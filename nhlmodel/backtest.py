@@ -81,6 +81,8 @@ def _goalie(lu: pd.DataFrame, team: str):
 
 def walk_forward(tables: dict, cfg: ModelConfig, start, end, date_stride: int = 1,
                  snap_cache: dict | None = None, verbose: bool = False, fixed_params: FittedParams | None = None):
+    from . import team_model as _tm
+    _tm.CALIBRATION = None   # the backtest is the calibration engine's training data: never calibrated itself
     games = tables["games"].sort_values(["date", "game_id"])
     games = games[(games.date >= pd.Timestamp(start)) & (games.date <= pd.Timestamp(end))]
     dates = sorted(games.date.unique())[::date_stride]
@@ -140,7 +142,12 @@ def walk_forward(tables: dict, cfg: ModelConfig, start, end, date_stride: int = 
                 away_travel=rf["away"]["travel_km"] > 1500 and rf["away"]["b2b"],
                 home_reg_nonen=g.home_reg_nonen, away_reg_nonen=g.away_reg_nonen,
                 home_final=g.home_final, away_final=g.away_final, decision=g.decision,
-                flags="; ".join(gp.flags)))
+                flags="; ".join(gp.flags),
+                # each multiplicative component of the goal rate, for the calibration engine (calib/)
+                **{f"{side}_{k}": float(gp.factors[side][k]) for side in ("home", "away")
+                   for k in ("off", "def_opp", "goalie_opp", "pp_pk", "pace", "rest", "home", "lineup", "scale")
+                   if k in gp.factors[side]},
+                p_home_win=float(gp.moneyline()["home"]) if hasattr(gp, "moneyline") else np.nan))
             for m in game_market_probs(gp):
                 y = settle_game(m["market"], m["selection"], m["line"], g)
                 market_rows.append(dict(game_id=g.game_id, date=date, player_id=np.nan, pos=None,

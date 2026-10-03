@@ -401,7 +401,18 @@ def cmd_slate(a):
     if ov is None:
         state.warnings.append("lineups and starting goalies are projected (not confirmed), so nothing is flagged yet; "
                               "confirm them in the Lineups tab or with an overrides file")
+    cal = None
+    try:   # self-calibration layer (calib/): the active version is applied to live goal rates only
+        from .calib_hook import use_live
+        cal = use_live(site)
+    except Exception as e:
+        print(f"calibration unavailable: {e}")
     plays, cons, warnings = price_state(state)
+    try:
+        from .calib_hook import log_live
+        log_live(site, state, plays, cal.version if cal else "1.0")
+    except Exception as e:
+        print(f"prediction logging failed: {e}")
     try:
         from .images import resolve
         people = lineups[["player_id", "name"]].assign(
@@ -450,8 +461,14 @@ def _publish_web(site, state, plays, meta):
                 updates = changelog.feed(js("model_log.json"))
         except Exception as e:
             print(f"changelog failed: {e}")
+        calib = None
+        try:   # Model Health tab
+            from calib import health
+            calib = health.build(site, "nhl")
+        except Exception as e:
+            print(f"model health failed: {e}")
         out = web.build(state, plays, meta, js("news.json"), js("images.json"), msd, os.path.join(site, "web"),
-                        updates=updates)
+                        updates=updates, calib=calib)
         # keep the previous slate so the page can show last night's settled games
         last, prev = os.path.join(site, "web_data.json"), os.path.join(site, "web_prev.json")
         old = js("web_data.json")
@@ -546,7 +563,9 @@ def cmd_grade(a):
     f = os.path.join(site, "bets_log.csv")
     log = _read(f)
     if log.empty:
-        print("no logged plays"); return
+        print("no logged plays")
+        _calib_results(site, load_tables(a.state))
+        return
     tables = load_tables(a.state)
     games = tables["games"].set_index("game_id")
     pg = tables["player_games"].set_index(["game_id", "player_id"])
@@ -582,6 +601,15 @@ def cmd_grade(a):
     log["profit"] = np.where(log.result == 1, dec - 1, np.where(log.result == 0, -1.0, np.nan))
     log.to_csv(f, index=False)
     print(f"graded: {int(log.result.notna().sum())}/{len(log)}")
+    _calib_results(site, tables)
+
+
+def _calib_results(site, tables):
+    try:   # actual results for the prediction database (insert-only)
+        from .calib_hook import record_results
+        print(f"calib: {record_results(site, tables)} results recorded")
+    except Exception as e:
+        print(f"calib results failed: {e}")
 
 
 def cmd_backtest(a):
@@ -600,6 +628,15 @@ def cmd_backtest(a):
     keep = ["game_id", "date", "player_id", "pos", "lam_goals", "lam_sog", "lam_ast", "lam_pts",
             "lam_goals_nonen_pre", "lam_sog_pre", "lam_ast_raw_pre", "goals", "assists", "sog", "points"]
     bt["players"][keep].to_csv(os.path.join(site, "bt_players.csv.gz"), index=False, compression="gzip")
+    try:   # first run only: walk-forward history seeds the prediction database
+        from calib import engine as CE
+        from .calib_hook import seed_backtest
+        CE.ensure_baseline(site, "nhl")
+        names = tables["roster"].drop_duplicates("player_id").set_index("player_id").name.to_dict() if "roster" in tables else {}
+        if "home_off" in bt["games"]:
+            seed_backtest(site, bt["games"], bt["players"][keep], names)
+    except Exception as e:
+        print(f"calib seed failed: {e}")
     summary, _ = run_validation(bt, tables, cfg, site, f"Walk-forward {pd.Timestamp(start).date()} to "
                                 f"{pd.Timestamp(end).date()} ({src})", notes + _data_notes(tables, False))
     print(summary[["market", "line", "n", "logloss", "logloss_base", "status"]].to_string(index=False))

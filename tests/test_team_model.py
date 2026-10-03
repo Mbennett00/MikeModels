@@ -62,3 +62,22 @@ def test_no_leakage(league):
     pd.testing.assert_frame_equal(s1.team, s2.team)
     pd.testing.assert_frame_equal(s1.player, s2.player)
     pd.testing.assert_frame_equal(s1.goalie, s2.goalie)
+
+
+def test_calibration_layer_is_live_only(league):
+    from nhlmodel import team_model as T
+    tables, _ = league
+    snap = build_snapshot(tables, "2024-12-10", 2024, 25)
+    base = TeamModel(DEFAULT, snap, FittedParams()).project("BOS", "TOR", date="2024-12-10")
+
+    class Half:   # stand-in calibration: +10% to every rate
+        def __call__(self, lam, inputs, team, is_home):
+            assert set(inputs) == {"off", "def_opp", "goalie_opp", "pp_pk", "pace", "rest"}
+            return lam * 1.1
+    T.CALIBRATION = Half()
+    try:
+        cal = TeamModel(DEFAULT, snap, FittedParams()).project("BOS", "TOR", date="2024-12-10")
+        assert abs(cal.lam_home - 1.1 * base.lam_home) < 1e-9
+        assert abs(cal.factors["home"]["lam_orig"] - base.lam_home) < 1e-9
+    finally:
+        T.CALIBRATION = None

@@ -1,0 +1,19 @@
+name: recalibrate model
+
+# One click from the page's RECALIBRATE MODEL button: Actions -> "recalibrate model" -> Run workflow.
+# Grades the latest results, runs the calibration engine for both sports (walk-forward backtest; a new version is
+# applied only if it beats the current model), then rebuilds and republishes the site.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  recalibrate:
+    uses: ./.github/workflows/daily.yml
+    with:
+      task: recalibrate
+    secrets: inherit

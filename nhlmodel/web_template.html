@@ -289,6 +289,7 @@ label.f { display: block; font-size: 13px; font-weight: 800; color: var(--ink-2)
 .pc.won .pc-line { background: var(--green-soft); } .pc.lost .pc-body { opacity: .5; }
 @media (min-width: 700px) { .pgrid { grid-template-columns: repeat(3, 1fr); } }
 @media (min-width: 700px) { .tiles { grid-template-columns: repeat(3, 1fr); } }
+/*CALIB_CSS*/
 </style>
 </head>
 <body>
@@ -860,7 +861,11 @@ function openPlayer(id) {
 // ---------- updates: what moved in the model, run by run ----------
 const UPD_KIND = {all: "All", data: "Data", model: "Model", teams: "Teams", goalie: "Goalies", injury: "Injuries", price: "Prices"};
 let UFILTER = "all";
+/*CALIB_JS*/
+let HV = "feed";   // Updates tab: feed or model health
+function hvSwitch() { return `<div class="hv"><button class="${HV === "feed" ? "on" : ""}" data-hv="feed">📰 Feed</button><button class="${HV === "health" ? "on" : ""}" data-hv="health">🩺 Model health</button></div>`; }
 function updates() {
+  if (HV === "health") return hvSwitch() + healthHtml((TODAY || D).calib, "NHL", ((TODAY || D).meta || {}).repo);
   const M = (TODAY || D).model, runs = (TODAY || D).updates || [];
   const fmtT = t => new Date(t).toLocaleString("en-US", {weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/New_York"});
   const now = M ? `<div class="card"><div class="sec" style="margin-top:0">The model right now</div><div class="kv">
@@ -875,7 +880,7 @@ function updates() {
   const chips = kinds.length > 2 ? `<div class="strip" style="padding-left:0">${kinds.map(k => `<button class="chip ${UFILTER === k ? "on" : ""}" data-uf="${k}">${UPD_KIND[k]}</button>`).join("")}</div>` : "";
   const list = runs.map(r => { const it = r.items.filter(i => UFILTER === "all" || i.kind === UFILTER); if (!it.length) return "";
     return `<div class="card upd"><div class="ut">${esc(fmtT(r.time))}</div>${it.map(i => `<div class="ui"><span>${i.icon}</span><span>${esc(i.text)}</span></div>`).join("")}</div>`; }).join("");
-  return now + chips + (list || `<div class="note">No changes logged yet. They'll appear here after the next run.</div>`);
+  return hvSwitch() + now + chips + (list || `<div class="note">No changes logged yet. They'll appear here after the next run.</div>`);
 }
 
 // ---------- tap-a-price sheet ----------
@@ -932,6 +937,8 @@ function render() {
   if (TAB === "check") wireCheck();
   document.querySelectorAll("[data-like]").forEach(b => b.onclick = () => { LIKE = b.dataset.like; render(); });
   document.querySelectorAll("[data-uf]").forEach(b => b.onclick = () => { UFILTER = b.dataset.uf; render(); });
+  document.querySelectorAll("[data-hv]").forEach(b => b.onclick = () => { HV = b.dataset.hv; render(); });
+  if (TAB === "updates" && HV === "health") wireHealth(render);
   $("#view").querySelectorAll("[data-bet]").forEach(el => el.onclick = e => { e.stopPropagation(); openSheet(BETS[Number(el.dataset.bet)]); });
   $("#view").querySelectorAll("[data-player]").forEach(el => el.onclick = () => openPlayer(el.dataset.player));
   $("#view").querySelectorAll("[data-rk]").forEach(el => el.onclick = e => { e.stopPropagation(); const [id, k, v] = el.dataset.rk.split("|"); RINK[id][k] = v; render(); });

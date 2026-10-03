@@ -19,6 +19,8 @@ import pandas as pd
 from . import backtest as B
 from . import changelog, data, injuries as I, model as M, odds as O
 from . import props as PP
+from . import calib_hook as CH
+from calib import engine as CE, health as CHL
 from . import weather as WX
 from .teams import info
 
@@ -139,6 +141,13 @@ def run(state: str = "state", log=print) -> dict:
     bt_rows, bt = B.run(sched, tg, qb, cfg, F=F, log=lambda *a: None)
     cfg = B.fit_mapping(F, cfg)
     w_side, w_total = blend_weights(bt_rows)
+    CE.ensure_baseline(site, "nfl")
+    try:
+        CH.seed_backtest(site, bt_rows, log)          # once: walk-forward history for the calibration engine
+    except Exception as e:
+        log(f"calib seed: {e}")
+    CAL = CE.Live(site, "nfl")
+    calib_entries = []
     t_bias = total_bias(bt_rows)
     rows = M.team_rows(tg, sched)
     wk = week_games(sched, now_et)
@@ -235,6 +244,16 @@ def run(state: str = "state", log=print) -> dict:
             mk["total"] = dict(p_first=0.5)
         # price off the market, moved toward the model only as far as the backtest says the model adds information
         tm = tm - t_bias            # recent scoring level (the fit spans seasons with more scoring)
+        # calibration engine: the active version's correction to each team's points (none until one is applied)
+        orig_h, orig_a = (tm + mm) / 2, (tm - mm) / 2
+        def comp(team, opp, mine, theirs, qb_t, rest, rest_o):
+            return CH._inputs(Rg.off["epa_play"].get(team), Rg.dfn["epa_play"].get(opp), Rg.off["epa_db"].get(team),
+                              qb_t, mine["inj_pts"], theirs["inj_pts"], wx_impact, rest, rest_o)
+        inp_h = comp(g.home_team, g.away_team, sh_, sa_, qh, getattr(g, "home_rest", None), getattr(g, "away_rest", None))
+        inp_a = comp(g.away_team, g.home_team, sa_, sh_, qa, getattr(g, "away_rest", None), getattr(g, "home_rest", None))
+        pts_h = CAL(orig_h, inp_h, g.home_team, 0 if neutral else 1)
+        pts_a = CAL(orig_a, inp_a, g.away_team, 0)
+        mm, tm = pts_h - pts_a, pts_h + pts_a
         mm_raw, tm_raw = mm, tm
         # news in points: injuries and QB changes move the margin, weather moves the total
         qbp = (cfg.coef_m[2] * 0.55 + cfg.coef_m[3]) * (qh - qa)
@@ -274,6 +293,10 @@ def run(state: str = "state", log=print) -> dict:
                    tpmf=dict(lo=int(kt[selt][0]), p=[round(float(v), 6) for v in pt[selt]]))
         if not started:
             frozen[g.game_id] = rec
+            calib_entries.append(dict(game_id=g.game_id, date=g.gameday, season=int(g.season), home=g.home_team,
+                                      away=g.away_team, start=kick.isoformat(), pts_h=pts_h, pts_a=pts_a, orig_h=orig_h,
+                                      orig_a=orig_a, inp_h=inp_h, inp_a=inp_a, neutral=bool(neutral),
+                                      p_home=float(M.price_game(mm_raw, tm_raw, cfg)["p_home"])))
         games.append(dict(rec, result=_result(g), state="post" if not pd.isna(g.result) else ("in" if started else "pre")))
     json.dump({k: v for k, v in frozen.items() if k.startswith(str(season))}, open(ppath, "w"), separators=(",", ":"))
     json.dump(ln, open(npath, "w"), separators=(",", ":"))
@@ -318,6 +341,14 @@ def run(state: str = "state", log=print) -> dict:
     attach_props(lineup, players)
     out = dict(meta=meta, games=games, players=players, teams=team_table(R, rows, season), key_m=cfg.key_m, key_t=cfg.key_t,
                injuries=injuries, lineups=lineup)
+    try:
+        CH.record_results(site, sched, PGall)
+        CH.log_live(site, calib_entries, players, CAL.version, log)
+        out["calib"] = CHL.build(site, "nfl", season)
+    except Exception as e:      # the health page never blocks the projections
+        log(f"calib: {e}")
+    meta["model_version"] = CAL.version
+    meta["repo"] = os.environ.get("GITHUB_REPOSITORY", "Mbennett00/NHLModel")
     out["updates"] = changelog.update(site, out)
     write(site, out)
     log(f"nfl: week {meta['week']}, {len(games)} games, data through {meta['data_through']}, "
@@ -510,7 +541,7 @@ def total_bias(bt: pd.DataFrame, n: int = 272) -> float:
     return 0.0 if len(x) < 50 else float((x.t_model - x.total).mean())
 
 
-FEATURE_VERSION = "v6-inj-value-rain"   # bump when the game features change, to rebuild cached seasons
+FEATURE_VERSION = "v7-calib-components"   # bump when the game features change, to rebuild cached seasons
 
 
 def cached_features(cache, sched, tg, qb, cfg, snaps, inj, wxt, con, pg, log=print) -> pd.DataFrame:
@@ -721,7 +752,8 @@ def write(site: str, out: dict):
 
 def install_page(web: str):
     """Copy the NFL page next to the NHL one (the NHL build calls this too, so neither drops the other)."""
-    shutil.copy(os.path.join(HERE, "web_template.html"), os.path.join(web, "nfl.html"))
+    from calib.webassets import install as _install   # inlines the shared Model Health component
+    _install(os.path.join(HERE, "web_template.html"), os.path.join(web, "nfl.html"))
     src = os.path.join(os.path.dirname(web), "nfl.json")
     if os.path.exists(src) and os.path.abspath(src) != os.path.abspath(os.path.join(web, "nfl.json")):
         shutil.copy(src, os.path.join(web, "nfl.json"))

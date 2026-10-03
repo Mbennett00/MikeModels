@@ -106,6 +106,7 @@ def price_state(st: SlateState, lineups: pd.DataFrame | None = None, odds: pd.Da
     cfg, params, date, schedule = st.cfg, st.params, st.date, st.schedule
     tm = TeamModel(cfg, st.snap, params)
     rows, cons, warnings = [], [], list(st.warnings)
+    st.projections = []   # (game row, GameProjection) per game, for the prediction database (calib/)
     lu_heads = ({int(p): h for p, h in zip(lineups.player_id, lineups.headshot) if isinstance(h, str) and h}
                 if "headshot" in lineups else {})
     for g in schedule.itertuples(index=False):
@@ -114,6 +115,7 @@ def price_state(st: SlateState, lineups: pd.DataFrame | None = None, odds: pd.Da
         ag, aconf = _goalie(lu, g.away)
         sk = {t: lu[(lu.team == t) & lu.pos.isin(["F", "D"])] for t in (g.home, g.away)}
         gp = tm.project(g.home, g.away, hg, ag, date, (hconf, aconf), sk)
+        st.projections.append((g, gp))
         matchup = f"{g.away} @ {g.home}"
         start = getattr(g, "start_utc", None)
         gflags = "; ".join(gp.flags)
