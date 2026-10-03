@@ -948,16 +948,61 @@ function ladderCard(x) {
     <div class="pt3"><div class="pn3">${esc(p.name)}</div><div class="pm3">${esc(p.team)} ${esc(matchupOf(p).split(" · ")[0])} · ${esc(role)}${p.confirmed ? " · 🟢" : ""}</div>
     <div class="pp3">Proj <b>${p.lam.sog.toFixed(1)}</b> shots</div></div></div><div class="rungs">${rungs}</div></div>`;
 }
+
+// 🎲 mixed parlay pool. Model chances already include matchup (opponent defence/goalie), lineups and rest.
+// Extra filters: skip anyone on the injury list, favour confirmed lineups and confirmed goalies, no negative-edge game lines.
+let PMODE = "mix";
+function poolNHL() {
+  const pool = [], r = D.params.r_sog || {};
+  const duo = g => `<span class="duo3"><img src="${esc(g.away.logo)}" alt="" onerror="this.remove()"><img src="${esc(g.home.logo)}" alt="" onerror="this.remove()"></span>`;
+  const head = p => `<div class="ph3 xs" style="background-color:${esc((D.colors || {})[p.team] || "#7a8894")}"><span>${esc(initials(p.name))}</span>${p.headshot ? `<img src="${esc(p.headshot)}" alt="" loading="lazy" onload="this.previousElementSibling.style.visibility='hidden'" onerror="this.remove()">` : ""}</div>`;
+  for (const g of D.games) { if (!notStarted(g)) continue;
+    const gl = `${g.away.abbr} @ ${g.home.abbr}`, hurt = new Set([...(g.home.injuries || []), ...(g.away.injuries || [])].map(i => normName(i.name)));
+    const gconf = g.home.goalie_confirmed && g.away.goalie_confirmed;
+    for (const b of g.dk || []) { const p = b.nv + b.edge; if (!b.price || p < 0.5 || b.edge < -0.01 || b.price > 200) continue;
+      const st = settle(g, b.m, b.s, b.l), [cls, ic] = RES(st);
+      const k = bet({g, market: b.m, sel: b.s, line: b.l, p, label: `${gameLabel(g)} ${legLabel(g, b)}`});
+      pool.push({gid: g.game_id, kind: b.m === "total" ? "total" : "side", title: legLabel(g, b), sub: gl, p, price: b.price, attr: `data-bet="${k}"`, cls, ic, pic: duo(g),
+        why: b.edge > 0.02 ? `+${(100 * b.edge).toFixed(0)}% vs market${gconf ? " · goalies confirmed" : ""}` : (gconf ? "both goalies confirmed" : ""),
+        w: (p + 2 * Math.max(b.edge, 0)) * (trustOK(b.m) ? 1 : 0.6) * (gconf ? 1.1 : 1)}); }
+    for (const pl of D.players.filter(x => x.game_id === g.game_id && !hurt.has(normName(x.name)))) {
+      const opp = pl.team === g.home.abbr ? g.away : g.home, slot = D.lines.find(l => l.team === pl.team && normName(l.name) === normName(pl.name));
+      const top = slot && (/1|2/.test(slot.line || "") || slot.pp === 1), boost = (pl.confirmed ? 1.15 : 0.9) * (top ? 1.1 : 1);
+      const tags = [slot ? [slot.line, slot.pp ? `PP${slot.pp}` : ""].filter(Boolean).join(" ") : "", pl.confirmed ? "in lineup" : "projected", opp.goalie ? `vs ${opp.goalie.split(" ").slice(-1)[0]}` : ""].filter(Boolean).join(" · ");
+      const add = (mk, line, p, kind, title, wmul) => { const res = playerStat(pl), L = LIVE[pl.game_id] || {};
+        const [cls, ic] = RES(res && !res.dnp ? cmpLine(res[mk], line, "over", L.state === "post") : undefined);
+        const k = bet({player: pl, market: mk, line, p, label: `${pl.name} ${title}`});
+        pool.push({gid: g.game_id, kind, title: `${pl.name} ${title}`, sub: `${pl.team} ${pl.team === g.home.abbr ? "vs" : "@"} ${opp.abbr}`, p, price: null, attr: `data-bet="${k}"`, cls, ic, pic: head(pl), why: tags, w: p * boost * wmul}); };
+      if (pl.lam.sog != null) { const c = [3.5, 2.5, 1.5].map(l => ({l, p: nbSF(l, pl.lam.sog, r[pl.pos] || 8)})).find(x => x.p >= 0.58 && x.p <= 0.78);
+        if (c) add("sog", c.l, c.p, "sog", `${c.l + 0.5}+ shots`, 1); }
+      if (pl.lam.points != null) { const p = propProb(pl, "points", 0.5); if (p >= 0.52) add("points", 0.5, p, "pts", "1+ point", 1); }
+      if (pl.lam.goals != null) { const p = propProb(pl, "goals", 0.5); if (p >= 0.33) add("goals", 0.5, p, "goal", "to score", 0.85); }
+    }
+  }
+  return pool;
+}
+function mixedNHL() {
+  if (PMODE === "edge") { const P = parlayNHL(); if (!P) return mixCardHtml(null, "edge", "");
+    return mixCardHtml({legs: P.legs.map((l, i) => { const st = settle(l.g, l.b.m, l.b.s, l.b.l), [cls, ic] = RES(st);
+        const k = bet({g: l.g, market: l.b.m, sel: l.b.s, line: l.b.l, p: l.p, label: `${gameLabel(l.g)} ${legLabel(l.g, l.b)}`});
+        return {title: legLabel(l.g, l.b), sub: `${l.g.away.abbr} @ ${l.g.home.abbr}`, p: l.p, price: l.b.price, attr: `data-bet="${k}"`, cls, ic,
+          pic: `<span class="duo3"><img src="${esc(l.g.away.logo)}" alt="" onerror="this.remove()"><img src="${esc(l.g.home.logo)}" alt="" onerror="this.remove()"></span>`,
+          why: `+${(100 * l.b.edge).toFixed(1)}% vs market`}; }), p: P.p, dec: P.dec, worth: P.legs.reduce((a, l) => a / Math.max(l.p - 0.02, 0.02), 1), priced: true},
+      "edge", "The biggest model edges over the market, one per game, in markets rated “Trust it”. Prices are the market median.");
+  }
+  const P = mixParlay(poolNHL(), "nhl|" + (D.meta.date || ""), {side: 1, total: 2, sog: 2, pts: 2, goal: 1}, 0.02);
+  return mixCardHtml(P, "mix", `A random mix of game lines and player props, one per game, drawn from legs the model rates as live: shots, points and goals come from each player's projection against tonight's opponent and goalie, injured players are skipped, and confirmed lineups and goalies get more weight. Game lines only count with no negative edge. “Fair” legs have no book price in our feed, so the payout is the model's fair odds; “Worth it at” is the shortest parlay price still worth taking. Stays put between model updates unless you spin.`);
+}
 function luckyNHL() {
   const lad = ladderNHL();
-  return parlayCard(parlayNHL(), "NHL") + `<div class="card lucky"><div class="lk-h">🪜 Ladder the shots</div>
+  return mixedNHL() + `<div class="card lucky"><div class="lk-h">🪜 Ladder the shots</div>
     <div class="note" style="margin-top:2px">Shooters with the most upside tonight. Ladder = small bets on each rung (3+, 4+, 5+…), bigger stake low, smaller high. Each rung shows the model's chance and the <b>worst odds still worth it</b>; tap one to check ${BOOKS()} price.</div>
     ${lad.length ? lad.map(ladderCard).join("") : `<div class="note">No high-volume shooters on the board yet.</div>`}
     <div class="note">Checked on 72,000 past player-games: the model's 3+, 4+ and 5+ shot chances matched what happened; 6+ ran a bit hot, so it's trimmed 15%.</div></div>`;
 }
 function luckyBanner() {
-  const P = parlayNHL(); if (!P) return "";
-  return `<button class="lk-banner" data-golucky="1"><em>🍀</em><span class="lb-t"><b>Parlay of the day</b><i>${P.legs.length} legs · pays ${am(amOf(P.dec))}</i></span><span class="lb-go">Feeling lucky →</span></button>`;
+  const P = mixParlay(poolNHL(), "nhl|" + (D.meta.date || ""), {side: 1, total: 2, sog: 2, pts: 2, goal: 1}, 0.02); if (!P) return "";
+  return `<button class="lk-banner" data-golucky="1"><em>🍀</em><span class="lb-t"><b>Parlay of the day</b><i>${P.legs.length} legs · ${P.priced ? "pays" : "fair"} ${am(amOf(P.dec))}</i></span><span class="lb-go">Feeling lucky →</span></button>`;
 }
 function props() {
   if (!D.players.length) return empty("👤", "No player projections yet", "");
@@ -1092,7 +1137,7 @@ function render() {
   header(); strip(); nav();
   const v = {games, props, check, updates}[TAB]();
   $("#view").innerHTML = v;
-  if (TAB === "props") wireProps();
+  if (TAB === "props") { wireProps(); wireMix(render, m => { PMODE = m; }); }
   if (TAB === "check") wireCheck();
   document.querySelectorAll("[data-like]").forEach(b => b.onclick = () => { LIKE = b.dataset.like; render(); });
   document.querySelectorAll("[data-uf]").forEach(b => b.onclick = () => { UFILTER = b.dataset.uf; render(); });

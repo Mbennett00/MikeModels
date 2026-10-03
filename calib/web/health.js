@@ -137,3 +137,54 @@ function weightsHtml(W) {
   return `<div class="hint" style="margin-top:4px">How much each input typically moves a ${W.sport === "NHL" ? "team's projected goals" : "game's projection"} (bar = typical swing over recent games; % = its share of all movement). Bigger bar = weighs more.</div>`
     + W.groups.map(grp).join("") + `<div class="wsec">How the final number is built</div>${stages}` + cal;
 }
+
+// ---------- 🎲 MIXED PARLAY (shared) ----------
+// Each sport hands over a pool of candidate legs: {gid, kind, title, sub, p, price (market American odds or null),
+// attr (data-* for tapping), cls (settled), why}. Chances come from the model (matchups, injuries, starters, weather
+// already inside). We draw one leg per game at random, weighted toward stronger legs, with caps per kind so it mixes.
+let MIX_SPIN = 0;
+function mixRng(seed) { let a = 0; for (const c of seed) a = (a * 31 + c.charCodeAt(0)) >>> 0;
+  return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const mixDec = a => a > 0 ? 1 + a / 100 : 1 + 100 / -a;
+const mixAm = d => d >= 2 ? 100 * (d - 1) : -100 / (d - 1);
+const mixFairAm = p => p >= 0.5 ? -100 * p / (1 - p) : 100 * (1 - p) / p;
+function mixParlay(pool, seed, caps, cushion) {
+  const rnd = mixRng(seed + "|" + MIX_SPIN), byG = {};
+  pool.forEach(c => (byG[c.gid] = byG[c.gid] || []).push(c));
+  const gids = Object.keys(byG); if (gids.length < 3) return null;
+  let best = null;
+  for (let t = 0; t < 60; t++) {
+    const n = rnd() < 0.5 ? 3 : 4, order = gids.map(g => [g, rnd()]).sort((a, b) => a[1] - b[1]).map(x => x[0]), used = {}, legs = [];
+    for (const g of order) { if (legs.length >= n) break;
+      const opts = byG[g].filter(c => (used[c.kind] || 0) < (caps[c.kind] ?? 2)); if (!opts.length) continue;
+      const w = opts.map(c => c.w * c.w), tot = w.reduce((a, b) => a + b, 0); let r = rnd() * tot, k = 0;
+      while (r > w[k] && k < w.length - 1) r -= w[k++];
+      legs.push(opts[k]); used[opts[k].kind] = (used[opts[k].kind] || 0) + 1; }
+    if (legs.length < 3) continue;
+    const p = legs.reduce((a, l) => a * l.p, 1), kinds = new Set(legs.map(l => l.kind)).size;
+    const ok = p >= 0.06 && p <= 0.35, score = (ok ? 1 : 0) + kinds * 0.1 + rnd() * 0.05;
+    if (!best || score > best.score) best = {legs, p, score};
+    if (ok && kinds >= 2) break;
+  }
+  if (!best) return null;
+  const L = best.legs, dec = L.reduce((a, l) => a * (l.price != null ? mixDec(l.price) : 1 / l.p), 1);
+  const worth = L.reduce((a, l) => a / Math.max(l.p - cushion, 0.02), 1);
+  return {legs: L, p: best.p, dec, worth, priced: L.every(l => l.price != null)};
+}
+function mixCardHtml(P, mode, note) {
+  const seg = `<div class="seg2 pmode"><button class="chip ${mode === "mix" ? "on" : ""}" data-pmode="mix">🎲 Mix</button><button class="chip ${mode === "edge" ? "on" : ""}" data-pmode="edge">💰 Edges</button></div>`;
+  const head = `<div class="lk-h">🎟️ Parlay of the day ${P ? `<span class="pl-tag">${P.legs.length} legs</span>` : ""}</div>${seg}`;
+  if (!P) return `<div class="card lucky">${head}<div class="note">Not enough solid legs on the board right now. The model won't force one.</div></div>`;
+  const rows = P.legs.map((l, i) => `<button class="leg ${l.cls || ""}" ${l.attr}><span class="lg-n">${l.ic || i + 1}</span>${l.pic}
+      <span class="lg-t"><b>${esc(l.title)}</b><span>${esc(l.sub)} · model ${Math.round(100 * l.p)}%</span>${l.why ? `<em>${esc(l.why)}</em>` : ""}</span>
+      <span class="lg-p">${l.price != null ? (l.price > 0 ? "+" : "") + Math.round(l.price) : `<small>fair</small>${(mixFairAm(l.p) > 0 ? "+" : "") + Math.round(mixFairAm(l.p))}`}</span></button>`).join("");
+  const am = x => (x > 0 ? "+" : "") + Math.round(x);
+  return `<div class="card lucky">${head}${rows}
+    <div class="pl-sum"><div><span>${P.priced ? "Pays" : "Fair odds"}</span><b>${am(mixAm(P.dec))}</b></div><div><span>Model hits</span><b>${(100 * P.p).toFixed(1)}%</b></div><div><span>Worth it at</span><b>${am(mixAm(P.worth))}+</b></div></div>
+    ${mode === "mix" ? `<button class="spin" data-spin="1">🎲 Spin again</button>` : ""}
+    <div class="note">${note}</div></div>`;
+}
+function wireMix(render, setMode) {
+  document.querySelectorAll("[data-spin]").forEach(b => b.onclick = () => { MIX_SPIN++; render(); });
+  document.querySelectorAll("[data-pmode]").forEach(b => b.onclick = () => { setMode(b.dataset.pmode); render(); });
+}

@@ -748,9 +748,54 @@ function dartRow(p) {
       <div class="dt-why">${why.map(esc).join(" · ")}</div></div>
     <span class="dt-p"><b>${pct(p.p_td)}</b><span>bet at ${am(fair(p.p_td - THR))}</span></span></button>`;
 }
+
+// 🎲 mixed parlay pool. Model chances already include matchup (opponent-adjusted ratings), the listed starting QB,
+// ESPN injuries (out/doubtful removed, their volume redistributed) and kickoff weather. Extra: skip questionable
+// players, weight by the position matchup grade, no negative-edge game lines.
+let PMODE = "mix";
+const GRADE_W = {A: 1.15, B: 1.05, C: 1, D: 0.9, F: 0.85};
+function altLine(p, m, lo, hi, step) {   // the highest line the model still clears with lo-hi chance
+  let L = fairLine(pMean(p, m), m, p);
+  for (let i = 0; i < 12; i++) { const po = pOver(p, m, L); if (po >= lo) return po <= hi ? {L, p: po} : null; L -= step; if (L < 0.5) return null; }
+  return null;
+}
+function poolNFL() {
+  const pool = [];
+  const duo3 = g => `<span class="duo3"><img src="${esc(g.away.logo)}" alt="" onerror="this.remove()"><img src="${esc(g.home.logo)}" alt="" onerror="this.remove()"></span>`;
+  const head = p => `<div class="ph3 xs" style="background-color:${esc(teamOf(p.team).color)}"><span>${esc(initials(p.name))}</span>${p.headshot ? `<img src="${esc(p.headshot)}" alt="" loading="lazy" onload="this.previousElementSibling.style.visibility='hidden'" onerror="this.remove()">` : ""}</div>`;
+  for (const g of D.games) { if (g.state !== "pre") continue;
+    const gl = `${g.away.abbr} @ ${g.home.abbr}`, wx = (g.weather || {}).expo === "outdoor" && g.weather.wind != null ? `${Math.round(g.weather.wind)} mph wind` : "";
+    if (g.src === "odds") for (const b of mkBets(g)) { if (b.mkt == null || !b.price || b.p < 0.5 || b.edge < -0.01 || b.price > 200) continue;
+      const k = bet({g, b, p: b.p, label: label(g, b)}), cls = settle(g, b);
+      pool.push({gid: g.game_id, kind: b.m === "total" ? "total" : "side", title: label(g, b), sub: gl, p: b.p, price: b.price, attr: `data-bet="${k}"`, cls, pic: duo3(g),
+        why: [b.edge > 0.02 ? `+${(100 * b.edge).toFixed(0)}% vs market` : "", b.m === "total" ? wx : ""].filter(Boolean).join(" · "), w: b.p + 2 * Math.max(b.edge, 0)}); }
+    for (const p of (D.players || []).filter(x => x.game_id === g.game_id && !x.status)) {
+      const G = (((D.lineups || {})[p.team] || {}).grades || {})[p.pos === "FB" ? "RB" : p.pos], gw = G ? GRADE_W[G.g[0]] || 1 : 1;
+      const vs = `${p.team} ${g.home.abbr === p.team ? "vs" : "@"} ${p.opp}`, why = [G ? `matchup ${G.g}` : "", p.role === "QB" ? "" : (p.role === "RB" ? `${p.car.toFixed(0)} car` : `${p.tgt.toFixed(1)} tgt`)].filter(Boolean).join(" · ");
+      const add = (m, title, pr, kind) => pool.push({gid: g.game_id, kind, title: `${p.name} ${title}`, sub: vs, p: pr, price: null, attr: `data-pp="${esc(p.id)}|${esc(p.game_id)}|${m}"`, pic: head(p), why, w: pr * gw});
+      if (p.role !== "QB" && p.p_td >= 0.35) add("td", "anytime TD", p.p_td, "td");
+      if (p.role === "QB") { const a = altLine(p, "pass_yds", 0.6, 0.78, 10); if (a) add("pass_yds", `${a.L + 0.5}+ pass yds`, a.p, "yds"); }
+      else if (p.role === "RB") { const a = altLine(p, "rush_yds", 0.6, 0.78, 5); if (a && p.rush_yds >= 35) add("rush_yds", `${a.L + 0.5}+ rush yds`, a.p, "yds"); }
+      else { const a = altLine(p, "rec_yds", 0.6, 0.78, 5); if (a && p.rec_yds >= 30) add("rec_yds", `${a.L + 0.5}+ rec yds`, a.p, "yds");
+        const r = altLine(p, "rec", 0.6, 0.78, 1); if (r && p.rec >= 3) add("rec", `${r.L + 0.5}+ catches`, r.p, "rec"); }
+    }
+  }
+  return pool;
+}
+function mixedNFL() {
+  if (PMODE === "edge") { const P = parlayNFL(); if (!P) return mixCardHtml(null, "edge", "");
+    return mixCardHtml({legs: P.legs.map(l => { const k = bet({g: l.g, b: l.b, p: l.b.p, label: label(l.g, l.b)});
+        return {title: label(l.g, l.b), sub: `${l.g.away.abbr} @ ${l.g.home.abbr}`, p: l.b.p, price: l.b.price, attr: `data-bet="${k}"`, cls: settle(l.g, l.b),
+          pic: `<span class="duo3"><img src="${esc(l.g.away.logo)}" alt="" onerror="this.remove()"><img src="${esc(l.g.home.logo)}" alt="" onerror="this.remove()"></span>`,
+          why: `+${(100 * l.b.edge).toFixed(1)}% vs market`}; }), p: P.p, dec: P.dec, worth: P.legs.reduce((a, l) => a / Math.max(l.b.p - THR, 0.02), 1), priced: true},
+      "edge", "The biggest model edges over the market after the blend, one per game (the same edges as 💡 Model likes). Prices are the market median.");
+  }
+  const P = mixParlay(poolNFL(), "nfl|" + (D.meta.week || ""), {side: 1, total: 1, td: 1, yds: 2, rec: 1}, THR);
+  return mixCardHtml(P, "mix", `A random mix of game lines and player props, one per game, drawn from legs the model rates as live. Player lines come from each player's projection with this week's starting QB, ESPN injuries (out and doubtful players removed, their targets and carries passed on) and kickoff weather; questionable players are skipped and good position matchups get more weight. Prop lines are set a notch below the projection (60-80% chance). “Fair” legs have no book price in our feed; “Worth it at” is the shortest parlay price still worth taking. Stays put between model updates unless you spin.`);
+}
 function luckyNFL() {
   const D2 = dartsNFL();
-  return parlayCardNFL(parlayNFL()) + `<div class="card lucky"><div class="lk-h">🎯 Throwing darts</div>
+  return mixedNFL() + `<div class="card lucky"><div class="lk-h">🎯 Throwing darts</div>
     <div class="note" style="margin-top:2px">Longshot anytime-TD guys the model gives a real shot. Small stakes, spread across a few. “Bet at” is the <b>shortest odds still worth it</b>; books often hang longer.</div>
     ${D2.live.length ? `<div class="sec">Live darts · roughly +250 to +400</div>${D2.live.map(dartRow).join("")}` : ""}
     ${D2.deep.length ? `<div class="sec">Deep darts · roughly +400 to +730</div>${D2.deep.map(dartRow).join("")}` : ""}
@@ -758,8 +803,8 @@ function luckyNFL() {
     <div class="note">Checked on 19,000 past player-games (2022-26): when the model said 12-29%, players scored at about that rate. One per team so a single game script can't sink them all.</div></div>`;
 }
 function luckyBanner() {
-  const P = parlayNFL(); if (!P) return "";
-  return `<button class="lk-banner" data-golucky="1"><em>🍀</em><span class="lb-t"><b>Parlay of the day</b><i>${P.legs.length} legs · pays ${am(amOf(P.dec))}</i></span><span class="lb-go">Feeling lucky →</span></button>`;
+  const P = mixParlay(poolNFL(), "nfl|" + (D.meta.week || ""), {side: 1, total: 1, td: 1, yds: 2, rec: 1}, THR); if (!P) return "";
+  return `<button class="lk-banner" data-golucky="1"><em>🍀</em><span class="lb-t"><b>Parlay of the day</b><i>${P.legs.length} legs · ${P.priced ? "pays" : "fair"} ${am(amOf(P.dec))}</i></span><span class="lb-go">Feeling lucky →</span></button>`;
 }
 function props() {
   if (!(D.players || []).length) return empty("👤", "No player props yet", "Projections show up once this week's games are priced.");
@@ -964,7 +1009,7 @@ function render() {
   document.querySelectorAll("[data-goinj]").forEach(b => b.onclick = () => { TAB = "updates"; UF = "injury"; render(); window.scrollTo(0, 0); });
   document.querySelectorAll("[data-fm]").forEach(b => b.onclick = e => { e.stopPropagation(); const [id, k, v] = b.dataset.fm.split("|"); FORM[id][k] = v; render(); });
   if (TAB === "check") wireCheck();
-  if (TAB === "props") wireProps();
+  if (TAB === "props") { wireProps(); wireMix(render, m => { PMODE = m; }); }
   $("#view").querySelectorAll("[data-pp]").forEach(el => el.onclick = e => { e.stopPropagation(); const [id, gid, m] = el.dataset.pp.split("|"); openPlayer(id, gid, m); });
   $("#view").querySelectorAll("[data-golucky]").forEach(el => el.onclick = () => { PS.m = "lucky"; TAB = "props"; render(); window.scrollTo(0, 0); });
   $("#view").querySelectorAll("[data-allprops]").forEach(el => el.onclick = () => { PS.game = el.dataset.allprops; PS.q = ""; TAB = "props"; render(); window.scrollTo(0, 0); });
