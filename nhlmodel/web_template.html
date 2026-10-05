@@ -962,7 +962,7 @@ function spotlight(list, mk) {
         <div class="sp-ring"><svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="17" class="bg"/><circle cx="20" cy="20" r="17" class="fg" stroke-dasharray="${C * pr} ${C}" transform="rotate(-90 20 20)"/></svg><b>${Math.round(100 * pr)}</b></div>
         <div class="sp-shot"><span>${esc(initials(p.name))}</span>${p.headshot ? `<img src="${esc(p.headshot)}" alt="" loading="lazy" onload="this.previousElementSibling.style.visibility='hidden'" onerror="this.remove()">` : ""}</div>
         <div class="sp-info"><div class="sp-n">${esc(p.name.split(" ").slice(-1)[0])}</div><div class="sp-m">${esc(p.team)} ${esc(matchupOf(p).split(" · ")[0])}</div></div>
-        <button class="sp-btn ${dk ? "dk" : ""}" data-bet="${i}"><span>${mk === "goals" && l === 0.5 ? "Anytime goal" : `O ${l} ${PNAME[mk]}`}</span><b>${am(dk || fair(pr))}</b>${edge != null && edge > 0 ? `<i>+${(100 * edge).toFixed(1)}%</i>` : ""}</button></div>`; }).join("")}</div>`;
+        <button class="sp-btn ${dk ? "dk" : ""}" data-bet="${i}"><span>${mk === "goals" && l === 0.5 ? "Anytime" : `Over ${l}`}</span><b>${am(dk || fair(pr))}</b>${edge != null && edge > 0 ? `<i>+${(100 * edge).toFixed(1)}%</i>` : ""}</button></div>`; }).join("")}</div>`;
 }
 function sectionsNHL(list, mk) {
   const S = PSTATE, by = {};

@@ -492,3 +492,40 @@ body.nhl::before { content: ""; position: fixed; inset: -20%; z-index: -1; point
 .ps-proj { font-size: 11px; font-weight: 700; color: rgba(255,255,255,.4); padding: 8px 14px 10px; }
 .ps-sec { margin-top: 10px !important; }
 .sl-stats span { white-space: nowrap; font-size: 8.5px !important; letter-spacing: .05em !important; display: block; }
+
+/* ---------- props v4: airy, not blocky ---------- */
+/* market tabs: underlined text, no filled block */
+.props-seg { background: transparent !important; border: 0 !important; border-bottom: 1px solid rgba(255,255,255,.08) !important; border-radius: 0 !important; box-shadow: none !important; padding: 0 !important; margin-bottom: 10px; }
+.props-seg button { padding: 10px 0 12px !important; font-size: 15px !important; color: rgba(255,255,255,.45) !important; border-radius: 0 !important; }
+.props-seg button.on { color: #fff !important; }
+.mkpill { top: auto !important; bottom: -1px !important; height: 2.5px; left: 0 !important; width: 25% !important; border-radius: 2px !important; background: var(--acc) !important; box-shadow: 0 0 10px rgba(47,224,110,.7) !important; transform: translateX(calc(var(--i) * 100%)) scaleX(.4) !important; }
+/* filters: light text chips */
+.props-seg ~ .strip .chip, .strip .chip { background: transparent !important; border: 1px solid rgba(255,255,255,.1) !important; padding: 6px 11px !important; font-size: 12.5px !important; }
+.strip .chip.on { background: rgba(255,255,255,.1) !important; border-color: rgba(255,255,255,.22) !important; color: #fff !important; box-shadow: none !important; }
+.pnote { background: transparent !important; border: 0 !important; padding: 0 2px !important; margin: 2px 2px 12px !important; font-size: 11.5px !important; color: rgba(255,255,255,.45) !important; }
+/* game sections: open list, light header */
+.card.gsec { background: transparent !important; border: 0 !important; box-shadow: none !important; border-radius: 0 !important; margin: 0 0 18px !important; overflow: visible; }
+.gsec-h { background: transparent !important; border: 0 !important; padding: 6px 2px 8px !important; }
+.gsec-h b { font-size: 13px !important; letter-spacing: .06em; text-transform: uppercase; color: rgba(255,255,255,.7) !important; }
+.gsec-h span { font-size: 11.5px !important; }
+.gsec-h .duo3 img { width: 20px !important; height: 20px !important; }
+.prow4 { grid-template-columns: 44px minmax(0, 1fr) auto !important; gap: 12px !important; padding: 10px 2px !important; border-top: 1px solid rgba(255,255,255,.05) !important; }
+.gsec-h + .prow4 { border-top: 1px solid rgba(255,255,255,.05) !important; }
+.prow4 .pav { width: 44px; height: 44px; box-shadow: none; } .prow4 .pav > span { font-size: 14px; } .prow4 .pav .ptl { width: 18px; height: 18px; right: -4px; bottom: -4px; }
+.prow4 .pnm { font-size: 15px; } .prow4 .pmeta { font-size: 11px; }
+.prow4 .pmet { margin-top: 3px; } .prow4 .pbar { width: 44px; height: 4px; }
+/* price: soft pill instead of a box */
+.pxb.pp { height: auto !important; min-width: 70px; padding: 7px 10px !important; border-radius: 12px !important; background: rgba(255,255,255,.06) !important; border: 0 !important; box-shadow: none !important; gap: 0 !important; }
+.pxb.pp .pt { font-size: 10px !important; } .pxb.pp b { font-size: 15.5px !important; } .pxb.pp i { font-size: 9px !important; }
+.pxb.pp.bk { background: rgba(47,224,110,.12) !important; } .pxb.pp.bk b { color: #6ff0a2; }
+.pxb.pp.insl { background: rgba(47,224,110,.22) !important; box-shadow: inset 0 0 0 1px rgba(47,224,110,.6) !important; }
+.gmore { border-top: 1px solid rgba(255,255,255,.05) !important; padding: 10px 2px !important; text-align: left; font-size: 13px !important; }
+/* spotlight: smaller, lighter */
+.spot { flex-basis: 132px !important; height: 196px !important; border-radius: 18px !important; box-shadow: 0 8px 20px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.14) !important; }
+.sp-shot { top: 8px !important; height: 104px !important; } .sp-shot img { height: 104px !important; } .sp-shot > span { font-size: 28px !important; }
+.sp-info { top: 108px !important; padding: 8px 10px 0 !important; } .sp-n { font-size: 15.5px !important; } .sp-m { font-size: 10px !important; }
+.sp-ring { width: 32px !important; height: 32px !important; top: 8px !important; left: 8px !important; } .sp-ring b { font-size: 10.5px !important; }
+.sp-btn { height: 40px !important; left: 6px !important; right: 6px !important; bottom: 6px !important; border-radius: 12px !important; } .sp-btn b { font-size: 15px !important; } .sp-btn span { font-size: 9.5px !important; }
+.spot-h { margin-top: 0 !important; } .spot-h b { font-size: 15px !important; }
+.spots { margin-bottom: 18px !important; }
+.ptabs.props-seg button.on, .props-seg button.on { background: transparent !important; box-shadow: none !important; color: #fff !important; }
