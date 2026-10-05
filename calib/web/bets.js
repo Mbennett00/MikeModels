@@ -76,19 +76,21 @@ function mbOpenSlip() {
   const dec = v.reduce((a, x) => a * mbDec(x.odds), 1), stake = Number(SLIP_STAKE) || 0;
   const tot = SLIP_MODE === "parlay" ? stake : stake * v.length, win = SLIP_MODE === "parlay" ? stake * (dec - 1) : v.reduce((a, x) => a + stake * (mbDec(x.odds) - 1), 0);
   const closed = v.filter(mbStarted).length, short = tot > W.available + 1e-9;
+  const payout = SLIP_MODE === "parlay" ? stake * dec : tot + win;
   sh.innerHTML = `<div class="grab"></div><button class="iconbtn close" id="shx" aria-label="Close">✕</button>
-    <div class="sh-t">🧾 Bet slip <span class="pl-tag">${v.length}</span></div>
-    <div class="sh-s">Available ${mbMoney(W.available)}</div>
-    ${v.length ? `<div class="hv slipmode"><button class="${SLIP_MODE === "single" ? "on" : ""}" data-sm2="single">Singles</button>
-      <button class="${SLIP_MODE === "parlay" ? "on" : ""} ${slipParlayOk(v) ? "" : "dis"}" data-sm2="parlay">Parlay${v.length >= 2 ? " " + mbSign(mbAm(dec)) : ""}</button></div>
-    <div class="slipl">${v.map(x => `<div class="slipi ${mbStarted(x) ? "closed" : ""}"><button class="slipx" data-sx="${esc(slipKey(x))}" aria-label="Remove">✕</button>
-      <div class="slipt"><b>${esc(x.label)}</b><i>${esc(x.sub || "")}${mbStarted(x) ? " · started" : ""}</i></div><span class="slipo">${mbSign(x.odds)}</span></div>`).join("")}</div>
-    ${SLIP_MODE === "parlay" ? "" : `<div class="hint" style="margin:-2px 0 6px">Stake below is per pick.</div>`}
-    <div class="chips4">${[5, 10, 25, 50, 100].map(a => `<button class="${stake === a ? "on" : ""}" data-qs="${a}">$${a}</button>`).join("")}</div>
-    <div class="mbrow"><span class="mbcur">$</span><input class="odds mbstake" id="slipstake" inputmode="decimal" value="${stake || ""}"><div class="towin"><span>To win</span><b>${mbMoney(win)}</b></div></div>
-    <button class="placebet" id="slipgo" ${!v.length || closed || short || !(stake > 0) ? "disabled" : ""}>${closed ? "Remove started games" : short ? "Not enough balance" : `Place bet · ${mbMoney(tot)}`}</button>
-    <button class="linkbtn" id="slipclr">Clear slip</button>`
-      : `<div class="slipempty">🧾<b>Your slip is empty</b><span>Tap any price, prop or parlay, then ＋ Add to bet slip.</span></div>`}`;
+    <div class="slhead"><div class="sh-t">Bet slip</div><span class="slcount">${v.length}</span><span class="slavail">${mbMoney(W.available)} available</span></div>
+    ${v.length ? `<div class="gseg"><button class="${SLIP_MODE === "single" ? "on" : ""}" data-sm2="single">Singles</button>
+      <button class="${SLIP_MODE === "parlay" ? "on" : ""} ${slipParlayOk(v) ? "" : "dis"}" data-sm2="parlay">Parlay${v.length >= 2 ? `<em>${mbSign(mbAm(dec))}</em>` : ""}</button></div>
+    <div class="slipl">${v.map(x => `<div class="slipi ${mbStarted(x) ? "closed" : ""}">
+      <div class="slipt"><b>${esc(x.label)}</b><i>${esc(x.sport)} · ${esc(x.sub || "")}${mbStarted(x) ? " · started" : ""}</i></div>
+      <span class="slipo">${mbSign(x.odds)}</span><button class="slipx" data-sx="${esc(slipKey(x))}" aria-label="Remove">×</button></div>`).join("")}</div>
+    <div class="stakebox"><div class="stk"><span>${SLIP_MODE === "parlay" ? "Stake" : "Stake per pick"}</span><div class="stkin"><em>$</em><input id="slipstake" inputmode="decimal" value="${stake || ""}"></div></div>
+      <div class="stk r"><span>To win</span><b>${mbMoney(win)}</b></div></div>
+    <div class="qchips">${[5, 10, 25, 50, 100].map(a => `<button class="${stake === a ? "on" : ""}" data-qs="${a}">$${a}</button>`).join("")}</div>
+    <div class="slsum"><span>Total stake <b>${mbMoney(tot)}</b></span><span>Payout <b>${mbMoney(payout)}</b></span></div>
+    <button class="placebet" id="slipgo" ${!v.length || closed || short || !(stake > 0) ? "disabled" : ""}>${closed ? "Remove started games" : short ? "Not enough balance" : `Place bet`}</button>
+    <button class="linkbtn slclr" id="slipclr">Clear slip</button>`
+      : `<div class="slipempty"><div class="slicon">🧾</div><b>Your bet slip is empty</b><span>Tap any price, prop or parlay, then add it to your slip.</span></div>`}`;
   document.getElementById("shx").onclick = () => closeSheet();
   const re = () => mbOpenSlip();
   sh.querySelectorAll("[data-sm2]").forEach(b => b.onclick = () => { if (b.classList.contains("dis")) return; SLIP_MODE = b.dataset.sm2; re(); });
@@ -204,20 +206,20 @@ function mbBadgesCheck(s) {
 
 // ---- My bets ----
 function mbTicket(b) {
-  const legRes = l => l.res === true ? "✅" : l.res === false ? "❌" : l.res === "push" ? "➖" : "○";
+  const dot = l => `<span class="tkdot ${l.res === true ? "w" : l.res === false ? "l" : l.res === "push" ? "p" : ""}"></span>`;
   const toWin = b.stake * (mbDec(b.odds) - 1), when = new Date(b.ts).toLocaleString("en-US", {month: "short", day: "numeric", hour: "numeric", minute: "2-digit"});
-  const legs = b.kind === "parlay" ? b.legs.map(l => `<div class="tkleg"><span>${legRes(l)}</span><b>${esc(l.label)}</b><i>${l.odds ? mbSign(l.odds) : ""}</i></div>`).join("")
-    : `<div class="tkleg one"><b>${esc(b.label)}</b><i>${esc((b.legs[0] || {}).sub || "")}</i></div>`;
+  const body = b.kind === "parlay" ? `<div class="tksel">${b.legs.length}-leg parlay</div>` + b.legs.map(l => `<div class="tkleg">${dot(l)}<b>${esc(l.label)}</b><i>${l.odds ? mbSign(l.odds) : ""}</i></div>`).join("")
+    : `<div class="tksel">${esc(b.label)}</div><div class="tksub">${esc((b.legs[0] || {}).sub || "")}</div>`;
   const pill = {open: "Open", won: "Cashed", lost: "Lost", push: "Push"}[b.status];
-  return `<div class="ticket ${b.status}"><div class="tkh"><span class="mbtag">${b.sport}</span><span>${b.kind === "parlay" ? b.legs.length + "-leg parlay" : "Single"}</span><span class="tkodds">${mbSign(b.odds)}</span></div>
-    ${legs}<div class="tkperf"></div>
-    <div class="tkf"><div><span>Risk</span><b>${mbMoney(b.stake)}</b></div><div><span>${b.status === "won" ? "Won" : b.status === "lost" ? "Result" : b.status === "push" ? "Refund" : "To win"}</span>
-      <b class="${b.status === "won" ? "pos" : b.status === "lost" ? "neg" : ""}">${b.status === "won" ? "+" + mbMoney(mbProfit(b)) : b.status === "lost" ? "−" + mbMoney(b.stake) : b.status === "push" ? mbMoney(b.stake) : mbMoney(toWin)}</b></div>
-      <div class="tkpill ${b.status}">${pill}</div></div>
-    ${b.status === "won" ? `<div class="stamp">CASHED</div>` : ""}
-    <div class="tkid">#${esc(b.id)} · ${when}</div>
-    ${b.id && b.status === "open" ? `<div class="mbx tkx"><button data-mbs="${b.id}|won">Won</button><button data-mbs="${b.id}|lost">Lost</button><button data-mbs="${b.id}|push">Push</button><button data-mbd="${b.id}" class="del">✕</button></div>`
-      : b.id && b.status ? `<div class="mbx tkx"><button data-mbs="${b.id}|open">Reopen</button><button data-mbd="${b.id}" class="del">✕</button></div>` : ""}</div>`;
+  const res = b.status === "won" ? "+" + mbMoney(mbProfit(b)) : b.status === "lost" ? "−" + mbMoney(b.stake) : b.status === "push" ? mbMoney(b.stake) : mbMoney(toWin);
+  const acts = !b.id ? "" : b.status === "open"
+    ? `<button data-mbs="${b.id}|won">Won</button><button data-mbs="${b.id}|lost">Lost</button><button data-mbs="${b.id}|push">Push</button><button data-mbd="${b.id}" class="del">Delete</button>`
+    : `<button data-mbs="${b.id}|open">Reopen</button><button data-mbd="${b.id}" class="del">Delete</button>`;
+  return `<div class="ticket ${b.status}"><div class="tkh"><span class="tkmeta">${b.sport} · ${b.kind === "parlay" ? "Parlay" : "Single"}</span><span class="tkodds">${mbSign(b.odds)}</span></div>
+    ${body}<div class="tkdiv"></div>
+    <div class="tkf"><div><span>Risk</span><b>${mbMoney(b.stake)}</b></div><div><span>${b.status === "won" ? "Won" : b.status === "lost" ? "Lost" : b.status === "push" ? "Refund" : "To win"}</span><b class="${b.status === "won" ? "pos" : ""}">${res}</b></div>
+      <span class="tkpill ${b.status}">${pill}</span></div>
+    <div class="tkfoot"><span>#${esc(b.id || "")} · ${when}</span>${acts ? `<span class="tkact">${acts}</span>` : ""}</div></div>`;
 }
 function mbChart(bets) {
   const done = bets.filter(b => b.status !== "open").sort((a, b) => (a.result_ts || a.ts).localeCompare(b.result_ts || b.ts));
