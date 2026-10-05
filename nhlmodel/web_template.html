@@ -54,7 +54,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .status { display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 800; color: var(--ink-2); margin-bottom: 8px; }
 .live { display: inline-flex; align-items: center; gap: 5px; background: var(--red); color: #fff; font-weight: 800; font-size: 12px;
         border-radius: 999px; padding: 2px 9px; letter-spacing: .04em; }
-.live::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #fff; animation: blink 1.2s infinite; }
+.live::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--surf); animation: blink 1.2s infinite; }
 @keyframes blink { 50% { opacity: .2; } }
 .final { background: var(--navy); color: var(--cream); font-weight: 800; font-size: 12px; border-radius: 999px; padding: 2px 9px; letter-spacing: .04em; }
 .trow { display: grid; grid-template-columns: 40px 1fr auto; gap: 10px; align-items: center; padding: 5px 0; }
@@ -64,7 +64,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .tname { font-family: var(--fh); font-weight: 600; font-size: 18px; line-height: 1.1; }
 .gk { font-size: 12.5px; font-weight: 700; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; vertical-align: 1px; }
-.dot.ok { background: var(--green); } .dot.lk { background: var(--gold); } .dot.un { background: #b8c0c8; }
+.dot.ok { background: var(--green); } .dot.lk { background: var(--gold); } .dot.un { background: var(--surf-2); }
 .right { text-align: right; }
 .pct { font-family: var(--fh); font-weight: 700; font-size: 18px; }
 .score { font-family: var(--fh); font-weight: 700; font-size: 28px; line-height: 1; }
@@ -73,7 +73,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 
 /* price tiles */
 .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.tile { border: 2.5px solid var(--navy); border-radius: 14px; background: #fff; padding: 8px 10px; text-align: left; display: flex;
+.tile { border: 2.5px solid var(--navy); border-radius: 14px; background: var(--surf); padding: 8px 10px; text-align: left; display: flex;
         flex-direction: column; gap: 2px; min-height: 58px; box-shadow: 2px 2px 0 var(--navy); }
 .tile:active { transform: translate(2px, 2px); box-shadow: none; }
 .tile .l { font-size: 13px; font-weight: 800; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -81,8 +81,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .tile .c { font-family: var(--fh); font-weight: 700; font-size: 19px; color: var(--navy); }
 .tile .b { font-family: var(--fh); font-weight: 700; font-size: 16px; color: var(--green); }
 .tile .dk { font-size: 11.5px; font-weight: 800; color: var(--ink-2); } .tile .dk .pos { color: var(--green); } .tile .dk .neg { color: var(--red); }
-.tile.val { border-color: var(--green); box-shadow: 2px 2px 0 var(--green); background: #f3fbf5; }
-.tile.won { background: var(--green-soft); } .tile.lost { background: #e9edf1; } .tile.lost > * { opacity: .5; } .tile.push { background: #f1f1f1; }
+.tile.val { border-color: var(--green); box-shadow: 2px 2px 0 var(--green); background: var(--surf-2); }
+.tile.won { background: var(--green-soft); } .tile.lost { background: var(--surf-2); } .tile.lost > * { opacity: .5; } .tile.push { background: var(--surf-2); }
 .sec { font-size: 11.5px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); font-weight: 800; margin: 14px 2px 6px; }
 .more { width: 100%; margin-top: 10px; border: 2.5px dashed var(--navy); background: transparent; border-radius: 14px; padding: 9px; font-weight: 800; font-size: 14px; color: var(--navy); }
 .inj { font-size: 13px; color: var(--ink-2); font-weight: 700; line-height: 1.5; } .inj b { color: var(--red); }
@@ -103,11 +103,11 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .av img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .pname { font-weight: 800; font-size: 15.5px; line-height: 1.15; }
 .pmeta { font-size: 12.5px; color: var(--ink-2); font-weight: 700; }
-.stat { display: inline-block; margin-left: 4px; font-size: 11.5px; font-weight: 800; padding: 0 7px; border-radius: 999px; border: 2px solid var(--navy); background: #fff; }
-.stat.in { background: var(--red-soft); } .stat.post { background: #eef1f4; }
+.stat { display: inline-block; margin-left: 4px; font-size: 11.5px; font-weight: 800; padding: 0 7px; border-radius: 999px; border: 2px solid var(--navy); background: var(--surf); }
+.stat.in { background: var(--red-soft); } .stat.post { background: var(--surf-2); }
 .pchips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin-top: 8px; padding: 0 0 4px 52px; }
 .pchips::-webkit-scrollbar { display: none; }
-.lc { flex: 0 0 auto; border: 2px solid var(--navy); border-radius: 12px; padding: 4px 9px; background: #fff; font-size: 13px; font-weight: 700; text-align: left; box-shadow: 2px 2px 0 var(--navy); }
+.lc { flex: 0 0 auto; border: 2px solid var(--navy); border-radius: 12px; padding: 4px 9px; background: var(--surf); font-size: 13px; font-weight: 700; text-align: left; box-shadow: 2px 2px 0 var(--navy); }
 .lc b { font-family: var(--fh); } .lc .t { color: var(--green); font-weight: 800; }
 .lc.won { background: var(--green-soft); } .lc.lost { opacity: .45; }
 
@@ -125,20 +125,20 @@ button { font: inherit; color: inherit; cursor: pointer; }
          border: 3px solid var(--navy); border-bottom: 0; border-radius: 26px 26px 0 0; padding: 10px 18px calc(18px + env(safe-area-inset-bottom));
          transform: translateY(105%); transition: transform .25s ease; max-height: 88vh; overflow-y: auto; }
 .sheet.open { transform: none; }
-.grab { width: 44px; height: 5px; border-radius: 9px; background: #cfc6b4; margin: 2px auto 10px; }
+.grab { width: 44px; height: 5px; border-radius: 9px; background: var(--surf-2); margin: 2px auto 10px; }
 .sh-t { font-family: var(--fh); font-weight: 600; font-size: 22px; color: var(--navy); line-height: 1.15; padding-right: 48px; }
 .sh-s { font-size: 13.5px; font-weight: 700; color: var(--ink-2); margin-top: 2px; }
 .kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 14px 0; }
-.kpi { border: 2.5px solid var(--navy); border-radius: 14px; padding: 8px; text-align: center; background: #fff; }
+.kpi { border: 2.5px solid var(--navy); border-radius: 14px; padding: 8px; text-align: center; background: var(--surf); }
 .kpi .k { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 800; }
 .kpi .n { font-family: var(--fh); font-weight: 700; font-size: 22px; color: var(--navy); }
 .kpi.g .n { color: var(--green); }
 .oddsrow { display: flex; gap: 8px; align-items: stretch; }
 .sign { display: flex; border: 2.5px solid var(--navy); border-radius: 14px; overflow: hidden; }
-.sign button { border: 0; width: 46px; font-size: 22px; font-weight: 800; background: #fff; }
+.sign button { border: 0; width: 46px; font-size: 22px; font-weight: 800; background: var(--surf); }
 .sign button.on { background: var(--navy); color: var(--cream); }
 .odds { flex: 1; font: inherit; font-family: var(--fh); font-size: 24px; font-weight: 700; color: var(--navy); border: 2.5px solid var(--navy);
-        border-radius: 14px; padding: 8px 12px; background: #fff; min-width: 0; }
+        border-radius: 14px; padding: 8px 12px; background: var(--surf); min-width: 0; }
 .verdict { margin-top: 14px; border-radius: 16px; padding: 12px 14px; border: 2.5px solid var(--navy); }
 .verdict .h { font-family: var(--fh); font-weight: 700; font-size: 24px; }
 .verdict.good { background: var(--green-soft); } .verdict.good .h { color: var(--green); }
@@ -163,7 +163,7 @@ label.f { display: block; font-size: 13px; font-weight: 800; color: var(--ink-2)
 .vline { font-size: 16px; font-weight: 700; color: var(--ink-2); margin: 5px 0; } .vline b { color: var(--navy); }
 .vs .row { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 700; margin: 5px 0; }
 .vs .lab { width: 52px; color: var(--ink-2); }
-.vs .bar { flex: 1; height: 12px; border-radius: 99px; background: #efe7d6; border: 2px solid var(--navy); overflow: hidden; margin: 0; display: block; gap: 0; }
+.vs .bar { flex: 1; height: 12px; border-radius: 99px; background: var(--surf-2); border: 2px solid var(--navy); overflow: hidden; margin: 0; display: block; gap: 0; }
 .vs .bar div { height: 100%; } .vs .num { width: 44px; text-align: right; }
 .card .verdict { border: 0; padding: 0; margin: 0 0 6px; font-family: var(--fh); font-weight: 700; font-size: 28px; }
 .card .verdict.good { color: var(--green); background: none; } .card .verdict.meh { color: #9a6a12; background: none; } .card .verdict.bad { color: var(--red); background: none; }
@@ -180,7 +180,7 @@ label.f { display: block; font-size: 13px; font-weight: 800; color: var(--ink-2)
 .gc .score.lose { color: inherit; opacity: .5; }
 .gc .code { color: var(--navy); text-shadow: none; }
 .gc .logo { filter: drop-shadow(0 2px 2px rgba(0,0,0,.25)); }
-.gc .final { background: rgba(255,255,255,.9); color: var(--navy); border: 2px solid var(--navy); }
+.gc .final { background: var(--surf); color: var(--navy); border: 2px solid var(--navy); }
 .gc .live { border: 2px solid var(--navy); }
 .gc .bar { margin: 6px 0 10px; }
 .gc .body { padding: 0 14px 14px; }
@@ -194,17 +194,17 @@ label.f { display: block; font-size: 13px; font-weight: 800; color: var(--ink-2)
 .mx .lab { font-size: 13.5px; font-weight: 800; color: var(--navy); white-space: nowrap; }
 .mx .v { font-family: var(--fh); font-weight: 700; font-size: 14px; color: var(--navy); }
 .mx .v.r2 { text-align: right; } .mx .v.neg { color: var(--red); }
-.mx .tr { display: flex; height: 12px; background: #efe7d6; border: 2px solid var(--navy); border-radius: 99px; overflow: hidden; }
+.mx .tr { display: flex; height: 12px; background: var(--surf-2); border: 2px solid var(--navy); border-radius: 99px; overflow: hidden; }
 .mx .half { flex: 1; display: flex; } .mx .half.l { justify-content: flex-end; border-right: 2px solid var(--navy); }
 .mx .half div { height: 100%; }
 .lu { font-size: 13px; font-weight: 700; color: var(--ink-2); margin-top: 8px; padding: 6px 10px; border-radius: 12px; border: 2px solid var(--navy); }
 .lu.dn { background: var(--red-soft); } .lu.up { background: var(--green-soft); } .lu b { color: var(--navy); }
 .edges { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 12px; }
 .edges .et { font-size: 11.5px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-right: 2px; }
-.edge { font-size: 13px; font-weight: 800; border: 2px solid var(--navy); border-radius: 999px; padding: 2px 9px; background: #fff; }
+.edge { font-size: 13px; font-weight: 800; border: 2px solid var(--navy); border-radius: 999px; padding: 2px 9px; background: var(--surf); }
 .edge.soft { border-style: dashed; background: transparent; color: var(--ink-2); }
 /* game panel tabs + compact player rows */
-.ptabs { display: flex; gap: 4px; background: #efe7d6; border-radius: 999px; padding: 4px; margin: 10px 0 12px; }
+.ptabs { display: flex; gap: 4px; background: var(--surf-2); border-radius: 999px; padding: 4px; margin: 10px 0 12px; }
 .ptabs button { flex: 1; border: 0; background: transparent; border-radius: 999px; padding: 7px 0; font-weight: 800; font-size: 13.5px; color: var(--navy); }
 .ptabs button.on { background: var(--navy); color: var(--cream); }
 .mini { display: grid; grid-template-columns: 36px minmax(0, 1fr); column-gap: 10px; row-gap: 5px; align-items: center; padding: 8px 0; border-bottom: 2px dashed var(--line); }
@@ -277,13 +277,13 @@ label.f { display: block; font-size: 13px; font-weight: 800; color: var(--ink-2)
 .pc-badge { position: absolute; right: 7px; top: 7px; z-index: 2; display: flex; align-items: center; gap: 3px; background: var(--cream); border: 2px solid var(--navy); border-radius: 999px; padding: 1px 7px 1px 3px; font-size: 12px; font-weight: 800; color: var(--navy); }
 .pc-badge img { width: 20px; height: 20px; object-fit: contain; } .pc-badge b { font-family: var(--fh); }
 .pc-team { position: absolute; left: 8px; top: 8px; background: var(--cream); border: 2px solid var(--navy); border-radius: 999px; font-size: 11px; font-weight: 800; padding: 0 7px; }
-.pc-live { position: absolute; left: 8px; bottom: 8px; z-index: 2; border: 2px solid var(--navy); border-radius: 999px; font-size: 11px; font-weight: 800; padding: 0 7px; background: #fff; }
+.pc-live { position: absolute; left: 8px; bottom: 8px; z-index: 2; border: 2px solid var(--navy); border-radius: 999px; font-size: 11px; font-weight: 800; padding: 0 7px; background: var(--surf); }
 .pc-live.in { background: var(--red); color: #fff; }
 .pc-body { padding: 8px 10px 10px; display: flex; flex-direction: column; flex: 1; }
 .pc-first { font-size: 12px; font-weight: 800; color: var(--ink-2); line-height: 1.1; min-height: 13px; }
 .pc-last { font-family: var(--fh); font-weight: 600; font-size: 19px; line-height: 1.1; color: var(--navy); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pc-proj { font-size: 12.5px; font-weight: 700; color: var(--ink-2); margin: 2px 0 8px; } .pc-proj b { color: var(--navy); }
-.pc-line { margin-top: auto; width: 100%; border: 2.5px solid var(--navy); border-radius: 12px; background: #fff; padding: 5px 8px; text-align: left; box-shadow: 2px 2px 0 var(--navy); }
+.pc-line { margin-top: auto; width: 100%; border: 2.5px solid var(--navy); border-radius: 12px; background: var(--surf); padding: 5px 8px; text-align: left; box-shadow: 2px 2px 0 var(--navy); }
 .pc-line .pl1 { display: block; font-family: var(--fh); font-weight: 700; font-size: 15px; color: var(--navy); }
 .pc-line .pl2 { display: block; font-weight: 800; font-size: 12.5px; color: var(--green); }
 .pc.won .pc-line { background: var(--green-soft); } .pc.lost .pc-body { opacity: .5; }
@@ -321,7 +321,7 @@ label.f { display: block; font-size: 13px; font-weight: 800; color: var(--ink-2)
 @media (min-width: 700px) { .pgrid { grid-template-columns: repeat(3, 1fr); gap: 16px; } }
 /* props as a sportsbook market: one section per game, slim player rows, line button on the right */
 .gsec { padding: 0; overflow: hidden; margin: 0 4px 16px 0; }
-.gsec-h { display: flex; align-items: center; gap: 8px; padding: 11px 14px; background: #f3ecdc; border-bottom: 2px solid var(--navy); }
+.gsec-h { display: flex; align-items: center; gap: 8px; padding: 11px 14px; background: var(--surf-2); border-bottom: 2px solid var(--navy); }
 .gsec-h .duo3 { display: flex; } .gsec-h .duo3 img { width: 24px; height: 24px; object-fit: contain; } .gsec-h .duo3 img + img { margin-left: -4px; }
 .gsec-h b { font-family: var(--fh); font-weight: 600; font-size: 15.5px; color: var(--navy); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gsec-h span { font-size: 12px; font-weight: 800; color: var(--ink-2); white-space: nowrap; }
@@ -339,7 +339,7 @@ label.f { display: block; font-size: 13px; font-weight: 800; color: var(--ink-2)
 .pp3 { font-size: 12.5px; font-weight: 700; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pp3 b { font-family: var(--fh); font-size: 15px; color: var(--navy); }
 .pq3 { display: inline-block; margin-left: 4px; font-size: 10.5px; font-weight: 800; padding: 0 6px; border-radius: 99px; background: var(--gold-soft); color: #9a6a12; border: 1.5px solid #e2ae45; vertical-align: 1px; }
-.pb3 { min-width: 82px; min-height: 48px; border: 2px solid var(--navy); border-radius: 13px; background: #fff; box-shadow: 2px 2px 0 var(--navy);
+.pb3 { min-width: 82px; min-height: 48px; border: 2px solid var(--navy); border-radius: 13px; background: var(--surf); box-shadow: 2px 2px 0 var(--navy);
        display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; padding: 4px 8px; }
 .pb3:active { transform: translate(2px, 2px); box-shadow: none; }
 .pb3 b { font-family: var(--fh); font-weight: 700; font-size: 15px; color: var(--navy); white-space: nowrap; }
@@ -351,10 +351,10 @@ label.f { display: block; font-size: 13px; font-weight: 800; color: var(--ink-2)
 /*CALIB_CSS*/
 </style>
 </head>
-<body>
+<body class="nhl">
 <div class="wrap">
   <div class="hdr"><img class="mlogo" src="logo-nhl.png" alt="MikeModels"><div class="t"><h1 id="title">Loading…</h1><div class="sub" id="sub">Warming up the Zamboni</div></div>
-    <div class="sport"><a class="on" href="index.html">🏒</a><a href="nfl.html">🏈</a></div>
+    <div class="sport"><a class="on" href="index.html"><img src="https://a.espncdn.com/i/teamlogos/leagues/500-dark/nhl.png" alt="NHL" onerror="this.outerHTML='NHL'"></a><a href="nfl.html"><img src="https://a.espncdn.com/i/teamlogos/leagues/500/nfl.png" alt="NFL" onerror="this.outerHTML='NFL'"></a></div>
     <button class="iconbtn" id="gearBtn" aria-label="How the model is weighted">⚙️</button>
     <button class="iconbtn" id="infoBtn" aria-label="How it works">?</button></div>
   <div class="strip" id="strip"></div>
@@ -970,7 +970,7 @@ function poolNHL() {
     for (const b of g.dk || []) { const p = b.nv + b.edge; if (!b.price || p < 0.5 || b.edge < 0 || b.edge > MAX_EDGE || b.price > 200) continue;
       const st = settle(g, b.m, b.s, b.l), [cls, ic] = RES(st);
       const k = bet({g, market: b.m, sel: b.s, line: b.l, p, label: `${gameLabel(g)} ${legLabel(g, b)}`});
-      pool.push({gid: g.game_id, start: g.start_utc, key: {t: "game", m: b.m, s: b.s, l: b.l}, kind: b.m === "total" ? "total" : "side", title: legLabel(g, b), sub: gl, p, price: b.price, attr: `data-bet="${k}"`, cls, ic, pic: duo(g),
+      pool.push({gid: g.game_id, start: g.start_utc, logos: [g.away.logo, g.home.logo], key: {t: "game", m: b.m, s: b.s, l: b.l}, kind: b.m === "total" ? "total" : "side", title: legLabel(g, b), sub: gl, p, price: b.price, attr: `data-bet="${k}"`, cls, ic, pic: duo(g),
         why: b.edge > 0.02 ? `+${(100 * b.edge).toFixed(0)}% vs market${gconf ? " · goalies confirmed" : ""}` : (gconf ? "both goalies confirmed" : ""),
         w: (p + 2 * Math.max(b.edge, 0)) * (trustOK(b.m) ? 1 : 0.6) * (gconf ? 1.1 : 1)}); }
     for (const pl of D.players.filter(x => x.game_id === g.game_id && !hurt.has(normName(x.name)))) {
@@ -980,7 +980,7 @@ function poolNHL() {
       const add = (mk, line, p, kind, title, wmul) => { const res = playerStat(pl), L = LIVE[pl.game_id] || {};
         const [cls, ic] = RES(res && !res.dnp ? cmpLine(res[mk], line, "over", L.state === "post") : undefined);
         const k = bet({player: pl, market: mk, line, p, label: `${pl.name} ${title}`});
-        pool.push({gid: g.game_id, start: g.start_utc, key: {t: "prop", pid: pl.id, name: pl.name, team: pl.team, mk, l: line, dir: "over"}, kind, title: `${pl.name} ${title}`, sub: `${pl.team} ${pl.team === g.home.abbr ? "vs" : "@"} ${opp.abbr}`, p, price: null, attr: `data-bet="${k}"`, cls, ic, pic: head(pl), why: tags, w: p * boost * wmul}); };
+        pool.push({gid: g.game_id, start: g.start_utc, img: pl.headshot, logo: teamLogoUrl(pl.team), name: pl.name, key: {t: "prop", pid: pl.id, name: pl.name, team: pl.team, mk, l: line, dir: "over"}, kind, title: `${pl.name} ${title}`, sub: `${pl.team} ${pl.team === g.home.abbr ? "vs" : "@"} ${opp.abbr}`, p, price: null, attr: `data-bet="${k}"`, cls, ic, pic: head(pl), why: tags, w: p * boost * wmul}); };
       if (pl.lam.sog != null) { const c = [3.5, 2.5, 1.5].map(l => ({l, p: nbSF(l, pl.lam.sog, r[pl.pos] || 8)})).find(x => x.p >= 0.58 && x.p <= 0.78);
         if (c) add("sog", c.l, c.p, "sog", `${c.l + 0.5}+ shots`, 1); }
       if (pl.lam.points != null) { const p = propProb(pl, "points", 0.5); if (p >= 0.52) add("points", 0.5, p, "pts", "1+ point", 1); }
@@ -993,7 +993,7 @@ function mixedNHL() {
   if (PMODE === "edge") { const P = parlayNHL(); if (!P) return mixCardHtml(null, "edge", "");
     return mixCardHtml({legs: P.legs.map((l, i) => { const st = settle(l.g, l.b.m, l.b.s, l.b.l), [cls, ic] = RES(st);
         const k = bet({g: l.g, market: l.b.m, sel: l.b.s, line: l.b.l, p: l.p, label: `${gameLabel(l.g)} ${legLabel(l.g, l.b)}`});
-        return {gid: l.g.game_id, start: l.g.start_utc, key: {t: "game", m: l.b.m, s: l.b.s, l: l.b.l}, title: legLabel(l.g, l.b), sub: `${l.g.away.abbr} @ ${l.g.home.abbr}`, p: l.p, price: l.b.price, attr: `data-bet="${k}"`, cls, ic,
+        return {gid: l.g.game_id, start: l.g.start_utc, logos: [l.g.away.logo, l.g.home.logo], key: {t: "game", m: l.b.m, s: l.b.s, l: l.b.l}, title: legLabel(l.g, l.b), sub: `${l.g.away.abbr} @ ${l.g.home.abbr}`, p: l.p, price: l.b.price, attr: `data-bet="${k}"`, cls, ic,
           pic: `<span class="duo3"><img src="${esc(l.g.away.logo)}" alt="" onerror="this.remove()"><img src="${esc(l.g.home.logo)}" alt="" onerror="this.remove()"></span>`,
           why: `+${(100 * l.b.edge).toFixed(1)}% vs market`}; }), p: P.p, dec: P.dec, worth: P.legs.reduce((a, l) => a / Math.max(l.p - 0.02, 0.02), 1), priced: true},
       "edge", "The biggest model edges over the market, one per game, in markets rated “Trust it”. Prices are the market median.");
@@ -1156,9 +1156,9 @@ const MB_PAGE = "NHL";
 function mbDefOdds(b) { const d = b.dk || (b.g ? dkFor(b.g, b.market, b.sel, b.line) : null); return d && d.price ? d.price : Math.round(fair(b.p)); }
 function mbLegOf(b) {
   if (b.player) { const p = b.player, g = D.games.find(x => x.game_id === p.game_id);
-    return {label: b.label, sub: g ? gameLabel(g) : p.team, gid: p.game_id, start: g && g.start_utc, p: b.p,
+    return {label: b.label, sub: g ? gameLabel(g) : p.team, gid: p.game_id, start: g && g.start_utc, p: b.p, img: p.headshot, logo: teamLogoUrl(p.team), name: p.name,
             key: {t: "prop", pid: p.id, name: p.name, team: p.team, mk: b.market, l: b.line, dir: "over"}}; }
-  return {label: b.label, sub: b.g ? gameLabel(b.g) : "", gid: b.g.game_id, start: b.g.start_utc, p: b.p, key: {t: "game", m: b.market, s: b.sel, l: b.line}};
+  return {label: b.label, sub: b.g ? gameLabel(b.g) : "", gid: b.g.game_id, start: b.g.start_utc, p: b.p, logos: [b.g.away.logo, b.g.home.logo], key: {t: "game", m: b.market, s: b.sel, l: b.line}};
 }
 function mbGrade(leg) {
   const k = leg.key || {}, days = [TODAY, PREV].filter(Boolean);
@@ -1171,6 +1171,11 @@ function mbGrade(leg) {
   return undefined;
 }
 // the sweat: live score + the player's stat so far for an open leg
+function mbArtFor(leg) {   // logos / headshot for bets saved without them
+  const days = [TODAY, PREV].filter(Boolean), k = leg.key || {}, g = days.flatMap(d => d.games).find(x => String(x.game_id) === String(leg.gid));
+  if (k.t === "prop") { const p = days.flatMap(d => d.players).find(x => String(x.id) === String(k.pid)); return p ? {img: p.headshot, logo: teamLogoUrl(p.team), name: p.name} : {logo: teamLogoUrl(k.team), name: k.name}; }
+  return g ? {logos: [g.away.logo, g.home.logo]} : null;
+}
 function mbLiveLeg(leg) {
   const days = [TODAY, PREV].filter(Boolean), g = days.flatMap(d => d.games).find(x => String(x.game_id) === String(leg.gid)); if (!g) return null;
   const L = LIVE[g.game_id] || {}, k = leg.key || {}; let cur = null, unit = "";

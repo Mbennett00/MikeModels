@@ -1,0 +1,86 @@
+/* ---------- MikeModels dark sportsbook theme (loaded last; drives both sports through the shared variables) ---------- */
+:root {
+  --fh: 'Fredoka', ui-rounded, system-ui, sans-serif;
+  --fb: 'Nunito', system-ui, sans-serif;
+  --cream: #161a21;          /* cards */
+  --surf: #1f242d;           /* raised: tiles, buttons, inputs */
+  --surf-2: #11151b;         /* inset: panels, wells */
+  --navy: #f3f5f8; --ink: #f3f5f8; --ink-2: #b4bcc8; --muted: #7e8898; --line: #272d37;
+  --green: #2fe06e; --green-soft: rgba(47,224,110,.13); --red: #ff5f55; --red-soft: rgba(255,95,85,.13);
+  --gold: #f6c045; --gold-soft: rgba(246,192,69,.14);
+  --acc: #2fe06e; --acc-ink: #06120a;
+  --sh: 0 8px 24px rgba(0,0,0,.38);
+  color-scheme: dark;
+}
+html { background: #0b0e12; }
+body { color: var(--ink); -webkit-font-smoothing: antialiased; }
+body.nhl { background: radial-gradient(120% 60% at 50% -10%, rgba(64,140,220,.28), transparent 60%), #0b0e13 !important; background-attachment: fixed !important; }
+body.nfl { background: radial-gradient(120% 60% at 50% -10%, rgba(47,224,110,.18), transparent 60%), #0a0e0c !important; background-attachment: fixed !important; }
+/* header */
+.hdr { gap: 10px; } .hdr h1 { color: #fff; font-size: 22px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: none; }
+.hdr .sub { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hdr .mlogo { height: 50px; filter: drop-shadow(0 4px 10px rgba(0,0,0,.5)); }
+.iconbtn { background: var(--surf); border: 1px solid var(--line); box-shadow: none; color: #fff; width: 38px; height: 38px; }
+.sport { background: var(--surf); border: 1px solid var(--line); box-shadow: none; border-radius: 14px; padding: 3px; gap: 2px; }
+.sport a { padding: 4px 9px; border-radius: 11px; display: grid; place-items: center; color: var(--muted); font-weight: 800; font-size: 12px; opacity: .5; }
+.sport a.on { background: #2a313c; opacity: 1; color: #fff; }
+.sport img { height: 24px; width: auto; display: block; }
+/* surfaces */
+.card { background: var(--cream); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--sh); }
+.card.gc { border: 1px solid rgba(255,255,255,.08); box-shadow: 0 12px 30px rgba(0,0,0,.45); }
+.panel, .gc .panel { background: var(--surf-2); border: 1px solid var(--line); border-radius: 16px; box-shadow: none; }
+.likes, .lucky, .mbsum, .badges, .mbset, .mbchart { background: var(--cream); }
+.likes { border-top: 2px solid rgba(246,192,69,.55); } .lucky { border-top: 2px solid rgba(47,224,110,.55); }
+.sec, .mbsec { color: var(--muted); }
+.note, .hint, .lk-note { color: var(--muted); }
+.prow3, .likerow, .leg, .lad, .dart, .slipi { border-color: var(--line) !important; }
+.gsec-h { background: #1b2028; border-color: var(--line); color: #fff; }
+.final { border-width: 1px; } .live::before { background: #fff; }
+/* chips, tabs, segmented controls: green active state */
+.chip { background: var(--surf); border: 1px solid var(--line); box-shadow: none; color: var(--ink); font-weight: 800; }
+.chip.on, .seg button.on, .ptabs button.on, .hv button.on, .props-seg button.on, .sign button.on, .qchips button.on, .chips4 button.on, .gseg button.on {
+  background: var(--acc) !important; color: var(--acc-ink) !important; box-shadow: 0 4px 14px rgba(47,224,110,.25); border-color: transparent; }
+.chip.info { border-style: dashed; color: var(--ink-2); }
+.hv, .ptabs, .props-seg, .gseg { background: var(--surf-2); border: 1px solid var(--line); box-shadow: none; border-radius: 14px; padding: 4px; }
+.hv button, .ptabs button, .props-seg button, .gseg button { color: var(--ink-2); border-radius: 11px; font-weight: 800; }
+.seg button { background: var(--surf); border: 1px solid var(--line); color: var(--ink); box-shadow: none; }
+/* bottom tab bar */
+.nav .in { background: rgba(17,21,27,.92); border: 1px solid var(--line); box-shadow: 0 -2px 30px rgba(0,0,0,.5); border-radius: 22px;
+           -webkit-backdrop-filter: blur(20px) saturate(160%); backdrop-filter: blur(20px) saturate(160%); }
+.nav button { color: var(--muted); font-family: var(--fb); font-weight: 800; border-radius: 16px; }
+.nav button.on { background: rgba(47,224,110,.13); color: var(--acc); box-shadow: none; }
+/* sheets */
+.scrim { background: rgba(0,0,0,.55); }
+.sheet { background: #12161c; border: 1px solid var(--line); border-bottom: 0; border-radius: 26px 26px 0 0; box-shadow: 0 -16px 50px rgba(0,0,0,.6); color: var(--ink); }
+.grab { background: #3a4250; }
+.sh-t { color: #fff; } .sh-s { color: var(--muted); }
+/* small surfaces */
+.tile, .mcol, .kpi, .pb3, .rung, .dt-p, .stat, .lc, .mh-tile, .mh-c, .pl-sum div { background: var(--surf); border: 1px solid var(--line); box-shadow: none; border-radius: 14px; }
+.pb3 b { color: #fff; } .pb3 span { color: var(--acc); }
+.mcol.hot { border-color: rgba(47,224,110,.6); box-shadow: 0 0 0 1px rgba(47,224,110,.35), 0 6px 18px rgba(47,224,110,.15); }
+.pb3:active, .tile:active, .mcol:active, .chip:active { transform: scale(.97); }
+.kpi.g { background: var(--green-soft); border-color: rgba(47,224,110,.3); }
+.odds, .sign, .search, .card input, .card select, .sheet input, .sheet select { background: var(--surf-2) !important; color: #fff; border: 1px solid var(--line) !important; border-radius: 14px; box-shadow: none; }
+.sign button { background: transparent; color: var(--ink-2); }
+.verdict { border: 1px solid var(--line); box-shadow: none; }
+.pl-sum div:first-child { background: linear-gradient(180deg, #1d3a2a, #152a1f); border-color: rgba(47,224,110,.3); } .pl-sum div:first-child b { color: var(--acc); }
+.lk-banner { background: linear-gradient(110deg, #13261b, #1b2230 70%); border: 1px solid rgba(47,224,110,.35); color: #fff; box-shadow: var(--sh); border-radius: 18px; }
+.lb-t i { color: var(--acc); }
+.spin { background: var(--acc); color: var(--acc-ink); border: 0; box-shadow: 0 6px 18px rgba(47,224,110,.3); }
+.mbtrack { background: var(--surf); color: #fff; border: 1px solid var(--line); box-shadow: none; border-radius: 14px; }
+.lg-n, .wi { background: #2a313c; color: #fff; }
+.g-A { background: rgba(47,224,110,.22) !important; } .g-B { background: rgba(160,220,90,.18) !important; } .g-C { background: rgba(246,192,69,.18) !important; }
+.g-D, .g-F { background: rgba(255,95,85,.2) !important; }
+.fg, .grades b { color: #fff; border-color: rgba(255,255,255,.25); }
+.ph3, .av, .pc, .pc-top, .pc-badge, .pc-line, .code, .lu, .field2, .rink, .fc { border-color: rgba(255,255,255,.12) !important; box-shadow: 0 4px 14px rgba(0,0,0,.35); }
+.ph3 { border-width: 1px; }
+.code { background: var(--surf); color: #fff; }
+.mh-btn, .mh-seg button { background: var(--surf); color: #fff; border: 1px solid var(--line); box-shadow: none; }
+.pos { color: var(--acc) !important; } .neg { color: var(--red) !important; }
+/* iPhone hygiene */
+button, a, [data-bet], [data-pp], [data-player], [role="button"], summary { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+input, select, textarea { font-size: max(16px, 1em); }
+.sheet { -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+.mbhap { position: fixed; left: -100px; top: -100px; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.slipfab { bottom: calc(100px + env(safe-area-inset-bottom)); }
+.nav { background: linear-gradient(180deg, rgba(10,13,17,0), rgba(10,13,17,.96) 40%) !important; }

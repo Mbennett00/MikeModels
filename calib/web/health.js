@@ -189,7 +189,7 @@ function mixCardHtml(P, mode, note, o = {}) {
 }
 function mbTrackParlay(key, sport) {
   const P = MIX_LAST[key]; if (!P) return;
-  mbSlipParlay(P.legs.map(l => ({label: l.title, sub: l.sub, gid: l.gid, start: l.start, key: l.key, p: l.p,
+  mbSlipParlay(P.legs.map(l => ({label: l.title, sub: l.sub, gid: l.gid, start: l.start, key: l.key, p: l.p, img: l.img, logo: l.logo, logos: l.logos, name: l.name,
                                  odds: l.price != null ? Math.round(l.price) : Math.round(mixFairAm(l.p))})), sport);
 }
 function wireMix(render, setMode) {

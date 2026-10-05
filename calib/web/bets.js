@@ -9,6 +9,15 @@ function mbLoad() {
   try { const s = JSON.parse(localStorage.getItem(MB_KEY) || "null"); if (s && Array.isArray(s.bets)) return Object.assign({start: 1000, unit: 10, badges: []}, s); } catch (e) {}
   return {start: 1000, unit: 10, bets: [], badges: []};
 }
+// pick art: player headshot with a team-logo badge, or the two team logos for a game line
+function mbPic(l) {
+  if (!l.img && !l.logos && typeof mbArtFor === "function") { try { l = Object.assign({}, l, mbArtFor(l) || {}); } catch (e) {} }
+  const ini = String(l.name || l.label || "").split(" ").filter(Boolean).slice(0, 2).map(w => w[0]).join("");
+  if (l.img || (l.key && l.key.t === "prop")) return `<span class="lpic">${l.img ? `<img class="hs" src="${esc(l.img)}" alt="" loading="lazy" onerror="this.outerHTML='<span class=&quot;ini&quot;>${esc(ini)}</span>'">` : `<span class="ini">${esc(ini)}</span>`}${l.logo ? `<img class="tb" src="${esc(l.logo)}" alt="" onerror="this.remove()">` : ""}</span>`;
+  if (l.logos && l.logos.length) return `<span class="lpic duo"><img class="l1" src="${esc(l.logos[0])}" alt="" onerror="this.remove()"><img class="l2" src="${esc(l.logos[1])}" alt="" onerror="this.remove()"></span>`;
+  return `<span class="lpic"><span class="ini">${esc(ini || "?")}</span></span>`;
+}
+const legArt = x => ({img: x.img, logo: x.logo, logos: x.logos, name: x.name});
 function mbSave(s) { try { localStorage.setItem(MB_KEY, JSON.stringify(s)); return true; } catch (e) { return false; } }
 function slipLoad() { try { const v = JSON.parse(localStorage.getItem(SLIP_KEY) || "[]"); return Array.isArray(v) ? v : []; } catch (e) { return []; } }
 function slipSave(v) { try { localStorage.setItem(SLIP_KEY, JSON.stringify(v)); } catch (e) {} }
@@ -20,7 +29,8 @@ const mbShort = x => "$" + Math.round(x).toLocaleString("en-US");
 function mbProfit(b) { return b.status === "won" ? b.stake * (mbDec(b.odds) - 1) : b.status === "lost" ? -b.stake : 0; }
 function mbWallet(s = mbLoad()) {
   const pl = s.bets.reduce((a, b) => a + mbProfit(b), 0), risk = s.bets.filter(b => b.status === "open").reduce((a, b) => a + b.stake, 0);
-  return {bankroll: s.start + pl, available: s.start + pl - risk, risk, pl};
+  const bonus = s.bonus || 0;
+  return {bankroll: s.start + bonus + pl, available: s.start + bonus + pl - risk, risk, pl, bonus};
 }
 function mbAdd(bet) {
   const s = mbLoad();
@@ -81,7 +91,7 @@ function mbOpenSlip() {
     <div class="slhead"><div class="sh-t">Bet slip</div><span class="slcount">${v.length}</span><span class="slavail">${mbMoney(W.available)} available</span></div>
     ${v.length ? `<div class="gseg"><button class="${SLIP_MODE === "single" ? "on" : ""}" data-sm2="single">Singles</button>
       <button class="${SLIP_MODE === "parlay" ? "on" : ""} ${slipParlayOk(v) ? "" : "dis"}" data-sm2="parlay">Parlay${v.length >= 2 ? `<em>${mbSign(mbAm(dec))}</em>` : ""}</button></div>
-    <div class="slipl">${v.map(x => `<div class="slipi ${mbStarted(x) ? "closed" : ""}">
+    <div class="slipl">${v.map(x => `<div class="slipi ${mbStarted(x) ? "closed" : ""}">${mbPic(x)}
       <div class="slipt"><b>${esc(x.label)}</b><i>${esc(x.sport)} · ${esc(x.sub || "")}${mbStarted(x) ? " · started" : ""}</i></div>
       <span class="slipo">${mbSign(x.odds)}</span><button class="slipx" data-sx="${esc(slipKey(x))}" aria-label="Remove">×</button></div>`).join("")}</div>
     <div class="stakebox"><div class="stk"><span>${SLIP_MODE === "parlay" ? "Stake" : "Stake per pick"}</span><div class="stkin"><em>$</em><input id="slipstake" inputmode="decimal" value="${stake || ""}"></div></div>
@@ -103,9 +113,9 @@ function mbOpenSlip() {
   if (go) go.onclick = () => {
     const placed = [];
     if (SLIP_MODE === "parlay") placed.push(mbAdd({sport: v[0].sport, kind: "parlay", label: `${v.length}-leg parlay`, odds: mbAm(dec), stake,
-      legs: v.map(x => ({label: x.label, sub: x.sub, gid: x.gid, start: x.start, key: x.key, p: x.p, odds: x.odds, dec: mbDec(x.odds), sport: x.sport}))}));
+      legs: v.map(x => Object.assign({label: x.label, sub: x.sub, gid: x.gid, start: x.start, key: x.key, p: x.p, odds: x.odds, dec: mbDec(x.odds), sport: x.sport}, legArt(x)))}));
     else v.forEach(x => placed.push(mbAdd({sport: x.sport, kind: "single", label: x.label, odds: x.odds, stake,
-      legs: [{label: x.label, sub: x.sub, gid: x.gid, start: x.start, key: x.key, p: x.p, odds: x.odds}]})));
+      legs: [Object.assign({label: x.label, sub: x.sub, gid: x.gid, start: x.start, key: x.key, p: x.p, odds: x.odds}, legArt(x))]})));
     if (placed.some(b => !b)) { go.textContent = "Couldn't save (private browsing?)"; return; }
     mbHaptic("success"); slipSave([]); mbFab(); mbConfirm(placed);
   };
@@ -130,7 +140,7 @@ function mbFab(pop) {
   f.innerHTML = `🧾 Bet slip <b>${n}</b>`;
   if (pop) { f.classList.remove("pop"); void f.offsetWidth; f.classList.add("pop"); }
   const nb = document.querySelector('#nav [data-k="check"]');
-  if (nb) nb.innerHTML = `🎟️ ${mbShort(mbWallet().bankroll)}`;
+  if (nb) nb.innerHTML = `🎟️ ${mbShort(mbWallet().bankroll)}${mbDaily().claimed ? "" : `<span class="navdot"></span>`}`;
 }
 
 // ---- grading + celebrations ----
@@ -209,8 +219,9 @@ function mbTicket(b) {
   const dot = l => `<span class="tkdot ${l.res === true ? "w" : l.res === false ? "l" : l.res === "push" ? "p" : ""}"></span>`;
   const toWin = b.stake * (mbDec(b.odds) - 1), when = new Date(b.ts).toLocaleString("en-US", {month: "short", day: "numeric", hour: "numeric", minute: "2-digit"});
   const sw = l => b.status === "open" ? mbSweatHtml(l) : "";
-  const body = b.kind === "parlay" ? `<div class="tksel">${b.legs.length}-leg parlay</div>` + b.legs.map(l => `<div class="tkleg">${dot(l)}<b>${esc(l.label)}</b><i>${l.odds ? mbSign(l.odds) : ""}</i></div>${sw(l)}`).join("")
-    : `<div class="tksel">${esc(b.label)}</div><div class="tksub">${esc((b.legs[0] || {}).sub || "")}</div>${sw(b.legs[0] || {})}`;
+  const lc = l => l.res === true ? "w" : l.res === false ? "l" : "";
+  const body = b.kind === "parlay" ? `<div class="tksel" style="margin-top:4px">${b.legs.length}-leg parlay</div>` + b.legs.map(l => `<div class="tkleg ${lc(l)}">${mbPic(l)}<b>${esc(l.label)}</b><i>${l.odds ? mbSign(l.odds) : ""}</i></div>${sw(l)}`).join("")
+    : `<div class="tkone">${mbPic(b.legs[0] || {})}<div><div class="tksel">${esc(b.label)}</div><div class="tksub">${esc((b.legs[0] || {}).sub || "")}</div></div></div>${sw(b.legs[0] || {})}`;
   const pill = {open: "Open", won: "Cashed", lost: "Lost", push: "Push"}[b.status];
   const res = b.status === "won" ? "+" + mbMoney(mbProfit(b)) : b.status === "lost" ? "−" + mbMoney(b.stake) : b.status === "push" ? mbMoney(b.stake) : mbMoney(toWin);
   const acts = !b.id ? "" : b.status === "open"
@@ -237,8 +248,12 @@ function mbView() {
   const done = bets.filter(b => b.status !== "open").sort((a, b) => (b.result_ts || b.ts).localeCompare(a.result_ts || a.ts));
   const w = done.filter(b => b.status === "won").length, l = done.filter(b => b.status === "lost").length, p = done.filter(b => b.status === "push").length;
   const got = new Set(s.badges || []);
-  return `<div class="wallet"><div class="wl"><span>Balance</span><b>${mbMoney(W.bankroll)}</b><i>${mbMoney(W.available)} available · ${mbMoney(W.risk)} in play</i></div>
+  const xp = mbXP(s), T = mbTier(xp);
+  return `<div class="wallet"><div class="wtop"><div class="wl"><span>Balance</span><b>${mbMoney(W.bankroll)}</b><i>${mbMoney(W.available)} available · ${mbMoney(W.risk)} in play</i></div>
       <div class="wr ${W.pl > 0 ? "up" : W.pl < 0 ? "down" : ""}"><span>All-time</span><b>${(W.pl > 0 ? "+" : "") + mbMoney(W.pl)}</b></div></div>
+      <div class="tier"><div class="tierh"><em>${T.cur[2]} ${T.cur[0]}</em><span>${T.nxt ? `${xp} / ${T.nxt[1]} XP to ${T.nxt[2]} ${T.nxt[0]}` : `${xp} XP · top tier`}</span></div>
+        <div class="tbar"><b style="width:${Math.round(100 * T.pct)}%"></b></div></div></div>
+    ${mbDailyHtml(s)}
     <div class="strip" style="padding:0 0 8px">${chips}</div>
     <div class="card mbsum"><div class="mbtiles">
       <div><span>Record</span><b>${w}-${l}${p ? "-" + p : ""}</b></div>
@@ -260,6 +275,7 @@ function mbView() {
 }
 function mbWire(render) {
   MB_RENDER = render;
+  const cl = document.getElementById("mbclaim"); if (cl) cl.onclick = () => { mbClaim(); render(); };
   document.querySelectorAll("[data-mbsp]").forEach(b => b.onclick = () => { MB_SPORT = b.dataset.mbsp; render(); });
   document.querySelectorAll("[data-mbs]").forEach(b => b.onclick = () => { const [id, st] = b.dataset.mbs.split("|"); mbHaptic(st === "won" ? "success" : "");
     mbUpdate(id, x => { x.status = st; x.manual = st !== "open"; x.result_ts = st === "open" ? null : new Date().toISOString(); x.seen = st === "open" ? undefined : false; });
@@ -276,7 +292,7 @@ function mbWire(render) {
   if (im) im.onclick = () => { const txt = prompt("Paste a backup (replaces the bets on this device):"); if (!txt) return;
     try { const s = JSON.parse(txt); if (!Array.isArray(s.bets)) throw 0; mbSave(s); MB_MSG = `Restored ${s.bets.length} bets.`; } catch (e) { MB_MSG = "That backup didn't read. Copy it again."; } render(); };
   const rs = document.getElementById("mbreset");
-  if (rs) rs.onclick = () => { if (confirm("Delete every paper bet and reset the bankroll?")) { mbSave({start: mbLoad().start, unit: 10, bets: [], badges: []}); MB_MSG = "Reset."; render(); } };
+  if (rs) rs.onclick = () => { if (confirm("Delete every paper bet and reset the bankroll?")) { mbSave({start: mbLoad().start, unit: 10, bets: [], badges: [], daily: mbLoad().daily}); MB_MSG = "Reset."; render(); } };
 }
 // every render: keep the slip button and the wallet in the nav current
 function mbAfterRender(render) { MB_RENDER = render; mbFab(); mbWireBanner(render); }
@@ -332,11 +348,43 @@ function mbSweatHtml(leg) {
 }
 function mbIsLive(b) { return b.status === "open" && b.legs.some(l => { const w = mbSweat(l); return w && w.st !== "pre"; }); }
 function mbLiveBanner() {
-  const open = mbLoad().bets.filter(b => b.status === "open" && b.sport === MB_PAGE), live = open.filter(mbIsLive);
+  const s = mbLoad(), D = mbDaily(s);
+  const daily = D.claimed ? "" : `<button class="swbanner dailybanner" data-gobets="1"><span>🎁</span><b>Daily bonus ready</b><i>day ${D.streak} · +${mbMoney(D.amount)}</i><span>→</span></button>`;
+  return daily + mbSweatBanner(s);
+}
+function mbSweatBanner(s) {
+  const open = s.bets.filter(b => b.status === "open" && b.sport === MB_PAGE), live = open.filter(mbIsLive);
   if (!live.length) return "";
   const hitting = live.filter(b => b.legs.every(l => { const w = mbSweat(l); return w && /hit|up/.test(w.st); })).length;
   return `<button class="swbanner" data-gobets="1"><span class="livedot"></span><b>Sweating ${live.length} live bet${live.length > 1 ? "s" : ""}</b><i>${hitting ? hitting + " on track" : "tap to follow"}</i><span>→</span></button>`;
 }
 function mbWireBanner(render) {
   document.querySelectorAll("[data-gobets]").forEach(b => b.onclick = () => { mbHaptic(); MB_VIEW = "bets"; if (typeof TAB !== "undefined") TAB = "check"; render(); window.scrollTo(0, 0); });
+}
+
+// ---- come back tomorrow: daily paper bonus that grows with the streak, and VIP tiers from XP ----
+const TIERS = [["Rookie", 0, "🥉"], ["Pro", 250, "🥈"], ["All-Star", 750, "🥇"], ["MVP", 2000, "💎"], ["Hall of Fame", 5000, "👑"]];
+function mbXP(s) { return s.bets.length * 10 + s.bets.filter(b => b.status === "won").length * 25 + (s.claims || 0) * 15; }
+function mbTier(xp) {
+  let i = 0; TIERS.forEach((t, j) => { if (xp >= t[1]) i = j; });
+  const cur = TIERS[i], nxt = TIERS[i + 1];
+  return {cur, nxt, pct: nxt ? (xp - cur[1]) / (nxt[1] - cur[1]) : 1};
+}
+const mbDay = (off = 0) => { const d = new Date(Date.now() - off * 864e5); return d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate(); };
+function mbDaily(s = mbLoad()) {
+  const d = s.daily || {}, claimed = d.last === mbDay(0);
+  const streak = claimed ? d.streak : (d.last === mbDay(1) ? (d.streak || 0) + 1 : 1);
+  return {claimed, streak, amount: 25 + 10 * Math.min(streak - 1, 7), next: 25 + 10 * Math.min(streak, 7)};
+}
+function mbClaim() {
+  const s = mbLoad(), D = mbDaily(s); if (D.claimed) return;
+  s.daily = {last: mbDay(0), streak: D.streak}; s.bonus = (s.bonus || 0) + D.amount; s.claims = (s.claims || 0) + 1; mbSave(s);
+  mbHaptic("success"); mbBurst(26, ["💵", "✨", "🎁"]);
+  mbToast(`<div class="tbig">🎁 Daily bonus</div><div class="tamt">+${mbMoney(D.amount)}</div><div class="tsub">🔥 ${D.streak}-day streak · come back tomorrow for ${mbMoney(D.next)}</div>`, "win");
+}
+function mbDailyHtml(s) {
+  const D = mbDaily(s), filled = Math.min(D.claimed ? D.streak : D.streak - 1, 7), dots = Array.from({length: 7}, (_, i) => `<span class="${i < filled ? "on" : ""}"></span>`).join("");
+  return D.claimed
+    ? `<div class="daily done"><div class="gift">✅</div><div class="dt"><b>Bonus claimed · 🔥 ${D.streak}-day streak</b><i>Come back tomorrow for ${mbMoney(D.next)} paper</i><div class="streakdots">${dots}</div></div></div>`
+    : `<div class="daily"><div class="gift">🎁</div><div class="dt"><b>Daily bonus · day ${D.streak}</b><i>+${mbMoney(D.amount)} paper · grows every day you come back</i><div class="streakdots">${dots}</div></div><button class="claim" id="mbclaim">Claim</button></div>`;
 }
