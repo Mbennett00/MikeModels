@@ -699,6 +699,7 @@ function gameCard(g) {
         + grp(`${esc(h.abbr)} team total`, [pbtn(g, `${h.abbr} over 2.5`, "team_total", "home_over", 2.5, "O 2.5"), pbtn(g, `${h.abbr} over 3.5`, "team_total", "home_over", 3.5, "O 3.5")])
         + grp("1st period total", [pbtn(g, "1st per. over 1.5", "p1_total", "over", 1.5, "O 1.5"), pbtn(g, "1st per. under 1.5", "p1_total", "under", 1.5, "U 1.5")])
         + grp("1st period lead", [pbtn(g, `1st per. ${a.abbr} lead`, "p1_3way", "away", undefined, esc(a.abbr)), pbtn(g, `1st per. ${h.abbr} lead`, "p1_3way", "home", undefined, esc(h.abbr))]);
+    else if (view === "players" && !notStarted(g)) body = `<div class="xclosed">🔒 Props are closed for this game · it ${(LIVE[g.game_id] || {}).state === "post" ? "has finished" : "is underway"}</div>`;
     else if (view === "players") {
       const top = D.players.filter(p => p.game_id === g.game_id && p.lam.sog != null).sort((x, y) => y.lam.sog - x.lam.sog).slice(0, 6);
       body = `<div class="xpl-h"><span>Top shooters</span><span>Shots on goal</span></div>` + top.map(p => xplayer(p)).join("") + `<button class="xlink" data-allprops="${g.game_id}">All player props for this game ›</button>`;
@@ -861,9 +862,12 @@ function slateHtml() {
       <div><b>${gc}<i>/${tm}</i></b><span>goalies set</span></div><div><b>${fin}<i>/${D.games.length}</i></b><span>final</span></div></div>
     ${top ? `<div class="sl-best"><span class="sl-dot"></span>Best value: <b>${esc(nm)}</b> <em>${am(top.x.price)}</em></div>` : ""}</div>`;
 }
+// upcoming games first (by puck drop), then live, then finished at the bottom
+function gstate(g) { const st = (LIVE[g.game_id] || {}).state; return st === "post" ? 2 : st === "in" ? 1 : notStarted(g) ? 0 : 1; }
+function byStatus(gs) { return gs.slice().sort((a, b) => (gstate(a) - gstate(b)) || (new Date(a.start_utc || 0) - new Date(b.start_utc || 0))); }
 function games() {
   if (!D.games.length) return empty("🧊", "No games on the board", "Check back on the next game day.");
-  return slateHtml() + mbLiveBanner() + mbHero() + likesHtml() + record() + D.games.map(gameCard).join("");
+  return slateHtml() + mbLiveBanner() + mbHero() + likesHtml() + record() + byStatus(D.games).map(gameCard).join("");
 }
 
 const LINES = {sog: [1.5, 2.5, 3.5, 4.5], goals: [0.5], points: [0.5, 1.5], assists: [0.5]};
@@ -969,7 +973,7 @@ function sectionsNHL(list, mk) {
   const S = PSTATE, by = {};
   list.forEach(p => (by[p.game_id] = by[p.game_id] || []).push(p));
   const showAll = S.q || S.game !== "all";
-  return D.games.filter(g => by[g.game_id]).map(g => {
+  return byStatus(D.games).filter(g => by[g.game_id]).map(g => {
     const rows = by[g.game_id], open = showAll || GOPEN.has(g.game_id), k = open ? rows.length : Math.min(6, rows.length);
     return `<div class="card gsec"><div class="gsec-h"><span class="duo3"><img src="${esc(g.away.logo)}" alt="" onerror="this.remove()"><img src="${esc(g.home.logo)}" alt="" onerror="this.remove()"></span>
         <b>${esc(g.away.abbr)} <em>@</em> ${esc(g.home.abbr)}</b><span>${g.start_utc ? timeET(g.start_utc) : ""}</span></div>
@@ -1102,7 +1106,10 @@ function props() {
   const MK4 = [["sog", "Shots"], ["goals", "Goals"], ["points", "Points"], ["assists", "Assists"]], mi = Math.max(0, MK4.findIndex(([k]) => k === mk));
   const mkt0 = `<i class="mkpill" style="--i:${mi}"></i>` + MK4.map(([k, nm]) => `<button class="${mk === k ? "on" : ""}" data-m="${k}">${nm}</button>`).join("");
   if (mk === "lucky") return `<div class="ptabs props-seg">${mkt0}</div>` + luckyNHL();
-  let list = D.players.filter(p => p.lam[mk] != null);
+  const openG = new Set(D.games.filter(notStarted).map(g => g.game_id));
+  if (S.game !== "all" && !openG.has(Number(S.game)) && !openG.has(S.game)) S.game = "all";
+  if (!openG.size) return `<div class="ptabs props-seg">${mkt0}</div>` + empty("🔒", "Props are closed", "Every game on this slate has started or finished. Props reopen for the next slate.");
+  let list = D.players.filter(p => p.lam[mk] != null && openG.has(p.game_id));
   if (S.q) list = list.filter(p => normName(p.name).includes(normName(S.q)));
   if (S.game !== "all") list = list.filter(p => String(p.game_id) === S.game);
   // once DraftKings has posted this market for a game, only list the players DK is pricing
@@ -1114,7 +1121,7 @@ function props() {
   const mkt = mkt0;
   const gms = `<button class="chip ${S.search || S.q ? "on" : ""}" data-search="1">🔍</button>`
     + `<button class="chip ${S.game === "all" ? "on" : ""}" data-g="all">All games</button>`
-    + D.games.map(g => `<button class="chip gchip ${S.game === String(g.game_id) ? "on" : ""}" data-g="${g.game_id}"><img src="${esc(g.away.logo)}" alt="" onerror="this.remove()"><img src="${esc(g.home.logo)}" alt="" onerror="this.remove()">${esc(g.away.abbr)} @ ${esc(g.home.abbr)}</button>`).join("");
+    + byStatus(D.games).filter(g => openG.has(g.game_id)).map(g => `<button class="chip gchip ${S.game === String(g.game_id) ? "on" : ""}" data-g="${g.game_id}"><img src="${esc(g.away.logo)}" alt="" onerror="this.remove()"><img src="${esc(g.home.logo)}" alt="" onerror="this.remove()">${esc(g.away.abbr)} @ ${esc(g.home.abbr)}</button>`).join("");
   return `<div class="ptabs props-seg">${mkt}</div>
     <div class="strip" style="padding-left:0">${gms}</div>
     ${S.search || S.q ? `<input class="search" id="pq" placeholder="Find a player" value="${esc(S.q)}" autocomplete="off">` : ""}

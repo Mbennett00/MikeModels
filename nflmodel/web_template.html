@@ -488,7 +488,8 @@ function gameCard(g) {
       const T = g.total_line, tl = [T - 7, T - 3.5, T + 3.5, T + 7].map(x => Math.round(2 * x) / 2);
       body = `<div class="xmk-sec">Alternate spreads</div>` + spl.map(x => grp(`Spread ${x}`, [cbtn(g, "spread", fav, -x, `${F.abbr} −${x}`), cbtn(g, "spread", dog, x, `${Dg.abbr} +${x}`)])).join("")
         + `<div class="xmk-sec">Alternate totals</div>` + tl.map(x => grp(`Total ${x}`, [cbtn(g, "total", "over", x, `O ${x}`), cbtn(g, "total", "under", x, `U ${x}`)])).join("");
-    } else if (view === "players") {
+    } else if (view === "players" && !nflOpen(g)) body = `<div class="xclosed">🔒 Props are closed for this game · it ${(scoreOf(g) || {}).state === "post" ? "has finished" : "is underway"}</div>`;
+    else if (view === "players") {
       const P = (D.players || []).filter(p => p.game_id === g.game_id).sort((x, y) => y.p_td - x.p_td).slice(0, 6);
       body = P.length ? `<div class="xpl-h"><span>Most likely to score</span><span>Anytime TD</span></div>` + P.map(p => { const t = teamOf(p.team), q = tdQuote(p), q2 = tdQuote(p, 1.5);
         return `<div class="xpl" data-pp="${esc(p.id)}|${esc(p.game_id)}|td"><div class="pav sm" style="--tc:${esc(t.color)}"><span>${esc(initials(p.name))}</span>${p.headshot ? `<img src="${esc(p.headshot)}" alt="" loading="lazy" onload="this.previousElementSibling.style.visibility='hidden'" onerror="this.remove()">` : ""}${t.logo ? `<img class="ptl" src="${esc(t.logo)}" alt="" onerror="this.remove()">` : ""}</div>
@@ -684,9 +685,13 @@ function slateN() {
       <div><b>${D.games.length - fin - live}</b><span>to play</span></div><div><b>${fin}<i>/${D.games.length}</i></b><span>final</span></div></div>
     ${top ? `<div class="sl-best"><span class="sl-dot"></span>Best value: <b>${esc(label(top.g, top.b))}</b> · ${esc(top.g.away.abbr)}@${esc(top.g.home.abbr)} <em>${am(dkLive(top.g, top.b) || top.b.price || fair(top.b.p))}</em></div>` : ""}</div>`;
 }
+// upcoming games first (by kickoff), then live, then finished at the bottom
+function nflOpen(g) { return !!g && !scoreOf(g) && (!g.start_utc || new Date(g.start_utc) > Date.now() - 6e4); }
+function gstate(g) { const s = scoreOf(g); return s && s.state === "post" ? 2 : nflOpen(g) ? 0 : 1; }
+function byStatus(gs) { return gs.slice().sort((a, b) => (gstate(a) - gstate(b)) || (new Date(a.start_utc || 0) - new Date(b.start_utc || 0))); }
 function games() {
   if (!D.games.length) return empty("🏟️", "No games this week", "The schedule will show here once the next week is set.");
-  return slateN() + mbLiveBanner() + likesHtml() + D.games.map(gameCard).join("");
+  return slateN() + mbLiveBanner() + likesHtml() + byStatus(D.games).map(gameCard).join("");
 }
 
 
@@ -744,7 +749,7 @@ function avatar(p) { const t = teamOf(p.team);
 let PS = {m: "td", game: "all", q: "", n: 24};
 const PCHIPS = [["td", "TD"], ["rec_yds", "Receiving"], ["rush_yds", "Rushing"], ["pass_yds", "Passing"]];
 function propPool() {
-  const P = (D.players || []).filter(p => PS.game === "all" || p.game_id === PS.game);
+  const P = (D.players || []).filter(p => nflOpen(gameOf(p)) && (PS.game === "all" || p.game_id === PS.game));
   const q = PS.q.trim().toLowerCase(), m = PS.m;
   let L = P.filter(p => !q || p.name.toLowerCase().includes(q) || p.team.toLowerCase() === q);
   if (m === "td") L = L.filter(p => p.p_td >= 0.08).sort((a, b) => b.p_td - a.p_td);
@@ -901,7 +906,9 @@ function luckyBanner() {
 function props() {
   if (!(D.players || []).length) return empty("👤", "No player props yet", "Projections show up once this week's games are priced.");
   PS.m = "td";
-  const gs = D.games.filter(g => (D.players || []).some(p => p.game_id === g.game_id));
+  const gs = byStatus(D.games).filter(g => nflOpen(g) && (D.players || []).some(p => p.game_id === g.game_id));
+  if (PS.game !== "all" && !gs.some(g => g.game_id === PS.game)) PS.game = "all";
+  if (!gs.length) return `<div class="ptabs props-seg one"><i class="mkpill" style="--i:0"></i><button class="on">Anytime touchdown</button></div>` + empty("🔒", "Props are closed", "Every game this week has kicked off. Props reopen for next week's games.");
   const L = propPool(), posted = (D.players || []).some(p => p.dk && p.dk["td|0.5"]);
   const waiting = [...new Set(L.map(p => p.game_id))].filter(gid => !L.some(p => p.game_id === gid && p.dk && p.dk["td|0.5"])).length;
   return `<div class="ptabs props-seg one"><i class="mkpill" style="--i:0"></i><button class="on">Anytime touchdown</button></div>
