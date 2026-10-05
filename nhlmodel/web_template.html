@@ -655,23 +655,34 @@ function tile(g, label, market, sel, line) {
     <span class="v"><span class="c">${pct(p)}</span><span class="b">${betAt(p - thr(market))}</span></span>
     ${dk ? `<span class="dk">${dk.src === "book" ? BK() : "Mkt"} ${am(dk.price)}${dk.edge != null ? ` · <b class="${dk.edge >= 0 ? "pos" : "neg"}">${dk.edge >= 0 ? "+" : "−"}${Math.abs(100 * dk.edge).toFixed(1)}%</b>` : ""}${val ? ` <i class="valtag">VALUE</i>` : ""}</span>` : ""}</button>`;
 }
+// one sportsbook price button: the line on top, the price below (book price when there is one, else the model's fair price)
+function pbtn(g, label, market, sel, line, top) {
+  const p = gameProb(g, market, sel, line), [cls] = RES(settle(g, market, sel, line));
+  const dk = dkFor(g, market, sel, line), val = dk && dk.edge != null && dk.edge >= thr(market);
+  const price = dk && dk.price ? dk.price : fair(p), i = bet({g, market, sel, line, label, p, dk});
+  return `<button class="pxb ${cls} ${val ? "val" : ""}" data-bet="${i}">${top ? `<span class="pt">${esc(top)}</span>` : ""}<b>${am(price)}</b>${val ? `<i class="pe">+${(100 * dk.edge).toFixed(1)}%</i>` : `<i class="pm">${pct(p)}</i>`}</button>`;
+}
 function gameCard(g) {
   const a = g.away, h = g.home, ph = gameProb(g, "moneyline", "home"), L = LIVE[g.game_id] || {}, on = L.state === "in" || L.state === "post";
-  const favH = ph >= 0.5, fav = favH ? h : a, dog = favH ? a : h, fs = favH ? "home" : "away", ds = favH ? "away" : "home";
+  const favH = ph >= 0.5, fav = favH ? h : a;
   const status = L.state === "in" ? `<span class="live">LIVE</span><span>${esc(L.detail)}</span>`
     : L.state === "post" ? `<span class="final">${esc((L.detail || "Final").toUpperCase())}</span><span>model ${pct(favH ? ph : 1 - ph)} on ${esc(fav.abbr)}</span>`
-    : `<span>${timeET(g.start_utc)}</span><span>proj ${esc(a.abbr)} ${g.lam_away.toFixed(1)} – ${g.lam_home.toFixed(1)} ${esc(h.abbr)}</span>`;
-  const [ia, ca] = inkOf(a.color), [ih, ch] = inkOf(h.color);
-  const trow = (t, p, mine, theirs) => `<div class="trow">${logo(t)}<div style="min-width:0"><div class="tname">${esc(t.name)}</div>
-      <div class="gk"><span class="dot ${gdot(t)}"></span>${esc(t.goalie || "Goalie TBD")}${t.goalie_status ? ` · ${esc(t.goalie_status)}` : ""}</div></div>
-      <div class="right">${on ? `<div class="score ${L.state === "post" && mine < theirs ? "lose" : ""}">${mine}</div>` : `<div class="pct">${pct(p)}</div>`}</div></div>`;
-  let html = `<div class="card gc" style="--ca:${esc(a.color)};--ch:${esc(h.color)}">
-    <div class="band"><div class="status">${status}</div>
-    ${trow(a, 1 - ph, L.away, L.home)}${trow(h, ph, L.home, L.away)}
-    <div class="bar"><div style="width:${100 * (1 - ph)}%;background:${a.color}"></div><div style="width:${100 * ph}%;background:${h.color}"></div></div></div>
-    <div class="body"><div class="tiles">${tile(g, `${a.abbr} win`, "moneyline", "away")}${tile(g, `${h.abbr} win`, "moneyline", "home")}
-      ${tile(g, `${fav.abbr} -1.5`, "puckline", fs, -1.5)}${tile(g, `${dog.abbr} +1.5`, "puckline", ds, 1.5)}
-      ${tile(g, "Over 6.5", "total", "over", 6.5)}${tile(g, "Under 6.5", "total", "under", 6.5)}</div>`;
+    : `<span>${timeET(g.start_utc)}</span><span>proj ${esc(a.abbr)} ${g.lam_away.toFixed(1)}–${g.lam_home.toFixed(1)} ${esc(h.abbr)}</span>`;
+  const row = (t, side, p, mine, theirs) => {
+    const plLine = (side === "home") === favH ? -1.5 : 1.5, ou = side === "away" ? "over" : "under";
+    return `<div class="grow">
+      <div class="gteam">${logo(t)}<div class="gtn"><b>${esc(t.name)}</b><span>${on ? "" : `<em class="gpct">${pct(p)}</em>`}<i class="dot ${gdot(t)}"></i>${esc(t.goalie ? t.goalie.split(" ").slice(-1)[0] : "TBD")}</span></div>
+        ${on ? `<b class="gscore ${L.state === "post" && mine < theirs ? "lose" : ""}">${mine}</b>` : ""}</div>
+      ${pbtn(g, `${t.abbr} ${plLine > 0 ? "+" : ""}${plLine}`, "puckline", side, plLine, `${plLine > 0 ? "+" : ""}${plLine}`)}
+      ${pbtn(g, `${ou === "over" ? "Over" : "Under"} 6.5`, "total", ou, 6.5, `${ou === "over" ? "O" : "U"} 6.5`)}
+      ${pbtn(g, `${t.name} to win`, "moneyline", side, undefined, "")}</div>`;
+  };
+  let html = `<div class="card gc gc2" style="--ca:${esc(a.color)};--ch:${esc(h.color)}">
+    <div class="ghead"><div class="status">${status}</div></div>
+    <div class="gcols"><span></span><span>Puck line</span><span>Total</span><span>Money</span></div>
+    ${row(a, "away", 1 - ph, L.away, L.home)}${row(h, "home", ph, L.home, L.away)}
+    <div class="gbar"><div style="width:${100 * (1 - ph)}%;background:${esc(a.color)}"></div><div style="width:${100 * ph}%;background:${esc(h.color)}"></div></div>
+    <div class="body">`;
   if (OPEN.has(g.game_id)) {
     const view = PANEL[g.game_id] || "matchup";
     const tabs = [["matchup", "Matchup"], ["bets", "Bets"], ["players", "Players"], ["lines", "Rink"]]
@@ -692,7 +703,7 @@ function gameCard(g) {
     }
     html += `<div class="panel"><div class="ptabs">${tabs}</div>${body}</div>`;
   }
-  return html + `<button class="more" data-more="${g.game_id}">${OPEN.has(g.game_id) ? "Less ▴" : "Matchup, bets, players & lines ▾"}</button></div></div>`;
+  return html + `<button class="more" data-more="${g.game_id}">${OPEN.has(g.game_id) ? "Hide details" : "More bets · matchup · players"}<span class="chev ${OPEN.has(g.game_id) ? "up" : ""}">›</span></button></div></div>`;
 }
 // every row reads "higher = better for that team", as % vs league average
 const MX_ROWS = [["Attack", t => t.off - 1], ["Defence", t => 1 - t.dfn], ["Goalie", t => 1 - t.gk],
@@ -829,7 +840,7 @@ function likesHtml() {
 }
 function games() {
   if (!D.games.length) return empty("🧊", "No games on the board", "Check back on the next game day.");
-  return mbLiveBanner() + mbHero() + likesHtml() + record() + `<div class="note">👆 Tap any price to check ${BOOK()}' odds.</div>` + D.games.map(gameCard).join("");
+  return mbLiveBanner() + mbHero() + likesHtml() + record() + D.games.map(gameCard).join("");
 }
 
 const LINES = {sog: [1.5, 2.5, 3.5, 4.5], goals: [0.5], points: [0.5, 1.5], assists: [0.5]};
@@ -892,13 +903,15 @@ function prow(p, mk) {
   const {l, pr} = headLine(p, mk);
   const [cls] = RES(s && !s.dnp ? cmpLine(s[mk], l, "over", L.state === "post") : undefined);
   const i = bet({player: p, market: mk, line: l, p: pr, label: `${p.name} ${mk === "goals" && l === 0.5 ? "to score" : `over ${l} ${PNAME[mk]}`}`});
-  const live = s && !s.dnp ? ` · <b style="color:var(--red)">${L.state === "in" ? "LIVE" : "FINAL"} ${s[mk]}</b>` : "";
-  return `<div class="prow3" data-player="${p.id}" role="button">
-    <div class="ph3" style="background-color:${esc(col)}"><span>${esc(initials(p.name))}</span>${p.headshot ? `<img src="${esc(p.headshot)}" alt="" loading="lazy" onload="this.previousElementSibling.style.visibility='hidden'" onerror="this.remove()">` : ""}</div>
-    <div class="pt3"><div class="pn3">${esc(p.name)}</div>
-      <div class="pm3">${esc(p.pos || "")} · ${esc(p.team)}${p.num != null ? " #" + esc(p.num) : ""} ${esc(matchupOf(p).split(" · ")[0])}</div>
-      <div class="pp3">Proj <b>${lam.toFixed(mk === "goals" ? 2 : 1)}</b> ${PNAME[mk]} · ${pct(pr)}${live}</div></div>
-    <button class="pb3 ${cls} ${p.dk && p.dk[`${mk}|${l}`] ? "bk" : ""}" data-bet="${i}"><b>${mk === "goals" && l === 0.5 ? "Scores" : "O " + l}</b><span>${p.dk && p.dk[`${mk}|${l}`] ? am(p.dk[`${mk}|${l}`]) : am(fair(pr))}</span>${p.dk && p.dk[`${mk}|${l}`] ? `<i class="bkt">DK</i>` : ""}</button></div>`;
+  const dk = p.dk && p.dk[`${mk}|${l}`], tl = teamLogoUrl(p.team);
+  const live = s && !s.dnp ? `<span class="plive ${L.state}">${L.state === "in" ? "LIVE" : "FINAL"} ${s[mk]}</span>` : "";
+  const [hc, mc] = mk === "goals" && l === 0.5 ? [0.35, 0.25] : [0.6, 0.45], heat = pr >= hc ? "hi" : pr >= mc ? "md" : "lo";
+  return `<div class="prow4" data-player="${p.id}" role="button">
+    <div class="pav" style="--tc:${esc(col)}"><span>${esc(initials(p.name))}</span>${p.headshot ? `<img src="${esc(p.headshot)}" alt="" loading="lazy" onload="this.previousElementSibling.style.visibility='hidden'" onerror="this.remove()">` : ""}${tl ? `<img class="ptl" src="${esc(tl)}" alt="" onerror="this.remove()">` : ""}</div>
+    <div class="pinfo"><div class="pnm">${esc(p.name)}${live}</div>
+      <div class="pmeta">${esc(p.pos || "")} · ${esc(p.team)}${p.num != null ? " #" + esc(p.num) : ""} · ${esc(matchupOf(p).split(" · ")[0])}</div>
+      <div class="pmet"><span class="pbar ${heat}"><i style="width:${Math.round(100 * pr)}%"></i></span><em>${pct(pr)}</em><span class="pproj">proj ${lam.toFixed(mk === "goals" ? 2 : 1)}</span></div></div>
+    <button class="pxb pp ${cls} ${dk ? "bk" : ""}" data-bet="${i}"><span class="pt">${mk === "goals" && l === 0.5 ? "Anytime" : "O " + l}</span><b>${dk ? am(dk) : am(fair(pr))}</b><i class="${dk ? "pdk" : "pm"}">${dk ? "DK" : "fair"}</i></button></div>`;
 }
 function sectionsNHL(list, mk) {
   const S = PSTATE, by = {};
@@ -907,9 +920,9 @@ function sectionsNHL(list, mk) {
   return D.games.filter(g => by[g.game_id]).map(g => {
     const rows = by[g.game_id], open = showAll || GOPEN.has(g.game_id), k = open ? rows.length : Math.min(6, rows.length);
     return `<div class="card gsec"><div class="gsec-h"><span class="duo3"><img src="${esc(g.away.logo)}" alt="" onerror="this.remove()"><img src="${esc(g.home.logo)}" alt="" onerror="this.remove()"></span>
-        <b>${esc(g.away.abbr)} @ ${esc(g.home.abbr)}</b><span>${g.start_utc ? timeET(g.start_utc) : ""}</span></div>
+        <b>${esc(g.away.abbr)} <em>@</em> ${esc(g.home.abbr)}</b><span>${g.start_utc ? timeET(g.start_utc) : ""}</span></div>
       ${rows.slice(0, k).map(p => prow(p, mk)).join("")}
-      ${rows.length > 6 && !showAll ? `<button class="gmore" data-gopen="${g.game_id}">${open ? "Show fewer ▴" : `Show all ${rows.length} ▾`}</button>` : ""}</div>`;
+      ${rows.length > 6 && !showAll ? `<button class="gmore" data-gopen="${g.game_id}">${open ? "Show fewer" : `Show all ${rows.length} players`}</button>` : ""}</div>`;
   }).join("");
 }
 
@@ -1053,7 +1066,7 @@ function props() {
   return `<div class="ptabs props-seg">${mkt}</div>
     <div class="strip" style="padding-left:0">${gms}</div>
     ${S.search || S.q ? `<input class="search" id="pq" placeholder="Find a player" value="${esc(S.q)}" autocomplete="off">` : ""}
-    ${waiting ? `<div class="note">DraftKings hasn't posted these lines for ${waiting === 1 ? "one game" : waiting + " games"} yet, so those show model prices for now.</div>` : ""}
+    ${waiting ? `<div class="pnote"><span class="pdot"></span>DraftKings lines pending for ${waiting === 1 ? "1 game" : waiting + " games"} · showing model prices</div>` : ""}
     ${list.length ? sectionsNHL(list, mk) : `<div class="note">No players match.</div>`}`;
 }
 function wireProps() {
