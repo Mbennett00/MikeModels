@@ -27,10 +27,10 @@ for sp in ("nfl", "nhl"):
     items = pb.get("items", [])
     print("propBets", pb.get("count"), "fields:", sorted({k for it in items for k in it}))
     print("types:", collections.Counter(it["type"]["name"] for it in items).most_common(25))
-    ath = items[0]["athlete"]["$ref"] if items else None
-    same = [it for it in items if it["athlete"]["$ref"] == ath]
-    for it in same[:8]:
-        it = {k: v for k, v in it.items() if k not in ("competition", "athlete", "provider")}
-        print(json.dumps(it))
-    if ath:
-        a = get(ath.replace("http://", "https://")); print("athlete:", a.get("id"), a.get("displayName"), a.get("position", {}).get("abbreviation"))
+    want = ("Anytime", "Milestones", "Goal Scorer", "Shots", "Points", "Assists")
+    seen = collections.Counter()
+    for it in items:
+        nm = it["type"]["name"]
+        if any(w in nm for w in want) and seen[nm] < 3 and "athlete" in it:
+            seen[nm] += 1
+            print(nm, "|", it["athlete"]["$ref"].split("/athletes/")[1].split("?")[0], "| odds", json.dumps(it.get("odds", {}).get("american")), "| total", json.dumps(it.get("odds", {}).get("total")), "| target", json.dumps((it.get("current") or {}).get("target")))
