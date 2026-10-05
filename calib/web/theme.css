@@ -15,6 +15,7 @@
 html { background: #0b0e12; }
 body { color: var(--ink); -webkit-font-smoothing: antialiased; }
 body.nhl { background: radial-gradient(120% 60% at 50% -10%, rgba(64,140,220,.28), transparent 60%), #0b0e13 !important; background-attachment: fixed !important; }
+body.nfl { background: radial-gradient(120% 60% at 50% -10%, rgba(47,224,110,.18), transparent 60%), #0a0e0c !important; background-attachment: fixed !important; }
 /* header */
 .hdr { gap: 10px; } .hdr h1 { color: #fff; font-size: 22px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: none; }
 .hdr .sub { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

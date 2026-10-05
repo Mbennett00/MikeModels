@@ -355,6 +355,7 @@ label.f { display: block; font-size: 13px; font-weight: 800; color: var(--ink-2)
 <div class="splash" id="splash"><img src="logo-nhl.png" alt=""><b>Mike<span>Models</span></b><i></i></div>
 <div class="wrap">
   <div class="hdr"><img class="mlogo" src="logo-nhl.png" alt="MikeModels"><div class="t"><h1 id="title">Loading…</h1><div class="sub" id="sub">Warming up the Zamboni</div></div>
+    <div class="sport"><a class="on" href="index.html"><img src="https://a.espncdn.com/i/teamlogos/leagues/500-dark/nhl.png" alt="NHL" onerror="this.outerHTML='NHL'"></a><a href="nfl.html"><img src="https://a.espncdn.com/i/teamlogos/leagues/500/nfl.png" alt="NFL" onerror="this.outerHTML='NFL'"></a></div>
     <button class="iconbtn" id="gearBtn" aria-label="How the model is weighted">⚙️</button>
     <button class="iconbtn" id="infoBtn" aria-label="How it works">?</button></div>
   <div class="strip" id="strip"></div>
@@ -1363,7 +1364,6 @@ function mbLiveLeg(leg) {
 }
 function render() {
   BETS = [];
-  try { const n = mbRetireNFL(); if (n) mbToast(`🏈 ${n} open NFL ${n > 1 ? "bets" : "bet"} refunded`); } catch (e) {}
   try { mbAutoSettle("NHL", mbGrade); } catch (e) {}
   header(); strip(); nav();
   const v = {games, props, check, updates}[TAB]();

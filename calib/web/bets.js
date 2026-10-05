@@ -1,4 +1,4 @@
-// ---------- 🧾 PAPER SPORTSBOOK ----------
+// ---------- 🧾 PAPER SPORTSBOOK (shared by the NHL and NFL pages) ----------
 // Everything lives in this browser (localStorage; both sports share the origin, so one wallet and one slip).
 // A bet: {id, ts, sport, kind: "single"|"parlay", label, odds (American), stake, legs: [{label, sub, gid, start, key, p, odds}],
 //         status: "open"|"won"|"lost"|"push", result_ts, manual, seen}
@@ -26,14 +26,6 @@ const mbAm = d => d >= 2 ? Math.round(100 * (d - 1)) : Math.round(-100 / (d - 1)
 const mbSign = a => (a > 0 ? "+" : "") + Math.round(a);
 const mbMoney = x => (x < 0 ? "−$" : "$") + Math.abs(x).toLocaleString("en-US", {minimumFractionDigits: 2, maximumFractionDigits: 2});
 const mbShort = x => "$" + Math.round(x).toLocaleString("en-US");
-// football was retired: refund any NFL bet still open (once), so its stake isn't stuck
-function mbRetireNFL() {
-  const s = mbLoad(); let n = 0;
-  for (const b of s.bets) if (b.status === "open" && b.sport === "NFL") { b.status = "push"; b.note = "NFL removed · stake refunded"; n++; }
-  if (n) mbSave(s);
-  const v = slipLoad(); if (v.some(x => x.sport === "NFL")) slipSave(v.filter(x => x.sport !== "NFL"));
-  return n;
-}
 // a win pays the price (plus any 🚀 boost on the profit); an insured parlay that loses by one leg gets its stake back
 const mbInsured = b => b.status === "lost" && b.ins && b.legs.filter(l => l.res === false).length === 1;
 function mbProfit(b) { if (b.status === "cashout") return (b.cash || 0) - b.stake; return b.status === "won" ? b.stake * (mbDec(b.odds) - 1) * (1 + (b.boost || 0)) : b.status === "lost" ? (mbInsured(b) ? 0 : -b.stake) : 0; }
@@ -324,6 +316,7 @@ function mbView() {
       <div class="tier"><div class="tierh"><em>${T.cur[2]} ${T.cur[0]}</em><span>${T.nxt ? `${xp} / ${T.nxt[1]} XP to ${T.nxt[2]} ${T.nxt[0]}` : `${xp} XP · top tier`}</span></div>
         <div class="tbar"><b style="width:${Math.round(100 * T.pct)}%"></b></div></div>${funTokensHtml(s)}</div>
     ${funRebuyHtml(s, W)}${mbDailyHtml(s)}${funMissionsHtml(s)}${funVsHtml(s)}
+    ${new Set(all.map(b => b.sport)).size > 1 ? `<div class="strip" style="padding:0 0 10px">${[["all", "All"], ["NHL", "🏒 NHL"], ["NFL", "🏈 NFL"]].map(([k, n]) => `<button class="chip ${MB_SPORT === k ? "on" : ""}" data-mbsp="${k}">${n}</button>`).join("")}</div>` : ""}
     <div class="card mbsum"><div class="mbtiles">
       <div><span>Record</span><b>${w}-${l}${p ? "-" + p : ""}</b></div>
       <div><span>ROI</span><b class="${st.roi > 0 ? "pos" : st.roi < 0 ? "neg" : ""}">${(st.roi >= 0 ? "+" : "") + (100 * st.roi).toFixed(1)}%</b></div>
@@ -345,6 +338,7 @@ function mbView() {
 }
 function mbWire(render) {
   MB_RENDER = render; mbWireCashOut(render);
+  document.querySelectorAll("[data-mbsp]").forEach(b => b.onclick = () => { MB_SPORT = b.dataset.mbsp; render(); });
   document.querySelectorAll("[data-mbs]").forEach(b => b.onclick = () => { const [id, st] = b.dataset.mbs.split("|"); mbHaptic(st === "won" ? "success" : "");
     mbUpdate(id, x => { x.status = st; x.manual = st !== "open"; x.result_ts = st === "open" ? null : new Date().toISOString(); x.seen = st === "open" ? undefined : false; });
     mbCelebrate(); render(); });

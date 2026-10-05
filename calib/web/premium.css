@@ -529,3 +529,14 @@ body.nhl::before { content: ""; position: fixed; inset: -20%; z-index: -1; point
 .spot-h { margin-top: 0 !important; } .spot-h b { font-size: 15px !important; }
 .spots { margin-bottom: 18px !important; }
 .ptabs.props-seg button.on, .props-seg button.on { background: transparent !important; box-shadow: none !important; color: #fff !important; }
+
+/* ---------- both sports ---------- */
+.sport { padding: 2px !important; border-radius: 12px !important; } .sport a { padding: 4px 7px !important; } .sport img { height: 20px !important; }
+.hdr h1 { font-size: 22px !important; }
+.xtabs.c5 { grid-template-columns: repeat(5, 1fr); } .xtabs.c5 button { font-size: 12px; }
+.pxb.off { display: grid; place-items: center; color: rgba(255,255,255,.25); font-weight: 800; }
+.pxb.bk:not(.pp) { border-color: rgba(47,224,110,.35); }
+body.nfl .slate { background: radial-gradient(100% 120% at 0% 0%, rgba(47,224,110,.28), transparent 55%), radial-gradient(80% 120% at 100% 100%, rgba(56,120,210,.16), transparent 60%), linear-gradient(160deg, #141c18, #0b100d) !important; }
+body.nfl { background: radial-gradient(90% 50% at 50% -8%, rgba(47,224,110,.16), transparent 70%), #090b0f !important; }
+body.nfl .splash img { filter: drop-shadow(0 10px 30px rgba(47,224,110,.45)); }
+.gc2 .status > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; } .gc2 .status > span:first-child { flex: 0 1 auto; max-width: 62%; }

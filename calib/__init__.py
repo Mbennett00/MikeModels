@@ -1,4 +1,4 @@
-"""Self-calibrating model engine for the NHL model.
+"""Self-calibrating model engine shared by the NHL and NFL models.
 
     db.py        prediction database (SQLite, append-only): every projection, its inputs, the actual result
     metrics.py   error metrics (MAE, RMSE, bias, ...) over windows and segments
@@ -7,5 +7,5 @@
                  walk-forward backtest, accept / reject, model versions
     health.py    the Model Health payload for the web pages (metrics, biases, chart series, versions)
     config.py    thresholds (shrinkage tiers, significance, caps) in one place
-    __main__.py  python -m calib {status, recalibrate, health} --sport nhl
+    __main__.py  python -m calib {status, recalibrate, health} --sport nhl|nfl
 """

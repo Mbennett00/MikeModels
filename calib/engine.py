@@ -70,6 +70,18 @@ SPECS = {
         "home": ("home-ice", lambda i, r: _num(r.get("is_home"))),
         "form": ("recent form", lambda i, r: _num(r.get("form"))),
     }, {"off", "def_opp", "goalie_opp", "pp_pk", "pace", "rest", "home"}),
+    "nfl": Spec("nfl", "team_points", "points", {
+        "off": ("offensive efficiency (EPA/play)", lambda i, r: _num(i.get("off"))),
+        "def_opp": ("opponent defensive efficiency", lambda i, r: _num(i.get("def_opp"))),
+        "pass_off": ("passing efficiency (EPA/dropback)", lambda i, r: _num(i.get("pass_off"))),
+        "home": ("home-field", lambda i, r: _num(r.get("is_home"))),
+        "qb": ("QB adjustment", lambda i, r: _num(i.get("qb"))),
+        "inj": ("injuries (own team)", lambda i, r: _num(i.get("inj"))),
+        "inj_opp": ("injuries (opponent)", lambda i, r: _num(i.get("inj_opp"))),
+        "weather": ("weather", lambda i, r: _num(i.get("weather"))),
+        "rest": ("rest days vs opponent", lambda i, r: _num(i.get("rest_diff"))),
+        "form": ("recent form", lambda i, r: _num(r.get("form"))),
+    }, {"off", "def_opp", "pass_off", "home", "qb", "inj", "inj_opp", "weather"}),
 }
 
 

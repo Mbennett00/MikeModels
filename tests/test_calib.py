@@ -153,7 +153,7 @@ def test_slate_projections_are_picklable():
 
 def test_weight_changes_labels_and_effective_size():
     from calib.engine import weight_changes, SPECS
-    f = next(iter(SPECS["nhl"].features))
-    w = weight_changes({"features": [f], "coef": [2.0], "sd": [0.5], "shrink": 0.5, "blend": 0.5}, "nhl", "1.1")
+    f = next(iter(SPECS["nfl"].features))
+    w = weight_changes({"features": [f], "coef": [2.0], "sd": [0.5], "shrink": 0.5, "blend": 0.5}, "nfl", "1.1")
     assert w["version"] == "1.1" and w["items"][0]["signed"] == 0.25 and w["items"][0]["name"][0].isupper()
-    assert weight_changes({}, "nhl", "1.0") is None
+    assert weight_changes({}, "nfl", "1.0") is None
