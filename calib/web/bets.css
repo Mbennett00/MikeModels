@@ -137,3 +137,7 @@
 .mbtoast .tamt { font-family: var(--fh); font-weight: 800; font-size: 36px; line-height: 1.1; }
 .mbtoast .tsub { font-size: 13px; font-weight: 700; opacity: .85; }
 .navdot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #f6c045; margin-left: 4px; vertical-align: 2px; }
+.bookline { color: var(--acc, #2fe06e); font-weight: 800; }
+.slipo.moved { color: #f6c045; } .slipo s { color: var(--muted); font-size: 12px; margin-right: 5px; }
+.pb3 { position: relative; } .pb3.bk { border-color: rgba(47,224,110,.45) !important; }
+.bkt { position: absolute; top: -7px; right: -5px; font-style: normal; font-size: 9px; font-weight: 900; background: #53d337; color: #06120a; border-radius: 6px; padding: 1px 4px; letter-spacing: .03em; }

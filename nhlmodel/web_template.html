@@ -449,6 +449,7 @@ async function loadLive(data) {
     if (!g) continue;
     const st = ev.status || c.status || {}, ty = st.type || {};
     const p1 = t => (t.linescores && t.linescores.length) ? Number(t.linescores[0].value) : null;
+    const bo = mbParseEspnOdds(c); if (bo && (bo.ml.home || bo.total.over.odds)) LIVEODDS[g.game_id] = bo;   // DraftKings, live
     const prev = LIVE[g.game_id] || {};
     LIVE[g.game_id] = Object.assign(prev, {
       state: ty.state, detail: ty.shortDetail || ty.detail || "", period: st.period || 0, espn: ev.id,
@@ -888,7 +889,7 @@ function prow(p, mk) {
     <div class="pt3"><div class="pn3">${esc(p.name)}</div>
       <div class="pm3">${esc(p.pos || "")} · ${esc(p.team)}${p.num != null ? " #" + esc(p.num) : ""} ${esc(matchupOf(p).split(" · ")[0])}</div>
       <div class="pp3">Proj <b>${lam.toFixed(mk === "goals" ? 2 : 1)}</b> ${PNAME[mk]} · ${pct(pr)}${live}</div></div>
-    <button class="pb3 ${cls}" data-bet="${i}"><b>${mk === "goals" && l === 0.5 ? "Scores" : "O " + l}</b><span>${am(fair(pr))}</span></button></div>`;
+    <button class="pb3 ${cls} ${p.dk && p.dk[`${mk}|${l}`] ? "bk" : ""}" data-bet="${i}"><b>${mk === "goals" && l === 0.5 ? "Scores" : "O " + l}</b><span>${p.dk && p.dk[`${mk}|${l}`] ? am(p.dk[`${mk}|${l}`]) : am(fair(pr))}</span>${p.dk && p.dk[`${mk}|${l}`] ? `<i class="bkt">DK</i>` : ""}</button></div>`;
 }
 function sectionsNHL(list, mk) {
   const S = PSTATE, by = {};
@@ -1129,10 +1130,10 @@ function drawSheet() {
     <div class="kpis"><div class="kpi"><div class="k">Chance</div><div class="n">${pct(b.p)}</div></div>
       <div class="kpi"><div class="k">Fair</div><div class="n">${am(fair(b.p))}</div></div>
       <div class="kpi g"><div class="k">Bet at</div><div class="n">${betAt(b.p - thr(b.market))}</div></div></div>
-    <div class="sh-s" style="margin-bottom:6px">${BOOK()} odds</div>
+    <div class="sh-s" style="margin-bottom:6px">Other odds? (optional)</div>
     <div class="oddsrow"><div class="sign"><button data-s="1" class="${SH.sign > 0 ? "on" : ""}">+</button><button data-s="-1" class="${SH.sign < 0 ? "on" : ""}">−</button></div>
       <input class="odds" id="odds" inputmode="numeric" pattern="[0-9]*" placeholder="${Math.abs(Math.round(fair(b.p - thr(b.market)))) || 110}" value="${esc(SH.num)}"></div>
-    <div id="vd">${isFinite(o) && Math.abs(o) >= 100 ? verdictHtml(b.p, b.market, o) : `<div class="hint">Type the price from ${BOOK()} to see if it's worth it. Anything at or better than the green “bet at” price is a bet.</div>`}</div>
+    <div id="vd">${isFinite(o) && Math.abs(o) >= 100 ? verdictHtml(b.p, b.market, o) : `<div class="hint">Type a price only to check it against the model; bets use the live book price below.</div>`}</div>
     ${mbTrackHtml(mbDefOdds(b))}`;
   $("#shx").onclick = closeSheet;
   mbWireTrack(() => SH && SH.num ? SH.sign * Number(SH.num) : NaN, mbDefOdds(b), () => ({sport: "NHL", kind: "single", label: b.label, legs: [mbLegOf(b)]}));
@@ -1171,6 +1172,12 @@ function mbGrade(leg) {
   return undefined;
 }
 // the sweat: live score + the player's stat so far for an open leg
+// DraftKings prop prices published with the page (anytime goal + shots / points / assists milestones)
+function mbPropOdds(leg) {
+  const k = leg.key || {}, days = [TODAY, PREV].filter(Boolean);
+  const p = days.flatMap(d => d.players).find(x => String(x.id) === String(k.pid)); if (!p || !p.dk || (k.dir || "over") !== "over") return null;
+  const o = p.dk[`${k.mk}|${k.l}`]; return o ? {odds: o, book: (TODAY && TODAY.meta.props_book) || "DraftKings"} : null;
+}
 function mbArtFor(leg) {   // logos / headshot for bets saved without them
   const days = [TODAY, PREV].filter(Boolean), k = leg.key || {}, g = days.flatMap(d => d.games).find(x => String(x.game_id) === String(leg.gid));
   if (k.t === "prop") { const p = days.flatMap(d => d.players).find(x => String(x.id) === String(k.pid)); return p ? {img: p.headshot, logo: teamLogoUrl(p.team), name: p.name} : {logo: teamLogoUrl(k.team), name: k.name}; }

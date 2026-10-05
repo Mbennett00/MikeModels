@@ -57,7 +57,10 @@ function mbTrackHtml(defOdds) {
 }
 function mbWireTrack(getOdds, defOdds, getBet) {
   const add = document.getElementById("mbadd"); if (!add) return;
-  const cur = () => { const o = getOdds(); return isFinite(o) && Math.abs(o) >= 100 ? o : defOdds; };
+  const bk = (() => { try { return mbBookOdds(getBet().legs[0]); } catch (e) { return null; } })();
+  const cur = () => { const o = getOdds(); return isFinite(o) && Math.abs(o) >= 100 ? o : bk ? bk.odds : defOdds; };
+  const msg = document.getElementById("mbmsg");
+  if (msg) msg.innerHTML = bk ? `<span class="bookline">● ${esc(bk.book)} live price</span> · type other odds above to override` : "No live book price for this line: uses the fair price unless you type odds above.";
   const show = () => setTimeout(() => { const o = cur(), el = document.getElementById("mbodds"); if (el) el.textContent = isFinite(o) ? mbSign(o) : "–"; }, 0);
   const odds = document.getElementById("odds"); if (odds) odds.addEventListener("input", show);
   document.querySelectorAll("#sheet [data-s], #sheet [data-ms]").forEach(x => x.addEventListener("click", show));
@@ -66,7 +69,7 @@ function mbWireTrack(getOdds, defOdds, getBet) {
     const o = cur(), bet = getBet(), leg = bet.legs[0];
     if (!isFinite(o)) { document.getElementById("mbmsg").textContent = "Enter the odds first."; return; }
     if (mbStarted(leg)) { document.getElementById("mbmsg").textContent = "That game has started: betting is closed."; return; }
-    slipAdd(Object.assign({}, leg, {sport: bet.sport, label: bet.label, odds: Math.round(o)})); mbHaptic();
+    const typed = getOdds(); slipAdd(Object.assign({}, leg, {sport: bet.sport, label: bet.label, odds: Math.round(o), book: !(isFinite(typed) && Math.abs(typed) >= 100) && bk ? bk.book : null})); mbHaptic();
     add.classList.add("added"); add.innerHTML = `✓ On your slip · ${slipLoad().length} pick${slipLoad().length > 1 ? "s" : ""}`;
     document.getElementById("mbmsg").innerHTML = `<button class="linkbtn" id="mbopen">Open bet slip →</button>`;
     document.getElementById("mbopen").onclick = () => mbOpenSlip();
@@ -81,6 +84,9 @@ function mbSlipParlay(legs, sport) {
 function slipParlayOk(v) { return v.length >= 2 && new Set(v.map(x => x.sport + x.gid)).size === v.length; }
 function mbOpenSlip() {
   const sh = document.getElementById("sheet"), s = mbLoad(), W = mbWallet(s), v = slipLoad();
+  let moved = 0;
+  v.forEach(x => { if (!x.book) return; const b = mbBookOdds(x); if (b && b.odds !== x.odds) { x.was = x.odds; x.odds = b.odds; moved++; } });
+  if (moved) slipSave(v);
   if (SLIP_STAKE == null) SLIP_STAKE = s.unit || 10;
   if (SLIP_MODE === "parlay" && !slipParlayOk(v)) SLIP_MODE = "single";
   const dec = v.reduce((a, x) => a * mbDec(x.odds), 1), stake = Number(SLIP_STAKE) || 0;
@@ -92,8 +98,8 @@ function mbOpenSlip() {
     ${v.length ? `<div class="gseg"><button class="${SLIP_MODE === "single" ? "on" : ""}" data-sm2="single">Singles</button>
       <button class="${SLIP_MODE === "parlay" ? "on" : ""} ${slipParlayOk(v) ? "" : "dis"}" data-sm2="parlay">Parlay${v.length >= 2 ? `<em>${mbSign(mbAm(dec))}</em>` : ""}</button></div>
     <div class="slipl">${v.map(x => `<div class="slipi ${mbStarted(x) ? "closed" : ""}">${mbPic(x)}
-      <div class="slipt"><b>${esc(x.label)}</b><i>${esc(x.sport)} · ${esc(x.sub || "")}${mbStarted(x) ? " · started" : ""}</i></div>
-      <span class="slipo">${mbSign(x.odds)}</span><button class="slipx" data-sx="${esc(slipKey(x))}" aria-label="Remove">×</button></div>`).join("")}</div>
+      <div class="slipt"><b>${esc(x.label)}</b><i>${esc(x.sport)} · ${esc(x.sub || "")}${x.book ? ` · ${esc(x.book)}` : ""}${mbStarted(x) ? " · started" : ""}</i></div>
+      <span class="slipo ${x.was != null ? "moved" : ""}">${x.was != null ? `<s>${mbSign(x.was)}</s>` : ""}${mbSign(x.odds)}</span><button class="slipx" data-sx="${esc(slipKey(x))}" aria-label="Remove">×</button></div>`).join("")}</div>
     <div class="stakebox"><div class="stk"><span>${SLIP_MODE === "parlay" ? "Stake" : "Stake per pick"}</span><div class="stkin"><em>$</em><input id="slipstake" inputmode="decimal" value="${stake || ""}"></div></div>
       <div class="stk r"><span>To win</span><b>${mbMoney(win)}</b></div></div>
     <div class="qchips">${[5, 10, 25, 50, 100].map(a => `<button class="${stake === a ? "on" : ""}" data-qs="${a}">$${a}</button>`).join("")}</div>
@@ -387,4 +393,30 @@ function mbDailyHtml(s) {
   return D.claimed
     ? `<div class="daily done"><div class="gift">✅</div><div class="dt"><b>Bonus claimed · 🔥 ${D.streak}-day streak</b><i>Come back tomorrow for ${mbMoney(D.next)} paper</i><div class="streakdots">${dots}</div></div></div>`
     : `<div class="daily"><div class="gift">🎁</div><div class="dt"><b>Daily bonus · day ${D.streak}</b><i>+${mbMoney(D.amount)} paper · grows every day you come back</i><div class="streakdots">${dots}</div></div><button class="claim" id="mbclaim">Claim</button></div>`;
+}
+
+// ---- live sportsbook prices: DraftKings lines from ESPN's public scoreboard (no key, refreshed with the live scores) ----
+const LIVEODDS = {};   // gid -> {book, ml: {home, away}, spread: {home: {line, odds}, away}, total: {over: {line, odds}, under}, ts}
+function mbParseEspnOdds(comp) {
+  const o = ((comp || {}).odds || [])[0]; if (!o) return null;
+  const n = v => { const x = Number(String(v || "").replace(/[ou+]/g, "").replace("EVEN", "100")); return isFinite(x) && x !== 0 ? x : null; };
+  const side = (blk, k) => { const c = ((blk || {})[k] || {}).current || ((blk || {})[k] || {}).close || {}; return {line: n(c.line), odds: n(c.odds)}; };
+  const out = {book: (o.provider || {}).name || "Sportsbook", ts: Date.now(),
+    ml: {home: side(o.moneyline, "home").odds, away: side(o.moneyline, "away").odds},
+    spread: {home: side(o.pointSpread, "home"), away: side(o.pointSpread, "away")},
+    total: {over: side(o.total, "over"), under: side(o.total, "under")}};
+  if (out.ml.home == null && o.homeTeamOdds && o.homeTeamOdds.moneyLine) { out.ml.home = Number(o.homeTeamOdds.moneyLine); out.ml.away = Number((o.awayTeamOdds || {}).moneyLine) || null; }
+  if (out.total.over.line == null && o.overUnder) { out.total.over.line = out.total.under.line = Number(o.overUnder); }
+  return out;
+}
+// the book's price for a game leg, only when the book hangs the same number
+function mbBookOdds(leg) {
+  const k = leg.key || {};
+  if (k.t === "prop") { try { return typeof mbPropOdds === "function" ? mbPropOdds(leg) : null; } catch (e) { return null; } }
+  const L = LIVEODDS[leg.gid]; if (!L || k.t !== "game") return null;
+  const same = (a, b) => a != null && b != null && Math.abs(a - b) < 1e-6;
+  if (k.m === "moneyline" || k.m === "ml") return L.ml[k.s] ? {odds: L.ml[k.s], book: L.book} : null;
+  if (k.m === "spread" || k.m === "puckline") { const x = L.spread[k.s]; return x && x.odds && same(x.line, k.l) ? {odds: x.odds, book: L.book} : null; }
+  if (k.m === "total") { const x = L.total[k.s]; return x && x.odds && same(x.line, k.l) ? {odds: x.odds, book: L.book} : null; }
+  return null;
 }

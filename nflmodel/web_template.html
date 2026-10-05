@@ -356,6 +356,7 @@ async function loadLive() {
     for (const ev of r.events || []) {
       const c = ev.competitions[0], tm = {}; c.competitors.forEach(x => tm[x.homeAway] = {abbr: ESPN_FIX[x.team.abbreviation] || x.team.abbreviation, score: Number(x.score)});
       const g = D.games.find(x => x.home.abbr === tm.home.abbr && x.away.abbr === tm.away.abbr); if (!g) continue;
+      const bo = mbParseEspnOdds(c); if (bo && (bo.ml.home || bo.total.over.odds)) LIVEODDS[g.game_id] = bo;   // DraftKings, live
       LIVE[g.game_id] = {espn: ev.id, state: ev.status.type.state, detail: ev.status.type.shortDetail, home: tm.home.score, away: tm.away.score,
                          poss: (c.situation || {}).possession, yard: (c.situation || {}).yardLine, down: (c.situation || {}).shortDownDistanceText};
     }
@@ -910,7 +911,7 @@ function drawPlayer() {
       <div class="stepper"><button data-st="-1">−</button><input class="lv odds" id="pline" inputmode="decimal" value="${PSH.line}"><button data-st="1">+</button></div>`}
     <div class="kpis"><div class="kpi"><div class="k">Chance</div><div class="n">${pct(prob)}</div></div><div class="kpi"><div class="k">Fair</div><div class="n">${am(fair(prob))}</div></div>
       <div class="kpi g"><div class="k">Bet at</div><div class="n">${am(fair(prob - 0.04))}</div></div></div>
-    <div class="sh-s" style="margin:4px 0 6px">${esc(BOOK())} odds${m === "td" ? "" : ` (set the line above to ${esc(BOOKS())})`}</div>
+    <div class="sh-s" style="margin:4px 0 6px">Other odds? (optional)</div>
     <div class="oddsrow"><div class="sign"><button data-s="1" class="${PSH.sign > 0 ? "on" : ""}">+</button><button data-s="-1" class="${PSH.sign < 0 ? "on" : ""}">−</button></div>
       <input class="odds" id="odds" inputmode="numeric" pattern="[0-9]*" placeholder="110" value="${esc(PSH.num)}"></div>
     <div id="vd">${isFinite(o) && Math.abs(o) >= 100 ? propVerdict(prob, o) : `<div class="hint">Props carry more hold than game lines, so the green price leaves a 4-point cushion.</div>`}</div>
@@ -1001,10 +1002,10 @@ function drawSheet() {
     <div class="sh-t">${esc(o.label)}</div><div class="sh-s">${esc(g.away.city)} ${esc(g.away.name)} @ ${esc(g.home.city)} ${esc(g.home.name)}</div>
     <div class="kpis"><div class="kpi"><div class="k">Chance</div><div class="n">${pct(o.p)}</div></div><div class="kpi"><div class="k">Fair</div><div class="n">${am(fair(o.p))}</div></div>
       <div class="kpi g"><div class="k">Bet at</div><div class="n">${am(fair(o.p - THR))}</div></div></div>${mk}
-    <div class="sh-s" style="margin:10px 0 6px">${esc(BOOK())} odds</div>
+    <div class="sh-s" style="margin:10px 0 6px">Other odds? (optional)</div>
     <div class="oddsrow"><div class="sign"><button data-s="1" class="${SH.sign > 0 ? "on" : ""}">+</button><button data-s="-1" class="${SH.sign < 0 ? "on" : ""}">−</button></div>
       <input class="odds" id="odds" inputmode="numeric" pattern="[0-9]*" placeholder="110" value="${esc(SH.num)}"></div>
-    <div id="vd">${isFinite(odds) && Math.abs(odds) >= 100 ? verdictHtml(o.p, odds) : `<div class="hint">Type the price to see if it's worth it.</div>`}</div>
+    <div id="vd">${isFinite(odds) && Math.abs(odds) >= 100 ? verdictHtml(o.p, odds) : `<div class="hint">Type a price only to check it against the model; bets use the live book price below.</div>`}</div>
     ${mbTrackHtml(o.b.price || Math.round(fair(o.p)))}`;
   $("#shx").onclick = closeSheet;
   mbWireTrack(() => SH && SH.num ? SH.sign * Number(SH.num) : NaN, o.b.price || Math.round(fair(o.p)),

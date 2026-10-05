@@ -413,6 +413,14 @@ def cmd_slate(a):
         log_live(site, state, plays, cal.version if cal else "1.0")
     except Exception as e:
         print(f"prediction logging failed: {e}")
+    try:   # DraftKings player-prop prices (ESPN's free feed) for the slip; the page falls back to fair prices without them
+        from .espn_props import fetch as espn_props
+        ep = espn_props(str(date.date()))
+        if ep.get("players"):
+            ep["date"] = str(date.date())
+            json.dump(ep, open(os.path.join(site, "espn_props.json"), "w"))
+    except Exception as e:
+        print(f"espn props failed: {e}")
     try:
         from .images import resolve
         people = lineups[["player_id", "name"]].assign(

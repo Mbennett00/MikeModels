@@ -14,7 +14,7 @@ import shutil
 import numpy as np
 import pandas as pd
 
-from .data.teams import DISPLAY
+from .data.teams import DISPLAY, norm_name
 from .player_model import project_team_players
 from .pricing import fair_american
 from .team_model import TeamModel
@@ -98,6 +98,12 @@ def build(state, plays: pd.DataFrame, meta: dict, news: dict | None, images: dic
                           lam_home=_num(gp.lam_home), lam_away=_num(gp.lam_away), p_ot_home=_num(gp.p_ot_home),
                           reg=_mat(gp.matrix), p1=_mat(gp.p1_matrix)))
     players = []
+    try:   # DraftKings prop prices published by the slate run (nhlmodel.espn_props)
+        ep = json.load(open(os.path.join(os.path.dirname(out_dir.rstrip("/")), "espn_props.json")))
+        book_props = ep.get("players", {}) if ep.get("date") == str(meta.get("date", "")) else {}   # tonight's prices only
+        meta = dict(meta, props_book=ep.get("book"), props_at=ep.get("fetched_at"))
+    except (OSError, ValueError):
+        book_props = {}
     pp = plays[(plays.player.fillna("") != "") & (plays.selection == "over")] if len(plays) else plays
     for pid, d in (pp.groupby("player_id") if len(pp) else []):
         r0 = d.iloc[0]
@@ -106,7 +112,7 @@ def build(state, plays: pd.DataFrame, meta: dict, news: dict | None, images: dic
         players.append(dict(id=int(pid), name=r0.player, team=r0.team, pos=r0.get("pos", "F"),
                             game_id=int(r0.game_id), confirmed=bool(r0.confirmed),
                             headshot=faces.get(str(int(pid))) or (r0.headshot if isinstance(r0.get("headshot"), str) else ""),
-                            num=numbers.get(str(int(pid))), lam=lam))
+                            num=numbers.get(str(int(pid))), lam=lam, dk=book_props.get(norm_name(r0.player)) or None))
     # per-player matchup effect (tonight vs an average opponent at a neutral rink) for the rink view
     mxp = {}
     for g in state.schedule.itertuples():
@@ -130,7 +136,8 @@ def build(state, plays: pd.DataFrame, meta: dict, news: dict | None, images: dic
                   games=len(games), goalies_confirmed=int(sum(g[s]["goalie_confirmed"] for g in games
                                                               for s in ("home", "away"))),
                   teams=2 * len(games), constants=meta.get("constants", ""),
-                  book=os.environ.get("ODDS_BOOK_NAME", "Caesars"), book_short=os.environ.get("ODDS_BOOK_SHORT", "CZR")),
+                  book=os.environ.get("ODDS_BOOK_NAME", "Caesars"), book_short=os.environ.get("ODDS_BOOK_SHORT", "CZR"),
+                  props_book=meta.get("props_book"), props_at=meta.get("props_at")),
         params=dict(r_sog=P.nb_r.get("sog", {}), r_ast=P.count_r.get("assists", 1e6),
                     r_pts=P.count_r.get("points", 1e6), thresholds=state.cfg.edge_threshold),
         games=games, players=players, lines=lines, trust=_trust(market_summary),
