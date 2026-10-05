@@ -771,17 +771,17 @@ function poolNFL() {
     const gl = `${g.away.abbr} @ ${g.home.abbr}`, wx = (g.weather || {}).expo === "outdoor" && g.weather.wind != null ? `${Math.round(g.weather.wind)} mph wind` : "";
     if (g.src === "odds") for (const b of mkBets(g)) { if (b.mkt == null || !b.price || b.p < 0.5 || b.edge < 0 || b.price > 200) continue;
       const k = bet({g, b, p: b.p, label: label(g, b)}), cls = settle(g, b);
-      pool.push({gid: g.game_id, kind: b.m === "total" ? "total" : "side", title: label(g, b), sub: gl, p: b.p, price: b.price, attr: `data-bet="${k}"`, cls, pic: duo3(g),
+      pool.push({gid: g.game_id, start: g.start_utc, key: {t: "game", m: b.m, s: b.s, l: b.line}, kind: b.m === "total" ? "total" : "side", title: label(g, b), sub: gl, p: b.p, price: b.price, attr: `data-bet="${k}"`, cls, pic: duo3(g),
         why: [b.edge > 0.02 ? `+${(100 * b.edge).toFixed(0)}% vs market` : "", b.m === "total" ? wx : ""].filter(Boolean).join(" · "), w: b.p + 2 * Math.max(b.edge, 0)}); }
     for (const p of (D.players || []).filter(x => x.game_id === g.game_id && !x.status)) {
       const G = (((D.lineups || {})[p.team] || {}).grades || {})[p.pos === "FB" ? "RB" : p.pos], gw = G ? GRADE_W[G.g[0]] || 1 : 1;
       const vs = `${p.team} ${g.home.abbr === p.team ? "vs" : "@"} ${p.opp}`, why = [G ? `matchup ${G.g}` : "", p.role === "QB" ? "" : (p.role === "RB" ? `${p.car.toFixed(0)} car` : `${p.tgt.toFixed(1)} tgt`)].filter(Boolean).join(" · ");
-      const add = (m, title, pr, kind) => pool.push({gid: g.game_id, kind, title: `${p.name} ${title}`, sub: vs, p: pr, price: null, attr: `data-pp="${esc(p.id)}|${esc(p.game_id)}|${m}"`, pic: head(p), why, w: pr * gw});
+      const add = (m, title, pr, kind, L) => pool.push({gid: g.game_id, start: g.start_utc, key: {t: "prop", pid: p.id, name: p.name, team: p.team, mk: m, l: L ?? 0.5, dir: "over"}, kind, title: `${p.name} ${title}`, sub: vs, p: pr, price: null, attr: `data-pp="${esc(p.id)}|${esc(p.game_id)}|${m}"`, pic: head(p), why, w: pr * gw});
       if (p.role !== "QB" && p.p_td >= 0.35) add("td", "anytime TD", p.p_td, "td");
-      if (p.role === "QB") { const a = altLine(p, "pass_yds", 0.6, 0.78, 10); if (a) add("pass_yds", `${a.L + 0.5}+ pass yds`, a.p, "yds"); }
-      else if (p.role === "RB") { const a = altLine(p, "rush_yds", 0.6, 0.78, 5); if (a && p.rush_yds >= 35) add("rush_yds", `${a.L + 0.5}+ rush yds`, a.p, "yds"); }
-      else { const a = altLine(p, "rec_yds", 0.6, 0.78, 5); if (a && p.rec_yds >= 30) add("rec_yds", `${a.L + 0.5}+ rec yds`, a.p, "yds");
-        const r = altLine(p, "rec", 0.6, 0.78, 1); if (r && p.rec >= 3) add("rec", `${r.L + 0.5}+ catches`, r.p, "rec"); }
+      if (p.role === "QB") { const a = altLine(p, "pass_yds", 0.6, 0.78, 10); if (a) add("pass_yds", `${a.L + 0.5}+ pass yds`, a.p, "yds", a.L); }
+      else if (p.role === "RB") { const a = altLine(p, "rush_yds", 0.6, 0.78, 5); if (a && p.rush_yds >= 35) add("rush_yds", `${a.L + 0.5}+ rush yds`, a.p, "yds", a.L); }
+      else { const a = altLine(p, "rec_yds", 0.6, 0.78, 5); if (a && p.rec_yds >= 30) add("rec_yds", `${a.L + 0.5}+ rec yds`, a.p, "yds", a.L);
+        const r = altLine(p, "rec", 0.6, 0.78, 1); if (r && p.rec >= 3) add("rec", `${r.L + 0.5}+ catches`, r.p, "rec", r.L); }
     }
   }
   return pool;
@@ -789,7 +789,7 @@ function poolNFL() {
 function mixedNFL() {
   if (PMODE === "edge") { const P = parlayNFL(); if (!P) return mixCardHtml(null, "edge", "");
     return mixCardHtml({legs: P.legs.map(l => { const k = bet({g: l.g, b: l.b, p: l.b.p, label: label(l.g, l.b)});
-        return {title: label(l.g, l.b), sub: `${l.g.away.abbr} @ ${l.g.home.abbr}`, p: l.b.p, price: l.b.price, attr: `data-bet="${k}"`, cls: settle(l.g, l.b),
+        return {gid: l.g.game_id, start: l.g.start_utc, key: {t: "game", m: l.b.m, s: l.b.s, l: l.b.line}, title: label(l.g, l.b), sub: `${l.g.away.abbr} @ ${l.g.home.abbr}`, p: l.b.p, price: l.b.price, attr: `data-bet="${k}"`, cls: settle(l.g, l.b),
           pic: `<span class="duo3"><img src="${esc(l.g.away.logo)}" alt="" onerror="this.remove()"><img src="${esc(l.g.home.logo)}" alt="" onerror="this.remove()"></span>`,
           why: `+${(100 * l.b.edge).toFixed(1)}% vs market`}; }), p: P.p, dec: P.dec, worth: P.legs.reduce((a, l) => a / Math.max(l.b.p - THR, 0.02), 1), priced: true},
       "edge", "The model's 4%+ edges over the market, one per game. Prices are the market median.");
@@ -888,8 +888,13 @@ function drawPlayer() {
     <div class="sh-s" style="margin:4px 0 6px">${esc(BOOK())} odds${m === "td" ? "" : ` (set the line above to ${esc(BOOKS())})`}</div>
     <div class="oddsrow"><div class="sign"><button data-s="1" class="${PSH.sign > 0 ? "on" : ""}">+</button><button data-s="-1" class="${PSH.sign < 0 ? "on" : ""}">−</button></div>
       <input class="odds" id="odds" inputmode="numeric" pattern="[0-9]*" placeholder="110" value="${esc(PSH.num)}"></div>
-    <div id="vd">${isFinite(o) && Math.abs(o) >= 100 ? propVerdict(prob, o) : `<div class="hint">Props carry more hold than game lines, so the green price leaves a 4-point cushion.</div>`}</div>`;
+    <div id="vd">${isFinite(o) && Math.abs(o) >= 100 ? propVerdict(prob, o) : `<div class="hint">Props carry more hold than game lines, so the green price leaves a 4-point cushion.</div>`}</div>
+    ${mbTrackHtml(Math.round(fair(prob)))}`;
   $("#shx").onclick = closeSheet;
+  const plab = m === "td" ? `${p.name} anytime TD` : `${p.name} ${PSH.side} ${PSH.line} ${PU[m] || m}`;
+  mbWireTrack(() => PSH && PSH.num ? PSH.sign * Number(PSH.num) : NaN, Math.round(fair(prob)),
+    () => ({sport: "NFL", kind: "single", label: plab, legs: [{label: plab, sub: `${p.team} vs ${p.opp}`, gid: p.game_id, start: g && g.start_utc, p: prob,
+            key: {t: "prop", pid: p.id, name: p.name, team: p.team, mk: m, l: m === "td" ? 0.5 : PSH.line, dir: m === "td" ? "over" : PSH.side}}]}));
   $("#sheet").querySelectorAll("[data-sm]").forEach(x => x.onclick = () => { PSH.m = x.dataset.sm; PSH.line = PSH.m === "td" ? null : fairLine(pMean(p, PSH.m), PSH.m, p); drawPlayer(); });
   $("#sheet").querySelectorAll("[data-ss]").forEach(x => x.onclick = () => { PSH.side = x.dataset.ss; drawPlayer(); });
   $("#sheet").querySelectorAll("[data-st]").forEach(x => x.onclick = () => { PSH.line = Math.max(0.5, PSH.line + Number(x.dataset.st) * step); drawPlayer(); });
@@ -920,6 +925,10 @@ function teams() {
 
 // ---------- check ----------
 function check() {
+  const seg = `<div class="hv"><button class="${MB_VIEW === "bets" ? "on" : ""}" data-mbv="bets">🎟️ My bets</button><button class="${MB_VIEW === "check" ? "on" : ""}" data-mbv="check">✅ Check a price</button></div>`;
+  return seg + (MB_VIEW === "bets" ? mbView() : checkPrice());
+}
+function checkPrice() {
   const live = D.games.filter(g => !g.result);
   if (!live.length) return empty("✅", "Nothing to check", "No upcoming games this week.");
   const g = live.find(x => x.game_id === C.game) || live[0]; C.game = g.game_id;
@@ -936,6 +945,8 @@ function check() {
     <button class="more" id="cgo">Enter ${esc(BOOK())} odds →</button></div>`;
 }
 function wireCheck() {
+  document.querySelectorAll("[data-mbv]").forEach(b => b.onclick = () => { MB_VIEW = b.dataset.mbv; render(); });
+  if (MB_VIEW === "bets") { mbWire(render); return; }
   const g = () => D.games.find(x => x.game_id === C.game);
   $("#cg") && ($("#cg").onchange = e => { C.game = e.target.value; C.line = null; render(); });
   document.querySelectorAll("[data-cm]").forEach(b => b.onclick = () => { C.m = b.dataset.cm; C.side = C.m === "total" ? "over" : "home"; C.line = null; render(); });
@@ -968,8 +979,12 @@ function drawSheet() {
     <div class="sh-s" style="margin:10px 0 6px">${esc(BOOK())} odds</div>
     <div class="oddsrow"><div class="sign"><button data-s="1" class="${SH.sign > 0 ? "on" : ""}">+</button><button data-s="-1" class="${SH.sign < 0 ? "on" : ""}">−</button></div>
       <input class="odds" id="odds" inputmode="numeric" pattern="[0-9]*" placeholder="110" value="${esc(SH.num)}"></div>
-    <div id="vd">${isFinite(odds) && Math.abs(odds) >= 100 ? verdictHtml(o.p, odds) : `<div class="hint">Type the price to see if it's worth it.</div>`}</div>`;
+    <div id="vd">${isFinite(odds) && Math.abs(odds) >= 100 ? verdictHtml(o.p, odds) : `<div class="hint">Type the price to see if it's worth it.</div>`}</div>
+    ${mbTrackHtml(o.b.price || Math.round(fair(o.p)))}`;
   $("#shx").onclick = closeSheet;
+  mbWireTrack(() => SH && SH.num ? SH.sign * Number(SH.num) : NaN, o.b.price || Math.round(fair(o.p)),
+    () => ({sport: "NFL", kind: "single", label: `${o.label} (${g.away.abbr} @ ${g.home.abbr})`,
+            legs: [{label: o.label, sub: `${g.away.abbr} @ ${g.home.abbr}`, gid: g.game_id, start: g.start_utc, p: o.p, key: {t: "game", m: o.b.m, s: o.b.s, l: o.b.line}}]}));
   $("#sheet").querySelectorAll("[data-s]").forEach(x => x.onclick = () => { SH.sign = Number(x.dataset.s); drawSheet(); });
   $("#odds").oninput = e => { SH.num = e.target.value.replace(/[^0-9]/g, ""); const o2 = SH.sign * Number(SH.num);
     $("#vd").innerHTML = SH.num && Math.abs(o2) >= 100 ? verdictHtml(o.p, o2) : `<div class="hint">Keep typing… (American odds, e.g. -110)</div>`; };
@@ -1008,11 +1023,20 @@ function strip() {
   $("#strip").innerHTML = h; $("#strip").style.display = h ? "" : "none";
 }
 function nav() {
-  const T = [["games", "🏈 Games"], ["props", "👤 Props"], ["teams", "📈 Teams"], ["check", "✅ Check"], ["updates", "📰 Updates"]];
+  const T = [["games", "🏈 Games"], ["props", "👤 Props"], ["teams", "📈 Teams"], ["check", "🎟️ Bets"], ["updates", "📰 Updates"]];
   $("#nav").innerHTML = T.map(([k, n]) => `<button class="${TAB === k ? "on" : ""}" data-k="${k}">${n}</button>`).join("");
   $("#nav").querySelectorAll("button").forEach(b => b.onclick = () => { TAB = b.dataset.k; render(); window.scrollTo(0, 0); });
 }
+// 📝 paper bets: game lines grade from final scores; NFL props are settled by hand (no box scores on this page)
+const MB_PAGE = "NFL";
+function mbGrade(leg) {
+  const k = leg.key || {}; if (k.t !== "game") return undefined;
+  const g = D.games.find(x => x.game_id === leg.gid); if (!g) return undefined;
+  const r = settle(g, {m: k.m, s: k.s, line: k.l});
+  return r === "won" ? true : r === "lost" ? false : r === "push" ? "push" : undefined;
+}
 function render() {
+  try { mbAutoSettle("NFL", mbGrade); } catch (e) {}
   BETS = []; header(); strip(); nav();
   $("#view").innerHTML = {games, props, teams, check, updates}[TAB]();
   document.querySelectorAll("[data-uf]").forEach(b => b.onclick = () => { UF = b.dataset.uf; render(); });

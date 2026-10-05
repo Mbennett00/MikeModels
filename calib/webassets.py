@@ -5,8 +5,8 @@ HERE = os.path.join(os.path.dirname(__file__), "web")
 
 
 def inline(html: str) -> str:
-    css = open(os.path.join(HERE, "health.css")).read()
-    js = open(os.path.join(HERE, "health.js")).read()
+    css = "\n".join(open(os.path.join(HERE, n)).read() for n in ("health.css", "bets.css"))
+    js = "\n".join(open(os.path.join(HERE, n)).read() for n in ("health.js", "bets.js"))
     return html.replace("/*CALIB_CSS*/", css).replace("/*CALIB_JS*/", js)
 
 

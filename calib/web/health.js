@@ -8,7 +8,7 @@ const mhS = (v, d = 2) => v == null || !isFinite(v) ? "–" : (v > 0 ? "+" : v <
 function mhScale(vals, pad = 0.08) { let lo = Math.min(...vals), hi = Math.max(...vals); if (lo === hi) { lo -= 1; hi += 1; } const p = (hi - lo) * pad; return [lo - p, hi + p]; }
 function mhLine(series, o) {
   // series: [{name, color, pts:[{x, y, t}]}], o: {ref: "diag"|"zero"|null, w, h, xs: [labels]?}
-  const W = o.w || 160, Hh = o.h || 92, L = 22, B = 12, T = 4, R = 4;
+  const W = o.w || 160, Hh = o.h || 92, L = o.L || 22, B = 12, T = 4, R = 4;
   const xs = series.flatMap(s => s.pts.map(p => p.x)), ys = series.flatMap(s => s.pts.map(p => p.y)).concat(o.ref === "zero" ? [0] : []);
   if (!xs.length) return `<div class="ct">${esc(o.title)}</div><div class="hint">Not enough graded predictions yet.</div>`;
   let [x0, x1] = o.ref === "diag" ? mhScale(xs.concat(ys)) : mhScale(xs, 0.02), [y0, y1] = o.ref === "diag" ? [x0, x1] : mhScale(ys);
@@ -171,8 +171,9 @@ function mixParlay(pool, seed, caps, cushion, o = {}) {
   const worth = L.reduce((a, l) => a / Math.max(l.p - cushion, 0.02), 1);
   return {legs: L, p: best.p, dec, worth, priced: L.every(l => l.price != null)};
 }
+const MIX_LAST = {};   // the parlay each card is showing, for 📝 Track parlay
 function mixCardHtml(P, mode, note, o = {}) {
-  const key = o.key || "mix";
+  const key = o.key || "mix"; MIX_LAST[key] = P;
   const seg = o.title ? "" : `<div class="seg2 pmode"><button class="chip ${mode === "mix" ? "on" : ""}" data-pmode="mix">🎲 Mix</button><button class="chip ${mode === "edge" ? "on" : ""}" data-pmode="edge">💰 Edges</button></div>`;
   const head = `<div class="lk-h">${o.title || "🎟️ Parlay of the day"} ${P ? `<span class="pl-tag">${P.legs.length} legs</span>` : ""}</div>${o.sub ? `<div class="note" style="margin:0 0 4px">${o.sub}</div>` : ""}${seg}`;
   if (!P) return `<div class="card lucky">${head}<div class="note">${o.empty || "Not enough solid legs on the board right now. The model won't force one."}</div></div>`;
@@ -183,9 +184,17 @@ function mixCardHtml(P, mode, note, o = {}) {
   return `<div class="card lucky">${head}${rows}
     <div class="pl-sum"><div><span>${P.priced ? "Pays" : "Fair odds"}</span><b>${am(mixAm(P.dec))}</b></div><div><span>Model hits</span><b>${(100 * P.p).toFixed(1)}%</b></div><div><span>Worth it at</span><b>${am(mixAm(P.worth))}+</b></div></div>
     ${mode === "mix" ? `<button class="spin" data-spin="${key}">🎲 Spin again</button>` : ""}
+    <button class="mbtrack" data-mbtrack="${key}">📝 Track this parlay</button>
     <div class="note">${note}</div></div>`;
 }
+function mbTrackParlay(key, sport, close) {
+  const P = MIX_LAST[key]; if (!P) return;
+  const legs = P.legs.map(l => ({label: l.title, sub: l.sub, gid: l.gid, start: l.start, key: l.key, p: l.p,
+                                 odds: l.price != null ? Math.round(l.price) : Math.round(mixFairAm(l.p)), dec: l.price != null ? mixDec(l.price) : 1 / l.p}));
+  mbOpenSlip({sport, kind: "parlay", label: `${P.legs.length}-leg parlay`, legs}, Math.round(mixAm(P.dec)), close);
+}
 function wireMix(render, setMode) {
+  document.querySelectorAll("[data-mbtrack]").forEach(b => b.onclick = () => mbTrackParlay(b.dataset.mbtrack, MB_PAGE, closeSheet));
   document.querySelectorAll("[data-spin]").forEach(b => b.onclick = () => { const k = b.dataset.spin; MIX_SPINS[k] = (MIX_SPINS[k] || 0) + 1; render(); });
   document.querySelectorAll("[data-pmode]").forEach(b => b.onclick = () => { setMode(b.dataset.pmode); render(); });
 }

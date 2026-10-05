@@ -520,6 +520,11 @@ async function refreshLive() {
 // ---------- Check ----------
 let C = {game: null, kind: "game", market: "moneyline", side: "home", dir: "over", line: null, player: null, pmarket: "sog", odds: ""};
 function check() {
+  const seg = `<div class="hv"><button class="${MB_VIEW === "bets" ? "on" : ""}" data-mbv="bets">🎟️ My bets</button><button class="${MB_VIEW === "check" ? "on" : ""}" data-mbv="check">✅ Check a price</button></div>`;
+  if (MB_VIEW === "bets") return seg + mbView();
+  return seg + checkPrice();
+}
+function checkPrice() {
   if (!D.games.length) return empty("🧊", "No games to check", "");
   if (C.game == null) C.game = String(D.games[0].game_id);
   const g = D.games.find(x => String(x.game_id) === C.game) || D.games[0];
@@ -578,6 +583,8 @@ function check() {
   return `<div class="note">For lines that aren't on the board (say a 7.5 total or 3.5 points). Tip: everything else, just tap the price.</div><div class="card soft">${form}</div><div id="cout">${out}</div>`;
 }
 function wireCheck() {
+  document.querySelectorAll("[data-mbv]").forEach(b => b.onclick = () => { MB_VIEW = b.dataset.mbv; render(); });
+  if (MB_VIEW === "bets") { mbWire(render); return; }
   const on = (id, ev, f) => { const el = $("#" + id); if (el) el[ev] = f; };
   on("cg", "onchange", e => { C.game = e.target.value; C.player = null; render(); });
   $("#ck")?.querySelectorAll("button").forEach(b => b.onclick = () => { C.kind = b.dataset.k; C.line = null; render(); });
@@ -631,7 +638,7 @@ function strip() {
     D = b.dataset.day === "prev" ? PREV : TODAY; PSTATE.game = "all"; C.game = null; OPEN.clear(); render(); window.scrollTo(0, 0); });
 }
 function nav() {
-  const T = [["games", "🏒 Games"], ["props", "👤 Props"], ["check", "✅ Check"], ["updates", "📰 Updates"]];
+  const T = [["games", "🏒 Games"], ["props", "👤 Props"], ["check", "🎟️ Bets"], ["updates", "📰 Updates"]];
   $("#nav").innerHTML = T.map(([k, n]) => `<button class="${TAB === k ? "on" : ""}" data-k="${k}">${n}</button>`).join("");
   $("#nav").querySelectorAll("button").forEach(b => b.onclick = () => { TAB = b.dataset.k; render(); window.scrollTo(0, 0); });
 }
@@ -963,7 +970,7 @@ function poolNHL() {
     for (const b of g.dk || []) { const p = b.nv + b.edge; if (!b.price || p < 0.5 || b.edge < 0 || b.edge > MAX_EDGE || b.price > 200) continue;
       const st = settle(g, b.m, b.s, b.l), [cls, ic] = RES(st);
       const k = bet({g, market: b.m, sel: b.s, line: b.l, p, label: `${gameLabel(g)} ${legLabel(g, b)}`});
-      pool.push({gid: g.game_id, kind: b.m === "total" ? "total" : "side", title: legLabel(g, b), sub: gl, p, price: b.price, attr: `data-bet="${k}"`, cls, ic, pic: duo(g),
+      pool.push({gid: g.game_id, start: g.start_utc, key: {t: "game", m: b.m, s: b.s, l: b.l}, kind: b.m === "total" ? "total" : "side", title: legLabel(g, b), sub: gl, p, price: b.price, attr: `data-bet="${k}"`, cls, ic, pic: duo(g),
         why: b.edge > 0.02 ? `+${(100 * b.edge).toFixed(0)}% vs market${gconf ? " · goalies confirmed" : ""}` : (gconf ? "both goalies confirmed" : ""),
         w: (p + 2 * Math.max(b.edge, 0)) * (trustOK(b.m) ? 1 : 0.6) * (gconf ? 1.1 : 1)}); }
     for (const pl of D.players.filter(x => x.game_id === g.game_id && !hurt.has(normName(x.name)))) {
@@ -973,7 +980,7 @@ function poolNHL() {
       const add = (mk, line, p, kind, title, wmul) => { const res = playerStat(pl), L = LIVE[pl.game_id] || {};
         const [cls, ic] = RES(res && !res.dnp ? cmpLine(res[mk], line, "over", L.state === "post") : undefined);
         const k = bet({player: pl, market: mk, line, p, label: `${pl.name} ${title}`});
-        pool.push({gid: g.game_id, kind, title: `${pl.name} ${title}`, sub: `${pl.team} ${pl.team === g.home.abbr ? "vs" : "@"} ${opp.abbr}`, p, price: null, attr: `data-bet="${k}"`, cls, ic, pic: head(pl), why: tags, w: p * boost * wmul}); };
+        pool.push({gid: g.game_id, start: g.start_utc, key: {t: "prop", pid: pl.id, name: pl.name, team: pl.team, mk, l: line, dir: "over"}, kind, title: `${pl.name} ${title}`, sub: `${pl.team} ${pl.team === g.home.abbr ? "vs" : "@"} ${opp.abbr}`, p, price: null, attr: `data-bet="${k}"`, cls, ic, pic: head(pl), why: tags, w: p * boost * wmul}); };
       if (pl.lam.sog != null) { const c = [3.5, 2.5, 1.5].map(l => ({l, p: nbSF(l, pl.lam.sog, r[pl.pos] || 8)})).find(x => x.p >= 0.58 && x.p <= 0.78);
         if (c) add("sog", c.l, c.p, "sog", `${c.l + 0.5}+ shots`, 1); }
       if (pl.lam.points != null) { const p = propProb(pl, "points", 0.5); if (p >= 0.52) add("points", 0.5, p, "pts", "1+ point", 1); }
@@ -986,7 +993,7 @@ function mixedNHL() {
   if (PMODE === "edge") { const P = parlayNHL(); if (!P) return mixCardHtml(null, "edge", "");
     return mixCardHtml({legs: P.legs.map((l, i) => { const st = settle(l.g, l.b.m, l.b.s, l.b.l), [cls, ic] = RES(st);
         const k = bet({g: l.g, market: l.b.m, sel: l.b.s, line: l.b.l, p: l.p, label: `${gameLabel(l.g)} ${legLabel(l.g, l.b)}`});
-        return {title: legLabel(l.g, l.b), sub: `${l.g.away.abbr} @ ${l.g.home.abbr}`, p: l.p, price: l.b.price, attr: `data-bet="${k}"`, cls, ic,
+        return {gid: l.g.game_id, start: l.g.start_utc, key: {t: "game", m: l.b.m, s: l.b.s, l: l.b.l}, title: legLabel(l.g, l.b), sub: `${l.g.away.abbr} @ ${l.g.home.abbr}`, p: l.p, price: l.b.price, attr: `data-bet="${k}"`, cls, ic,
           pic: `<span class="duo3"><img src="${esc(l.g.away.logo)}" alt="" onerror="this.remove()"><img src="${esc(l.g.home.logo)}" alt="" onerror="this.remove()"></span>`,
           why: `+${(100 * l.b.edge).toFixed(1)}% vs market`}; }), p: P.p, dec: P.dec, worth: P.legs.reduce((a, l) => a / Math.max(l.p - 0.02, 0.02), 1), priced: true},
       "edge", "The biggest model edges over the market, one per game, in markets rated “Trust it”. Prices are the market median.");
@@ -1125,8 +1132,10 @@ function drawSheet() {
     <div class="sh-s" style="margin-bottom:6px">${BOOK()} odds</div>
     <div class="oddsrow"><div class="sign"><button data-s="1" class="${SH.sign > 0 ? "on" : ""}">+</button><button data-s="-1" class="${SH.sign < 0 ? "on" : ""}">−</button></div>
       <input class="odds" id="odds" inputmode="numeric" pattern="[0-9]*" placeholder="${Math.abs(Math.round(fair(b.p - thr(b.market)))) || 110}" value="${esc(SH.num)}"></div>
-    <div id="vd">${isFinite(o) && Math.abs(o) >= 100 ? verdictHtml(b.p, b.market, o) : `<div class="hint">Type the price from ${BOOK()} to see if it's worth it. Anything at or better than the green “bet at” price is a bet.</div>`}</div>`;
+    <div id="vd">${isFinite(o) && Math.abs(o) >= 100 ? verdictHtml(b.p, b.market, o) : `<div class="hint">Type the price from ${BOOK()} to see if it's worth it. Anything at or better than the green “bet at” price is a bet.</div>`}</div>
+    ${mbTrackHtml(mbDefOdds(b))}`;
   $("#shx").onclick = closeSheet;
+  mbWireTrack(() => SH && SH.num ? SH.sign * Number(SH.num) : NaN, mbDefOdds(b), () => ({sport: "NHL", kind: "single", label: b.label, legs: [mbLegOf(b)]}));
   $("#sheet").querySelectorAll("[data-s]").forEach(x => x.onclick = () => { SH.sign = Number(x.dataset.s); drawSheet(); $("#odds").focus(); });
   $("#odds").oninput = e => { SH.num = e.target.value.replace(/[^0-9]/g, ""); const o2 = SH.sign * Number(SH.num);
     $("#vd").innerHTML = SH.num && Math.abs(o2) >= 100 ? verdictHtml(b.p, b.market, o2) : `<div class="hint">Keep typing… (American odds, e.g. 115)</div>`; };
@@ -1142,8 +1151,28 @@ function openInfo() {
   $("#scrim").classList.add("open"); $("#sheet").classList.add("open");
 }
 
+// 📝 paper bets: what a tapped price becomes, and how the page grades it
+const MB_PAGE = "NHL";
+function mbDefOdds(b) { const d = b.dk || (b.g ? dkFor(b.g, b.market, b.sel, b.line) : null); return d && d.price ? d.price : Math.round(fair(b.p)); }
+function mbLegOf(b) {
+  if (b.player) { const p = b.player, g = D.games.find(x => x.game_id === p.game_id);
+    return {label: b.label, sub: g ? gameLabel(g) : p.team, gid: p.game_id, start: g && g.start_utc, p: b.p,
+            key: {t: "prop", pid: p.id, name: p.name, team: p.team, mk: b.market, l: b.line, dir: "over"}}; }
+  return {label: b.label, sub: b.g ? gameLabel(b.g) : "", gid: b.g.game_id, start: b.g.start_utc, p: b.p, key: {t: "game", m: b.market, s: b.sel, l: b.line}};
+}
+function mbGrade(leg) {
+  const k = leg.key || {}, days = [TODAY, PREV].filter(Boolean);
+  const g = days.flatMap(d => d.games).find(x => String(x.game_id) === String(leg.gid)); if (!g) return undefined;
+  if (k.t === "game") { const r = settle(g, k.m, k.s, k.l); return r === undefined ? undefined : r; }
+  if (k.t === "prop") { const L = LIVE[g.game_id] || {}; if (L.state !== "post") return undefined;
+    const p = days.flatMap(d => d.players).find(x => String(x.id) === String(k.pid) && String(x.game_id) === String(leg.gid)) || {id: k.pid, name: k.name, team: k.team, game_id: g.game_id};
+    const st = playerStat(p); if (!st) return undefined; if (st.dnp) return "push";
+    return cmpLine(st[k.mk], k.l, k.dir || "over", true); }
+  return undefined;
+}
 function render() {
   BETS = [];
+  try { mbAutoSettle("NHL", mbGrade); } catch (e) {}
   header(); strip(); nav();
   const v = {games, props, check, updates}[TAB]();
   $("#view").innerHTML = v;
