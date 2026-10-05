@@ -1,4 +1,4 @@
-"""python -m calib {status, recalibrate, health} [--sport nhl|nfl|all] [--state state]"""
+"""python -m calib {status, recalibrate, health} [--sport nhl|all] [--state state]"""
 from __future__ import annotations
 
 import argparse
@@ -11,11 +11,11 @@ from . import db, engine, health
 def main(argv=None):
     p = argparse.ArgumentParser(prog="calib")
     p.add_argument("cmd", choices=["status", "recalibrate", "health"])
-    p.add_argument("--sport", default="all", choices=["nhl", "nfl", "all"])
+    p.add_argument("--sport", default="all", choices=["nhl", "all"])
     p.add_argument("--state", default="state")
     a = p.parse_args(argv)
     site = os.path.join(a.state, "site")
-    sports = ["nhl", "nfl"] if a.sport == "all" else [a.sport]
+    sports = ["nhl"] if a.sport == "all" else [a.sport]
     for s in sports:
         engine.ensure_baseline(site, s)
         if a.cmd == "status":

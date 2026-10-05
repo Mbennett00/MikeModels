@@ -17,7 +17,7 @@ on:
         description: "What to run"
         type: choice
         default: slate
-        options: [slate, slate-odds, morning, update, grade, backtest, close, tune, dfo-probe, xg-compare, nfl-odds, recalibrate]
+        options: [slate, slate-odds, morning, update, grade, backtest, close, tune, dfo-probe, xg-compare, recalibrate]
   workflow_call:                # used by recalibrate.yml (the page's RECALIBRATE MODEL button)
     inputs:
       task:
@@ -63,7 +63,6 @@ jobs:
             *) t="${{ inputs.task }}" ;;
           esac
           if [ "$t" = "slate-odds" ]; then t=slate; echo "ODDS_PULL=1" >> "$GITHUB_ENV"; fi   # manual pull (3 credits)
-          if [ "$t" = "nfl-odds" ]; then t=slate; echo "NFL_ODDS_PULL=1" >> "$GITHUB_ENV"; fi   # manual NFL odds pull (3 credits)
           echo "task=$t" >> "$GITHUB_OUTPUT"
           # odds pulls go by the clock (see daily.lean_pull_window), since scheduled runs can start late
           echo "Task: $t"
@@ -77,22 +76,17 @@ jobs:
           python -m nhlmodel.daily grade
           python -m nhlmodel.daily backtest
           # weekly self-calibration (Mondays): applies a new version only if it beats the current one walk-forward
-          if [ "$(TZ=America/New_York date +%u)" = "1" ]; then python -m calib recalibrate --sport all || true; fi
+          if [ "$(TZ=America/New_York date +%u)" = "1" ]; then python -m calib recalibrate --sport nhl || true; fi
           python -m nhlmodel.daily slate
       - name: Run ${{ steps.pick.outputs.task }}
         if: steps.pick.outputs.task != 'morning' && steps.pick.outputs.task != 'recalibrate'
         run: python -m nhlmodel.daily ${{ steps.pick.outputs.task }}
-      - name: Recalibrate (NHL + NFL) and republish
+      - name: Recalibrate and republish
         if: steps.pick.outputs.task == 'recalibrate'
         run: |
           python -m nhlmodel.daily grade || true
-          python -m calib recalibrate --sport all
+          python -m calib recalibrate --sport nhl
           python -m nhlmodel.daily slate
-      - name: NFL (nflverse refresh, ratings, this week's prices; one odds pull a day)
-        # every run: cheap (current-season play-by-play only), and an NFL failure never blocks the NHL page
-        if: always() && steps.pull.outcome == 'success'
-        continue-on-error: true
-        run: python -m nflmodel.daily
       - name: Upload state
         # also after a failure, so checkpointed games from a long first load are kept
         if: always() && steps.pull.outcome == 'success'

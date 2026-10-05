@@ -59,139 +59,24 @@ Notes: the repository is public, so the release files (your plays) are public to
 private, make the repo private and add a read-only GitHub token as the Streamlit secret
 `GITHUB_TOKEN`. GitHub pauses scheduled workflows in a repo with no activity for 60 days.
 
-## NFL (🏈 tab: `nfl.html`, package `nflmodel/`)
-
-Same idea as the hockey side, rebuilt for football. The 🏒 / 🏈 switch at the top of the page flips between them;
-the NFL page has a turf background, team-colour game cards, a Teams power ranking and a Check calculator.
-
-- **Data**: nflverse play-by-play (2018 onward) and schedule (results, lines, projected starting QBs). Every run
-  re-downloads the schedule and the current season, so the page is as fresh as nflverse (they refresh overnight
-  after each game day). Finished seasons are kept as small per-game tables in `state/intermediate/nfl/`.
-- **Ratings**: for EPA per play, EPA per dropback and points, a weighted ridge regression
-  `y = mu + home + offense[team] + defense[opponent]` over past games (half-life 140 days, garbage time removed).
-- **Starting QB**: each QB's EPA per dropback (shrunk toward replacement); when the listed starter differs from the
-  team's usual QB play, the passing numbers move by the difference.
-- **Injuries**: ESPN's live NFL injury list (official report from nflverse as a fallback).
-  - A player counts for how much of him is in the team's ratings: his snap share in each of the team's games over
-    the past year, weighted like the ratings weight games (half-life 140 days), zero for games he missed. A starter
-    who has played every week counts fully; one already out for weeks, or just traded in, counts for the part of
-    him the ratings actually contain. (The first version only looked at the last 6 games for the current team, which
-    missed traded starters such as Myles Garrett and A.J. Brown and dropped long absences such as Micah Parsons to zero.)
-  - Status weights are measured, not guessed: on 2021-25 official reports matched to snap counts, 99.9% of Out,
-    99.3% of Doubtful and 33% of Questionable players sat, so Out 1.0, Doubtful 0.99, Questionable 0.33.
-  - Duplicate entries for one player are counted once (most severe status). A ruled-out starting QB is replaced by
-    his backup in the QB adjustment instead.
-  - Backtest (official pre-game reports, 2021-2026): about 1.07 points of margin per missing full-time starter;
-    margin error 10.22 → 10.19 and moneyline Brier 0.2243 → 0.2232 against no injury adjustment. Splitting by
-    position group overfit, and injuries did not improve totals, so totals ignore them.
-  - Shown in the 📰 Updates tab: each team's counted players with their points, injured QBs, and everyone else
-    listed with the reason they don't count. The Updates feed logs injury and QB changes, model and market line
-    moves and data loads, with filter chips.
-- **Big names and news since the line**:
-  - Injured players are weighted by how much they matter, not just snaps: contract cap share vs an average starter
-    (same-name players told apart by team), or for receivers and backs their target / carry share when that's
-    higher (stars on rookie deals), with first-round rookie deals at least 1.25×; clipped to 0.5×-2.5×.
-    Backtest margin error 10.190 → 10.182 vs counting every starter the same. A star like Jefferson, Chase,
-    Gonzalez or Trent Williams out is now worth about 2 points, a role player a few tenths. ⭐ marks them in Updates.
-  - Sides price off the market (the model's ratings add nothing on top of the closing line), but anything that
-    happened **after the market line was pulled** is added at full value: injury status changes (with the star
-    weights), starting-QB changes, and weather changes on totals. Each card flags it ("🚑 BUF −1.2 since line")
-    and the Score panel itemises it. The news baseline resets with every odds pull.
-  - Past seasons' backtest features are cached (rebuilt only when the feature version changes), so runs stay fast.
-- **Model vs market (why the edges got smaller)**: on 2021-26 the model sat about 2.3 points from the closing
-  line on both sides and totals (3+ points apart in 29% of games). Regressing results on the close and the
-  model's gap: on **sides the gap carries no information** (weight about 0), on **totals it carries some**
-  (about 0.27), and the model's totals ran about 1 point high. So prices now start from the market and move toward
-  the model by the weight that tests best (refit every run: currently 0% on sides, 30% on totals), after
-  correcting the totals scoring level over the last season of games. Edges are only the shift the model causes
-  (the same score distribution centred on the market is the reference), so key numbers and pushes can't create
-  fake edges. Blended totals beat the closing line on the backtest (MAE 10.31 vs 10.34); sides follow the market.
-  Each game shows the model's own line next to the market and our price (Score panel).
-- **Weather** (`nflmodel/weather.py`, Open-Meteo: free, no key): the forecast for the 3 hours from kickoff at each
-  stadium (temperature, wind and gusts, chance and amount of rain, snow). Domes are ignored; retractable roofs are
-  treated as closed; open-air international venues nflverse marks as domes are fixed.
-  - Totals: rain at kickoff is a new model input, fitted on 2018-25 gamebook weather: about **-6.1 points**,
-    on top of the existing wind (over 10 mph) and cold (under 40F) terms. Total error 10.54 → 10.46 over all
-    games, and in rain / 15+ mph wind games 10.64 → 9.90 with the under-prediction bias halved (-3.2 → -1.5).
-    Snow didn't measure reliably (few games) and is left out.
-  - Before this, upcoming games had no weather at all (the schedule only fills it in after the game), so windy
-    games were priced as calm, and retractable-roof stadiums were treated as outdoors. Both fixed.
-  - Props: passing yards, receiving yards and receptions are trimmed in wind and rain, by the measured ratios
-    (wind 12-17 mph about -6 to -9%, 18+ mph -11 to -17%, rain -11 to -16%); rushing is unaffected.
-  - Shown on each card (icon, temperature, wind, rain chance and the effect on the total), in the Score panel, and
-    in the Updates feed when a forecast changes.
-- **Self-updating, like the NHL model**: every run refits the team ratings, home-field edge, margin / total spread,
-  key numbers and the points-per-injured-starter value on all finished games. Player props are recalibrated
-  against this season's box scores (projection published before kickoff vs result, per market, shrunk toward
-  no change until enough games are graded, capped at ±15%; the adjustment in force when a projection was made is
-  taken back out before grading so it can't feed on itself). The model's leans (3+ pt edge) and 💰 picks are graded
-  at their pre-kickoff prices. The Updates tab logs all of it with filters: settings changes, team-strength moves,
-  prop recalibration, graded record, injuries, QBs, model and market line moves, data loads.
-- **Formation** (game panel): each team's offense (11 personnel) and nickel defense from recent snap counts, with
-  ruled-out players replaced by the next man up, skill players showing their projections.
-- **Game expectation**: margin and total are linear in the two sides' ratings (plus dome / wind / cold for totals),
-  fitted on past seasons. The margin distribution is a discretised normal reweighted by key-number factors measured
-  on past finals (3, 7, 10, 6, 14 ...), re-centred to keep its mean. Moneyline, spread, total and alt lines come from it.
-- **Market**: one Odds API call a day (`americanfootball_nfl`, h2h + spreads + totals, all US books, 3 credits),
-  the first run after 10:30am ET. Consensus = the line most books hang and the median no-vig chance at that line;
-  Caesars' price is shown when it is in the feed. Until a pull exists, the nflverse posted lines are used.
-  Manual pull: run the workflow with task `nfl-odds`.
-- **Backtest** (walk-forward, 2021-2026 regular + post season, 1,473 games, vs **closing** lines):
-
-  | | model | closing line |
-  |---|---|---|
-  | Margin mean abs. error | 10.19 | 9.78 |
-  | Total mean abs. error | 10.46 | 10.34 |
-  | Against the spread (all games / model off by 3+) | ~48% / 50.9% | – |
-  | Over/under (all games / off by 3+) | 51.2% / 48.5% | – |
-  | Moneyline Brier score | 0.2232 | 0.2123 |
-
-  Closing lines are sharper than a public-data team model, as expected. The page says so, the 💰 flag needs a 6-point
-  edge, and the model is best used to find numbers worth a look early in the week and to price alt lines.
-  Starting-QB adjustment: margin error 10.28 → 10.22. Half-life 90-300 days and ridge 3-12 all landed within 0.08.
-- **Player props** (`nflmodel/props.py`, 👤 Props tab and each game's Players panel): anytime TD, receptions,
-  receiving / rushing / passing yards, passing TDs.
-  - Volume: team targets and carries per game (half-life 5 games), moved by game script (leading teams run more).
-  - Share: recency-weighted share of team targets / carries; players ruled out (ESPN injuries, roster status)
-    are dropped and their share goes to available teammates. The projected starting QB gets the dropbacks.
-  - Efficiency: catch rate, yards per target / carry / attempt shrunk toward the role average, adjusted for the
-    opponent's pass / run defence. TDs: team TDs from the game model's projected points, split pass / rush, with
-    each player's slice from his red-zone share blended with his overall share.
-  - Fitted on 2022-23 walk-forward projections, tested on 2024-26 (players who played):
-
-    | | model MAE | last-5-games average MAE |
-    |---|---|---|
-    | Receptions | 1.65 | 1.70 |
-    | Receiving yards | 22.5 | 23.5 |
-    | Rushing yards | 22.9 | 24.2 |
-    | Passing yards (starters) | 59.6 | 65.5 |
-
-    Anytime TD Brier 0.163 vs 0.176 for the base rate; calibrated by bucket (e.g. 30-40% predicted → 35% scored).
-    Yardage uses a shifted gamma (less skewed than a plain gamma, which put the median too low); the model's
-    chance of going over its own even-money line runs within about 1 point of actual for receiving and rushing.
-  - No prop odds are pulled (the per-game prop endpoint would cost ~75 credits a week); type the book's line and
-    price into the player sheet for a verdict. The green price leaves a 4-point cushion for prop hold.
-
 ## Self-calibrating model engine (`calib/`, 🩺 Model health in each Updates tab)
 
-The projections learn from their own track record without replacing the models. Code: `calib/` (shared),
-`nhlmodel/calib_hook.py`, `nflmodel/calib_hook.py`; tests: `tests/test_calib.py`.
+The projections learn from their own track record without replacing the models. Code: `calib/`,
+`nhlmodel/calib_hook.py`; tests: `tests/test_calib.py`.
 
 **Prediction database**: `state/site/model_db.sqlite` (synced to the data-latest release as `model_db.sqlite.gz`).
 - `predictions`: every projection with sport, date, game, teams, projection type, the published number and the
   uncalibrated original, confidence (win probability of the projected side), model version, timestamp, game start
   and the input components at that moment (NHL: attack, opponent defence, opposing goalie, PP/PK, pace, rest /
-  back-to-back, home ice, lineup, scale; NFL: offensive and defensive EPA/play, passing EPA/dropback, QB adjustment,
-  own and opponent injury points, weather points, rest days). Types: NHL `team_goals`, `game_total`,
-  `home_win_prob`, `player_sog`, `player_goals`; NFL `team_points`, `game_total_pts`, `home_win_prob`,
-  `player_rec_yds`, `player_rush_yds`, `player_rec`, `player_pass_yds`, `player_td`.
+  back-to-back, home ice, lineup, scale). Types: `team_goals`, `game_total`, `home_win_prob`, `player_sog`,
+  `player_goals`.
 - `results`: actual outcomes, recorded after the game, insert-only.
 - `model_versions`: every calibration attempt (baseline, applied, rejected, insufficient) with weights before and
   after, reason, sample size and performance before and after.
 - SQLite triggers make all three append-only: history can't be updated or deleted. Live projections are stored
   each run only when they change; grading uses the last projection made before the game started.
 - Seeded once from the walk-forward backtests (each game priced with earlier data only), so there is a meaningful
-  sample from day one: NFL 2021-26 team games, NHL the backtest window plus its last 90 days of player props.
+  sample from day one: the backtest window plus its last 90 days of player props.
 
 **Error tracking**: MAE, RMSE, bias / mean error, absolute percentage error, by projection type, team, opponent,
 player, home / road, recent-form bucket and confidence bucket, over the last 10 / 25 / 50 / 100, the season and
@@ -212,17 +97,14 @@ whether that input is over- or under-weighted.
   judged on the weeks after; compared with the published model over the last 25 / 50 / 100 and all held-out
   predictions. Applied only if it improves the full walk-forward MAE by 0.2%+ and isn't more than 1% worse over the
   last 100; otherwise rejected and recorded. Needs 100+ graded predictions to try at all.
-- Applied versions are used live: NHL on each team's goal rate inside the team model (never in the backtest that
-  produces its training data), NFL on each team's points before the market blend.
+- Applied versions are used live: on each team's goal rate inside the team model (never in the backtest that
+  produces its training data).
 
 **Running it**: automatically every Monday morning; the page's **RECALIBRATE MODEL** button opens the
-`recalibrate model` workflow (press Run workflow); or locally `python -m calib recalibrate --sport nhl|nfl|all`
+`recalibrate model` workflow (press Run workflow); or locally `python -m calib recalibrate --sport nhl`
 (`status`, `health` also available).
 
 **First results** (local runs on the walk-forward history):
-- NFL, 2,946 team-points predictions: v1.1 applied. Walk-forward MAE 7.409 → 7.373 on 2,816 held-out predictions
-  (bias +0.26 → +0.14); flat over the last 100. One meaningful bias: team points overestimated by ~1 point in
-  medium-confidence (55-65%) games.
 - NHL, 3,998 team-goal predictions: essentially unbiased (+0.001 goals); the best adjustment improved MAE by less
   than 0.2% (1.2474 → 1.2472), so it was rejected and the model is unchanged.
 
