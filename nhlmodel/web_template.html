@@ -352,6 +352,7 @@ label.f { display: block; font-size: 13px; font-weight: 800; color: var(--ink-2)
 </style>
 </head>
 <body class="nhl">
+<div class="splash" id="splash"><img src="logo-nhl.png" alt=""><b>Mike<span>Models</span></b><i></i></div>
 <div class="wrap">
   <div class="hdr"><img class="mlogo" src="logo-nhl.png" alt="MikeModels"><div class="t"><h1 id="title">Loading…</h1><div class="sub" id="sub">Warming up the Zamboni</div></div>
     <button class="iconbtn" id="gearBtn" aria-label="How the model is weighted">⚙️</button>
@@ -520,7 +521,7 @@ async function refreshLive() {
 // ---------- Check ----------
 let C = {game: null, kind: "game", market: "moneyline", side: "home", dir: "over", line: null, player: null, pmarket: "sog", odds: ""};
 function check() {
-  const seg = `<div class="hv"><button class="${MB_VIEW === "bets" ? "on" : ""}" data-mbv="bets">🎟️ My bets</button><button class="${MB_VIEW === "check" ? "on" : ""}" data-mbv="check">✅ Check a price</button></div>`;
+  const seg = `<div class="hv"><button class="${MB_VIEW === "bets" ? "on" : ""}" data-mbv="bets">My bets</button><button class="${MB_VIEW === "check" ? "on" : ""}" data-mbv="check">Check a price</button></div>`;
   if (MB_VIEW === "bets") return seg + mbView();
   return seg + checkPrice();
 }
@@ -638,9 +639,9 @@ function strip() {
     D = b.dataset.day === "prev" ? PREV : TODAY; PSTATE.game = "all"; C.game = null; OPEN.clear(); render(); window.scrollTo(0, 0); });
 }
 function nav() {
-  const T = [["games", "🏒 Games"], ["props", "👤 Props"], ["check", "🎟️ Bets"], ["updates", "📰 Updates"]];
-  $("#nav").innerHTML = T.map(([k, n]) => `<button class="${TAB === k ? "on" : ""}" data-k="${k}">${n}</button>`).join("");
-  $("#nav").querySelectorAll("button").forEach(b => b.onclick = () => { TAB = b.dataset.k; render(); window.scrollTo(0, 0); });
+  const T = [["games", "Games"], ["props", "Props"], ["check", "Bets"], ["updates", "Updates"]];
+  $("#nav").innerHTML = T.map(([k, n]) => `<button class="${TAB === k ? "on" : ""}" data-k="${k}">${mbIcon(k)}<span>${n}</span></button>`).join("");
+  $("#nav").querySelectorAll("button").forEach(b => b.onclick = () => { if (TAB !== b.dataset.k) mbHaptic(); TAB = b.dataset.k; render(); window.scrollTo(0, 0); });
 }
 
 function dkFor(g, market, sel, line) {
@@ -652,7 +653,7 @@ function tile(g, label, market, sel, line) {
   const i = bet({g, market, sel, line, label, p, dk});
   return `<button class="tile ${cls} ${val ? "val" : ""}" data-bet="${i}"><span class="l">${ic ? ic + " " : ""}${esc(label)}</span>
     <span class="v"><span class="c">${pct(p)}</span><span class="b">${betAt(p - thr(market))}</span></span>
-    ${dk ? `<span class="dk">${dk.src === "book" ? BK() : "Mkt"} ${am(dk.price)}${dk.edge != null ? ` · <b class="${dk.edge >= 0 ? "pos" : "neg"}">${dk.edge >= 0 ? "+" : "−"}${Math.abs(100 * dk.edge).toFixed(1)}%</b>` : ""}${val ? " 💰" : ""}</span>` : ""}</button>`;
+    ${dk ? `<span class="dk">${dk.src === "book" ? BK() : "Mkt"} ${am(dk.price)}${dk.edge != null ? ` · <b class="${dk.edge >= 0 ? "pos" : "neg"}">${dk.edge >= 0 ? "+" : "−"}${Math.abs(100 * dk.edge).toFixed(1)}%</b>` : ""}${val ? ` <i class="valtag">VALUE</i>` : ""}</span>` : ""}</button>`;
 }
 function gameCard(g) {
   const a = g.away, h = g.home, ph = gameProb(g, "moneyline", "home"), L = LIVE[g.game_id] || {}, on = L.state === "in" || L.state === "post";
@@ -661,11 +662,11 @@ function gameCard(g) {
     : L.state === "post" ? `<span class="final">${esc((L.detail || "Final").toUpperCase())}</span><span>model ${pct(favH ? ph : 1 - ph)} on ${esc(fav.abbr)}</span>`
     : `<span>${timeET(g.start_utc)}</span><span>proj ${esc(a.abbr)} ${g.lam_away.toFixed(1)} – ${g.lam_home.toFixed(1)} ${esc(h.abbr)}</span>`;
   const [ia, ca] = inkOf(a.color), [ih, ch] = inkOf(h.color);
-  const trow = (t, p, mine, theirs) => `<div class="trow ${t === a ? ca : ch}" style="color:${t === a ? ia : ih}">${logo(t)}<div style="min-width:0"><div class="tname">${esc(t.name)}</div>
+  const trow = (t, p, mine, theirs) => `<div class="trow">${logo(t)}<div style="min-width:0"><div class="tname">${esc(t.name)}</div>
       <div class="gk"><span class="dot ${gdot(t)}"></span>${esc(t.goalie || "Goalie TBD")}${t.goalie_status ? ` · ${esc(t.goalie_status)}` : ""}</div></div>
       <div class="right">${on ? `<div class="score ${L.state === "post" && mine < theirs ? "lose" : ""}">${mine}</div>` : `<div class="pct">${pct(p)}</div>`}</div></div>`;
-  let html = `<div class="card gc" style="background:linear-gradient(170deg, ${a.color} 0%, ${a.color} 22%, ${h.color} 62%, ${h.color} 100%)">
-    <div class="band"><div class="status" style="color:${ia}">${status}</div>
+  let html = `<div class="card gc" style="--ca:${esc(a.color)};--ch:${esc(h.color)}">
+    <div class="band"><div class="status">${status}</div>
     ${trow(a, 1 - ph, L.away, L.home)}${trow(h, ph, L.home, L.away)}
     <div class="bar"><div style="width:${100 * (1 - ph)}%;background:${a.color}"></div><div style="width:${100 * ph}%;background:${h.color}"></div></div></div>
     <div class="body"><div class="tiles">${tile(g, `${a.abbr} win`, "moneyline", "away")}${tile(g, `${h.abbr} win`, "moneyline", "home")}
@@ -1098,7 +1099,7 @@ const UPD_KIND = {all: "All", data: "Data", model: "Model", teams: "Teams", goal
 let UFILTER = "all";
 /*CALIB_JS*/
 let HV = "feed";   // Updates tab: feed or model health
-function hvSwitch() { return `<div class="hv"><button class="${HV === "feed" ? "on" : ""}" data-hv="feed">📰 Feed</button><button class="${HV === "health" ? "on" : ""}" data-hv="health">🩺 Model health</button></div>`; }
+function hvSwitch() { return `<div class="hv"><button class="${HV === "feed" ? "on" : ""}" data-hv="feed">Feed</button><button class="${HV === "health" ? "on" : ""}" data-hv="health">Model health</button></div>`; }
 function updates() {
   if (HV === "health") return hvSwitch() + healthHtml((TODAY || D).calib, "NHL", ((TODAY || D).meta || {}).repo);
   const M = (TODAY || D).model, runs = (TODAY || D).updates || [];

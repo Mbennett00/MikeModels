@@ -160,7 +160,7 @@ function mbFab(pop) {
   f.innerHTML = `🧾 Bet slip <b>${n}</b>`;
   if (pop) { f.classList.remove("pop"); void f.offsetWidth; f.classList.add("pop"); }
   const nb = document.querySelector('#nav [data-k="check"]');
-  if (nb) nb.innerHTML = `🎟️ ${mbShort(mbWallet().available)}${mbDaily().claimed ? "" : `<span class="navdot"></span>`}`;
+  if (nb) nb.innerHTML = `${mbIcon("check")}<span>${mbShort(mbWallet().available)}</span>${mbDaily().claimed ? "" : `<span class="navdot"></span>`}`;
 }
 
 // ---- grading + celebrations ----
@@ -314,7 +314,25 @@ function mbWire(render) {
   if (rs) rs.onclick = () => { if (confirm("Delete every paper bet and reset the bankroll?")) { mbSave({start: mbLoad().start, unit: 10, bets: [], badges: [], daily: mbLoad().daily}); MB_MSG = "Reset."; render(); } };
 }
 // every render: keep the slip button and the wallet in the nav current
-function mbAfterRender(render) { MB_RENDER = render; mbFab(); mbWireBanner(render); try { funAfterRender(render); } catch (e) {} }
+let MB_LASTTAB = null;
+function mbAfterRender(render) {
+  MB_RENDER = render; mbFab(); mbWireBanner(render); try { funAfterRender(render); } catch (e) {}
+  const sp = document.getElementById("splash"); if (sp && !sp.classList.contains("out")) { sp.classList.add("out"); setTimeout(() => sp.remove(), 600); }
+  const t = typeof TAB !== "undefined" ? TAB : "";   // a soft fade-up when the screen changes (not on live refreshes)
+  if (t !== MB_LASTTAB) { const v = document.getElementById("view"); if (v) { v.classList.remove("enter"); void v.offsetWidth; v.classList.add("enter"); } MB_LASTTAB = t; }
+}
+// header turns to frosted glass once the page scrolls
+window.addEventListener("scroll", () => { const h = document.querySelector(".hdr"); if (h) h.classList.toggle("stuck", window.scrollY > 8); }, {passive: true});
+// crisp line icons (tab bar)
+function mbIcon(k) {
+  const P = {
+    games: '<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5v17"/><circle cx="12" cy="12" r="2.6"/>',
+    props: '<circle cx="12" cy="8" r="3.6"/><path d="M4.8 20c.9-3.7 3.7-5.6 7.2-5.6s6.3 1.9 7.2 5.6"/>',
+    check: '<path d="M4 7.5A1.5 1.5 0 0 1 5.5 6h13A1.5 1.5 0 0 1 20 7.5V10a2 2 0 0 0 0 4v2.5a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 16.5V14a2 2 0 0 0 0-4z"/><path d="M14 6.5v11" stroke-dasharray="1.6 2"/>',
+    updates: '<path d="M5 5h11a2 2 0 0 1 2 2v12H7a2 2 0 0 1-2-2z"/><path d="M18 9h1.5a.5.5 0 0 1 .5.5V17a2 2 0 0 1-2 2M8.5 9h6M8.5 12.5h6M8.5 16h4"/>',
+  };
+  return `<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[k] || ""}</svg>`;
+}
 
 // ---- haptics: Android vibrates; iPhone (iOS 18+) ticks when a hidden switch is flipped during a tap ----
 function mbHaptic(kind) {
