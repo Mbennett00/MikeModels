@@ -105,7 +105,7 @@ function mbOpenSlip() {
       <div class="qchips c">${[5, 10, 25, 50].map(a => `<button class="${stake === a ? "on" : ""}" data-qs="${a}">$${a}</button>`).join("")}</div></div>
     <div class="slsum c"><span>${SLIP_MODE === "parlay" ? "Stake" : `${v.length} × ${mbMoney(stake)}`}</span><span>To win <b>${mbMoney(win)}</b></span></div>
     <button class="placebet c" id="slipgo" ${!v.length || closed || short || !(stake > 0) ? "disabled" : ""}><span>${label}</span>${!closed && !short && stake > 0 ? `<em>Payout ${mbMoney(payout)}</em>` : ""}</button>
-    <div class="slfoot">${mbMoney(W.available)} available · paper money</div>`
+    <div class="slfoot">Balance ${mbMoney(W.available)}${stake > 0 && !short ? ` → ${mbMoney(W.available - tot)} after` : ""} · paper money</div>`
       : `<div class="slipempty"><div class="slicon">🧾</div><b>Your bet slip is empty</b><span>Tap any price or prop, then add it to your slip.</span></div>`}`;
   document.getElementById("shx").onclick = () => closeSheet();
   const re = () => mbOpenSlip();
@@ -133,6 +133,7 @@ function mbConfirm(placed) {
     <div class="okhead"><div class="okring">✓</div><div class="sh-t">Bet placed!</div><div class="sh-s">${placed.length > 1 ? placed.length + " bets" : "Ticket #" + placed[0].id}</div></div>
     ${placed.map(mbTicket).join("")}
     <div class="pl-sum"><div><span>Risk</span><b>${mbMoney(tot)}</b></div><div><span>To win</span><b>${mbMoney(win)}</b></div><div><span>Payout</span><b>${mbMoney(tot + win)}</b></div></div>
+    <div class="okbal">New balance <b>${mbMoney(mbWallet().available)}</b> <i>−${mbMoney(tot)}</i></div>
     <div class="mbx"><button id="okmore">Keep betting</button><button id="okbets">My bets</button></div>`;
   document.getElementById("shx").onclick = document.getElementById("okmore").onclick = () => { closeSheet(); MB_RENDER && MB_RENDER(); };
   document.getElementById("okbets").onclick = () => { closeSheet(); MB_VIEW = "bets"; if (typeof TAB !== "undefined") TAB = "check"; MB_RENDER && MB_RENDER(); window.scrollTo(0, 0); };
@@ -146,7 +147,7 @@ function mbFab(pop) {
   f.innerHTML = `🧾 Bet slip <b>${n}</b>`;
   if (pop) { f.classList.remove("pop"); void f.offsetWidth; f.classList.add("pop"); }
   const nb = document.querySelector('#nav [data-k="check"]');
-  if (nb) nb.innerHTML = `🎟️ ${mbShort(mbWallet().bankroll)}${mbDaily().claimed ? "" : `<span class="navdot"></span>`}`;
+  if (nb) nb.innerHTML = `🎟️ ${mbShort(mbWallet().available)}${mbDaily().claimed ? "" : `<span class="navdot"></span>`}`;
 }
 
 // ---- grading + celebrations ----
@@ -255,7 +256,7 @@ function mbView() {
   const w = done.filter(b => b.status === "won").length, l = done.filter(b => b.status === "lost").length, p = done.filter(b => b.status === "push").length;
   const got = new Set(s.badges || []);
   const xp = mbXP(s), T = mbTier(xp);
-  return `<div class="wallet"><div class="wtop"><div class="wl"><span>Balance</span><b>${mbMoney(W.bankroll)}</b><i>${mbMoney(W.available)} available · ${mbMoney(W.risk)} in play</i></div>
+  return `<div class="wallet"><div class="wtop"><div class="wl"><span>Balance</span><b>${mbMoney(W.available)}</b><i>${W.risk > 0 ? `${mbMoney(W.risk)} in play` : "no open bets"}</i></div>
       <div class="wr ${W.pl > 0 ? "up" : W.pl < 0 ? "down" : ""}"><span>All-time</span><b>${(W.pl > 0 ? "+" : "") + mbMoney(W.pl)}</b></div></div>
       <div class="tier"><div class="tierh"><em>${T.cur[2]} ${T.cur[0]}</em><span>${T.nxt ? `${xp} / ${T.nxt[1]} XP to ${T.nxt[2]} ${T.nxt[0]}` : `${xp} XP · top tier`}</span></div>
         <div class="tbar"><b style="width:${Math.round(100 * T.pct)}%"></b></div></div></div>
