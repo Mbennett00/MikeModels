@@ -835,6 +835,15 @@ function games() {
 const LINES = {sog: [1.5, 2.5, 3.5, 4.5], goals: [0.5], points: [0.5, 1.5], assists: [0.5]};
 const PNAME = {sog: "shots", goals: "goals", points: "points", assists: "assists"};
 const SHEET_LINES = {sog: [1.5, 2.5, 3.5, 4.5, 5.5], goals: [0.5, 1.5], points: [0.5, 1.5, 2.5], assists: [0.5, 1.5]};
+// lines DraftKings is pricing for this player/market ([] when DK has none)
+function dkLines(p, mk) { return Object.keys(p.dk || {}).filter(k => k.startsWith(mk + "|")).map(k => Number(k.split("|")[1])).sort((a, b) => a - b); }
+// headline line: DraftKings' main line (price nearest even) when DK has one, else the model's coin-flip line
+function headLine(p, mk) {
+  const dk = dkLines(p, mk), imp = o => o > 0 ? 100 / (o + 100) : -o / (-o + 100);
+  const cand = dk.length ? dk.map(l => ({l, pr: propProb(p, mk, l), d: Math.abs(imp(p.dk[`${mk}|${l}`]) - 0.5)}))
+    : SHEET_LINES[mk].map(l => ({l, pr: propProb(p, mk, l), d: Math.abs(propProb(p, mk, l) - 0.5)}));
+  return cand.sort((x, y) => x.d - y.d)[0];
+}
 function lineLabel(mk, l) { return mk === "goals" && l === 0.5 ? "Scores" : `O ${l}`; }
 function miniRow(p, mk = "sog") {
   const L = LIVE[p.game_id] || {}, s = playerStat(p), lam = p.lam[mk];
@@ -853,7 +862,7 @@ function miniRow(p, mk = "sog") {
 function pcard(p, mk) {
   const L = LIVE[p.game_id] || {}, s = playerStat(p), lam = p.lam[mk], col = (D.colors || {})[p.team] || "#7a8894";
   // headline line: the one closest to a coin flip
-  const {l, pr} = SHEET_LINES[mk].map(l => ({l, pr: propProb(p, mk, l)})).sort((x, y) => Math.abs(x.pr - 0.5) - Math.abs(y.pr - 0.5))[0];
+  const {l, pr} = headLine(p, mk);
   const [cls, ic] = RES(s && !s.dnp ? cmpLine(s[mk], l, "over", L.state === "post") : undefined);
   const i = bet({player: p, market: mk, line: l, p: pr, label: `${p.name} ${mk === "goals" && l === 0.5 ? "to score" : `over ${l} ${PNAME[mk]}`}`});
   const parts = p.name.split(" "), last = parts.slice(1).join(" ") || parts[0];
@@ -880,7 +889,7 @@ function badge(p) {   // top-right: team logo + jersey number
 const GOPEN = new Set();
 function prow(p, mk) {
   const L = LIVE[p.game_id] || {}, s = playerStat(p), lam = p.lam[mk], col = (D.colors || {})[p.team] || "#7a8894";
-  const {l, pr} = SHEET_LINES[mk].map(l => ({l, pr: propProb(p, mk, l)})).sort((x, y) => Math.abs(x.pr - 0.5) - Math.abs(y.pr - 0.5))[0];
+  const {l, pr} = headLine(p, mk);
   const [cls] = RES(s && !s.dnp ? cmpLine(s[mk], l, "over", L.state === "post") : undefined);
   const i = bet({player: p, market: mk, line: l, p: pr, label: `${p.name} ${mk === "goals" && l === 0.5 ? "to score" : `over ${l} ${PNAME[mk]}`}`});
   const live = s && !s.dnp ? ` · <b style="color:var(--red)">${L.state === "in" ? "LIVE" : "FINAL"} ${s[mk]}</b>` : "";
@@ -1031,6 +1040,10 @@ function props() {
   let list = D.players.filter(p => p.lam[mk] != null);
   if (S.q) list = list.filter(p => normName(p.name).includes(normName(S.q)));
   if (S.game !== "all") list = list.filter(p => String(p.game_id) === S.game);
+  // once DraftKings has posted this market for a game, only list the players DK is pricing
+  const dkGames = new Set(D.players.filter(p => dkLines(p, mk).length).map(p => p.game_id));
+  list = list.filter(p => !dkGames.has(p.game_id) || dkLines(p, mk).length);
+  const waiting = [...new Set(list.map(p => p.game_id))].filter(g => !dkGames.has(g)).length;
   list.sort((x, y) => y.lam[mk] - x.lam[mk]);
   const total = list.length, n = S.n || 20;
   const mkt = mkt0;
@@ -1040,6 +1053,7 @@ function props() {
   return `<div class="ptabs props-seg">${mkt}</div>
     <div class="strip" style="padding-left:0">${gms}</div>
     ${S.search || S.q ? `<input class="search" id="pq" placeholder="Find a player" value="${esc(S.q)}" autocomplete="off">` : ""}
+    ${waiting ? `<div class="note">DraftKings hasn't posted these lines for ${waiting === 1 ? "one game" : waiting + " games"} yet, so those show model prices for now.</div>` : ""}
     ${list.length ? sectionsNHL(list, mk) : `<div class="note">No players match.</div>`}`;
 }
 function wireProps() {
@@ -1061,11 +1075,11 @@ function openPlayer(id) {
   const where = slot.length ? [slot[0].line, slot[0].pp ? `PP${slot[0].pp}` : ""].filter(Boolean).join(" · ") : "";
   const PB = [];
   const sec = mk => { if (p.lam[mk] == null) return "";
-    const rows = SHEET_LINES[mk].map(l => { const pr = propProb(p, mk, l); if (pr < 0.03) return "";
+    const rows = [...new Set([...SHEET_LINES[mk], ...dkLines(p, mk)])].sort((a, b) => a - b).map(l => { const pr = propProb(p, mk, l); const dko = p.dk && p.dk[`${mk}|${l}`]; if (pr < 0.03 && !dko) return "";
       const [cls, ic] = RES(s && !s.dnp ? cmpLine(s[mk], l, "over", L.state === "post") : undefined);
       PB.push({player: p, market: mk, line: l, p: pr, label: `${p.name} ${mk === "goals" && l === 0.5 ? "to score" : `over ${l} ${PNAME[mk]}`}`});
       return `<button class="pl ${cls}" data-pb="${PB.length - 1}"><span>${ic ? ic + " " : ""}${mk === "goals" && l === 0.5 ? "Anytime goal" : `Over ${l}`}</span>
-        <span class="c">${pct(pr)}</span><span class="b">${betAt(pr - thr(mk))}</span></button>`; }).join("");
+        <span class="c">${pct(pr)}</span><span class="b">${dko ? `${am(dko)} <i class="bkt">DK</i>` : betAt(pr - thr(mk))}</span></button>`; }).join("");
     const live = s && !s.dnp ? ` · ${L.state === "in" ? "live" : "final"} <b>${s[mk]}</b>` : "";
     return `<div class="psec"><div class="ph"><span>${MNAME[mk]}</span><span class="pm">proj ${p.lam[mk].toFixed(2)}${live}</span></div>${rows}</div>`; };
   $("#sheet").innerHTML = `<div class="grab"></div><button class="iconbtn close" id="shx" aria-label="Close">✕</button>
