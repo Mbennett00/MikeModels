@@ -934,6 +934,24 @@ function xplayer(p, mk = "sog") {
     <div class="pinfo"><div class="pnm">${esc(p.name)}${st && !st.dnp ? `<span class="plive ${L.state}">${st[mk]} SOG</span>` : ""}</div><div class="pmeta">${esc(p.pos || "")} · proj ${p.lam[mk].toFixed(1)} shots</div></div>
     <div class="xpl-b">${btns}</div></div>`;
 }
+// 🔥 spotlight: the model's strongest picks in this market, as big player cards
+function spotlight(list, mk) {
+  const ready = list.filter(p => { const g = D.games.find(x => x.game_id === p.game_id); const L = g && LIVE[g.game_id]; return !L || !L.state || L.state === "pre"; });
+  const top = ready.map(p => ({p, ...headLine(p, mk)})).filter(x => x.pr != null)
+    .map(x => { const dk = x.p.dk && x.p.dk[`${mk}|${x.l}`]; return {...x, dk, edge: dk ? x.pr - (dk > 0 ? 100 / (dk + 100) : -dk / (-dk + 100)) : null}; })
+    .sort((a, b) => ((b.edge ?? -1) - (a.edge ?? -1)) || (b.pr - a.pr)).slice(0, 8);
+  if (top.length < 3) return "";
+  const C = 2 * Math.PI * 17;
+  return `<div class="spot-h"><b>🔥 Model spotlight</b><span>${top.some(x => x.edge != null) ? "best value vs DraftKings" : "strongest picks"}</span></div>
+    <div class="spots">${top.map(({p, l, pr, dk, edge}) => { const col = (D.colors || {})[p.team] || "#3a4656", tl = teamLogoUrl(p.team);
+      const i = bet({player: p, market: mk, line: l, p: pr, label: `${p.name} ${mk === "goals" && l === 0.5 ? "to score" : `over ${l} ${PNAME[mk]}`}`});
+      return `<div class="spot" style="--tc:${esc(col)}" data-player="${p.id}">
+        ${tl ? `<img class="sp-wm" src="${esc(tl)}" alt="" onerror="this.remove()">` : ""}
+        <div class="sp-ring"><svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="17" class="bg"/><circle cx="20" cy="20" r="17" class="fg" stroke-dasharray="${C * pr} ${C}" transform="rotate(-90 20 20)"/></svg><b>${Math.round(100 * pr)}</b></div>
+        <div class="sp-shot"><span>${esc(initials(p.name))}</span>${p.headshot ? `<img src="${esc(p.headshot)}" alt="" loading="lazy" onload="this.previousElementSibling.style.visibility='hidden'" onerror="this.remove()">` : ""}</div>
+        <div class="sp-info"><div class="sp-n">${esc(p.name.split(" ").slice(-1)[0])}</div><div class="sp-m">${esc(p.team)} ${esc(matchupOf(p).split(" · ")[0])}</div></div>
+        <button class="sp-btn ${dk ? "dk" : ""}" data-bet="${i}"><span>${mk === "goals" && l === 0.5 ? "Anytime goal" : `O ${l} ${PNAME[mk]}`}</span><b>${am(dk || fair(pr))}</b>${edge != null && edge > 0 ? `<i>+${(100 * edge).toFixed(1)}%</i>` : ""}</button></div>`; }).join("")}</div>`;
+}
 function sectionsNHL(list, mk) {
   const S = PSTATE, by = {};
   list.forEach(p => (by[p.game_id] = by[p.game_id] || []).push(p));
@@ -1068,8 +1086,8 @@ function luckyBanner() {
 function props() {
   if (!D.players.length) return empty("👤", "No player projections yet", "");
   const S = PSTATE, mk = S.market;
-  const mkt0 = [["sog", "Shots"], ["goals", "Goals"], ["points", "Points"], ["assists", "Assists"]]
-    .map(([k, nm]) => `<button class="${mk === k ? "on" : ""}" data-m="${k}">${nm}</button>`).join("");
+  const MK4 = [["sog", "Shots"], ["goals", "Goals"], ["points", "Points"], ["assists", "Assists"]], mi = Math.max(0, MK4.findIndex(([k]) => k === mk));
+  const mkt0 = `<i class="mkpill" style="--i:${mi}"></i>` + MK4.map(([k, nm]) => `<button class="${mk === k ? "on" : ""}" data-m="${k}">${nm}</button>`).join("");
   if (mk === "lucky") return `<div class="ptabs props-seg">${mkt0}</div>` + luckyNHL();
   let list = D.players.filter(p => p.lam[mk] != null);
   if (S.q) list = list.filter(p => normName(p.name).includes(normName(S.q)));
@@ -1083,11 +1101,12 @@ function props() {
   const mkt = mkt0;
   const gms = `<button class="chip ${S.search || S.q ? "on" : ""}" data-search="1">🔍</button>`
     + `<button class="chip ${S.game === "all" ? "on" : ""}" data-g="all">All games</button>`
-    + D.games.map(g => `<button class="chip ${S.game === String(g.game_id) ? "on" : ""}" data-g="${g.game_id}">${esc(g.away.abbr)} @ ${esc(g.home.abbr)}</button>`).join("");
+    + D.games.map(g => `<button class="chip gchip ${S.game === String(g.game_id) ? "on" : ""}" data-g="${g.game_id}"><img src="${esc(g.away.logo)}" alt="" onerror="this.remove()"><img src="${esc(g.home.logo)}" alt="" onerror="this.remove()">${esc(g.away.abbr)} @ ${esc(g.home.abbr)}</button>`).join("");
   return `<div class="ptabs props-seg">${mkt}</div>
     <div class="strip" style="padding-left:0">${gms}</div>
     ${S.search || S.q ? `<input class="search" id="pq" placeholder="Find a player" value="${esc(S.q)}" autocomplete="off">` : ""}
     ${waiting ? `<div class="pnote"><span class="pdot"></span>DraftKings lines pending for ${waiting === 1 ? "1 game" : waiting + " games"} · showing model prices</div>` : ""}
+    ${!S.q && S.game === "all" ? spotlight(list, mk) : ""}
     ${list.length ? sectionsNHL(list, mk) : `<div class="note">No players match.</div>`}`;
 }
 function wireProps() {
@@ -1106,22 +1125,30 @@ function openPlayer(id) {
   const p = D.players.find(x => String(x.id) === String(id)); if (!p) return;
   const g = D.games.find(x => x.game_id === p.game_id), L = LIVE[p.game_id] || {}, s = playerStat(p);
   const slot = D.lines.filter(x => x.team === p.team && normName(x.name) === normName(p.name));
-  const where = slot.length ? [slot[0].line, slot[0].pp ? `PP${slot[0].pp}` : ""].filter(Boolean).join(" · ") : "";
+  const col = (D.colors || {})[p.team] || "#3a4656", tl = teamLogoUrl(p.team);
+  const opp = g ? (g.home.abbr === p.team ? g.away : g.home) : null, at = g && g.home.abbr === p.team ? "vs" : "@";
   const PB = [];
+  const tiles = [["sog", "Shots"], ["goals", "Goals"], ["points", "Points"], ["assists", "Assists"]].filter(([mk]) => p.lam[mk] != null)
+    .map(([mk, n]) => `<div class="ps-tile"><b>${p.lam[mk].toFixed(mk === "sog" ? 1 : 2)}</b><span>${n}</span>${s && !s.dnp ? `<i>${L.state === "in" ? "live" : "final"} ${s[mk]}</i>` : ""}</div>`).join("");
   const sec = mk => { if (p.lam[mk] == null) return "";
-    const rows = [...new Set([...SHEET_LINES[mk], ...dkLines(p, mk)])].sort((a, b) => a - b).map(l => { const pr = propProb(p, mk, l); const dko = p.dk && p.dk[`${mk}|${l}`]; if (pr < 0.03 && !dko) return "";
-      const [cls, ic] = RES(s && !s.dnp ? cmpLine(s[mk], l, "over", L.state === "post") : undefined);
+    const rows = [...new Set([...SHEET_LINES[mk], ...dkLines(p, mk)])].sort((a, b) => a - b).map(l => { const pr = propProb(p, mk, l), dko = p.dk && p.dk[`${mk}|${l}`]; if (pr < 0.03 && !dko) return "";
+      const [cls] = RES(s && !s.dnp ? cmpLine(s[mk], l, "over", L.state === "post") : undefined);
       PB.push({player: p, market: mk, line: l, p: pr, label: `${p.name} ${mk === "goals" && l === 0.5 ? "to score" : `over ${l} ${PNAME[mk]}`}`});
-      return `<button class="pl ${cls}" data-pb="${PB.length - 1}"><span>${ic ? ic + " " : ""}${mk === "goals" && l === 0.5 ? "Anytime goal" : `Over ${l}`}</span>
-        <span class="c">${pct(pr)}</span><span class="b">${dko ? `${am(dko)} <i class="bkt">DK</i>` : betAt(pr - thr(mk))}</span></button>`; }).join("");
-    const live = s && !s.dnp ? ` · ${L.state === "in" ? "live" : "final"} <b>${s[mk]}</b>` : "";
-    return `<div class="psec"><div class="ph"><span>${MNAME[mk]}</span><span class="pm">proj ${p.lam[mk].toFixed(2)}${live}</span></div>${rows}</div>`; };
-  $("#sheet").innerHTML = `<div class="grab"></div><button class="iconbtn close" id="shx" aria-label="Close">✕</button>
-    <div class="phd">${avatar(p)}<div><div class="sh-t">${esc(p.name)}</div>
-      <div class="sh-s">${esc(p.team)}${where ? " · " + esc(where) : ""} · ${esc(g ? gameLabel(g) : "")}${p.confirmed ? "" : " · projected lineup"}</div></div></div>
-    <div class="plh"><span></span><span>Chance</span><span>Bet at</span></div>
-    ${["sog", "goals", "points", "assists"].map(sec).join("")}
-    <div class="hint">Tap a line to check it against ${BOOK()}.</div>`;
+      const heat = pr >= 0.6 ? "hi" : pr >= 0.4 ? "md" : "lo";
+      return `<button class="ps-row ${cls}" data-pb="${PB.length - 1}"><span class="ps-l">${mk === "goals" && l === 0.5 ? "Anytime" : `Over ${l}`}</span>
+        <span class="ps-bar ${heat}"><i style="width:${Math.round(100 * pr)}%"></i></span><span class="ps-c">${pct(pr)}</span>
+        <span class="ps-p ${dko ? "dk" : ""}"><b>${am(dko || fair(pr))}</b><i>${dko ? "DK" : "fair"}</i></span></button>`; }).join("");
+    return `<div class="ps-sec"><div class="ps-h"><b>${MNAME[mk]}</b><span>proj ${p.lam[mk].toFixed(2)}</span></div>${rows}</div>`; };
+  const chips = [p.pos, slot.length ? slot[0].line : "", slot.length && slot[0].pp ? `PP${slot[0].pp}` : "", p.num != null ? `#${p.num}` : ""].filter(Boolean).map(c => `<span>${esc(c)}</span>`).join("");
+  $("#sheet").innerHTML = `<div class="ps-hero" style="--tc:${esc(col)}">${tl ? `<img class="ps-wm" src="${esc(tl)}" alt="" onerror="this.remove()">` : ""}
+      <div class="grab"></div><button class="iconbtn close" id="shx" aria-label="Close">✕</button>
+      <div class="ps-top"><div class="ps-shot"><span>${esc(initials(p.name))}</span>${p.headshot ? `<img src="${esc(p.headshot)}" alt="" onload="this.previousElementSibling.style.visibility='hidden'" onerror="this.remove()">` : ""}</div>
+        <div class="ps-id"><div class="ps-team">${tl ? `<img src="${esc(tl)}" alt="" onerror="this.remove()">` : ""}${esc(p.team)} ${opp ? `<em>${at} ${esc(opp.abbr)}</em>` : ""}</div>
+          <div class="ps-name">${esc(p.name)}</div><div class="ps-chips">${chips}${p.confirmed ? "" : `<span class="warn">projected lineup</span>`}</div>
+          <div class="ps-when">${g ? esc(timeET(g.start_utc)) : ""}${L.state === "in" ? ` · <b class="lv">LIVE ${esc(L.detail || "")}</b>` : ""}</div></div></div>
+      <div class="ps-tiles">${tiles}</div></div>
+    <div class="ps-body">${["sog", "goals", "points", "assists"].map(sec).join("")}
+      <div class="ps-foot">Tap any line to bet it · DK = DraftKings price · fair = model price</div></div>`;
   $("#shx").onclick = closeSheet;
   $("#sheet").querySelectorAll("[data-pb]").forEach(el => el.onclick = () => openSheet(PB[Number(el.dataset.pb)]));
   $("#scrim").classList.add("open"); $("#sheet").classList.add("open");
