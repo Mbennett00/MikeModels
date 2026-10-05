@@ -1191,6 +1191,13 @@ function mbPropOdds(leg) {
   const p = days.flatMap(d => d.players).find(x => String(x.id) === String(k.pid)); if (!p || !p.dk || (k.dir || "over") !== "over") return null;
   const o = p.dk[`${k.mk}|${k.l}`]; return o ? {odds: o, book: (TODAY && TODAY.meta.props_book) || "DraftKings"} : null;
 }
+// 🤖 the model's own bets for "You vs the Model": its top 3 value edges (or most likely goalscorers before prices are up)
+function mbModelPicks() {
+  if (!TODAY || D !== TODAY || !D.games.length) return [];
+  const keep = LIKE; let rows = [];
+  try { LIKE = D.games.some(g => (g.dk || []).length) ? "value" : "goals"; rows = likeRows().slice(0, 3); } finally { LIKE = keep; }
+  return rows.map(r => { const b = Object.assign({p: r.p}, r.b); return Object.assign(mbLegOf(b), {odds: Math.round(mbDefOdds(b))}, r.b.g ? {label: r.label} : {}); });
+}
 function mbArtFor(leg) {   // logos / headshot for bets saved without them
   const days = [TODAY, PREV].filter(Boolean), k = leg.key || {}, g = days.flatMap(d => d.games).find(x => String(x.game_id) === String(leg.gid));
   if (k.t === "prop") { const p = days.flatMap(d => d.players).find(x => String(x.id) === String(k.pid)); return p ? {img: p.headshot, logo: teamLogoUrl(p.team), name: p.name} : {logo: teamLogoUrl(k.team), name: k.name}; }

@@ -34,7 +34,9 @@ function mbRetireNFL() {
   const v = slipLoad(); if (v.some(x => x.sport === "NFL")) slipSave(v.filter(x => x.sport !== "NFL"));
   return n;
 }
-function mbProfit(b) { return b.status === "won" ? b.stake * (mbDec(b.odds) - 1) : b.status === "lost" ? -b.stake : 0; }
+// a win pays the price (plus any 🚀 boost on the profit); an insured parlay that loses by one leg gets its stake back
+const mbInsured = b => b.status === "lost" && b.ins && b.legs.filter(l => l.res === false).length === 1;
+function mbProfit(b) { return b.status === "won" ? b.stake * (mbDec(b.odds) - 1) * (1 + (b.boost || 0)) : b.status === "lost" ? (mbInsured(b) ? 0 : -b.stake) : 0; }
 function mbWallet(s = mbLoad()) {
   const pl = s.bets.reduce((a, b) => a + mbProfit(b), 0), risk = s.bets.filter(b => b.status === "open").reduce((a, b) => a + b.stake, 0);
   const bonus = s.bonus || 0;
@@ -98,9 +100,10 @@ function mbOpenSlip() {
   if (SLIP_STAKE == null) SLIP_STAKE = s.unit || 10;
   if (SLIP_MODE === "parlay" && !slipParlayOk(v)) SLIP_MODE = "single";
   const dec = v.reduce((a, x) => a * mbDec(x.odds), 1), stake = Number(SLIP_STAKE) || 0;
-  const tot = SLIP_MODE === "parlay" ? stake : stake * v.length, win = SLIP_MODE === "parlay" ? stake * (dec - 1) : v.reduce((a, x) => a + stake * (mbDec(x.odds) - 1), 0);
+  const toks = funSlipTokensHtml(s, v, SLIP_MODE === "parlay"), bst = funBoostOf(SLIP_BOOST);
+  const tot = SLIP_MODE === "parlay" ? stake : stake * v.length, win = (SLIP_MODE === "parlay" ? stake * (dec - 1) : v.reduce((a, x) => a + stake * (mbDec(x.odds) - 1), 0)) * (1 + bst);
   const closed = v.filter(mbStarted).length, short = tot > W.available + 1e-9;
-  const payout = SLIP_MODE === "parlay" ? stake * dec : tot + win;
+  const payout = tot + win;
   const label = closed ? "Remove started games" : short ? "Not enough balance" : !(stake > 0) ? "Enter a stake" : `Place ${mbMoney(tot)}`;
   sh.innerHTML = `<div class="grab"></div><button class="iconbtn close" id="shx" aria-label="Close">✕</button>
     <div class="slhead"><div class="sh-t">Bet slip</div><span class="slcount">${v.length}</span>${v.length ? `<button class="slclr" id="slipclr">Clear</button>` : ""}</div>
@@ -111,7 +114,8 @@ function mbOpenSlip() {
       <span class="slipo ${x.was != null ? "moved" : ""}">${x.was != null ? `<s>${mbSign(x.was)}</s>` : ""}${mbSign(x.odds)}</span><button class="slipx" data-sx="${esc(slipKey(x))}" aria-label="Remove">×</button></div>`).join("")}</div>
     <div class="stkrow"><div class="stkin c"><em>$</em><input id="slipstake" inputmode="decimal" value="${stake || ""}" aria-label="Stake"></div>
       <div class="qchips c">${[5, 10, 25, 50].map(a => `<button class="${stake === a ? "on" : ""}" data-qs="${a}">$${a}</button>`).join("")}</div></div>
-    <div class="slsum c"><span>${SLIP_MODE === "parlay" ? "Stake" : `${v.length} × ${mbMoney(stake)}`}</span><span>To win <b>${mbMoney(win)}</b></span></div>
+    ${toks}
+    <div class="slsum c"><span>${SLIP_MODE === "parlay" ? "Stake" : `${v.length} × ${mbMoney(stake)}`}${SLIP_INS ? " · 🛡️ insured" : ""}</span><span>To win ${bst ? `<em class="bstw">🚀 +${100 * bst}%</em>` : ""}<b>${mbMoney(win)}</b></span></div>
     <button class="placebet c" id="slipgo" ${!v.length || closed || short || !(stake > 0) ? "disabled" : ""}><span>${label}</span>${!closed && !short && stake > 0 ? `<em>Payout ${mbMoney(payout)}</em>` : ""}</button>
     <div class="slfoot">Balance ${mbMoney(W.available)}${stake > 0 && !short ? ` → ${mbMoney(W.available - tot)} after` : ""} · paper money</div>`
       : `<div class="slipempty"><div class="slicon">🧾</div><b>Your bet slip is empty</b><span>Tap any price or prop, then add it to your slip.</span></div>`}`;
@@ -123,20 +127,21 @@ function mbOpenSlip() {
   const si = document.getElementById("slipstake");
   if (si) si.onchange = () => { SLIP_STAKE = Number(si.value.replace(/[^0-9.]/g, "")); re(); };
   const clr = document.getElementById("slipclr"); if (clr) clr.onclick = () => { slipSave([]); mbFab(); re(); };
+  funWireTokens(sh, re);
   const go = document.getElementById("slipgo");
   if (go) go.onclick = () => {
-    const placed = [];
-    if (SLIP_MODE === "parlay") placed.push(mbAdd({sport: v[0].sport, kind: "parlay", label: `${v.length}-leg parlay`, odds: mbAm(dec), stake,
+    const placed = [], tk = funTakeTokens(SLIP_MODE === "parlay");
+    if (SLIP_MODE === "parlay") placed.push(mbAdd({sport: v[0].sport, kind: "parlay", label: `${v.length}-leg parlay`, odds: mbAm(dec), stake, ...tk,
       legs: v.map(x => Object.assign({label: x.label, sub: x.sub, gid: x.gid, start: x.start, key: x.key, p: x.p, odds: x.odds, dec: mbDec(x.odds), sport: x.sport}, legArt(x)))}));
-    else v.forEach(x => placed.push(mbAdd({sport: x.sport, kind: "single", label: x.label, odds: x.odds, stake,
+    else v.forEach(x => placed.push(mbAdd({sport: x.sport, kind: "single", label: x.label, odds: x.odds, stake, ...(v.length === 1 ? tk : {}),
       legs: [Object.assign({label: x.label, sub: x.sub, gid: x.gid, start: x.start, key: x.key, p: x.p, odds: x.odds}, legArt(x))]})));
     if (placed.some(b => !b)) { go.textContent = "Couldn't save (private browsing?)"; return; }
-    mbHaptic("success"); slipSave([]); mbFab(); mbConfirm(placed);
+    mbHaptic("success"); funBlip(); slipSave([]); mbFab(); mbConfirm(placed);
   };
   document.getElementById("scrim").classList.add("open"); sh.classList.add("open");
 }
 function mbConfirm(placed) {
-  const sh = document.getElementById("sheet"), tot = placed.reduce((a, b) => a + b.stake, 0), win = placed.reduce((a, b) => a + b.stake * (mbDec(b.odds) - 1), 0);
+  const sh = document.getElementById("sheet"), tot = placed.reduce((a, b) => a + b.stake, 0), win = placed.reduce((a, b) => a + b.stake * (mbDec(b.odds) - 1) * (1 + (b.boost || 0)), 0);
   sh.innerHTML = `<div class="grab"></div><button class="iconbtn close" id="shx" aria-label="Close">✕</button>
     <div class="okhead"><div class="okring">✓</div><div class="sh-t">Bet placed!</div><div class="sh-s">${placed.length > 1 ? placed.length + " bets" : "Ticket #" + placed[0].id}</div></div>
     ${placed.map(mbTicket).join("")}
@@ -196,9 +201,11 @@ function mbCelebrate() {
   fresh.forEach(b => b.seen = true); mbSave(s);
   if (won.length) {
     const amt = won.reduce((a, b) => a + mbProfit(b), 0), big = won.some(b => b.kind === "parlay");
+    if (won.some(funIsBig)) funBigWin(amt, big ? "PARLAY CASHED!" : "CASHED!", won.map(b => b.label).join(" · "));
+    else { funBlip(); funHorn(0.9); }
     mbToast(`<div class="tbig">${big ? "🎰 PARLAY CASHED!" : "💰 CASHED!"}</div><div class="tamt">+${mbMoney(amt)}</div><div class="tsub">${esc(won.map(b => b.label).join(" · "))}</div>`, "win");
     mbBurst(big ? 60 : 36, ["💵", "🎉", "💰", "✨"]);
-  } else if (lost.length) mbToast(`<div class="tsub">❌ ${esc(lost.map(b => b.label).join(" · "))}</div><div class="tsub">On to the next one.</div>`, "loss");
+  } else if (lost.length) mbToast(lost.some(mbInsured) ? `<div class="tsub">🛡️ Insurance saved you: ${esc(lost.filter(mbInsured).map(b => b.label).join(" · "))} · stake refunded</div>` : `<div class="tsub">❌ ${esc(lost.map(b => b.label).join(" · "))}</div><div class="tsub">On to the next one.</div>`, lost.some(mbInsured) ? "win" : "loss");
   mbBadgesCheck(mbLoad());
 }
 const BADGES = [
@@ -232,19 +239,19 @@ function mbBadgesCheck(s) {
 // ---- My bets ----
 function mbTicket(b) {
   const dot = l => `<span class="tkdot ${l.res === true ? "w" : l.res === false ? "l" : l.res === "push" ? "p" : ""}"></span>`;
-  const toWin = b.stake * (mbDec(b.odds) - 1), when = new Date(b.ts).toLocaleString("en-US", {month: "short", day: "numeric", hour: "numeric", minute: "2-digit"});
+  const toWin = b.stake * (mbDec(b.odds) - 1) * (1 + (b.boost || 0)), when = new Date(b.ts).toLocaleString("en-US", {month: "short", day: "numeric", hour: "numeric", minute: "2-digit"});
   const sw = l => b.status === "open" ? mbSweatHtml(l) : "";
   const lc = l => l.res === true ? "w" : l.res === false ? "l" : "";
   const body = b.kind === "parlay" ? `<div class="tksel" style="margin-top:4px">${b.legs.length}-leg parlay</div>` + b.legs.map(l => `<div class="tkleg ${lc(l)}">${mbPic(l)}<b>${esc(l.label)}</b><i>${l.odds ? mbSign(l.odds) : ""}</i></div>${sw(l)}`).join("")
     : `<div class="tkone">${mbPic(b.legs[0] || {})}<div><div class="tksel">${esc(b.label)}</div><div class="tksub">${esc((b.legs[0] || {}).sub || "")}</div></div></div>${sw(b.legs[0] || {})}`;
   const pill = {open: "Open", won: "Cashed", lost: "Lost", push: "Push"}[b.status];
-  const res = b.status === "won" ? "+" + mbMoney(mbProfit(b)) : b.status === "lost" ? "−" + mbMoney(b.stake) : b.status === "push" ? mbMoney(b.stake) : mbMoney(toWin);
+  const res = b.status === "won" ? "+" + mbMoney(mbProfit(b)) : mbInsured(b) ? "🛡️ " + mbMoney(b.stake) : b.status === "lost" ? "−" + mbMoney(b.stake) : b.status === "push" ? mbMoney(b.stake) : mbMoney(toWin);
   const acts = !b.id ? "" : b.status === "open"
     ? `<button data-mbs="${b.id}|won">Won</button><button data-mbs="${b.id}|lost">Lost</button><button data-mbs="${b.id}|push">Push</button><button data-mbd="${b.id}" class="del">Delete</button>`
     : `<button data-mbs="${b.id}|open">Reopen</button><button data-mbd="${b.id}" class="del">Delete</button>`;
-  return `<div class="ticket ${b.status}"><div class="tkh">${b.status === "open" && mbIsLive(b) ? `<span class="livetag"><span class="livedot"></span>LIVE</span>` : ""}<span class="tkmeta">${b.sport} · ${b.kind === "parlay" ? "Parlay" : "Single"}</span><span class="tkodds">${mbSign(b.odds)}</span></div>
+  return `<div class="ticket ${b.status}"><div class="tkh">${b.status === "open" && mbIsLive(b) ? `<span class="livetag"><span class="livedot"></span>LIVE</span>` : ""}<span class="tkmeta">${b.sport} · ${b.kind === "parlay" ? "Parlay" : "Single"}${b.boost ? ` <em class="tkb">🚀 +${100 * b.boost}%</em>` : ""}${b.ins ? ` <em class="tkb ins">🛡️</em>` : ""}</span><span class="tkodds">${mbSign(b.odds)}</span></div>
     ${body}<div class="tkdiv"></div>
-    <div class="tkf"><div><span>Risk</span><b>${mbMoney(b.stake)}</b></div><div><span>${b.status === "won" ? "Won" : b.status === "lost" ? "Lost" : b.status === "push" ? "Refund" : "To win"}</span><b class="${b.status === "won" ? "pos" : ""}">${res}</b></div>
+    <div class="tkf"><div><span>Risk</span><b>${mbMoney(b.stake)}</b></div><div><span>${b.status === "won" ? "Won" : mbInsured(b) ? "Insured" : b.status === "lost" ? "Lost" : b.status === "push" ? "Refund" : "To win"}</span><b class="${b.status === "won" ? "pos" : ""}">${res}</b></div>
       <span class="tkpill ${b.status}">${pill}</span></div>
     <div class="tkfoot"><span>#${esc(b.id || "")} · ${when}</span>${acts ? `<span class="tkact">${acts}</span>` : ""}</div></div>`;
 }
@@ -263,11 +270,11 @@ function mbView() {
   const w = done.filter(b => b.status === "won").length, l = done.filter(b => b.status === "lost").length, p = done.filter(b => b.status === "push").length;
   const got = new Set(s.badges || []);
   const xp = mbXP(s), T = mbTier(xp);
-  return `<div class="wallet"><div class="wtop"><div class="wl"><span>Balance</span><b>${mbMoney(W.available)}</b><i>${W.risk > 0 ? `${mbMoney(W.risk)} in play` : "no open bets"}</i></div>
+  return `<div class="wallet ${stAll.streak >= 3 ? "onfire" : ""}">${stAll.streak >= 3 ? `<span class="firechip">🔥 ON FIRE · ${stAll.streak}W</span>` : ""}<div class="wtop"><div class="wl"><span>Balance</span><b>${mbMoney(W.available)}</b><i>${W.risk > 0 ? `${mbMoney(W.risk)} in play` : "no open bets"}</i></div>
       <div class="wr ${W.pl > 0 ? "up" : W.pl < 0 ? "down" : ""}"><span>All-time</span><b>${(W.pl > 0 ? "+" : "") + mbMoney(W.pl)}</b></div></div>
       <div class="tier"><div class="tierh"><em>${T.cur[2]} ${T.cur[0]}</em><span>${T.nxt ? `${xp} / ${T.nxt[1]} XP to ${T.nxt[2]} ${T.nxt[0]}` : `${xp} XP · top tier`}</span></div>
-        <div class="tbar"><b style="width:${Math.round(100 * T.pct)}%"></b></div></div></div>
-    ${mbDailyHtml(s)}
+        <div class="tbar"><b style="width:${Math.round(100 * T.pct)}%"></b></div></div>${funTokensHtml(s)}</div>
+    ${funRebuyHtml(s, W)}${mbDailyHtml(s)}${funMissionsHtml(s)}${funVsHtml(s)}
     <div class="card mbsum"><div class="mbtiles">
       <div><span>Record</span><b>${w}-${l}${p ? "-" + p : ""}</b></div>
       <div><span>ROI</span><b class="${st.roi > 0 ? "pos" : st.roi < 0 ? "neg" : ""}">${(st.roi >= 0 ? "+" : "") + (100 * st.roi).toFixed(1)}%</b></div>
@@ -282,13 +289,13 @@ function mbView() {
     ${open.length ? open.map(mbTicket).join("") : live.length ? "" : `<div class="note">No open bets. Tap any price, prop or parlay and ＋ Add to bet slip.</div>`}
     ${done.length ? `<div class="sec mbsec">Settled</div>${done.slice(0, 40).map(mbTicket).join("")}` : ""}
     <details class="card mbset"><summary>⚙️ Bankroll &amp; backup</summary>
+      <label class="sndrow"><input type="checkbox" id="mbsound" ${s.sound !== false ? "checked" : ""}> 🔊 Goal horn &amp; sounds</label>
       <label class="f">Starting bankroll ($)</label><input id="mbstart" inputmode="decimal" value="${s.start}">
       <div class="mbx" style="margin-top:10px"><button id="mbexp">Copy backup</button><button id="mbimp">Restore backup</button><button id="mbreset" class="del">Reset all</button></div>
       <div class="hint">Paper money, stored in this browser only. On iPhone, the home-screen app and Safari keep separate copies: use Copy / Restore backup to move them.</div></details>`;
 }
 function mbWire(render) {
   MB_RENDER = render;
-  const cl = document.getElementById("mbclaim"); if (cl) cl.onclick = () => { mbClaim(); render(); };
   document.querySelectorAll("[data-mbs]").forEach(b => b.onclick = () => { const [id, st] = b.dataset.mbs.split("|"); mbHaptic(st === "won" ? "success" : "");
     mbUpdate(id, x => { x.status = st; x.manual = st !== "open"; x.result_ts = st === "open" ? null : new Date().toISOString(); x.seen = st === "open" ? undefined : false; });
     mbCelebrate(); render(); });
@@ -307,7 +314,7 @@ function mbWire(render) {
   if (rs) rs.onclick = () => { if (confirm("Delete every paper bet and reset the bankroll?")) { mbSave({start: mbLoad().start, unit: 10, bets: [], badges: [], daily: mbLoad().daily}); MB_MSG = "Reset."; render(); } };
 }
 // every render: keep the slip button and the wallet in the nav current
-function mbAfterRender(render) { MB_RENDER = render; mbFab(); mbWireBanner(render); }
+function mbAfterRender(render) { MB_RENDER = render; mbFab(); mbWireBanner(render); try { funAfterRender(render); } catch (e) {} }
 
 // ---- haptics: Android vibrates; iPhone (iOS 18+) ticks when a hidden switch is flipped during a tap ----
 function mbHaptic(kind) {
@@ -361,7 +368,7 @@ function mbSweatHtml(leg) {
 function mbIsLive(b) { return b.status === "open" && b.legs.some(l => { const w = mbSweat(l); return w && w.st !== "pre"; }); }
 function mbLiveBanner() {
   const s = mbLoad(), D = mbDaily(s);
-  const daily = D.claimed ? "" : `<button class="swbanner dailybanner" data-gobets="1"><span>🎁</span><b>Daily bonus ready</b><i>day ${D.streak} · +${mbMoney(D.amount)}</i><span>→</span></button>`;
+  const daily = D.claimed ? "" : `<button class="swbanner dailybanner" data-spin="1"><span>🎡</span><b>Free spin ready</b><i>🔥 day ${D.streak}</i><span>→</span></button>`;
   return daily + mbSweatBanner(s);
 }
 function mbSweatBanner(s) {
@@ -376,7 +383,7 @@ function mbWireBanner(render) {
 
 // ---- come back tomorrow: daily paper bonus that grows with the streak, and VIP tiers from XP ----
 const TIERS = [["Rookie", 0, "🥉"], ["Pro", 250, "🥈"], ["All-Star", 750, "🥇"], ["MVP", 2000, "💎"], ["Hall of Fame", 5000, "👑"]];
-function mbXP(s) { return s.bets.length * 10 + s.bets.filter(b => b.status === "won").length * 25 + (s.claims || 0) * 15; }
+function mbXP(s) { return s.bets.length * 10 + s.bets.filter(b => b.status === "won").length * 25 + (s.claims || 0) * 15 + (s.xpb || 0); }
 function mbTier(xp) {
   let i = 0; TIERS.forEach((t, j) => { if (xp >= t[1]) i = j; });
   const cur = TIERS[i], nxt = TIERS[i + 1];
@@ -397,8 +404,8 @@ function mbClaim() {
 function mbDailyHtml(s) {
   const D = mbDaily(s), filled = Math.min(D.claimed ? D.streak : D.streak - 1, 7), dots = Array.from({length: 7}, (_, i) => `<span class="${i < filled ? "on" : ""}"></span>`).join("");
   return D.claimed
-    ? `<div class="daily done"><div class="gift">✅</div><div class="dt"><b>Bonus claimed · 🔥 ${D.streak}-day streak</b><i>Come back tomorrow for ${mbMoney(D.next)} paper</i><div class="streakdots">${dots}</div></div></div>`
-    : `<div class="daily"><div class="gift">🎁</div><div class="dt"><b>Daily bonus · day ${D.streak}</b><i>+${mbMoney(D.amount)} paper · grows every day you come back</i><div class="streakdots">${dots}</div></div><button class="claim" id="mbclaim">Claim</button></div>`;
+    ? `<div class="daily done"><div class="gift">✅</div><div class="dt"><b>Spun today · 🔥 ${D.streak}-day streak</b><i>Come back tomorrow: cash prizes ×${funMult(D.streak + 1).toFixed(1)}</i><div class="streakdots">${dots}</div></div></div>`
+    : `<div class="daily spin" data-spin="1"><div class="gift wspin">🎡</div><div class="dt"><b>Daily spin · day ${D.streak}</b><i>Up to $250, profit boosts, parlay insurance · ×${funMult(D.streak).toFixed(1)} streak</i><div class="streakdots">${dots}</div></div><button class="claim" data-spin="1">Spin</button></div>`;
 }
 
 // ---- live sportsbook prices: DraftKings lines from ESPN's public scoreboard (no key, refreshed with the live scores) ----
