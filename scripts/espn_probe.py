@@ -1,38 +1,34 @@
-"""One-off: what odds does ESPN's free API return? Prints trimmed samples (scoreboard odds, core odds, prop bets)."""
+"""One-off: what odds does ESPN's free API return? Compact answers to specific questions."""
+import collections
 import json
 import requests
 
 H = {"User-Agent": "Mozilla/5.0"}
-SB = {"nfl": "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard",
-      "nhl": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard"}
+SB = {"nfl": "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=20261008-20261013",
+      "nhl": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261005-20261007"}
 CORE = {"nfl": "https://sports.core.api.espn.com/v2/sports/football/leagues/nfl", "nhl": "https://sports.core.api.espn.com/v2/sports/hockey/leagues/nhl"}
-
-
-def get(u):
-    r = requests.get(u, headers=H, timeout=30)
-    return r.status_code, (r.json() if r.headers.get("content-type", "").startswith("application/json") else r.text[:300]), dict(r.headers)
-
+get = lambda u: requests.get(u, headers=H, timeout=30).json()
 
 for sp in ("nfl", "nhl"):
-    code, sb, hd = get(SB[sp])
-    print(f"\n===== {sp} scoreboard {code} CORS={hd.get('Access-Control-Allow-Origin')}")
-    evs = sb.get("events", []) if isinstance(sb, dict) else []
-    for ev in evs[:2]:
-        c = ev["competitions"][0]
-        print(ev["name"], ev["status"]["type"]["state"])
-        print(json.dumps(c.get("odds"), indent=1)[:2500])
-    pre = [e for e in evs if e["status"]["type"]["state"] == "pre"] or evs
+    sb = get(SB[sp]); evs = sb.get("events", [])
+    pre = [e for e in evs if e["status"]["type"]["state"] == "pre"]
+    print(f"\n===== {sp}: {len(evs)} events, {len(pre)} pre")
     if not pre:
         continue
-    ev = pre[0]; eid = ev["id"]
-    code, od, hd = get(f"{CORE[sp]}/events/{eid}/competitions/{eid}/odds")
-    print(f"\n----- {sp} core odds {code} CORS={hd.get('Access-Control-Allow-Origin')} items={len(od.get('items', [])) if isinstance(od, dict) else '?'}")
-    for it in (od.get("items", []) if isinstance(od, dict) else [])[:3]:
-        print(json.dumps({k: it.get(k) for k in ("provider", "details", "spread", "overUnder", "awayTeamOdds", "homeTeamOdds", "moneyline", "propBets")}, indent=1)[:2000])
-    items = od.get("items", []) if isinstance(od, dict) else []
-    if items:
-        pid = (items[0].get("provider") or {}).get("id")
-        code, pb, hd = get(f"{CORE[sp]}/events/{eid}/competitions/{eid}/odds/{pid}/propBets?limit=40")
-        print(f"\n----- {sp} propBets provider {pid}: {code} count={pb.get('count') if isinstance(pb, dict) else '?'}")
-        for it in (pb.get("items", []) if isinstance(pb, dict) else [])[:6]:
-            print(json.dumps(it, indent=1)[:900])
+    o = pre[0]["competitions"][0].get("odds")
+    print("SCOREBOARD odds keys:", [list(x.keys()) for x in o] if o else o)
+    if o:
+        x = o[0]; print("provider", x.get("provider", {}).get("name"), "details", x.get("details"), "OU", x.get("overUnder"), "spread", x.get("spread"))
+        print("home", json.dumps(x.get("homeTeamOdds"))[:400]); print("ml", json.dumps(x.get("moneyline"))[:400]); print("ps", json.dumps(x.get("pointSpread"))[:400]); print("tot", json.dumps(x.get("total"))[:400])
+    eid = pre[0]["id"]
+    pb = get(f"{CORE[sp]}/events/{eid}/competitions/{eid}/odds/100/propBets?limit=1000")
+    items = pb.get("items", [])
+    print("propBets", pb.get("count"), "fields:", sorted({k for it in items for k in it}))
+    print("types:", collections.Counter(it["type"]["name"] for it in items).most_common(25))
+    ath = items[0]["athlete"]["$ref"] if items else None
+    same = [it for it in items if it["athlete"]["$ref"] == ath]
+    for it in same[:8]:
+        it = {k: v for k, v in it.items() if k not in ("competition", "athlete", "provider")}
+        print(json.dumps(it))
+    if ath:
+        a = get(ath.replace("http://", "https://")); print("athlete:", a.get("id"), a.get("displayName"), a.get("position", {}).get("abbreviation"))
