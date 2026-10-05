@@ -93,20 +93,20 @@ function mbOpenSlip() {
   const tot = SLIP_MODE === "parlay" ? stake : stake * v.length, win = SLIP_MODE === "parlay" ? stake * (dec - 1) : v.reduce((a, x) => a + stake * (mbDec(x.odds) - 1), 0);
   const closed = v.filter(mbStarted).length, short = tot > W.available + 1e-9;
   const payout = SLIP_MODE === "parlay" ? stake * dec : tot + win;
+  const label = closed ? "Remove started games" : short ? "Not enough balance" : !(stake > 0) ? "Enter a stake" : `Place ${mbMoney(tot)}`;
   sh.innerHTML = `<div class="grab"></div><button class="iconbtn close" id="shx" aria-label="Close">✕</button>
-    <div class="slhead"><div class="sh-t">Bet slip</div><span class="slcount">${v.length}</span><span class="slavail">${mbMoney(W.available)} available</span></div>
-    ${v.length ? `<div class="gseg"><button class="${SLIP_MODE === "single" ? "on" : ""}" data-sm2="single">Singles</button>
+    <div class="slhead"><div class="sh-t">Bet slip</div><span class="slcount">${v.length}</span>${v.length ? `<button class="slclr" id="slipclr">Clear</button>` : ""}</div>
+    ${v.length ? `<div class="gseg c"><button class="${SLIP_MODE === "single" ? "on" : ""}" data-sm2="single">Singles</button>
       <button class="${SLIP_MODE === "parlay" ? "on" : ""} ${slipParlayOk(v) ? "" : "dis"}" data-sm2="parlay">Parlay${v.length >= 2 ? `<em>${mbSign(mbAm(dec))}</em>` : ""}</button></div>
-    <div class="slipl">${v.map(x => `<div class="slipi ${mbStarted(x) ? "closed" : ""}">${mbPic(x)}
-      <div class="slipt"><b>${esc(x.label)}</b><i>${esc(x.sport)} · ${esc(x.sub || "")}${x.book ? ` · ${esc(x.book)}` : ""}${mbStarted(x) ? " · started" : ""}</i></div>
+    <div class="slipl c">${v.map(x => `<div class="slipi c ${mbStarted(x) ? "closed" : ""}">${mbPic(x)}
+      <div class="slipt"><b>${esc(x.label)}</b><i>${esc(x.sub || x.sport)}${x.book ? ` · ${esc(x.book.replace("DraftKings", "DK"))}` : ""}${mbStarted(x) ? " · started" : ""}</i></div>
       <span class="slipo ${x.was != null ? "moved" : ""}">${x.was != null ? `<s>${mbSign(x.was)}</s>` : ""}${mbSign(x.odds)}</span><button class="slipx" data-sx="${esc(slipKey(x))}" aria-label="Remove">×</button></div>`).join("")}</div>
-    <div class="stakebox"><div class="stk"><span>${SLIP_MODE === "parlay" ? "Stake" : "Stake per pick"}</span><div class="stkin"><em>$</em><input id="slipstake" inputmode="decimal" value="${stake || ""}"></div></div>
-      <div class="stk r"><span>To win</span><b>${mbMoney(win)}</b></div></div>
-    <div class="qchips">${[5, 10, 25, 50, 100].map(a => `<button class="${stake === a ? "on" : ""}" data-qs="${a}">$${a}</button>`).join("")}</div>
-    <div class="slsum"><span>Total stake <b>${mbMoney(tot)}</b></span><span>Payout <b>${mbMoney(payout)}</b></span></div>
-    <button class="placebet" id="slipgo" ${!v.length || closed || short || !(stake > 0) ? "disabled" : ""}>${closed ? "Remove started games" : short ? "Not enough balance" : `Place bet`}</button>
-    <button class="linkbtn slclr" id="slipclr">Clear slip</button>`
-      : `<div class="slipempty"><div class="slicon">🧾</div><b>Your bet slip is empty</b><span>Tap any price, prop or parlay, then add it to your slip.</span></div>`}`;
+    <div class="stkrow"><div class="stkin c"><em>$</em><input id="slipstake" inputmode="decimal" value="${stake || ""}" aria-label="Stake"></div>
+      <div class="qchips c">${[5, 10, 25, 50].map(a => `<button class="${stake === a ? "on" : ""}" data-qs="${a}">$${a}</button>`).join("")}</div></div>
+    <div class="slsum c"><span>${SLIP_MODE === "parlay" ? "Stake" : `${v.length} × ${mbMoney(stake)}`}</span><span>To win <b>${mbMoney(win)}</b></span></div>
+    <button class="placebet c" id="slipgo" ${!v.length || closed || short || !(stake > 0) ? "disabled" : ""}><span>${label}</span>${!closed && !short && stake > 0 ? `<em>Payout ${mbMoney(payout)}</em>` : ""}</button>
+    <div class="slfoot">${mbMoney(W.available)} available · paper money</div>`
+      : `<div class="slipempty"><div class="slicon">🧾</div><b>Your bet slip is empty</b><span>Tap any price or prop, then add it to your slip.</span></div>`}`;
   document.getElementById("shx").onclick = () => closeSheet();
   const re = () => mbOpenSlip();
   sh.querySelectorAll("[data-sm2]").forEach(b => b.onclick = () => { if (b.classList.contains("dis")) return; mbHaptic(); SLIP_MODE = b.dataset.sm2; re(); });
