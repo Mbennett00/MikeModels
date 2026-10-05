@@ -184,17 +184,16 @@ function mixCardHtml(P, mode, note, o = {}) {
   return `<div class="card lucky">${head}${rows}
     <div class="pl-sum"><div><span>${P.priced ? "Pays" : "Fair odds"}</span><b>${am(mixAm(P.dec))}</b></div><div><span>Model hits</span><b>${(100 * P.p).toFixed(1)}%</b></div><div><span>Worth it at</span><b>${am(mixAm(P.worth))}+</b></div></div>
     ${mode === "mix" ? `<button class="spin" data-spin="${key}">🎲 Spin again</button>` : ""}
-    <button class="mbtrack" data-mbtrack="${key}">📝 Track this parlay</button>
+    <button class="mbtrack" data-mbtrack="${key}">＋ Add parlay to bet slip</button>
     <div class="note">${note}</div></div>`;
 }
-function mbTrackParlay(key, sport, close) {
+function mbTrackParlay(key, sport) {
   const P = MIX_LAST[key]; if (!P) return;
-  const legs = P.legs.map(l => ({label: l.title, sub: l.sub, gid: l.gid, start: l.start, key: l.key, p: l.p,
-                                 odds: l.price != null ? Math.round(l.price) : Math.round(mixFairAm(l.p)), dec: l.price != null ? mixDec(l.price) : 1 / l.p}));
-  mbOpenSlip({sport, kind: "parlay", label: `${P.legs.length}-leg parlay`, legs}, Math.round(mixAm(P.dec)), close);
+  mbSlipParlay(P.legs.map(l => ({label: l.title, sub: l.sub, gid: l.gid, start: l.start, key: l.key, p: l.p,
+                                 odds: l.price != null ? Math.round(l.price) : Math.round(mixFairAm(l.p))})), sport);
 }
 function wireMix(render, setMode) {
-  document.querySelectorAll("[data-mbtrack]").forEach(b => b.onclick = () => mbTrackParlay(b.dataset.mbtrack, MB_PAGE, closeSheet));
+  document.querySelectorAll("[data-mbtrack]").forEach(b => b.onclick = () => mbTrackParlay(b.dataset.mbtrack, MB_PAGE));
   document.querySelectorAll("[data-spin]").forEach(b => b.onclick = () => { const k = b.dataset.spin; MIX_SPINS[k] = (MIX_SPINS[k] || 0) + 1; render(); });
   document.querySelectorAll("[data-pmode]").forEach(b => b.onclick = () => { setMode(b.dataset.pmode); render(); });
 }

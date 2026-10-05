@@ -1190,6 +1190,7 @@ function render() {
   $("#view").querySelectorAll("[data-allprops]").forEach(el => el.onclick = () => { PSTATE.game = el.dataset.allprops; PSTATE.q = ""; TAB = "props"; render(); window.scrollTo(0, 0); });
   $("#view").querySelectorAll("[data-more]").forEach(el => el.onclick = () => {
     const id = Number(el.dataset.more); OPEN.has(id) ? OPEN.delete(id) : OPEN.add(id); render(); });
+  mbAfterRender(render);
 }
 $("#scrim").onclick = closeSheet;
 $("#infoBtn").onclick = () => D && openInfo();

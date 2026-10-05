@@ -983,7 +983,7 @@ function drawSheet() {
     ${mbTrackHtml(o.b.price || Math.round(fair(o.p)))}`;
   $("#shx").onclick = closeSheet;
   mbWireTrack(() => SH && SH.num ? SH.sign * Number(SH.num) : NaN, o.b.price || Math.round(fair(o.p)),
-    () => ({sport: "NFL", kind: "single", label: `${o.label} (${g.away.abbr} @ ${g.home.abbr})`,
+    () => ({sport: "NFL", kind: "single", label: o.label,
             legs: [{label: o.label, sub: `${g.away.abbr} @ ${g.home.abbr}`, gid: g.game_id, start: g.start_utc, p: o.p, key: {t: "game", m: o.b.m, s: o.b.s, l: o.b.line}}]}));
   $("#sheet").querySelectorAll("[data-s]").forEach(x => x.onclick = () => { SH.sign = Number(x.dataset.s); drawSheet(); });
   $("#odds").oninput = e => { SH.num = e.target.value.replace(/[^0-9]/g, ""); const o2 = SH.sign * Number(SH.num);
@@ -1054,6 +1054,7 @@ function render() {
   $("#view").querySelectorAll("[data-bet]").forEach(el => el.onclick = e => { e.stopPropagation(); openSheet(BETS[Number(el.dataset.bet)]); });
   $("#view").querySelectorAll("[data-pv]").forEach(el => el.onclick = () => { const [id, k] = el.dataset.pv.split("|"); PANEL[id] = k; render(); });
   $("#view").querySelectorAll("[data-more]").forEach(el => el.onclick = () => { const id = el.dataset.more; OPEN.has(id) ? OPEN.delete(id) : OPEN.add(id); render(); });
+  mbAfterRender(render);
 }
 $("#scrim").onclick = closeSheet;
 $("#infoBtn").onclick = () => D && openInfo();
