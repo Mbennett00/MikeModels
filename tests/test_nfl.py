@@ -415,3 +415,14 @@ def test_dk_props_parse_and_daily_pull():
     assert O.props_due({"pulled_on": "2026-10-03"}, now, [{"id": "x"}])
     assert not O.props_due(None, now, [])                                    # no games today
     assert not O.props_due(None, pd.Timestamp("2026-10-04 06:00", tz="America/New_York"), [{"id": "x"}])
+
+
+def test_td_consensus_is_median_across_books():
+    from nflmodel import odds as O
+    from nflmodel.injuries import norm
+    ev = {"bookmakers": [
+        {"key": k, "markets": [{"key": "player_anytime_td", "outcomes": [{"name": "Yes", "description": "Bijan Robinson", "price": p}]}]}
+        for k, p in (("draftkings", -150), ("fanduel", -130), ("betmgm", -140))]}
+    got = O.parse_td(ev, norm)[norm("Bijan Robinson")]["td|0.5"]
+    assert got["n"] == 3 and got["best"] == -130
+    assert got["o"] == -140   # median implied probability of the three

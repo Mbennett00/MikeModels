@@ -540,3 +540,17 @@ body.nfl .slate { background: radial-gradient(100% 120% at 0% 0%, rgba(47,224,11
 body.nfl { background: radial-gradient(90% 50% at 50% -8%, rgba(47,224,110,.16), transparent 70%), #090b0f !important; }
 body.nfl .splash img { filter: drop-shadow(0 10px 30px rgba(47,224,110,.45)); }
 .gc2 .status > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; } .gc2 .status > span:first-child { flex: 0 1 auto; max-width: 62%; }
+.xmk-sec { font-size: 10px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; color: rgba(255,255,255,.45); margin: 4px 0 2px; }
+.xmk-sec ~ .xmk-sec { margin-top: 14px; }
+.xmk-sec + .xmk { border-top: 0; }
+.xrec { font-size: 11px; font-weight: 700; color: rgba(255,255,255,.4); margin-top: 10px; }
+button.xmiss { width: 100%; text-align: left; cursor: pointer; }
+.xchip b.neg { color: #ff8a80; } .xchip b.pos { color: var(--acc); }
+.props-seg.one { grid-template-columns: 1fr !important; } .props-seg.one .mkpill { width: 100% !important; transform: scaleX(.3) !important; }
+.pdot.ok { background: var(--acc); box-shadow: 0 0 8px var(--acc); animation: none; }
+/* sport switch: clean league logos */
+.sport { display: inline-flex !important; gap: 2px; padding: 3px !important; border-radius: 13px !important; background: rgba(255,255,255,.05) !important; border: 1px solid rgba(255,255,255,.08) !important; box-shadow: none !important; }
+.sport a { width: 40px; height: 32px; padding: 0 !important; display: grid !important; place-items: center; border-radius: 10px !important; opacity: 1 !important; background: transparent !important; transition: background .2s; font: 800 11px var(--fb); color: rgba(255,255,255,.5) !important; }
+.sport a img { height: 22px !important; width: 26px !important; object-fit: contain; filter: grayscale(1) brightness(1.6) opacity(.45); transition: filter .2s; }
+.sport a.on { background: rgba(255,255,255,.1) !important; box-shadow: inset 0 1px 0 rgba(255,255,255,.08); }
+.sport a.on img { filter: drop-shadow(0 2px 6px rgba(0,0,0,.5)); }
