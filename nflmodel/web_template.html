@@ -326,7 +326,9 @@ const fair = p => { p = Math.min(Math.max(p, 1e-9), 1 - 1e-9); return p >= 0.5 ?
 const implied = o => o < 0 ? -o / (-o + 100) : 100 / (o + 100);
 const decimal = o => 1 + (o > 0 ? o / 100 : 100 / -o);
 const sp = x => x == null ? "" : (x > 0 ? "+" : x < 0 ? "−" : "") + Math.abs(x);
-const THR = 0.025;   // shade on the fair price before a bet is worth it (the model has not beaten closing lines)
+const THR = 0.025;
+// walk-forward 2021-25: totals edges of 4%+ won 60.6% (94 bets); 3-4% about break-even after -110 juice; under 3% lost
+const LIKE_EDGE = 0.04;   // shade on the fair price before a bet is worth it (the model has not beaten closing lines)
 let D = null, TAB = "games", LIVE = {}, BETS = [], SH = null, C = {game: null, m: "spread", side: "home", line: null};
 const OPEN = new Set(), PANEL = {};
 const BOOK = () => (D && D.meta.book) || "Caesars";
@@ -425,7 +427,7 @@ function gameCard(g) {
   const N = g.news || {};
   const newsTag = (v, unit) => v != null && Math.abs(v) >= 0.5 ? `<span class="mn">${unit} ${v > 0 ? "+" : "−"}${Math.abs(v).toFixed(1)} since line</span>` : "";
   const col = (title, main, sub, b, extra = "") => {
-    const e = b && b.edge != null && b.edge >= 0.03, i = b ? bet({g, b, p: b.p, label: label(g, b)}) : null;
+    const e = b && b.edge != null && b.edge >= LIKE_EDGE, i = b ? bet({g, b, p: b.p, label: label(g, b)}) : null;
     const res = b ? settle(g, b) : "";
     return `<button class="mcol ${e ? "hot" : ""}" ${i != null ? `data-bet="${i}"` : ""}><span class="mt">${title}</span><span class="mm">${main}</span><span class="ms">${sub}</span>${extra}
       ${e ? `<span class="me ${res}">${res === "won" ? "✅ " : res === "lost" ? "❌ " : ""}${esc(b.m === "total" ? (b.s === "over" ? "Over" : "Under") : b.m === "ml" ? (b.s === "home" ? h.abbr : a.abbr) : label(g, b))} +${(100 * b.edge).toFixed(0)}%</span>` : `<span class="me none">no edge</span>`}</button>`; };
@@ -598,17 +600,19 @@ function fieldHtml(g) {
 }
 function likeRows() {
   const out = [];
-  D.games.forEach(g => { if (g.state !== "pre" && !g.result) return; mkBets(g).forEach(b => { if (b.edge != null && b.edge > 0.03) out.push({g, b}); }); });
+  D.games.forEach(g => { if (g.state !== "pre" && !g.result) return; mkBets(g).forEach(b => { if (b.edge != null && b.edge >= LIKE_EDGE) out.push({g, b}); }); });
   return out.sort((x, y) => y.b.edge - x.b.edge).slice(0, 3);
 }
 function likesHtml() {
-  const rows = likeRows(); if (!rows.length) return "";
+  const rows = likeRows();
+  if (!rows.length) return D.games.some(g => g.state === "pre" && g.src === "odds")
+    ? `<div class="card likes"><div class="lk-h">💡 Model likes</div><div class="hint">Nothing clears a 4% edge right now. Smaller edges have barely beaten the juice in testing, so no picks beats forcing them.</div></div>` : "";
   return `<div class="card likes"><div class="lk-h">💡 Model likes</div>${rows.map((r, i) => { const t = r.b.s === "away" ? r.g.away : r.g.home, cls = settle(r.g, r.b);
     const j = bet({g: r.g, b: r.b, p: r.b.p, label: label(r.g, r.b)});
     return `<button class="likerow ${cls}" data-bet="${j}"><span class="lk-n">${i + 1}</span>${r.b.m === "total" ? duo(r.g, true) : logo(t)}
       <span class="lk-t"><b>${esc(label(r.g, r.b))}</b><span>${esc(r.g.away.abbr)} @ ${esc(r.g.home.abbr)} · model ${pct(r.b.p)} vs market ${pct(r.b.mkt)}</span></span>
       <span class="lk-p"><b>${am(r.b.price)}</b><span>+${(100 * r.b.edge).toFixed(1)}% edge</span></span></button>`; }).join("")}
-    <div class="hint">Edges after blending the model with the ${D.games.some(g => g.src === "odds") ? "market consensus" : "posted line"} (see Score in each game). Leans, not locks: shop for the best number.</div></div>`;
+    <div class="hint">Only edges of 4%+ after blending with the ${D.games.some(g => g.src === "odds") ? "market consensus" : "posted line"}: in 2021-25 those won about 61%; smaller ones barely beat the juice. Leans, not locks: shop for the best number.</div></div>`;
 }
 function games() {
   if (!D.games.length) return empty("🏟️", "No games this week", "The schedule will show here once the next week is set.");
@@ -710,7 +714,7 @@ const MN = {ml: "ML", spread: "Spread", total: "Total"};
 function parlayNFL() {
   const legs = [];
   for (const g of D.games) { if (g.state !== "pre" || g.src !== "odds") continue;
-    const c = mkBets(g).filter(b => b.edge != null && b.mkt != null && b.edge >= 0.015 && b.p >= 0.45 && b.price && b.price <= 200).sort((x, y) => y.edge - x.edge)[0];
+    const c = mkBets(g).filter(b => b.edge != null && b.mkt != null && b.edge >= LIKE_EDGE && b.p >= 0.45 && b.price && b.price <= 200).sort((x, y) => y.edge - x.edge)[0];
     if (c) legs.push({g, b: c}); }
   legs.sort((x, y) => y.b.edge - x.b.edge);
   if (legs.length < 3) return null;
@@ -765,7 +769,7 @@ function poolNFL() {
   const head = p => `<div class="ph3 xs" style="background-color:${esc(teamOf(p.team).color)}"><span>${esc(initials(p.name))}</span>${p.headshot ? `<img src="${esc(p.headshot)}" alt="" loading="lazy" onload="this.previousElementSibling.style.visibility='hidden'" onerror="this.remove()">` : ""}</div>`;
   for (const g of D.games) { if (g.state !== "pre") continue;
     const gl = `${g.away.abbr} @ ${g.home.abbr}`, wx = (g.weather || {}).expo === "outdoor" && g.weather.wind != null ? `${Math.round(g.weather.wind)} mph wind` : "";
-    if (g.src === "odds") for (const b of mkBets(g)) { if (b.mkt == null || !b.price || b.p < 0.5 || b.edge < -0.01 || b.price > 200) continue;
+    if (g.src === "odds") for (const b of mkBets(g)) { if (b.mkt == null || !b.price || b.p < 0.5 || b.edge < 0 || b.price > 200) continue;
       const k = bet({g, b, p: b.p, label: label(g, b)}), cls = settle(g, b);
       pool.push({gid: g.game_id, kind: b.m === "total" ? "total" : "side", title: label(g, b), sub: gl, p: b.p, price: b.price, attr: `data-bet="${k}"`, cls, pic: duo3(g),
         why: [b.edge > 0.02 ? `+${(100 * b.edge).toFixed(0)}% vs market` : "", b.m === "total" ? wx : ""].filter(Boolean).join(" · "), w: b.p + 2 * Math.max(b.edge, 0)}); }
@@ -788,10 +792,10 @@ function mixedNFL() {
         return {title: label(l.g, l.b), sub: `${l.g.away.abbr} @ ${l.g.home.abbr}`, p: l.b.p, price: l.b.price, attr: `data-bet="${k}"`, cls: settle(l.g, l.b),
           pic: `<span class="duo3"><img src="${esc(l.g.away.logo)}" alt="" onerror="this.remove()"><img src="${esc(l.g.home.logo)}" alt="" onerror="this.remove()"></span>`,
           why: `+${(100 * l.b.edge).toFixed(1)}% vs market`}; }), p: P.p, dec: P.dec, worth: P.legs.reduce((a, l) => a / Math.max(l.b.p - THR, 0.02), 1), priced: true},
-      "edge", "The biggest model edges over the market after the blend, one per game (the same edges as 💡 Model likes). Prices are the market median.");
+      "edge", "The model's 4%+ edges over the market, one per game. Prices are the market median.");
   }
   const P = mixParlay(poolNFL(), "nfl|" + (D.meta.week || ""), {side: 1, total: 1, td: 1, yds: 2, rec: 1}, THR, {key: "mix"});
-  return mixCardHtml(P, "mix", `Random legs, one per game, from what the model rates as live: player chances include this week's starting QB, ESPN injuries and weather, questionable players skipped, soft matchups weighted up. “Fair” = model price (no book prop odds in our feed). “Worth it at” = shortest parlay price still worth taking.`);
+  return mixCardHtml(P, "mix", `Random legs, one per game: starting QB, injuries, weather and matchups built in; questionable players skipped. “Fair” = model price. “Worth it at” = shortest price still worth it.`);
 }
 
 // 🏈 Need some tudders: anytime-TD parlay. Same pool and filters as the mix (questionable skipped, matchup grade
@@ -799,17 +803,17 @@ function mixedNFL() {
 function tuddersNFL() {
   const pool = poolNFL().filter(c => c.kind === "td");
   const P = mixParlay(pool, "nfl|" + (D.meta.week || ""), {td: 3}, THR, {key: "tudders", n: 3, lo: 0.02, hi: 0.25});
-  return mixCardHtml(P, "mix", `Three anytime touchdown scorers from three different games, picked at random from players the model gives a 35%+ chance (calibrated on 2022-26 results), weighted toward soft matchups. Hits several times in 100: lottery-ticket stakes.`,
+  return mixCardHtml(P, "mix", `Three TD scorers from three games, drawn from players at 35%+, weighted to soft matchups. Lottery-ticket stakes.`,
     {key: "tudders", title: "🏈 Need some tudders", sub: "Anytime touchdown parlay", empty: "Not enough likely scorers on the board yet."});
 }
 function luckyNFL() {
   const D2 = dartsNFL();
   return mixedNFL() + tuddersNFL() + `<div class="card lucky"><div class="lk-h">🎯 Throwing darts</div>
-    <div class="note" style="margin-top:2px">Longshot anytime-TD guys the model gives a real shot. Small stakes, spread across a few. “Bet at” is the <b>shortest odds still worth it</b>; books often hang longer.</div>
+    <div class="note" style="margin-top:2px">Longshot TD scorers the model gives a real shot. “Bet at” = shortest odds still worth it.</div>
     ${D2.live.length ? `<div class="sec">Live darts · roughly +250 to +400</div>${D2.live.map(dartRow).join("")}` : ""}
     ${D2.deep.length ? `<div class="sec">Deep darts · roughly +400 to +730</div>${D2.deep.map(dartRow).join("")}` : ""}
     ${D2.live.length || D2.deep.length ? "" : `<div class="note">No longshots on the board yet.</div>`}
-    <div class="note">Checked on 19,000 past player-games (2022-26): when the model said 12-29%, players scored at about that rate. One per team so a single game script can't sink them all.</div></div>`;
+    <div class="note">Calibrated on 19,000 past player-games: 12-29% chances scored at about that rate.</div></div>`;
 }
 function luckyBanner() {
   const P = mixParlay(poolNFL(), "nfl|" + (D.meta.week || ""), {side: 1, total: 1, td: 1, yds: 2, rec: 1}, THR); if (!P) return "";

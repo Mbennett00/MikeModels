@@ -187,6 +187,36 @@ def rosters(season: int, cache: str, log=print) -> pd.DataFrame:
     return r.sort_values("week").drop_duplicates("gsis_id", keep="last").set_index("gsis_id")
 
 
+def depth_qbs(season: int, cache: str, asof=None, log=print) -> dict:
+    """QB depth order per team from nflverse's daily ESPN depth-chart snapshots (latest one at or before `asof`).
+    Week 2-4 2026 test: depth order, skipping QBs the injury report has out/doubtful, named the starter 87/92 times
+    vs 83/92 for depth QB1 alone; the schedule file's listed QB was stale for teams that changed starters."""
+    f = os.path.join(cache, f"depth_{season}.parquet")
+    try:
+        if LOCAL and os.path.exists(os.path.join(LOCAL, f"depth{season}.parquet")):
+            d = pd.read_parquet(os.path.join(LOCAL, f"depth{season}.parquet"))
+        else:
+            d = pd.read_parquet(io.BytesIO(_get(REL + f"/depth_charts/depth_charts_{season}.parquet")))
+        d = d[d.pos_abb == "QB"]
+        d.to_parquet(f, index=False)
+    except Exception as e:
+        log(f"nfl depth charts {season}: {e}")
+        if not os.path.exists(f):
+            return {}
+        d = pd.read_parquet(f)
+    if "dt" not in d or d.empty:
+        return {}
+    d = d.assign(dt=pd.to_datetime(d.dt, utc=True), team=d.team.replace(TEAM_FIX))
+    if asof is not None:
+        t = pd.Timestamp(asof)
+        t = t.tz_localize("America/New_York") if t.tzinfo is None else t
+        d = d[d.dt <= t]
+    if d.empty:
+        return {}
+    d = d[d.dt == d.dt.max()].sort_values(["team", "pos_rank", "pos_slot"])
+    return {t: list(dict.fromkeys(g.player_name)) for t, g in d.groupby("team")}
+
+
 def load(cache: str, seasons=None, log=print) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """(schedule, team-games, qb-games). Finished seasons come from the cache; the current one is refetched."""
     os.makedirs(cache, exist_ok=True)

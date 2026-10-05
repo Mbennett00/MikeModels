@@ -54,4 +54,21 @@ def novig_table(odds: pd.DataFrame, cfg: ModelConfig, snapshot: str) -> pd.DataF
     out = g.agg(p_novig=("novig", "median"), best_price=("price", "max"), n_books=("book", "nunique"),
                 one_sided=("one_sided", "all"), date=("date", "first")).reset_index()
     out["thin"] = out.market.isin(THIN_MARKETS) | (out.n_books < 2) | out.one_sided
-    return out
+    return main_lines(out)
+
+
+ALT_SHARE = 0.6   # an alternate game line needs this share of the main line's books (and 3+) to count
+
+
+def main_lines(out: pd.DataFrame) -> pd.DataFrame:
+    """Drop stray game lines that only a book or two hang. 2026-10-04 UTA@NYR: the main total was 5.5 (9 books) but
+    4 books' 'over 4.5 -126' and one book's 'over 5 +134' read as 16-21% edges; real alternates carry most books."""
+    if out.empty:
+        return out
+    game = out.market.isin(["total", "puckline", "p1_total"]) & out.player_id.isna()
+    if not game.any():
+        return out
+    g = out[game]
+    top = g.groupby(["game_id", "market"]).n_books.transform("max")
+    keep = (g.n_books >= top) | ((g.n_books >= 3) & (g.n_books >= ALT_SHARE * top))
+    return pd.concat([out[~game], g[keep]]).sort_index()

@@ -29,3 +29,19 @@ def test_one_sided_hold_is_conservative():
 def test_edge_and_ev():
     assert pr.edge(0.55, 0.5) == pytest.approx(0.05)
     assert pr.expected_value(0.5, +100) == pytest.approx(0)
+
+
+def test_stray_alternate_totals_are_dropped():
+    import pandas as pd
+    from nhlmodel.book import novig_table
+    from nhlmodel.config import DEFAULT
+    rows = []
+    for b in range(9):   # main line 5.5 at all nine books
+        rows += [dict(book=f"b{b}", selection="over", line=5.5, price=-109), dict(book=f"b{b}", selection="under", line=5.5, price=-111)]
+    for b in range(4):   # four books with an off 4.5 (the 2026-10-04 UTA@NYR case)
+        rows += [dict(book=f"b{b}", selection="over", line=4.5, price=-126), dict(book=f"b{b}", selection="under", line=4.5, price=104)]
+    for b in range(6):   # a real alternate most books carry
+        rows += [dict(book=f"b{b}", selection="over", line=6.5, price=150), dict(book=f"b{b}", selection="under", line=6.5, price=-180)]
+    o = pd.DataFrame(rows).assign(game_id=1, market="total", player_id=None, snapshot="bet", date="2026-10-04")
+    out = novig_table(o, DEFAULT, "bet")
+    assert sorted(out.line.unique()) == [5.5, 6.5]

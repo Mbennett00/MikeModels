@@ -181,6 +181,7 @@ def run(state: str = "state", log=print) -> dict:
     PGall = data.load_players(cache, seasons)
     injuries, lineup = {}, {}
     live = injury_reports(inj, wk, log)
+    QB_DEPTH = data.depth_qbs(season, cache, now_et, log)   # today's depth charts: who starts at QB
 
     ppath = os.path.join(site, "nfl_prices.json")   # last pre-kickoff prices, so finished games keep theirs
     try:
@@ -208,7 +209,8 @@ def run(state: str = "state", log=print) -> dict:
                 lineup[t] = depth(S, t, asof, rep)
             else:
                 miss, det = {k: 0.0 for k in I.GROUPS}, []
-            qbn, qb_note = qb_starter(qb, t, qbn if isinstance(qbn, str) else None, rep, asof)
+            qbn, qb_note = qb_starter(qb, t, qbn if isinstance(qbn, str) else None, rep, asof,
+                                      depth=QB_DEPTH if not started else None)
             adj, qid = M.qb_adjust(qb, lvg, t, qbn, asof, cfg)
             side[t] = dict(miss=miss, det=det, qb=qbn, qb_note=qb_note, qb_adj=adj, qb_id=qid,
                            inj_pts=float(cfg.coef_m[-1] * sum(miss.values())), report=rep)
@@ -513,8 +515,27 @@ def injury_reports(inj: pd.DataFrame, wk: pd.DataFrame, log=print) -> pd.DataFra
     return r if len(r) else None
 
 
-def qb_starter(qb: pd.DataFrame, team: str, listed: str | None, rep, asof) -> tuple[str | None, str | None]:
-    """The listed starter, or his backup when the injury report has him out / doubtful."""
+def qb_starter(qb: pd.DataFrame, team: str, listed: str | None, rep, asof, depth=None) -> tuple[str | None, str | None]:
+    """The first QB on the team's current depth chart the injury report doesn't have out / doubtful (falls back to the
+    schedule's listed QB, then to his most-used backup). A note says who is missing when it isn't the depth-chart QB1."""
+    order = (depth or {}).get(team) or []
+    if order:
+        out, flagged = {}, {}
+        if rep is not None and not rep.empty:
+            for nm in order:
+                hit = rep[rep.key == I.norm(nm)]
+                if len(hit):
+                    stt = str(hit.status.iloc[0]) if pd.notna(hit.status.iloc[0]) else ""
+                    (out if I.miss_weight(stt) >= 0.85 else flagged)[nm] = stt
+        ok = [nm for nm in order if nm not in out]
+        if ok:
+            # depth QB1 is on the report (questionable / no game status yet) while the team has been starting another
+            # QB on the chart: keep the one who has been starting (week 4 replay: TB, WAS right this way)
+            if ok[0] in flagged and listed and I.norm(listed) != I.norm(ok[0]) and \
+                    any(I.norm(listed) == I.norm(nm) for nm in ok[1:]):
+                return listed, f"{ok[0]} {flagged[ok[0]] or 'on the injury report'}"
+            note = None if ok[0] == order[0] else f"{order[0]} {out.get(order[0], 'out')}"
+            return ok[0], note
     if not listed or rep is None or rep.empty:
         return listed, None
     hit = rep[rep.key == I.norm(listed)]

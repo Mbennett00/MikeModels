@@ -157,6 +157,34 @@ def test_ruled_out_qb_is_replaced_by_backup():
     assert qb_starter(qb, "KC", "Patrick Mahomes", rep.assign(status="Questionable"), "2026-10-01")[0] == "Patrick Mahomes"
 
 
+def test_starting_qb_comes_from_the_depth_chart_skipping_ruled_out():
+    from nflmodel.daily import qb_starter
+    qb = pd.DataFrame(dict(team=["SEA"], name=["D.Lock"], dropbacks=[30], date=pd.to_datetime(["2026-09-21"])))
+    depth = {"SEA": ["Sam Darnold", "Drew Lock"], "CHI": ["Caleb Williams", "Tyson Bagent", "Case Keenum"]}
+    none = pd.DataFrame(columns=["key", "status"])
+    # schedule still lists last week's starter; the depth chart says Darnold is back
+    assert qb_starter(qb, "SEA", "Drew Lock", none, "2026-10-04", depth=depth) == ("Sam Darnold", None)
+    rep = pd.DataFrame(dict(key=["caleb williams"], status=["Out"]))
+    name, note = qb_starter(qb, "CHI", "Case Keenum", rep, "2026-10-04", depth=depth)
+    assert name == "Tyson Bagent" and note == "Caleb Williams Out"   # next healthy QB on the chart
+    # next man up is himself questionable while the team has been starting someone else on the chart: keep that QB
+    rep2 = pd.DataFrame(dict(key=["caleb williams", "tyson bagent"], status=["Out", "Questionable"]))
+    assert qb_starter(qb, "CHI", "Case Keenum", rep2, "2026-10-04", depth=depth)[0] == "Case Keenum"
+    # no depth chart for the team: old behaviour (listed QB)
+    assert qb_starter(qb, "KC", "Patrick Mahomes", none, "2026-10-04", depth=depth)[0] == "Patrick Mahomes"
+
+
+def test_depth_qbs_takes_latest_snapshot(tmp_path, monkeypatch):
+    from nflmodel import data
+    d = pd.DataFrame(dict(dt=["2026-10-03T13:00:00Z", "2026-10-03T13:00:00Z", "2026-10-04T13:00:00Z", "2026-10-04T13:00:00Z",
+                              "2026-10-05T13:00:00Z"],
+                          team=["SEA"] * 5, player_name=["Drew Lock", "Sam Darnold", "Sam Darnold", "Drew Lock", "X"],
+                          pos_abb=["QB"] * 5, pos_rank=[1, 2, 1, 2, 1], pos_slot=[1] * 5))
+    d.to_parquet(tmp_path / "depth2026.parquet")
+    monkeypatch.setattr(data, "LOCAL", str(tmp_path))
+    assert data.depth_qbs(2026, str(tmp_path), "2026-10-04 12:00")["SEA"] == ["Sam Darnold", "Drew Lock"]
+
+
 def test_baseline_reflects_how_much_he_is_in_the_ratings():
     from nflmodel import injuries as I
     sched = pd.DataFrame(dict(game_id=["g0", "g1", "g2", "g3"], gameday=pd.date_range("2026-09-07", periods=4, freq="7D")))
