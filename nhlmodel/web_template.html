@@ -632,7 +632,6 @@ function strip() {
   if (nl) h += `<span class="chip live-c">🔴 ${nl} live</span>`;
   if (nf) h += `<span class="chip">🏁 ${nf} final</span>`;
   if (TAB === "updates") h = "";
-  if (D.games.length && TAB === "games") h += `<span class="chip info">🥅 ${D.meta.goalies_confirmed}/${D.meta.teams} goalies confirmed</span>`;
   $("#strip").innerHTML = h;
   $("#strip").style.display = h ? "" : "none";
   $("#strip").querySelectorAll("[data-day]").forEach(b => b.onclick = () => {
@@ -675,7 +674,7 @@ function gameCard(g) {
   const row = (t, side, p, mine, theirs) => {
     const plLine = (side === "home") === favH ? -1.5 : 1.5, ou = side === "away" ? "over" : "under";
     return `<div class="grow">
-      <div class="gteam">${logo(t)}<div class="gtn"><b>${esc(t.name)}</b><span>${on ? "" : `<em class="gpct">${pct(p)}</em>`}<i class="dot ${gdot(t)}"></i>${esc(t.goalie ? t.goalie.split(" ").slice(-1)[0] : "TBD")}</span></div>
+      <div class="gteam" style="--tc:${esc(t.color)}">${logo(t)}<div class="gtn"><b>${esc(t.name)}</b><span>${on ? "" : `<em class="gpct">${pct(p)}</em>`}<i class="dot ${gdot(t)}"></i>${esc(t.goalie ? t.goalie.split(" ").slice(-1)[0] : "TBD")}</span></div>
         ${on ? `<b class="gscore ${L.state === "post" && mine < theirs ? "lose" : ""}">${mine}</b>` : ""}</div>
       ${pbtn(g, `${t.abbr} ${plLine > 0 ? "+" : ""}${plLine}`, "puckline", side, plLine, `${plLine > 0 ? "+" : ""}${plLine}`)}
       ${pbtn(g, `${ou === "over" ? "Over" : "Under"} 6.5`, "total", ou, 6.5, `${ou === "over" ? "O" : "U"} 6.5`)}
@@ -848,9 +847,22 @@ function likesHtml() {
     ${rows}<div class="lk-note">${LIKE === "value" ? `Biggest edges vs the market: model chance minus the average no-vig chance across the US books (CZR = Caesars' price, Mkt = the market's fair price). Check ${BOOKS()} current price before betting: tap a pick.`
       : `Highest chances on the slate, not guaranteed value: a big favourite can still be a bad price. Tap one to check ${BOOKS()} odds.`}</div></div>`;
 }
+// premium slate header: tonight at a glance
+function slateHtml() {
+  const st = D.games.map(g => (LIVE[g.game_id] || {}).state), live = st.filter(x => x === "in").length, fin = st.filter(x => x === "post").length;
+  const vals = D.games.flatMap(g => (g.dk || []).filter(x => x.edge != null && x.edge >= thr(x.m) && x.edge <= MAX_EDGE).map(x => ({g, x}))).sort((a, b) => b.x.edge - a.x.edge);
+  const top = vals[0], gc = D.meta.goalies_confirmed, tm = D.meta.teams;
+  const logos = D.games.slice(0, 7).map(g => `<img src="${esc(g.home.logo)}" alt="" onerror="this.remove()">`).join("");
+  const nm = top ? (top.x.m === "moneyline" ? `${(top.x.s === "home" ? top.g.home : top.g.away).name} ML` : top.x.m === "total" ? `${top.x.s === "over" ? "Over" : "Under"} ${top.x.l} · ${top.g.away.abbr}@${top.g.home.abbr}` : `${(top.x.s === "home" ? top.g.home : top.g.away).abbr} ${top.x.l > 0 ? "+" : ""}${top.x.l}`) : "";
+  return `<div class="slate"><div class="sl-top"><div><div class="sl-k">${D === PREV ? "LAST NIGHT" : D.meta.upcoming ? "NEXT UP" : "TONIGHT"} · ${esc(dayLab(D).toUpperCase())}</div>
+      <div class="sl-t">${D.games.length} game${D.games.length === 1 ? "" : "s"}${live ? ` <span class="sl-live"><i></i>${live} live</span>` : ""}</div></div><div class="sl-logos">${logos}</div></div>
+    <div class="sl-stats"><div><b>${vals.length}</b><span>value bets</span></div><div><b>${top ? "+" + (100 * top.x.edge).toFixed(1) + "%" : "–"}</b><span>top edge</span></div>
+      <div><b>${gc}<i>/${tm}</i></b><span>goalies set</span></div><div><b>${fin}<i>/${D.games.length}</i></b><span>final</span></div></div>
+    ${top ? `<div class="sl-best"><span class="sl-dot"></span>Best value: <b>${esc(nm)}</b> <em>${am(top.x.price)}</em></div>` : ""}</div>`;
+}
 function games() {
   if (!D.games.length) return empty("🧊", "No games on the board", "Check back on the next game day.");
-  return mbLiveBanner() + mbHero() + likesHtml() + record() + D.games.map(gameCard).join("");
+  return slateHtml() + mbLiveBanner() + mbHero() + likesHtml() + record() + D.games.map(gameCard).join("");
 }
 
 const LINES = {sog: [1.5, 2.5, 3.5, 4.5], goals: [0.5], points: [0.5, 1.5], assists: [0.5]};
@@ -1138,7 +1150,9 @@ function openPlayer(id) {
       return `<button class="ps-row ${cls}" data-pb="${PB.length - 1}"><span class="ps-l">${mk === "goals" && l === 0.5 ? "Anytime" : `Over ${l}`}</span>
         <span class="ps-bar ${heat}"><i style="width:${Math.round(100 * pr)}%"></i></span><span class="ps-c">${pct(pr)}</span>
         <span class="ps-p ${dko ? "dk" : ""}"><b>${am(dko || fair(pr))}</b><i>${dko ? "DK" : "fair"}</i></span></button>`; }).join("");
-    return `<div class="ps-sec"><div class="ps-h"><b>${MNAME[mk]}</b><span>proj ${p.lam[mk].toFixed(2)}</span></div>${rows}</div>`; };
+    const hl = headLine(p, mk), hd = p.dk && p.dk[`${mk}|${hl.l}`], open = mk === (["sog", "goals", "points", "assists"].includes(PSTATE.market) ? PSTATE.market : "sog");
+    return `<div class="ps-sec ${open ? "open" : ""}"><button class="ps-h" data-psx="1"><b>${MNAME[mk]}</b><span class="ps-sum">${mk === "goals" && hl.l === 0.5 ? "Anytime" : "O " + hl.l} · ${pct(hl.pr)} · <em class="${hd ? "dk" : ""}">${am(hd || fair(hl.pr))}</em></span><span class="ps-chev">›</span></button>
+      <div class="ps-rows"><div>${rows}<div class="ps-proj">Projection ${p.lam[mk].toFixed(2)} ${PNAME[mk]}</div></div></div></div>`; };
   const chips = [p.pos, slot.length ? slot[0].line : "", slot.length && slot[0].pp ? `PP${slot[0].pp}` : "", p.num != null ? `#${p.num}` : ""].filter(Boolean).map(c => `<span>${esc(c)}</span>`).join("");
   $("#sheet").innerHTML = `<div class="ps-hero" style="--tc:${esc(col)}">${tl ? `<img class="ps-wm" src="${esc(tl)}" alt="" onerror="this.remove()">` : ""}
       <div class="grab"></div><button class="iconbtn close" id="shx" aria-label="Close">✕</button>
@@ -1151,6 +1165,8 @@ function openPlayer(id) {
       <div class="ps-foot">Tap any line to bet it · DK = DraftKings price · fair = model price</div></div>`;
   $("#shx").onclick = closeSheet;
   $("#sheet").querySelectorAll("[data-pb]").forEach(el => el.onclick = () => openSheet(PB[Number(el.dataset.pb)]));
+  $("#sheet").querySelectorAll("[data-psx]").forEach(el => el.onclick = () => { const sec = el.parentElement, was = sec.classList.contains("open");
+    $("#sheet").querySelectorAll(".ps-sec.open").forEach(x => x.classList.remove("open")); if (!was) sec.classList.add("open"); mbHaptic(); });
   $("#scrim").classList.add("open"); $("#sheet").classList.add("open");
   $("#sheet").scrollTop = 0;
 }
@@ -1382,9 +1398,15 @@ function openWeights() {
   $("#scrim").classList.add("open"); $("#sheet").classList.add("open"); $("#sheet").scrollTop = 0;
 }
 $("#gearBtn").onclick = () => D && openWeights();
+// logos made for dark backgrounds (ESPN 500-dark, NHL _dark.svg); any that fail fall back to the normal file
+const darkLogo = u => !u ? u : u.replace("/500/", "/500-dark/").replace(/_light\.svg$/, "_dark.svg");
+function darkLogos(d) { for (const g of (d && d.games) || []) for (const t of [g.home, g.away]) if (t) t.logo = darkLogo(t.logo); return d; }
+document.addEventListener("error", e => { const el = e.target; if (!el || el.tagName !== "IMG") return;
+  const s0 = el.getAttribute("src") || "", alt = s0.includes("/500-dark/") ? s0.replace("/500-dark/", "/500/") : /_dark\.svg$/.test(s0) ? s0.replace(/_dark\.svg$/, "_light.svg") : null;
+  if (alt) { e.stopImmediatePropagation(); e.stopPropagation(); el.src = alt; } }, true);
 fetch("data.json?v=" + Date.now()).then(r => r.json()).then(async d => {
-  D = TODAY = d; render();
-  try { const p = await (await fetch("prev.json?v=" + Date.now())).json(); if (p.meta && p.meta.date !== d.meta.date && p.games.length) PREV = p; } catch (e) {}
+  D = TODAY = darkLogos(d); render();
+  try { const p = await (await fetch("prev.json?v=" + Date.now())).json(); if (p.meta && p.meta.date !== d.meta.date && p.games.length) PREV = darkLogos(p); } catch (e) {}
   if (PREV) render();
   refreshLive();
 }).catch(e => { $("#title").textContent = "Almost game time"; $("#sub").textContent = "Today's prices aren't published yet."; });
