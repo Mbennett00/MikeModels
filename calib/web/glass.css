@@ -1,15 +1,15 @@
 /* ---------- Liquid Glass layer (loaded last: restyles both sports without touching their layouts) ---------- */
 :root {
-  --fh: ui-rounded, "SF Pro Rounded", "Fredoka", system-ui, sans-serif;
-  --fb: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Nunito", system-ui, sans-serif;
-  --g-bg: rgba(255,255,255,.74); --g-bg-2: rgba(255,255,255,.8); --g-edge: rgba(255,255,255,.68); --g-line: rgba(20,40,60,.09);
+  --fh: 'Fredoka', ui-rounded, system-ui, sans-serif;
+  --fb: 'Nunito', system-ui, sans-serif;
+  --g-bg: rgba(255,255,255,.86); --g-bg-2: rgba(255,255,255,.8); --g-edge: rgba(255,255,255,.68); --g-line: rgba(20,40,60,.09);
   --g-blur: blur(24px) saturate(180%);
   --g-sh: 0 10px 30px rgba(8,28,48,.14), inset 0 1px 0 rgba(255,255,255,.85);
   --g-sh-s: 0 3px 12px rgba(8,28,48,.08), inset 0 1px 0 rgba(255,255,255,.9);
 }
 body { -webkit-font-smoothing: antialiased; }
 /* big panels */
-.card, .panel, .sheet, .nav .in, .wallet, .gsec, .likes, .lucky {
+.sheet, .nav .in, .wallet {
   -webkit-backdrop-filter: var(--g-blur); backdrop-filter: var(--g-blur); }
 .card { background: var(--g-bg); border: 1px solid var(--g-edge); border-radius: 24px; box-shadow: var(--g-sh); }
 .likes, .lucky, .mbsum, .badges, .mbset, .mbchart { background: var(--g-bg); }
@@ -24,15 +24,14 @@ body { -webkit-font-smoothing: antialiased; }
 .nav button { font-family: var(--fb); font-weight: 600; transition: background .2s; }
 .nav button.on { background: rgba(255,255,255,.95); color: var(--navy); box-shadow: 0 3px 12px rgba(8,28,48,.14); font-weight: 700; }
 /* controls */
-.iconbtn, .sport, .chip, .seg button, .hv, .ptabs, .props-seg {
-  -webkit-backdrop-filter: var(--g-blur); backdrop-filter: var(--g-blur); }
+
 .iconbtn { background: var(--g-bg); border: 1px solid var(--g-edge); box-shadow: var(--g-sh-s); }
 .sport { background: var(--g-bg); border: 1px solid var(--g-edge); box-shadow: var(--g-sh-s); }
 .sport a.on { background: rgba(255,255,255,.95); color: var(--navy); }
 .chip { background: var(--g-bg); border: 1px solid var(--g-edge); box-shadow: var(--g-sh-s); font-weight: 700; }
 .chip.on { background: rgba(20,32,44,.82); color: #fff; border-color: rgba(255,255,255,.2); }
 .chip.info { border-style: solid; }
-.hv, .ptabs, .props-seg { background: rgba(255,255,255,.5); border: 1px solid var(--g-edge); box-shadow: var(--g-sh-s); border-radius: 16px; padding: 4px; }
+.hv, .ptabs, .props-seg { background: rgba(255,255,255,.78); border: 1px solid var(--g-edge); box-shadow: var(--g-sh-s); border-radius: 16px; padding: 4px; }
 .card .hv, .card .ptabs, .sheet .hv, .panel .ptabs { background: rgba(120,130,140,.13); border-color: transparent; box-shadow: none; }
 .hv button, .ptabs button, .props-seg button { border-radius: 12px; font-weight: 700; }
 .hv button.on, .ptabs button.on, .props-seg button.on { background: #fff; color: var(--navy); box-shadow: 0 3px 10px rgba(8,28,48,.12); }
@@ -50,7 +49,7 @@ body { -webkit-font-smoothing: antialiased; }
 .pl-sum div { background: rgba(255,255,255,.78); border: 1px solid var(--g-line); box-shadow: none; border-radius: 16px; }
 .pl-sum div:first-child { background: linear-gradient(180deg, rgba(20,32,44,.9), rgba(20,32,44,.78)); border-color: transparent; }
 .lk-banner { background: linear-gradient(90deg, rgba(210,250,190,.8), rgba(255,255,255,.7)); border: 1px solid var(--g-edge); box-shadow: var(--g-sh);
-             -webkit-backdrop-filter: var(--g-blur); backdrop-filter: var(--g-blur); border-radius: 20px; }
+             border-radius: 20px; }
 .spin { background: linear-gradient(180deg, #c8f78a, #a6e55f); border: 0; box-shadow: 0 6px 18px rgba(120,190,60,.35), inset 0 1px 0 rgba(255,255,255,.6); }
 .mbtrack { background: rgba(255,255,255,.85); border: 1px solid var(--g-line); box-shadow: var(--g-sh-s); border-radius: 16px; }
 .mh-btn, .mh-seg button { border: 1px solid var(--g-line); box-shadow: var(--g-sh-s); }
@@ -68,3 +67,9 @@ body { -webkit-font-smoothing: antialiased; }
 .gsec { background: rgba(255,255,255,.8); }
 .hdr { gap: 10px; } .hdr h1 { font-size: 22px; letter-spacing: -.01em; } .hdr .mlogo { height: 50px; }
 .hdr .iconbtn { width: 38px; height: 38px; } .sport a { padding: 6px 9px; }
+
+/* iPhone hygiene: no double-tap zoom or grey flash on taps, no zoom-on-focus in inputs, smooth momentum scroll */
+button, a, [data-bet], [data-pp], [data-player], [role="button"], summary { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+input, select, textarea { font-size: max(16px, 1em); }
+.sheet { -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+.mbhap { position: fixed; left: -100px; top: -100px; width: 1px; height: 1px; opacity: 0; pointer-events: none; }

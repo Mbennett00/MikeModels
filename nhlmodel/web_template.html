@@ -828,7 +828,7 @@ function likesHtml() {
 }
 function games() {
   if (!D.games.length) return empty("🧊", "No games on the board", "Check back on the next game day.");
-  return luckyBanner() + likesHtml() + record() + `<div class="note">👆 Tap any price to check ${BOOK()}' odds.</div>` + D.games.map(gameCard).join("");
+  return mbLiveBanner() + luckyBanner() + likesHtml() + record() + `<div class="note">👆 Tap any price to check ${BOOK()}' odds.</div>` + D.games.map(gameCard).join("");
 }
 
 const LINES = {sog: [1.5, 2.5, 3.5, 4.5], goals: [0.5], points: [0.5, 1.5], assists: [0.5]};
@@ -1169,6 +1169,18 @@ function mbGrade(leg) {
     const st = playerStat(p); if (!st) return undefined; if (st.dnp) return "push";
     return cmpLine(st[k.mk], k.l, k.dir || "over", true); }
   return undefined;
+}
+// the sweat: live score + the player's stat so far for an open leg
+function mbLiveLeg(leg) {
+  const days = [TODAY, PREV].filter(Boolean), g = days.flatMap(d => d.games).find(x => String(x.game_id) === String(leg.gid)); if (!g) return null;
+  const L = LIVE[g.game_id] || {}, k = leg.key || {}; let cur = null, unit = "";
+  if (k.t === "prop") {
+    const p = days.flatMap(d => d.players).find(x => String(x.id) === String(k.pid)) || {id: k.pid, name: k.name, team: k.team, game_id: g.game_id};
+    const st = L.state && L.state !== "pre" ? playerStat(p) : null;
+    if (st && !st.dnp) cur = Number(st[k.mk] || 0);
+    unit = {sog: "shots", goals: "goals", points: "pts", assists: "ast"}[k.mk] || "";
+  }
+  return {state: L.state || "pre", detail: L.detail, start: g.start_utc, home: L.home || 0, away: L.away || 0, homeAbbr: g.home.abbr, awayAbbr: g.away.abbr, cur, unit};
 }
 function render() {
   BETS = [];

@@ -356,11 +356,36 @@ async function loadLive() {
     for (const ev of r.events || []) {
       const c = ev.competitions[0], tm = {}; c.competitors.forEach(x => tm[x.homeAway] = {abbr: ESPN_FIX[x.team.abbreviation] || x.team.abbreviation, score: Number(x.score)});
       const g = D.games.find(x => x.home.abbr === tm.home.abbr && x.away.abbr === tm.away.abbr); if (!g) continue;
-      LIVE[g.game_id] = {state: ev.status.type.state, detail: ev.status.type.shortDetail, home: tm.home.score, away: tm.away.score,
+      LIVE[g.game_id] = {espn: ev.id, state: ev.status.type.state, detail: ev.status.type.shortDetail, home: tm.home.score, away: tm.away.score,
                          poss: (c.situation || {}).possession, yard: (c.situation || {}).yardLine, down: (c.situation || {}).shortDownDistanceText};
     }
   } catch (e) {}
 }
+// box scores (ESPN game summary) for games with open prop bets: drives the sweat and grades NFL props at the final
+const NBOX = {};
+const nrm = s => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\b(jr|sr|ii|iii|iv)\b/g, "").replace(/[^a-z]/g, "");
+async function loadBoxes() {
+  let need;
+  try { need = new Set(mbLoad().bets.filter(b => b.status === "open" && b.sport === "NFL").flatMap(b => b.legs.filter(l => (l.key || {}).t === "prop").map(l => l.gid))); } catch (e) { return; }
+  await Promise.all([...need].map(async gid => {
+    const L = LIVE[gid]; if (!L || !L.espn || L.state === "pre" || (NBOX[gid] && NBOX[gid].final)) return;
+    try {
+      const sm = await (await fetch("https://site.api.espn.com/apis/site/v2/sports/football/nfl/summary?event=" + L.espn)).json(), box = {};
+      for (const team of (sm.boxscore || {}).players || []) for (const grp of team.statistics || []) {
+        const k = grp.keys || [];
+        for (const a of grp.athletes || []) {
+          const v = a.stats || [], get = key => { const i = k.indexOf(key); return i < 0 ? 0 : Number(String(v[i]).split("/")[0]) || 0; };
+          const o = box[nrm((a.athlete || {}).displayName)] = box[nrm((a.athlete || {}).displayName)] || {rec: 0, rec_yds: 0, rush_yds: 0, pass_yds: 0, td: 0, pass_td: 0};
+          if (grp.name === "passing") { o.pass_yds = get("passingYards"); o.pass_td = get("passingTouchdowns"); }
+          if (grp.name === "rushing") { o.rush_yds = get("rushingYards"); o.td += get("rushingTouchdowns"); }
+          if (grp.name === "receiving") { o.rec = get("receptions"); o.rec_yds = get("receivingYards"); o.td += get("receivingTouchdowns"); }
+        }
+      }
+      NBOX[gid] = {box, final: L.state === "post"};
+    } catch (e) {}
+  }));
+}
+function boxStat(gid, k) { const B = (NBOX[gid] || {}).box; if (!B) return undefined; const o = B[nrm(k.name)]; return o ? (k.mk === "td" ? o.td : o[k.mk]) : null; }
 function scoreOf(g) { const L = LIVE[g.game_id]; if (L && (L.state === "in" || L.state === "post")) return L;
   if (g.result) return {state: "post", detail: "Final", home: g.result.home, away: g.result.away}; return null; }
 function settle(g, b) {
@@ -616,7 +641,7 @@ function likesHtml() {
 }
 function games() {
   if (!D.games.length) return empty("🏟️", "No games this week", "The schedule will show here once the next week is set.");
-  return luckyBanner() + likesHtml() + D.games.map(gameCard).join("");
+  return mbLiveBanner() + luckyBanner() + likesHtml() + D.games.map(gameCard).join("");
 }
 
 
@@ -1030,10 +1055,21 @@ function nav() {
 // 📝 paper bets: game lines grade from final scores; NFL props are settled by hand (no box scores on this page)
 const MB_PAGE = "NFL";
 function mbGrade(leg) {
-  const k = leg.key || {}; if (k.t !== "game") return undefined;
+  const k = leg.key || {};
   const g = D.games.find(x => x.game_id === leg.gid); if (!g) return undefined;
+  if (k.t === "prop") { const L = scoreOf(g); if (!L || L.state !== "post" || !(NBOX[g.game_id] || {}).final) return undefined;
+    const v = boxStat(g.game_id, k); if (v == null) return undefined;   // not in the box score (inactive or no touches): settle by hand
+    const d = (k.dir || "over") === "over" ? v - k.l : k.l - v; return d > 0 ? true : d < 0 ? false : "push"; }
+  if (k.t !== "game") return undefined;
   const r = settle(g, {m: k.m, s: k.s, line: k.l});
   return r === "won" ? true : r === "lost" ? false : r === "push" ? "push" : undefined;
+}
+function mbLiveLeg(leg) {
+  const g = D.games.find(x => x.game_id === leg.gid); if (!g) return null;
+  const L = scoreOf(g) || LIVE[g.game_id] || {}, k = leg.key || {}; let cur = null, unit = "";
+  if (k.t === "prop") { const v = boxStat(g.game_id, k); cur = v == null ? (v === null && L.state === "in" ? 0 : null) : v;
+    unit = {rec: "catches", rec_yds: "rec yds", rush_yds: "rush yds", pass_yds: "pass yds", td: "TD"}[k.mk] || ""; }
+  return {state: L.state || "pre", detail: L.detail, start: g.start_utc, home: L.home || 0, away: L.away || 0, homeAbbr: g.home.abbr, awayAbbr: g.away.abbr, cur, unit};
 }
 function render() {
   try { mbAutoSettle("NFL", mbGrade); } catch (e) {}
@@ -1066,8 +1102,8 @@ function openWeights() {
 }
 $("#gearBtn").onclick = () => D && openWeights();
 fetch("nfl.json?v=" + Date.now()).then(r => r.json()).then(async d => {
-  D = d; render(); await loadLive(); render();
-  setInterval(async () => { if (D.games.some(g => (LIVE[g.game_id] || {}).state === "in")) { await loadLive(); render(); } }, 60000);
+  D = d; render(); await loadLive(); await loadBoxes(); render();
+  setInterval(async () => { if (D.games.some(g => (LIVE[g.game_id] || {}).state === "in")) { await loadLive(); await loadBoxes(); render(); } }, 60000);
 }).catch(e => { $("#title").textContent = "NFL"; $("#sub").textContent = "This week's prices aren't published yet."; });
 </script>
 </body>

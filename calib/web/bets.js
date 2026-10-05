@@ -56,7 +56,7 @@ function mbWireTrack(getOdds, defOdds, getBet) {
     const o = cur(), bet = getBet(), leg = bet.legs[0];
     if (!isFinite(o)) { document.getElementById("mbmsg").textContent = "Enter the odds first."; return; }
     if (mbStarted(leg)) { document.getElementById("mbmsg").textContent = "That game has started: betting is closed."; return; }
-    slipAdd(Object.assign({}, leg, {sport: bet.sport, label: bet.label, odds: Math.round(o)}));
+    slipAdd(Object.assign({}, leg, {sport: bet.sport, label: bet.label, odds: Math.round(o)})); mbHaptic();
     add.classList.add("added"); add.innerHTML = `✓ On your slip · ${slipLoad().length} pick${slipLoad().length > 1 ? "s" : ""}`;
     document.getElementById("mbmsg").innerHTML = `<button class="linkbtn" id="mbopen">Open bet slip →</button>`;
     document.getElementById("mbopen").onclick = () => mbOpenSlip();
@@ -93,9 +93,9 @@ function mbOpenSlip() {
       : `<div class="slipempty"><div class="slicon">🧾</div><b>Your bet slip is empty</b><span>Tap any price, prop or parlay, then add it to your slip.</span></div>`}`;
   document.getElementById("shx").onclick = () => closeSheet();
   const re = () => mbOpenSlip();
-  sh.querySelectorAll("[data-sm2]").forEach(b => b.onclick = () => { if (b.classList.contains("dis")) return; SLIP_MODE = b.dataset.sm2; re(); });
-  sh.querySelectorAll("[data-sx]").forEach(b => b.onclick = () => { slipRemove(b.dataset.sx); mbFab(); re(); });
-  sh.querySelectorAll("[data-qs]").forEach(b => b.onclick = () => { SLIP_STAKE = Number(b.dataset.qs); re(); });
+  sh.querySelectorAll("[data-sm2]").forEach(b => b.onclick = () => { if (b.classList.contains("dis")) return; mbHaptic(); SLIP_MODE = b.dataset.sm2; re(); });
+  sh.querySelectorAll("[data-sx]").forEach(b => b.onclick = () => { mbHaptic(); slipRemove(b.dataset.sx); mbFab(); re(); });
+  sh.querySelectorAll("[data-qs]").forEach(b => b.onclick = () => { mbHaptic(); SLIP_STAKE = Number(b.dataset.qs); re(); });
   const si = document.getElementById("slipstake");
   if (si) si.onchange = () => { SLIP_STAKE = Number(si.value.replace(/[^0-9.]/g, "")); re(); };
   const clr = document.getElementById("slipclr"); if (clr) clr.onclick = () => { slipSave([]); mbFab(); re(); };
@@ -107,7 +107,7 @@ function mbOpenSlip() {
     else v.forEach(x => placed.push(mbAdd({sport: x.sport, kind: "single", label: x.label, odds: x.odds, stake,
       legs: [{label: x.label, sub: x.sub, gid: x.gid, start: x.start, key: x.key, p: x.p, odds: x.odds}]})));
     if (placed.some(b => !b)) { go.textContent = "Couldn't save (private browsing?)"; return; }
-    slipSave([]); mbFab(); mbConfirm(placed);
+    mbHaptic("success"); slipSave([]); mbFab(); mbConfirm(placed);
   };
   document.getElementById("scrim").classList.add("open"); sh.classList.add("open");
 }
@@ -208,14 +208,15 @@ function mbBadgesCheck(s) {
 function mbTicket(b) {
   const dot = l => `<span class="tkdot ${l.res === true ? "w" : l.res === false ? "l" : l.res === "push" ? "p" : ""}"></span>`;
   const toWin = b.stake * (mbDec(b.odds) - 1), when = new Date(b.ts).toLocaleString("en-US", {month: "short", day: "numeric", hour: "numeric", minute: "2-digit"});
-  const body = b.kind === "parlay" ? `<div class="tksel">${b.legs.length}-leg parlay</div>` + b.legs.map(l => `<div class="tkleg">${dot(l)}<b>${esc(l.label)}</b><i>${l.odds ? mbSign(l.odds) : ""}</i></div>`).join("")
-    : `<div class="tksel">${esc(b.label)}</div><div class="tksub">${esc((b.legs[0] || {}).sub || "")}</div>`;
+  const sw = l => b.status === "open" ? mbSweatHtml(l) : "";
+  const body = b.kind === "parlay" ? `<div class="tksel">${b.legs.length}-leg parlay</div>` + b.legs.map(l => `<div class="tkleg">${dot(l)}<b>${esc(l.label)}</b><i>${l.odds ? mbSign(l.odds) : ""}</i></div>${sw(l)}`).join("")
+    : `<div class="tksel">${esc(b.label)}</div><div class="tksub">${esc((b.legs[0] || {}).sub || "")}</div>${sw(b.legs[0] || {})}`;
   const pill = {open: "Open", won: "Cashed", lost: "Lost", push: "Push"}[b.status];
   const res = b.status === "won" ? "+" + mbMoney(mbProfit(b)) : b.status === "lost" ? "−" + mbMoney(b.stake) : b.status === "push" ? mbMoney(b.stake) : mbMoney(toWin);
   const acts = !b.id ? "" : b.status === "open"
     ? `<button data-mbs="${b.id}|won">Won</button><button data-mbs="${b.id}|lost">Lost</button><button data-mbs="${b.id}|push">Push</button><button data-mbd="${b.id}" class="del">Delete</button>`
     : `<button data-mbs="${b.id}|open">Reopen</button><button data-mbd="${b.id}" class="del">Delete</button>`;
-  return `<div class="ticket ${b.status}"><div class="tkh"><span class="tkmeta">${b.sport} · ${b.kind === "parlay" ? "Parlay" : "Single"}</span><span class="tkodds">${mbSign(b.odds)}</span></div>
+  return `<div class="ticket ${b.status}"><div class="tkh">${b.status === "open" && mbIsLive(b) ? `<span class="livetag"><span class="livedot"></span>LIVE</span>` : ""}<span class="tkmeta">${b.sport} · ${b.kind === "parlay" ? "Parlay" : "Single"}</span><span class="tkodds">${mbSign(b.odds)}</span></div>
     ${body}<div class="tkdiv"></div>
     <div class="tkf"><div><span>Risk</span><b>${mbMoney(b.stake)}</b></div><div><span>${b.status === "won" ? "Won" : b.status === "lost" ? "Lost" : b.status === "push" ? "Refund" : "To win"}</span><b class="${b.status === "won" ? "pos" : ""}">${res}</b></div>
       <span class="tkpill ${b.status}">${pill}</span></div>
@@ -231,7 +232,8 @@ function mbChart(bets) {
 function mbView() {
   const s = mbLoad(), all = s.bets, bets = all.filter(b => MB_SPORT === "all" || b.sport === MB_SPORT), W = mbWallet(s), st = mbStats(bets), stAll = mbStats(all);
   const chips = [["all", "All"], ["NHL", "🏒 NHL"], ["NFL", "🏈 NFL"]].map(([k, n]) => `<button class="chip ${MB_SPORT === k ? "on" : ""}" data-mbsp="${k}">${n}</button>`).join("");
-  const open = bets.filter(b => b.status === "open").sort((a, b) => b.ts.localeCompare(a.ts));
+  const openAll = bets.filter(b => b.status === "open").sort((a, b) => b.ts.localeCompare(a.ts));
+  const live = openAll.filter(mbIsLive), open = openAll.filter(b => !mbIsLive(b));
   const done = bets.filter(b => b.status !== "open").sort((a, b) => (b.result_ts || b.ts).localeCompare(a.result_ts || a.ts));
   const w = done.filter(b => b.status === "won").length, l = done.filter(b => b.status === "lost").length, p = done.filter(b => b.status === "push").length;
   const got = new Set(s.badges || []);
@@ -247,8 +249,9 @@ function mbView() {
     <div class="card badges"><div class="lk-h" style="font-size:16px">🏅 Badges <span class="pl-tag">${got.size}/${BADGES.length}</span></div>
       <div class="bgrid">${BADGES.map(([k, e, n, d]) => `<div class="bdg ${got.has(k) ? "on" : ""}" title="${esc(d)}"><em>${e}</em><b>${n}</b><i>${d}</i></div>`).join("")}</div></div>
     ${mbChart(bets)}
-    <div class="sec mbsec">Open bets ${open.length ? `· ${mbMoney(open.reduce((a, b) => a + b.stake, 0))} in play` : ""}</div>
-    ${open.length ? open.map(mbTicket).join("") : `<div class="note">No open bets. Tap any price, prop or parlay and ＋ Add to bet slip.</div>`}
+    ${live.length ? `<div class="sec mbsec livesec"><span class="livedot"></span> Live sweat · ${live.length}</div>${live.map(mbTicket).join("")}` : ""}
+    ${open.length || !live.length ? `<div class="sec mbsec">${live.length ? "Upcoming" : "Open bets"} ${open.length ? `· ${mbMoney(open.reduce((a, b) => a + b.stake, 0))} in play` : ""}</div>` : ""}
+    ${open.length ? open.map(mbTicket).join("") : live.length ? "" : `<div class="note">No open bets. Tap any price, prop or parlay and ＋ Add to bet slip.</div>`}
     ${done.length ? `<div class="sec mbsec">Settled</div>${done.slice(0, 40).map(mbTicket).join("")}` : ""}
     <details class="card mbset"><summary>⚙️ Bankroll &amp; backup</summary>
       <label class="f">Starting bankroll ($)</label><input id="mbstart" inputmode="decimal" value="${s.start}">
@@ -258,7 +261,7 @@ function mbView() {
 function mbWire(render) {
   MB_RENDER = render;
   document.querySelectorAll("[data-mbsp]").forEach(b => b.onclick = () => { MB_SPORT = b.dataset.mbsp; render(); });
-  document.querySelectorAll("[data-mbs]").forEach(b => b.onclick = () => { const [id, st] = b.dataset.mbs.split("|");
+  document.querySelectorAll("[data-mbs]").forEach(b => b.onclick = () => { const [id, st] = b.dataset.mbs.split("|"); mbHaptic(st === "won" ? "success" : "");
     mbUpdate(id, x => { x.status = st; x.manual = st !== "open"; x.result_ts = st === "open" ? null : new Date().toISOString(); x.seen = st === "open" ? undefined : false; });
     mbCelebrate(); render(); });
   document.querySelectorAll("[data-mbd]").forEach(b => b.onclick = () => { if (!confirm("Delete this bet?")) return;
@@ -276,4 +279,64 @@ function mbWire(render) {
   if (rs) rs.onclick = () => { if (confirm("Delete every paper bet and reset the bankroll?")) { mbSave({start: mbLoad().start, unit: 10, bets: [], badges: []}); MB_MSG = "Reset."; render(); } };
 }
 // every render: keep the slip button and the wallet in the nav current
-function mbAfterRender(render) { MB_RENDER = render; mbFab(); }
+function mbAfterRender(render) { MB_RENDER = render; mbFab(); mbWireBanner(render); }
+
+// ---- haptics: Android vibrates; iPhone (iOS 18+) ticks when a hidden switch is flipped during a tap ----
+function mbHaptic(kind) {
+  try { if (navigator.vibrate && navigator.vibrate(kind === "success" ? [14, 50, 22] : 9)) return; } catch (e) {}
+  try {
+    let l = document.getElementById("mbhap");
+    if (!l) { l = document.createElement("label"); l.id = "mbhap"; l.className = "mbhap"; l.setAttribute("aria-hidden", "true");
+              l.innerHTML = '<input type="checkbox" switch tabindex="-1">'; document.body.appendChild(l); }
+    l.click();
+  } catch (e) {}
+}
+
+// ---- the sweat: live status for every open leg. The page supplies mbLiveLeg(leg) ->
+// {state: "pre"|"in"|"post", detail, start, home, away, homeAbbr, awayAbbr, cur (prop stat so far or null), unit} or null ----
+function mbSweat(leg) {
+  const L = typeof mbLiveLeg === "function" ? (() => { try { return mbLiveLeg(leg); } catch (e) { return null; } })() : null;
+  const k = leg.key || {};
+  if (!L) return null;
+  if (L.state === "pre" || !L.state) return {st: "pre", text: L.start ? "Starts " + new Date(L.start).toLocaleString("en-US", {weekday: "short", hour: "numeric", minute: "2-digit"}) : "Not started", score: ""};
+  const score = `${L.awayAbbr} ${L.away}–${L.home} ${L.homeAbbr}`, fin = L.state === "post", clock = fin ? "Final" : (L.detail || "Live");
+  if (k.t === "prop") {
+    if (L.cur == null) return {st: fin ? "unk" : "live", text: fin ? "No stat line found: settle it yourself" : "Waiting on stats", score, clock};
+    const over = (k.dir || "over") === "over", need = Math.floor(k.l) + 1, cur = L.cur, hit = cur > k.l;
+    const st = over ? (hit ? "hit" : fin ? "dead" : "live") : (hit ? "dead" : fin ? "hit" : "live");
+    const left = over ? Math.max(need - cur, 0) : Math.max(Math.floor(k.l) - cur, 0);
+    const text = over ? (hit ? `${cur} ${L.unit || ""} · cashed ✓` : `${cur} of ${need} ${L.unit || ""} · need ${left} more`)
+                      : (hit ? `${cur} ${L.unit || ""} · over the line` : `${cur} ${L.unit || ""} · ${left} to spare`);
+    return {st, text, score, clock, pct: over ? Math.min(cur / need, 1) : Math.min(cur / (Math.floor(k.l) + 1), 1)};
+  }
+  const tot = L.home + L.away, mine = k.s === "home" ? L.home - L.away : L.away - L.home;
+  if (k.m === "total" || k.m === "p1_total") {
+    const over = k.s === "over", hit = tot > k.l, need = Math.floor(k.l) + 1;
+    const st = over ? (hit ? "hit" : fin ? "dead" : "live") : (hit ? "dead" : fin ? "hit" : "live");
+    return {st, score, clock, pct: Math.min(tot / need, 1),
+            text: over ? (hit ? `Total ${tot} · over ✓` : `Total ${tot} · need ${need - tot} more`) : (hit ? `Total ${tot} · over the line` : `Total ${tot} · ${Math.floor(k.l) - tot} to spare`)};
+  }
+  if (k.m === "spread" || k.m === "puckline") {
+    const cov = mine + k.l;
+    return {st: cov > 0 ? (fin ? "hit" : "live up") : cov < 0 ? (fin ? "dead" : "live down") : (fin ? "push" : "live"), score, clock,
+            text: cov > 0 ? `Covering by ${cov}` : cov < 0 ? `Need ${-cov} more to cover` : "Right on the number"};
+  }
+  return {st: mine > 0 ? (fin ? "hit" : "live up") : mine < 0 ? (fin ? "dead" : "live down") : (fin ? "push" : "live"), score, clock,
+          text: mine > 0 ? `Leading by ${mine}` : mine < 0 ? `Trailing by ${-mine}` : "Tied"};
+}
+function mbSweatHtml(leg) {
+  const w = mbSweat(leg); if (!w) return "";
+  const sts = w.st.split(" ").map(x => "s-" + x).join(" "), cls = "s-" + w.st.split(" ")[0];
+  return `<div class="swt ${sts}"><span class="swd ${cls}"></span><div class="swb"><div class="swl"><b>${esc(w.text)}</b>${w.score ? `<i>${esc(w.score)} · ${esc(w.clock)}</i>` : ""}</div>
+    ${w.pct != null ? `<div class="swbar"><span style="width:${Math.round(100 * w.pct)}%"></span></div>` : ""}</div></div>`;
+}
+function mbIsLive(b) { return b.status === "open" && b.legs.some(l => { const w = mbSweat(l); return w && w.st !== "pre"; }); }
+function mbLiveBanner() {
+  const open = mbLoad().bets.filter(b => b.status === "open" && b.sport === MB_PAGE), live = open.filter(mbIsLive);
+  if (!live.length) return "";
+  const hitting = live.filter(b => b.legs.every(l => { const w = mbSweat(l); return w && /hit|up/.test(w.st); })).length;
+  return `<button class="swbanner" data-gobets="1"><span class="livedot"></span><b>Sweating ${live.length} live bet${live.length > 1 ? "s" : ""}</b><i>${hitting ? hitting + " on track" : "tap to follow"}</i><span>→</span></button>`;
+}
+function mbWireBanner(render) {
+  document.querySelectorAll("[data-gobets]").forEach(b => b.onclick = () => { mbHaptic(); MB_VIEW = "bets"; if (typeof TAB !== "undefined") TAB = "check"; render(); window.scrollTo(0, 0); });
+}
