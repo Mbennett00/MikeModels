@@ -36,7 +36,7 @@ function mbRetireNFL() {
 }
 // a win pays the price (plus any 🚀 boost on the profit); an insured parlay that loses by one leg gets its stake back
 const mbInsured = b => b.status === "lost" && b.ins && b.legs.filter(l => l.res === false).length === 1;
-function mbProfit(b) { return b.status === "won" ? b.stake * (mbDec(b.odds) - 1) * (1 + (b.boost || 0)) : b.status === "lost" ? (mbInsured(b) ? 0 : -b.stake) : 0; }
+function mbProfit(b) { if (b.status === "cashout") return (b.cash || 0) - b.stake; return b.status === "won" ? b.stake * (mbDec(b.odds) - 1) * (1 + (b.boost || 0)) : b.status === "lost" ? (mbInsured(b) ? 0 : -b.stake) : 0; }
 function mbWallet(s = mbLoad()) {
   const pl = s.bets.reduce((a, b) => a + mbProfit(b), 0), risk = s.bets.filter(b => b.status === "open").reduce((a, b) => a + b.stake, 0);
   const bonus = s.bonus || 0;
@@ -75,6 +75,9 @@ function mbWireTrack(getOdds, defOdds, getBet) {
   const odds = document.getElementById("odds"); if (odds) odds.addEventListener("input", show);
   document.querySelectorAll("#sheet [data-s], #sheet [data-ms]").forEach(x => x.addEventListener("click", show));
   show();
+  const inSlip = () => { try { const l = getBet().legs[0]; return slipLoad().some(x => slipKey(x) === slipKey(l)); } catch (e) { return false; } };
+  if (inSlip()) { add.classList.add("added"); add.innerHTML = `✓ On your slip · tap to remove`;
+    add.onclick = () => { slipRemove(slipKey(getBet().legs[0])); mbFab(); mbHaptic(); closeSheet(); MB_RENDER && MB_RENDER(); }; return; }
   add.onclick = () => {
     const o = cur(), bet = getBet(), leg = bet.legs[0];
     if (!isFinite(o)) { document.getElementById("mbmsg").textContent = "Enter the odds first."; return; }
@@ -91,7 +94,7 @@ function mbSlipParlay(legs, sport) {
   legs.forEach(l => slipAdd(Object.assign({}, l, {sport})));
   SLIP_MODE = "parlay"; mbOpenSlip();
 }
-function slipParlayOk(v) { return v.length >= 2 && new Set(v.map(x => x.sport + x.gid)).size === v.length; }
+function slipParlayOk(v) { return v.length >= 2 && !v.some(x => x.special) && new Set(v.map(x => x.sport + x.gid)).size === v.length; }
 function mbOpenSlip() {
   const sh = document.getElementById("sheet"), s = mbLoad(), W = mbWallet(s), v = slipLoad();
   let moved = 0;
@@ -102,21 +105,21 @@ function mbOpenSlip() {
   const dec = v.reduce((a, x) => a * mbDec(x.odds), 1), stake = Number(SLIP_STAKE) || 0;
   const toks = funSlipTokensHtml(s, v, SLIP_MODE === "parlay"), bst = funBoostOf(SLIP_BOOST);
   const tot = SLIP_MODE === "parlay" ? stake : stake * v.length, win = (SLIP_MODE === "parlay" ? stake * (dec - 1) : v.reduce((a, x) => a + stake * (mbDec(x.odds) - 1), 0)) * (1 + bst);
-  const closed = v.filter(mbStarted).length, short = tot > W.available + 1e-9;
+  const closed = v.filter(mbStarted).length, short = tot > W.available + 1e-9, overcap = v.some(x => x.special) && stake > 25;
   const payout = tot + win;
-  const label = closed ? "Remove started games" : short ? "Not enough balance" : !(stake > 0) ? "Enter a stake" : `Place ${mbMoney(tot)}`;
+  const label = closed ? "Remove started games" : overcap ? "Odds Boost max stake is $25" : short ? "Not enough balance" : !(stake > 0) ? "Enter a stake" : `Place ${mbMoney(tot)}`;
   sh.innerHTML = `<div class="grab"></div><button class="iconbtn close" id="shx" aria-label="Close">✕</button>
     <div class="slhead"><div class="sh-t">Bet slip</div><span class="slcount">${v.length}</span>${v.length ? `<button class="slclr" id="slipclr">Clear</button>` : ""}</div>
     ${v.length ? `<div class="gseg c"><button class="${SLIP_MODE === "single" ? "on" : ""}" data-sm2="single">Singles</button>
       <button class="${SLIP_MODE === "parlay" ? "on" : ""} ${slipParlayOk(v) ? "" : "dis"}" data-sm2="parlay">Parlay${v.length >= 2 ? `<em>${mbSign(mbAm(dec))}</em>` : ""}</button></div>
     <div class="slipl c">${v.map(x => `<div class="slipi c ${mbStarted(x) ? "closed" : ""}">${mbPic(x)}
-      <div class="slipt"><b>${esc(x.label)}</b><i>${esc(x.sub || x.sport)}${x.book ? ` · ${esc(x.book.replace("DraftKings", "DK"))}` : ""}${mbStarted(x) ? " · started" : ""}</i></div>
+      <div class="slipt"><b>${x.special ? `<em class="bsttag">🔥 BOOST</em> ` : ""}${esc(x.label)}</b><i>${esc(x.sub || x.sport)}${x.book ? ` · ${esc(x.book.replace("DraftKings", "DK"))}` : ""}${mbStarted(x) ? " · started" : ""}</i></div>
       <span class="slipo ${x.was != null ? "moved" : ""}">${x.was != null ? `<s>${mbSign(x.was)}</s>` : ""}${mbSign(x.odds)}</span><button class="slipx" data-sx="${esc(slipKey(x))}" aria-label="Remove">×</button></div>`).join("")}</div>
     <div class="stkrow"><div class="stkin c"><em>$</em><input id="slipstake" inputmode="decimal" value="${stake || ""}" aria-label="Stake"></div>
       <div class="qchips c">${[5, 10, 25, 50].map(a => `<button class="${stake === a ? "on" : ""}" data-qs="${a}">$${a}</button>`).join("")}</div></div>
     ${toks}
     <div class="slsum c"><span>${SLIP_MODE === "parlay" ? "Stake" : `${v.length} × ${mbMoney(stake)}`}${SLIP_INS ? " · 🛡️ insured" : ""}</span><span>To win ${bst ? `<em class="bstw">🚀 +${100 * bst}%</em>` : ""}<b>${mbMoney(win)}</b></span></div>
-    <button class="placebet c" id="slipgo" ${!v.length || closed || short || !(stake > 0) ? "disabled" : ""}><span>${label}</span>${!closed && !short && stake > 0 ? `<em>Payout ${mbMoney(payout)}</em>` : ""}</button>
+    <button class="placebet c" id="slipgo" ${!v.length || closed || short || overcap || !(stake > 0) ? "disabled" : ""}><span>${label}</span>${!closed && !short && !overcap && stake > 0 ? `<em>Payout ${mbMoney(payout)}</em>` : ""}</button>
     <div class="slfoot">Balance ${mbMoney(W.available)}${stake > 0 && !short ? ` → ${mbMoney(W.available - tot)} after` : ""} · paper money</div>`
       : `<div class="slipempty"><div class="slicon">🧾</div><b>Your bet slip is empty</b><span>Tap any price or prop, then add it to your slip.</span></div>`}`;
   document.getElementById("shx").onclick = () => closeSheet();
@@ -136,6 +139,7 @@ function mbOpenSlip() {
     else v.forEach(x => placed.push(mbAdd({sport: x.sport, kind: "single", label: x.label, odds: x.odds, stake, ...(v.length === 1 ? tk : {}),
       legs: [Object.assign({label: x.label, sub: x.sub, gid: x.gid, start: x.start, key: x.key, p: x.p, odds: x.odds}, legArt(x))]})));
     if (placed.some(b => !b)) { go.textContent = "Couldn't save (private browsing?)"; return; }
+    if (v.some(x => x.special)) { const s2 = mbLoad(); s2.boostDay = mbDay(0); mbSave(s2); }
     mbHaptic("success"); funBlip(); slipSave([]); mbFab(); mbConfirm(placed);
   };
   document.getElementById("scrim").classList.add("open"); sh.classList.add("open");
@@ -144,7 +148,7 @@ function mbConfirm(placed) {
   const sh = document.getElementById("sheet"), tot = placed.reduce((a, b) => a + b.stake, 0), win = placed.reduce((a, b) => a + b.stake * (mbDec(b.odds) - 1) * (1 + (b.boost || 0)), 0);
   sh.innerHTML = `<div class="grab"></div><button class="iconbtn close" id="shx" aria-label="Close">✕</button>
     <div class="okhead"><div class="okring">✓</div><div class="sh-t">Bet placed!</div><div class="sh-s">${placed.length > 1 ? placed.length + " bets" : "Ticket #" + placed[0].id}</div></div>
-    ${placed.map(mbTicket).join("")}
+    ${placed.map(b => mbTicket(b, true)).join("")}
     <div class="pl-sum"><div><span>Risk</span><b>${mbMoney(tot)}</b></div><div><span>To win</span><b>${mbMoney(win)}</b></div><div><span>Payout</span><b>${mbMoney(tot + win)}</b></div></div>
     <div class="okbal">New balance <b>${mbMoney(mbWallet().available)}</b> <i>−${mbMoney(tot)}</i></div>
     <div class="mbx"><button id="okmore">Keep betting</button><button id="okbets">My bets</button></div>`;
@@ -156,8 +160,12 @@ function mbConfirm(placed) {
 function mbFab(pop) {
   let f = document.getElementById("slipfab");
   if (!f) { f = document.createElement("button"); f.id = "slipfab"; f.className = "slipfab"; f.onclick = () => mbOpenSlip(); document.body.appendChild(f); }
-  const n = slipLoad().length; f.style.display = n ? "flex" : "none";
-  f.innerHTML = `🧾 Bet slip <b>${n}</b>`;
+  const v = slipLoad(), n = v.length; f.style.display = n ? "flex" : "none";
+  document.body.classList.toggle("hasslip", n > 0);
+  if (typeof mbMarkSlip === "function") { try { mbMarkSlip(); } catch (e) {} }
+  const dec = v.reduce((a, x) => a * mbDec(x.odds), 1), unit = Number(SLIP_STAKE) || mbLoad().unit || 10;
+  f.innerHTML = n ? `<span class="sb-n">${n}</span><span class="sb-t"><b>Bet slip</b><i>${n > 1 && slipParlayOk(v) ? `Parlay ${mbSign(mbAm(dec))}` : n > 1 ? `${n} singles` : esc(v[0].label)}</i></span>
+    <span class="sb-p">${n > 1 && slipParlayOk(v) ? `$${unit} pays ${mbMoney(unit * dec)}` : `${mbSign(v[n - 1].odds)}`}</span><span class="sb-go">›</span>` : "";
   if (pop) { f.classList.remove("pop"); void f.offsetWidth; f.classList.add("pop"); }
   const nb = document.querySelector('#nav [data-k="check"]');
   if (nb) nb.innerHTML = `${mbIcon("check")}<span>${mbShort(mbWallet().available)}</span>${mbDaily().claimed ? "" : `<span class="navdot"></span>`}`;
@@ -237,23 +245,64 @@ function mbBadgesCheck(s) {
 }
 
 // ---- My bets ----
-function mbTicket(b) {
+function mbTicket(b, noCash) {
   const dot = l => `<span class="tkdot ${l.res === true ? "w" : l.res === false ? "l" : l.res === "push" ? "p" : ""}"></span>`;
   const toWin = b.stake * (mbDec(b.odds) - 1) * (1 + (b.boost || 0)), when = new Date(b.ts).toLocaleString("en-US", {month: "short", day: "numeric", hour: "numeric", minute: "2-digit"});
   const sw = l => b.status === "open" ? mbSweatHtml(l) : "";
   const lc = l => l.res === true ? "w" : l.res === false ? "l" : "";
   const body = b.kind === "parlay" ? `<div class="tksel" style="margin-top:4px">${b.legs.length}-leg parlay</div>` + b.legs.map(l => `<div class="tkleg ${lc(l)}">${mbPic(l)}<b>${esc(l.label)}</b><i>${l.odds ? mbSign(l.odds) : ""}</i></div>${sw(l)}`).join("")
     : `<div class="tkone">${mbPic(b.legs[0] || {})}<div><div class="tksel">${esc(b.label)}</div><div class="tksub">${esc((b.legs[0] || {}).sub || "")}</div></div></div>${sw(b.legs[0] || {})}`;
-  const pill = {open: "Open", won: "Cashed", lost: "Lost", push: "Push"}[b.status];
-  const res = b.status === "won" ? "+" + mbMoney(mbProfit(b)) : mbInsured(b) ? "🛡️ " + mbMoney(b.stake) : b.status === "lost" ? "−" + mbMoney(b.stake) : b.status === "push" ? mbMoney(b.stake) : mbMoney(toWin);
+  const pill = {open: "Open", won: "Cashed", lost: "Lost", push: "Push", cashout: "Cashed out"}[b.status];
+  const res = b.status === "won" ? "+" + mbMoney(mbProfit(b)) : mbInsured(b) ? "🛡️ " + mbMoney(b.stake) : b.status === "lost" ? "−" + mbMoney(b.stake) : b.status === "push" ? mbMoney(b.stake) : b.status === "cashout" ? mbMoney(b.cash || 0) : mbMoney(toWin);
+  const co = noCash === true ? null : mbCashOffer(b);
   const acts = !b.id ? "" : b.status === "open"
     ? `<button data-mbs="${b.id}|won">Won</button><button data-mbs="${b.id}|lost">Lost</button><button data-mbs="${b.id}|push">Push</button><button data-mbd="${b.id}" class="del">Delete</button>`
     : `<button data-mbs="${b.id}|open">Reopen</button><button data-mbd="${b.id}" class="del">Delete</button>`;
   return `<div class="ticket ${b.status}"><div class="tkh">${b.status === "open" && mbIsLive(b) ? `<span class="livetag"><span class="livedot"></span>LIVE</span>` : ""}<span class="tkmeta">${b.sport} · ${b.kind === "parlay" ? "Parlay" : "Single"}${b.boost ? ` <em class="tkb">🚀 +${100 * b.boost}%</em>` : ""}${b.ins ? ` <em class="tkb ins">🛡️</em>` : ""}</span><span class="tkodds">${mbSign(b.odds)}</span></div>
     ${body}<div class="tkdiv"></div>
-    <div class="tkf"><div><span>Risk</span><b>${mbMoney(b.stake)}</b></div><div><span>${b.status === "won" ? "Won" : mbInsured(b) ? "Insured" : b.status === "lost" ? "Lost" : b.status === "push" ? "Refund" : "To win"}</span><b class="${b.status === "won" ? "pos" : ""}">${res}</b></div>
+    <div class="tkf"><div><span>Risk</span><b>${mbMoney(b.stake)}</b></div><div><span>${b.status === "won" ? "Won" : mbInsured(b) ? "Insured" : b.status === "cashout" ? "Cashed out" : b.status === "lost" ? "Lost" : b.status === "push" ? "Refund" : "To win"}</span><b class="${b.status === "won" ? "pos" : ""}">${res}</b></div>
       <span class="tkpill ${b.status}">${pill}</span></div>
+    ${co ? `<button class="cashout ${co.dir}" data-co="${b.id}"><span>Cash out</span><b>${mbMoney(co.value)}</b>${co.dir ? `<i>${co.dir === "up" ? "▲" : "▼"}</i>` : ""}</button>` : ""}
     <div class="tkfoot"><span>#${esc(b.id || "")} · ${when}</span>${acts ? `<span class="tkact">${acts}</span>` : ""}</div></div>`;
+}
+// 💸 cash out: what the bet is worth right now (its chance × payout, less a 7% house cut). Needs the page's mbLegProb(leg).
+const MB_CO_LAST = {};
+function mbCashOffer(b) {
+  if (b.status !== "open" || b.manual || typeof mbLegProb !== "function") return null;
+  let P = 1;
+  for (const l of b.legs) {
+    if (l.res === false) return null;
+    if (l.res === true || l.res === "push") continue;
+    let q; try { q = mbLegProb(l); } catch (e) { q = null; }
+    if (q == null || !isFinite(q)) return null; P *= Math.max(0, Math.min(1, q));
+  }
+  const payout = b.stake + b.stake * (mbDec(b.odds) - 1) * (1 + (b.boost || 0));
+  const value = Math.round(Math.min(payout * 0.99, payout * P * 0.93) * 100) / 100;
+  if (value < 0.5) return null;
+  const was = MB_CO_LAST[b.id]; MB_CO_LAST[b.id] = value;
+  return {value, dir: was == null || Math.abs(was - value) < 0.01 ? "" : value > was ? "up" : "down"};
+}
+function mbWireCashOut(render) {
+  document.querySelectorAll("[data-co]").forEach(btn => btn.onclick = () => {
+    const s = mbLoad(), b = s.bets.find(x => x.id === btn.dataset.co), co = b && mbCashOffer(b); if (!co) return;
+    if (btn.dataset.arm !== "1") { btn.dataset.arm = "1"; btn.classList.add("arm"); btn.querySelector("span").textContent = "Tap to confirm"; mbHaptic(); return; }
+    b.status = "cashout"; b.cash = co.value; b.result_ts = new Date().toISOString(); b.seen = true; mbSave(s);
+    mbHaptic("success"); try { funBlip(); } catch (e) {} mbBurst(20, ["💸", "✨"]);
+    mbToast(`<div class="tbig">💸 Cashed out</div><div class="tamt">${mbMoney(co.value)}</div><div class="tsub">${esc(b.label)} · ${co.value >= b.stake ? "+" : "−"}${mbMoney(Math.abs(co.value - b.stake))}</div>`, co.value >= b.stake ? "win" : "");
+    render();
+  });
+}
+// 📊 your betting profile: where the money comes from
+function mbProfileHtml(bets) {
+  const done = bets.filter(b => b.status !== "open"); if (done.length < 3) return "";
+  const grp = {"Game lines": b => b.kind !== "parlay" && (b.legs[0].key || {}).t === "game", "Player props": b => b.kind !== "parlay" && (b.legs[0].key || {}).t === "prop", "Parlays": b => b.kind === "parlay"};
+  const rows = Object.entries(grp).map(([n, f]) => { const x = done.filter(f), st = mbStats(x), w = x.filter(b => b.status === "won").length, l = x.filter(b => b.status === "lost").length;
+    return {n, x, st, w, l}; }).filter(r => r.x.length);
+  const best = rows.slice().sort((a, b) => b.st.pl - a.st.pl)[0], mx = Math.max(...rows.map(r => Math.abs(r.st.pl)), 1);
+  return `<div class="card prof"><div class="lk-h" style="font-size:16px">📊 Your betting profile</div>
+    ${rows.map(r => `<div class="pf"><div class="pf-h"><b>${r.n}</b><span>${r.w}-${r.l} · ${r.w + r.l ? Math.round(100 * r.w / (r.w + r.l)) : 0}% wins · ${(100 * r.st.roi).toFixed(0)}% ROI</span></div>
+      <div class="pf-bar"><span class="${r.st.pl >= 0 ? "pos" : "neg"}" style="width:${Math.max(3, Math.round(72 * Math.abs(r.st.pl) / mx))}%"></span><em class="${r.st.pl >= 0 ? "pos" : "neg"}">${(r.st.pl >= 0 ? "+" : "") + mbMoney(r.st.pl)}</em></div></div>`).join("")}
+    ${best && best.st.pl > 0 ? `<div class="hint">💪 Your money-maker: <b>${best.n.toLowerCase()}</b>.</div>` : `<div class="hint">Nothing in the green yet. The model's VALUE tags are the place to start.</div>`}</div>`;
 }
 function mbChart(bets) {
   const done = bets.filter(b => b.status !== "open").sort((a, b) => (a.result_ts || a.ts).localeCompare(b.result_ts || b.ts));
@@ -283,7 +332,7 @@ function mbView() {
       ${MB_MSG ? `<div class="hint"><b>${esc(MB_MSG)}</b></div>` : ""}</div>
     <div class="card badges"><div class="lk-h" style="font-size:16px">🏅 Badges <span class="pl-tag">${got.size}/${BADGES.length}</span></div>
       <div class="bgrid">${BADGES.map(([k, e, n, d]) => `<div class="bdg ${got.has(k) ? "on" : ""}" title="${esc(d)}"><em>${e}</em><b>${n}</b><i>${d}</i></div>`).join("")}</div></div>
-    ${mbChart(bets)}
+    ${mbChart(bets)}${mbProfileHtml(bets)}
     ${live.length ? `<div class="sec mbsec livesec"><span class="livedot"></span> Live sweat · ${live.length}</div>${live.map(mbTicket).join("")}` : ""}
     ${open.length || !live.length ? `<div class="sec mbsec">${live.length ? "Upcoming" : "Open bets"} ${open.length ? `· ${mbMoney(open.reduce((a, b) => a + b.stake, 0))} in play` : ""}</div>` : ""}
     ${open.length ? open.map(mbTicket).join("") : live.length ? "" : `<div class="note">No open bets. Tap any price, prop or parlay and ＋ Add to bet slip.</div>`}
@@ -295,7 +344,7 @@ function mbView() {
       <div class="hint">Paper money, stored in this browser only. On iPhone, the home-screen app and Safari keep separate copies: use Copy / Restore backup to move them.</div></details>`;
 }
 function mbWire(render) {
-  MB_RENDER = render;
+  MB_RENDER = render; mbWireCashOut(render);
   document.querySelectorAll("[data-mbs]").forEach(b => b.onclick = () => { const [id, st] = b.dataset.mbs.split("|"); mbHaptic(st === "won" ? "success" : "");
     mbUpdate(id, x => { x.status = st; x.manual = st !== "open"; x.result_ts = st === "open" ? null : new Date().toISOString(); x.seen = st === "open" ? undefined : false; });
     mbCelebrate(); render(); });
