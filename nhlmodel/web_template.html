@@ -828,7 +828,7 @@ function likesHtml() {
 }
 function games() {
   if (!D.games.length) return empty("🧊", "No games on the board", "Check back on the next game day.");
-  return mbLiveBanner() + luckyBanner() + likesHtml() + record() + `<div class="note">👆 Tap any price to check ${BOOK()}' odds.</div>` + D.games.map(gameCard).join("");
+  return mbLiveBanner() + likesHtml() + record() + `<div class="note">👆 Tap any price to check ${BOOK()}' odds.</div>` + D.games.map(gameCard).join("");
 }
 
 const LINES = {sog: [1.5, 2.5, 3.5, 4.5], goals: [0.5], points: [0.5, 1.5], assists: [0.5]};
@@ -1024,7 +1024,7 @@ function luckyBanner() {
 function props() {
   if (!D.players.length) return empty("👤", "No player projections yet", "");
   const S = PSTATE, mk = S.market;
-  const mkt0 = [["lucky", "🍀 Lucky"], ["sog", "Shots"], ["goals", "Goals"], ["points", "Points"], ["assists", "Assists"]]
+  const mkt0 = [["sog", "Shots"], ["goals", "Goals"], ["points", "Points"], ["assists", "Assists"]]
     .map(([k, nm]) => `<button class="${mk === k ? "on" : ""}" data-m="${k}">${nm}</button>`).join("");
   if (mk === "lucky") return `<div class="ptabs props-seg">${mkt0}</div>` + luckyNHL();
   let list = D.players.filter(p => p.lam[mk] != null);

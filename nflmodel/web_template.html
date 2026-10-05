@@ -641,7 +641,7 @@ function likesHtml() {
 }
 function games() {
   if (!D.games.length) return empty("🏟️", "No games this week", "The schedule will show here once the next week is set.");
-  return mbLiveBanner() + luckyBanner() + likesHtml() + D.games.map(gameCard).join("");
+  return mbLiveBanner() + likesHtml() + D.games.map(gameCard).join("");
 }
 
 
@@ -687,7 +687,7 @@ function initials(n) { const q = String(n).split(" ").filter(Boolean); return q.
 function avatar(p) { const t = teamOf(p.team);
   return `<div class="av" style="background:${esc(t.color)}"><span>${esc(initials(p.name))}</span>${p.headshot ? `<img src="${esc(p.headshot)}" alt="" loading="lazy" onerror="this.remove()">` : ""}</div>`; }
 let PS = {m: "td", game: "all", q: "", n: 24};
-const PCHIPS = [["lucky", "🍀 Lucky"], ["td", "🏈 TD"], ["rec_yds", "🙌 Rec"], ["rush_yds", "🏃 Rush"], ["pass_yds", "🎯 Pass"]];
+const PCHIPS = [["td", "🏈 TD"], ["rec_yds", "🙌 Rec"], ["rush_yds", "🏃 Rush"], ["pass_yds", "🎯 Pass"]];
 function propPool() {
   const P = (D.players || []).filter(p => PS.game === "all" || p.game_id === PS.game);
   const q = PS.q.trim().toLowerCase(), m = PS.m;
