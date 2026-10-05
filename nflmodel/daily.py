@@ -168,6 +168,22 @@ def run(state: str = "state", log=print) -> dict:
         except Exception as e:
             log(f"nfl odds: {e}")
     evs = O.match(cached["events"], wk) if cached else {}
+    # DraftKings player props: one pull per game day for that day's games (5 credits a game)
+    dpath = os.path.join(site, "nfl_dkprops.json")
+    dkp = O.load_cached(dpath) or {}
+    dkp.setdefault("events", {})
+    now_utc = now_et.tz_convert("UTC") if now_et.tzinfo else now_et.tz_localize("America/New_York").tz_convert("UTC")
+    today_evs = [ev for ev in evs.values()
+                 if pd.Timestamp(ev["commence_time"]).tz_convert("America/New_York").date() == now_et.date()
+                 and pd.Timestamp(ev["commence_time"]) > now_utc]
+    if key and mode != "0" and O.props_due(dkp, now_et, today_evs, os.environ.get("NFL_ODDS_PULL") == "1"):
+        got = O.fetch_props(key, today_evs, I.norm, log)
+        if got:
+            cut = now_utc - pd.Timedelta(days=8)
+            dkp["events"] = {k: v for k, v in dkp["events"].items() if v.get("commence") and pd.Timestamp(v["commence"]) > cut}
+            dkp["events"].update(got)
+            dkp.update(pulled_on=str(now_et.date()), fetched_at=pd.Timestamp.now(tz="UTC").isoformat(timespec="seconds"))
+            json.dump(dkp, open(dpath, "w"), separators=(",", ":"))
     npath = os.path.join(site, "nfl_line_news.json")
     try:
         ln = json.load(open(npath))
@@ -341,6 +357,11 @@ def run(state: str = "state", log=print) -> dict:
     except Exception as e:
         log(f"nfl matchup grades: {e}")
     attach_props(lineup, players)
+    ev_of = {gid: ev["id"] for gid, ev in evs.items()}
+    for p_ in players:   # DraftKings prices for each player's props, when pulled
+        e_ = dkp["events"].get(ev_of.get(p_["game_id"]), {})
+        p_["dk"] = (e_.get("players") or {}).get(I.norm(p_["name"])) or None
+    meta.update(props_book="DraftKings" if dkp.get("fetched_at") else None, props_at=dkp.get("fetched_at"))
     out = dict(meta=meta, games=games, players=players, teams=team_table(R, rows, season), key_m=cfg.key_m, key_t=cfg.key_t,
                injuries=injuries, lineups=lineup)
     try:

@@ -680,6 +680,16 @@ function fairLine(mu, m, p) {
   for (let L = Math.max(0.5, Math.floor(mu * 0.6) + 0.5); L <= mu * 1.4 + 1; L += 1) { const d = Math.abs(pOver(p, m, L) - 0.5); if (d < gap) { gap = d; best = L; } }
   return best;
 }
+// DraftKings prop prices published with the page: p.dk["market|line"] = {o: over, u: under}
+function dkLines(p, m) { return Object.keys(p.dk || {}).filter(k => k.startsWith(m + "|") && p.dk[k].o != null).map(k => Number(k.split("|")[1])).sort((a, b) => a - b); }
+function dkOver(p, m, L) { const x = p.dk && p.dk[`${m}|${m === "td" ? 0.5 : L}`]; return x ? x.o : null; }
+// the line to show: DraftKings' main line (over price nearest even) when DK has one, else the model's even-money line
+function showLine(p, m) {
+  if (m === "td") return 0.5;
+  const dk = dkLines(p, m); if (!dk.length) return fairLine(pMean(p, m), m, p);
+  return dk.map(L => ({L, d: Math.abs(implied(p.dk[`${m}|${L}`].o) - 0.5)})).sort((a, b) => a.d - b.d)[0].L;
+}
+const dkTag = o => o != null ? `<i class="bkt">DK</i>` : "";
 function pMean(p, m) { return {rec: p.rec, rec_yds: p.rec_yds, rush_yds: p.rush_yds, pass_yds: p.pass_yds, pass_td: p.lam_pass_td}[m]; }
 function marketsFor(p) { return p.role === "QB" ? ["pass_yds", "pass_td", "rush_yds", "td"] : p.role === "RB" ? ["rush_yds", "td", "rec_yds", "rec"] : ["rec_yds", "rec", "td"]; }
 function teamOf(abbr) { const g = D.games.find(x => x.home.abbr === abbr || x.away.abbr === abbr); return g ? (g.home.abbr === abbr ? g.home : g.away) : {abbr, color: "#555"}; }
@@ -697,17 +707,19 @@ function propPool() {
   else if (m === "rec_yds") L = L.filter(p => p.role !== "QB" && p.rec_yds >= 12).sort((a, b) => b.rec_yds - a.rec_yds);
   else if (m === "rush_yds") L = L.filter(p => p.rush_yds >= 12 && (p.role !== "QB" || p.rush_yds >= 15)).sort((a, b) => b.rush_yds - a.rush_yds);
   else L = L.filter(p => p.pass_yds != null).sort((a, b) => b.pass_yds - a.pass_yds);
-  return L;
+  // once DraftKings has posted this market for a game, only list the players DK is pricing
+  const dkG = new Set(P.filter(p => dkLines(p, m).length).map(p => p.game_id));
+  return L.filter(p => !dkG.has(p.game_id) || dkLines(p, m).length);
 }
 function pcard(p) {
   const t = teamOf(p.team), m = PS.m, parts = p.name.split(" "), first = parts.length > 1 ? parts[0] : "", last = parts.length > 1 ? parts.slice(1).join(" ") : p.name;
   let big, sub, line;
   if (m === "td") { big = `<b>${pct(p.p_td)}</b><span>to score</span>`; sub = p.role === "RB" ? `${p.car.toFixed(0)} car · ${p.rec.toFixed(1)} rec` : `${p.tgt.toFixed(1)} targets`;
-    line = `<b>Anytime</b><span>fair ${am(fair(p.p_td))}</span>`; }
-  else { const mu = pMean(p, m), L = fairLine(mu, m, p), po = pOver(p, m, L);
+    const dk = dkOver(p, "td"); line = `<b>Anytime</b><span>${dk != null ? am(dk) + " DK" : "fair " + am(fair(p.p_td))}</span>`; }
+  else { const mu = pMean(p, m), L = showLine(p, m), po = pOver(p, m, L), dk = dkOver(p, m, L);
     big = `<b>${Math.round(mu)}</b><span>${PU[m]}</span>`;
     sub = m === "rec_yds" ? `${p.rec.toFixed(1)} rec · ${p.tgt.toFixed(1)} tgt` : m === "rush_yds" ? `${p.car.toFixed(1)} car · TD ${pct(p.p_td)}` : `${p.lam_pass_td.toFixed(1)} TD · ${Math.round(p.att)} att`;
-    line = `<b>O ${L}</b><span>${pct(po)} · ${am(fair(po))}</span>`; }
+    line = `<b>O ${L}</b><span>${pct(po)} · ${dk != null ? am(dk) + " DK" : am(fair(po))}</span>`; }
   const tag = p.status ? `<span class="pc-tag">${esc(ST(p.status))}</span>` : "";
   const badge = `<span class="pc-badge"><img src="${esc(t.logo || "")}" alt="${esc(p.team)}" onerror="this.outerHTML='${esc(p.team)}'">${p.num != null ? `<b>#${esc(p.num)}</b>` : ""}</span>`;
   return `<button class="pc" data-pp="${esc(p.id)}|${esc(p.game_id)}"><div class="pc-top" style="background-color:${esc(t.color)}"><span class="pc-team">${esc(p.pos)}</span>${tag}${badge}
@@ -720,17 +732,17 @@ function pcard(p) {
 const GOPEN = new Set();   // game sections expanded past the top rows
 function prow(p) {
   const t = teamOf(p.team), m = PS.m, g = gameOf(p);
-  let proj, btn;
-  if (m === "td") { proj = `<b>${pct(p.p_td)}</b> to score`; btn = `<b>Anytime</b><span>${am(fair(p.p_td))}</span>`; }
-  else { const mu = pMean(p, m), L = fairLine(mu, m, p), po = pOver(p, m, L);
-    proj = `Proj <b>${m === "pass_td" ? mu.toFixed(1) : Math.round(mu)}</b> ${PU[m]}`;
-    btn = `<b>O ${L}</b><span>${am(fair(po))}</span>`; }
+  let proj, btn, dk;
+  if (m === "td") { dk = dkOver(p, "td"); proj = `<b>${pct(p.p_td)}</b> to score`; btn = `<b>Anytime</b><span>${am(dk != null ? dk : fair(p.p_td))}</span>${dkTag(dk)}`; }
+  else { const mu = pMean(p, m), L = showLine(p, m), po = pOver(p, m, L); dk = dkOver(p, m, L);
+    proj = `Proj <b>${m === "pass_td" ? mu.toFixed(1) : Math.round(mu)}</b> ${PU[m]} · ${pct(po)}`;
+    btn = `<b>O ${L}</b><span>${am(dk != null ? dk : fair(po))}</span>${dkTag(dk)}`; }
   const where = g ? (g.home.abbr === p.team ? "vs " : "@ ") + p.opp : "";
   return `<div class="prow3" data-pp="${esc(p.id)}|${esc(p.game_id)}" role="button">
     <div class="ph3" style="background-color:${esc(t.color)}"><span>${esc(initials(p.name))}</span>${p.headshot ? `<img src="${esc(p.headshot)}" alt="" loading="lazy" onload="this.previousElementSibling.style.visibility='hidden'" onerror="this.remove()">` : ""}</div>
     <div class="pt3"><div class="pn3">${esc(p.name)}${p.status ? `<span class="pq3">${esc(ST(p.status))}</span>` : ""}</div>
       <div class="pm3">${esc(p.pos)} · ${esc(p.team)}${p.num != null ? " #" + esc(p.num) : ""} ${esc(where)}</div><div class="pp3">${proj}</div></div>
-    <button class="pb3" data-pp="${esc(p.id)}|${esc(p.game_id)}">${btn}</button></div>`;
+    <button class="pb3 ${dk != null ? "bk" : ""}" data-pp="${esc(p.id)}|${esc(p.game_id)}|${esc(m)}">${btn}</button></div>`;
 }
 
 // ---------- 🍀 FEELING LUCKY: parlay of the day + anytime-TD darts ----------
@@ -893,7 +905,7 @@ function gamePlayers(g) {
 let PSH = null;
 function openPlayer(id, gid, m0) {
   const p = (D.players || []).find(x => x.id === id && x.game_id === gid); if (!p) return;
-  const m = m0 && marketsFor(p).includes(m0) ? m0 : marketsFor(p)[0]; PSH = {p, m, line: m === "td" ? null : fairLine(pMean(p, m), m, p), side: "over", sign: -1, num: ""};
+  const m = m0 && marketsFor(p).includes(m0) ? m0 : marketsFor(p)[0]; PSH = {p, m, line: m === "td" ? null : showLine(p, m), side: "over", sign: -1, num: ""};
   drawPlayer(); $("#scrim").classList.add("open"); $("#sheet").classList.add("open");
 }
 function drawPlayer() {
@@ -908,7 +920,9 @@ function drawPlayer() {
     <div class="kpis" style="grid-template-columns:repeat(4,1fr)">${kp.map(([k, v]) => `<div class="kpi"><div class="k">${k}</div><div class="n" style="font-size:19px">${v}</div></div>`).join("")}</div>
     <div class="seg">${marketsFor(p).map(k => `<button class="${m === k ? "on" : ""}" data-sm="${k}">${PM[k]}</button>`).join("")}</div>
     ${m === "td" ? "" : `<div class="seg" style="margin-top:6px"><button class="${PSH.side === "over" ? "on" : ""}" data-ss="over">Over</button><button class="${PSH.side === "under" ? "on" : ""}" data-ss="under">Under</button></div>
-      <div class="stepper"><button data-st="-1">−</button><input class="lv odds" id="pline" inputmode="decimal" value="${PSH.line}"><button data-st="1">+</button></div>`}
+      <div class="stepper"><button data-st="-1">−</button><input class="lv odds" id="pline" inputmode="decimal" value="${PSH.line}"><button data-st="1">+</button></div>
+      ${dkLines(p, m).length ? `<div class="dkl">${dkLines(p, m).map(L => { const x = p.dk[`${m}|${L}`], o = PSH.side === "over" ? x.o : x.u;
+        return o != null ? `<button class="${L === PSH.line ? "on" : ""}" data-dkl="${L}"><b>${PSH.side === "over" ? "O" : "U"} ${L}</b>${am(o)}</button>` : ""; }).join("")}<i class="bkt">DK</i></div>` : ""}`}
     <div class="kpis"><div class="kpi"><div class="k">Chance</div><div class="n">${pct(prob)}</div></div><div class="kpi"><div class="k">Fair</div><div class="n">${am(fair(prob))}</div></div>
       <div class="kpi g"><div class="k">Bet at</div><div class="n">${am(fair(prob - 0.04))}</div></div></div>
     <div class="sh-s" style="margin:4px 0 6px">Other odds? (optional)</div>
@@ -921,7 +935,8 @@ function drawPlayer() {
   mbWireTrack(() => PSH && PSH.num ? PSH.sign * Number(PSH.num) : NaN, Math.round(fair(prob)),
     () => ({sport: "NFL", kind: "single", label: plab, legs: [{label: plab, sub: `${p.team} vs ${p.opp}`, gid: p.game_id, start: g && g.start_utc, p: prob, img: p.headshot, logo: teamOf(p.team).logo, name: p.name,
             key: {t: "prop", pid: p.id, name: p.name, team: p.team, mk: m, l: m === "td" ? 0.5 : PSH.line, dir: m === "td" ? "over" : PSH.side}}]}));
-  $("#sheet").querySelectorAll("[data-sm]").forEach(x => x.onclick = () => { PSH.m = x.dataset.sm; PSH.line = PSH.m === "td" ? null : fairLine(pMean(p, PSH.m), PSH.m, p); drawPlayer(); });
+  $("#sheet").querySelectorAll("[data-sm]").forEach(x => x.onclick = () => { PSH.m = x.dataset.sm; PSH.line = PSH.m === "td" ? null : showLine(p, PSH.m); drawPlayer(); });
+  $("#sheet").querySelectorAll("[data-dkl]").forEach(x => x.onclick = () => { PSH.line = Number(x.dataset.dkl); drawPlayer(); });
   $("#sheet").querySelectorAll("[data-ss]").forEach(x => x.onclick = () => { PSH.side = x.dataset.ss; drawPlayer(); });
   $("#sheet").querySelectorAll("[data-st]").forEach(x => x.onclick = () => { PSH.line = Math.max(0.5, PSH.line + Number(x.dataset.st) * step); drawPlayer(); });
   $("#pline") && ($("#pline").onchange = e => { const v = Number(e.target.value.replace(/[^0-9.]/g, "")); if (v > 0) PSH.line = v; drawPlayer(); });
@@ -1064,6 +1079,12 @@ function mbGrade(leg) {
   if (k.t !== "game") return undefined;
   const r = settle(g, {m: k.m, s: k.s, line: k.l});
   return r === "won" ? true : r === "lost" ? false : r === "push" ? "push" : undefined;
+}
+// DraftKings prop prices published with the page (over and under)
+function mbPropOdds(leg) {
+  const k = leg.key || {}, p = (D.players || []).find(x => String(x.id) === String(k.pid)); if (!p || !p.dk) return null;
+  const x = p.dk[`${k.mk}|${k.mk === "td" ? 0.5 : k.l}`], o = x && ((k.dir || "over") === "over" ? x.o : x.u);
+  return o != null ? {odds: o, book: D.meta.props_book || "DraftKings"} : null;
 }
 function mbArtFor(leg) {   // logos / headshot for bets saved without them
   const k = leg.key || {}, g = D.games.find(x => x.game_id === leg.gid);

@@ -102,3 +102,61 @@ def due(cached: dict | None, now_et: pd.Timestamp, has_games: bool, force: bool 
         return True
     last = pd.Timestamp(cached["fetched_at"]).tz_convert("America/New_York")
     return last.date() < now_et.date()
+
+
+# ---- DraftKings player props (The Odds API event odds: 1 credit per market per game) ----
+EVENT_URL = "https://api.the-odds-api.com/v4/sports/americanfootball_nfl/events/{}/odds"
+PROP_MARKETS = {"player_anytime_td": "td", "player_reception_yds": "rec_yds", "player_rush_yds": "rush_yds",
+                "player_pass_yds": "pass_yds", "player_receptions": "rec"}
+
+
+def parse_props(ev: dict, norm, book: str = "draftkings") -> dict:
+    """One event's odds -> {normalised name: {"market|line": {"o": over price, "u": under price}}}."""
+    out: dict = {}
+    for bk in ev.get("bookmakers", []):
+        if bk.get("key") != book:
+            continue
+        for mk in bk.get("markets", []):
+            m = PROP_MARKETS.get(mk.get("key"))
+            if not m:
+                continue
+            for o in mk.get("outcomes", []):
+                who, side, price = o.get("description"), str(o.get("name", "")).lower(), o.get("price")
+                if not who or price is None or side not in ("over", "under", "yes", "no"):
+                    continue
+                line = 0.5 if m == "td" else o.get("point")
+                if line is None:
+                    continue
+                d = out.setdefault(norm(who), {}).setdefault(f"{m}|{float(line):g}", {})
+                d["o" if side in ("over", "yes") else "u"] = int(round(price))
+    return out
+
+
+def props_due(cached: dict | None, now_et: pd.Timestamp, events_today: list, force: bool = False) -> bool:
+    """One props pull per game day (first run after 7am ET), for that day's games only."""
+    if not events_today:
+        return False
+    if force:
+        return True
+    if now_et.hour < 7:
+        return False
+    last = (cached or {}).get("pulled_on")
+    return last != str(now_et.date())
+
+
+def fetch_props(key: str, events: list, norm, log=print, book: str = "draftkings") -> dict:
+    """{event id: {"commence": ..., "players": {...}}} for the given events; skips any that fail."""
+    out, left = {}, None
+    for ev in events:
+        try:
+            r = requests.get(EVENT_URL.format(ev["id"]), params=dict(apiKey=key, regions="us", bookmakers=book,
+                             markets=",".join(PROP_MARKETS), oddsFormat="american"), timeout=60)
+            r.raise_for_status()
+            left = r.headers.get("x-requests-remaining", left)
+            out[ev["id"]] = dict(commence=ev.get("commence_time"), home=ev.get("home_team"), away=ev.get("away_team"),
+                                 players=parse_props(r.json(), norm, book))
+        except Exception as e:
+            log(f"nfl props odds: {ev.get('home_team')} failed ({e})")
+    log(f"nfl props odds: DraftKings props for {sum(len(v['players']) for v in out.values())} players "
+        f"in {len(out)} games, credits left {left}")
+    return out

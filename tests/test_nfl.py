@@ -391,3 +391,27 @@ def test_matchup_grades_from_yards_allowed():
     assert a["SOFT"]["WR"] > 1.1 > 0.9 > a["HARD"]["WR"]
     assert grade(a["SOFT"]["WR"]) in ("A", "A+") and grade(a["HARD"]["WR"]) in ("D", "F")
     assert grade(1.0) == "B"
+
+
+def test_dk_props_parse_and_daily_pull():
+    import pandas as pd
+    from nflmodel import odds as O
+    from nflmodel.injuries import norm
+    ev = {"bookmakers": [
+        {"key": "fanduel", "markets": [{"key": "player_rush_yds", "outcomes": [{"name": "Over", "description": "Bijan Robinson", "point": 80.5, "price": -110}]}]},
+        {"key": "draftkings", "markets": [
+            {"key": "player_rush_yds", "outcomes": [{"name": "Over", "description": "Bijan Robinson", "point": 74.5, "price": -115},
+                                                    {"name": "Under", "description": "Bijan Robinson", "point": 74.5, "price": -105}]},
+            {"key": "player_anytime_td", "outcomes": [{"name": "Yes", "description": "Bijan Robinson", "price": -150}]},
+            {"key": "player_receptions", "outcomes": [{"name": "Over", "description": "Drake London", "point": 5.5, "price": 120}]}]}]}
+    got = O.parse_props(ev, norm)
+    b = got[norm("Bijan Robinson")]
+    assert b["rush_yds|74.5"] == {"o": -115, "u": -105} and b["td|0.5"] == {"o": -150}
+    assert "rush_yds|80.5" not in b                       # other books ignored
+    assert got[norm("Drake London")]["rec|5.5"] == {"o": 120}
+    now = pd.Timestamp("2026-10-04 11:00", tz="America/New_York")
+    assert O.props_due(None, now, [{"id": "x"}])
+    assert not O.props_due({"pulled_on": "2026-10-04"}, now, [{"id": "x"}])   # once a day
+    assert O.props_due({"pulled_on": "2026-10-03"}, now, [{"id": "x"}])
+    assert not O.props_due(None, now, [])                                    # no games today
+    assert not O.props_due(None, pd.Timestamp("2026-10-04 06:00", tz="America/New_York"), [{"id": "x"}])
