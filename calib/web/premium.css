@@ -555,3 +555,42 @@ button.xmiss { width: 100%; text-align: left; cursor: pointer; }
 .sport a.on { background: rgba(255,255,255,.1) !important; box-shadow: inset 0 1px 0 rgba(255,255,255,.08); }
 .sport a.on img { filter: drop-shadow(0 2px 6px rgba(0,0,0,.5)); }
 .xclosed { text-align: center; padding: 18px 10px; font-size: 13px; font-weight: 800; color: rgba(255,255,255,.55); background: rgba(255,255,255,.03); border: 1px dashed rgba(255,255,255,.12); border-radius: 14px; }
+
+/* fair price beside the market price */
+.pfair { font-size: 11.5px; font-weight: 800; color: rgba(255,255,255,.6); white-space: nowrap; }
+.ps-row { grid-template-columns: 70px 1fr 38px 50px 72px !important; }
+.ps-f { font: 700 12.5px var(--fh); color: rgba(255,255,255,.7); text-align: center; line-height: 1.1; } .ps-f i { display: block; font-style: normal; font-size: 8.5px; font-weight: 900; letter-spacing: .06em; color: rgba(255,255,255,.35); }
+.pxb.pp.val { background: rgba(47,224,110,.2) !important; box-shadow: inset 0 0 0 1px rgba(47,224,110,.5) !important; }
+
+/* slate v2: sleek, no boxes, no logo cluster */
+.slate, .slate.nfl { display: none !important; }
+.slate2 { margin: 2px 0 14px; padding: 2px 2px 12px; border-bottom: 1px solid rgba(255,255,255,.07); }
+.s2-top { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; }
+.s2-k { font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: rgba(255,255,255,.5); }
+.s2-t { font: 700 28px var(--fh); color: #fff; letter-spacing: -.02em; line-height: 1.1; }
+.s2-stats { display: flex; gap: 0; margin-top: 8px; font-size: 12.5px; font-weight: 700; color: rgba(255,255,255,.55); }
+.s2-stats span { white-space: nowrap; } .s2-stats span + span::before { content: ""; display: inline-block; width: 1px; height: 11px; background: rgba(255,255,255,.15); margin: 0 10px; vertical-align: -1px; }
+.s2-stats b { font: 700 14px var(--fh); color: #fff; } .s2-stats b.g { color: var(--acc); }
+.s2-best { display: flex; align-items: center; gap: 7px; margin-top: 8px; font-size: 12.5px; font-weight: 700; color: rgba(255,255,255,.55); min-width: 0; }
+.s2-best b { color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; } .s2-best em { font-style: normal; font: 800 13.5px var(--fh); color: var(--acc); margin-left: auto; flex: none; }
+
+/* ---------- SGP, chance to cash, level ring, placed moment ---------- */
+.sgpb { display: inline-block; font: 900 10px var(--fb); letter-spacing: .08em; padding: 2px 6px; border-radius: 6px; background: linear-gradient(180deg, #f3d27f, #c99a3a); color: #1a1305; vertical-align: 1px; }
+.gseg .sgpb { font-size: 11px; margin-right: 2px; }
+.slwarn { margin: 2px 2px 6px; font-size: 11.5px; font-weight: 700; color: #f3c14b; }
+.wprob { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; margin: 10px 0 2px; font-size: 11.5px; font-weight: 800; color: rgba(255,255,255,.6); }
+.wpb { height: 6px; border-radius: 4px; background: rgba(255,255,255,.08); overflow: hidden; } .wpb i { display: block; height: 100%; border-radius: 4px; transition: width .6s var(--ease); }
+.wprob.hi .wpb i { background: linear-gradient(90deg, #22c95c, #6ef0a0); box-shadow: 0 0 10px rgba(47,224,110,.5); } .wprob.md .wpb i { background: linear-gradient(90deg, #d4a94a, #f3d27f); } .wprob.lo .wpb i { background: linear-gradient(90deg, #e64545, #ff8a80); }
+.wprob b { font: 800 14px var(--fh); color: #fff; }
+.tier { display: none !important; }
+.lvl { display: grid; grid-template-columns: 54px 1fr; gap: 12px; align-items: center; margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,.08); }
+.lvring { position: relative; width: 54px; height: 54px; } .lvring svg { width: 100%; height: 100%; }
+.lvring circle { fill: none; stroke-width: 4.5; } .lvring .bg { stroke: rgba(255,255,255,.1); } .lvring .fg { stroke: url(#none); stroke: #e8c46a; stroke-linecap: round; filter: drop-shadow(0 0 5px rgba(232,196,106,.7)); }
+.lvring span { position: absolute; inset: 0; display: grid; place-items: center; font-size: 22px; }
+.lvt b { display: block; font: 700 17px var(--fh); color: #fff; } .lvt i { display: block; font-style: normal; font-size: 11.5px; font-weight: 700; color: rgba(255,255,255,.6); }
+.lvt em { display: block; font-style: normal; font-size: 11px; font-weight: 800; color: #e8c46a; margin-top: 3px; }
+#sheet .okring { animation: okpop .55s cubic-bezier(.2,1.6,.4,1) both, okglow 1.6s ease-out .3s; }
+@keyframes okpop { from { transform: scale(.3) rotate(-20deg); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes okglow { 0% { box-shadow: 0 0 0 0 rgba(47,224,110,.6); } 100% { box-shadow: 0 0 0 28px rgba(47,224,110,0); } }
+#sheet .okhead + .ticket, #sheet .okhead ~ .ticket { animation: tkup .5s var(--ease) .15s both; }
+@keyframes tkup { from { transform: translateY(26px) scale(.96); opacity: 0; } to { transform: none; opacity: 1; } }

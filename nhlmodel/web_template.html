@@ -851,16 +851,14 @@ function likesHtml() {
 }
 // premium slate header: tonight at a glance
 function slateHtml() {
-  const st = D.games.map(g => (LIVE[g.game_id] || {}).state), live = st.filter(x => x === "in").length, fin = st.filter(x => x === "post").length;
-  const vals = D.games.flatMap(g => (g.dk || []).filter(x => x.edge != null && x.edge >= thr(x.m) && x.edge <= MAX_EDGE).map(x => ({g, x}))).sort((a, b) => b.x.edge - a.x.edge);
+  const st = D.games.map(g => (LIVE[g.game_id] || {}).state), live = st.filter(x => x === "in").length;
+  const vals = D.games.filter(notStarted).flatMap(g => (g.dk || []).filter(x => x.edge != null && x.edge >= thr(x.m) && x.edge <= MAX_EDGE).map(x => ({g, x}))).sort((a, b) => b.x.edge - a.x.edge);
   const top = vals[0], gc = D.meta.goalies_confirmed, tm = D.meta.teams;
-  const logos = D.games.slice(0, 7).map(g => `<img src="${esc(g.home.logo)}" alt="" onerror="this.remove()">`).join("");
   const nm = top ? (top.x.m === "moneyline" ? `${(top.x.s === "home" ? top.g.home : top.g.away).name} ML` : top.x.m === "total" ? `${top.x.s === "over" ? "Over" : "Under"} ${top.x.l} · ${top.g.away.abbr}@${top.g.home.abbr}` : `${(top.x.s === "home" ? top.g.home : top.g.away).abbr} ${top.x.l > 0 ? "+" : ""}${top.x.l}`) : "";
-  return `<div class="slate"><div class="sl-top"><div><div class="sl-k">${D === PREV ? "LAST NIGHT" : D.meta.upcoming ? "NEXT UP" : "TONIGHT"} · ${esc(dayLab(D).toUpperCase())}</div>
-      <div class="sl-t">${D.games.length} game${D.games.length === 1 ? "" : "s"}${live ? ` <span class="sl-live"><i></i>${live} live</span>` : ""}</div></div><div class="sl-logos">${logos}</div></div>
-    <div class="sl-stats"><div><b>${vals.length}</b><span>value bets</span></div><div><b>${top ? "+" + (100 * top.x.edge).toFixed(1) + "%" : "–"}</b><span>top edge</span></div>
-      <div><b>${gc}<i>/${tm}</i></b><span>goalies set</span></div><div><b>${fin}<i>/${D.games.length}</i></b><span>final</span></div></div>
-    ${top ? `<div class="sl-best"><span class="sl-dot"></span>Best value: <b>${esc(nm)}</b> <em>${am(top.x.price)}</em></div>` : ""}</div>`;
+  return `<div class="slate2"><div class="s2-top"><div><div class="s2-k">${D === PREV ? "Last night" : D.meta.upcoming ? "Next up" : "Tonight"} · ${esc(dayLab(D))}</div><div class="s2-t">${D.games.length} game${D.games.length === 1 ? "" : "s"}</div></div>
+      ${live ? `<span class="sl-live"><i></i>${live} live</span>` : ""}</div>
+    <div class="s2-stats"><span><b class="g">${vals.length}</b> value bets</span><span><b class="g">${top ? "+" + (100 * top.x.edge).toFixed(1) + "%" : "–"}</b> top edge</span><span><b>${gc}</b>/${tm} goalies</span></div>
+    ${top ? `<div class="s2-best"><span class="sl-dot"></span><span>Best value</span><b>${esc(nm)}</b><em>${am(top.x.price)}</em></div>` : ""}</div>`;
 }
 // upcoming games first (by puck drop), then live, then finished at the bottom
 function gstate(g) { const st = (LIVE[g.game_id] || {}).state; return st === "post" ? 2 : st === "in" ? 1 : notStarted(g) ? 0 : 1; }
@@ -937,7 +935,7 @@ function prow(p, mk) {
     <div class="pav" style="--tc:${esc(col)}"><span>${esc(initials(p.name))}</span>${p.headshot ? `<img src="${esc(p.headshot)}" alt="" loading="lazy" onload="this.previousElementSibling.style.visibility='hidden'" onerror="this.remove()">` : ""}${tl ? `<img class="ptl" src="${esc(tl)}" alt="" onerror="this.remove()">` : ""}</div>
     <div class="pinfo"><div class="pnm">${esc(p.name)}${live}</div>
       <div class="pmeta">${esc(p.pos || "")} · ${esc(p.team)}${p.num != null ? " #" + esc(p.num) : ""} · ${esc(matchupOf(p).split(" · ")[0])}</div>
-      <div class="pmet"><span class="pbar ${heat}"><i style="width:${Math.round(100 * pr)}%"></i></span><em>${pct(pr)}</em><span class="pproj">proj ${lam.toFixed(mk === "goals" ? 2 : 1)}</span></div></div>
+      <div class="pmet"><span class="pbar ${heat}"><i style="width:${Math.round(100 * pr)}%"></i></span><em>${pct(pr)}</em>${dk ? `<span class="pfair">fair ${am(fair(pr))}</span>` : ""}<span class="pproj">proj ${lam.toFixed(mk === "goals" ? 2 : 1)}</span></div></div>
     <button class="pxb pp ${cls} ${dk ? "bk" : ""}" data-bet="${i}"><span class="pt">${mk === "goals" && l === 0.5 ? "Anytime" : "O " + l}</span><b>${dk ? am(dk) : am(fair(pr))}</b><i class="${dk ? "pdk" : "pm"}">${dk ? "DK" : "fair"}</i></button></div>`;
 }
 function xplayer(p, mk = "sog") {
@@ -1157,7 +1155,7 @@ function openPlayer(id) {
       const heat = pr >= 0.6 ? "hi" : pr >= 0.4 ? "md" : "lo";
       return `<button class="ps-row ${cls}" data-pb="${PB.length - 1}"><span class="ps-l">${mk === "goals" && l === 0.5 ? "Anytime" : `Over ${l}`}</span>
         <span class="ps-bar ${heat}"><i style="width:${Math.round(100 * pr)}%"></i></span><span class="ps-c">${pct(pr)}</span>
-        <span class="ps-p ${dko ? "dk" : ""}"><b>${am(dko || fair(pr))}</b><i>${dko ? "DK" : "fair"}</i></span></button>`; }).join("");
+        <span class="ps-f">${dko ? `${am(fair(pr))}<i>fair</i>` : ""}</span><span class="ps-p ${dko ? "dk" : ""}"><b>${am(dko || fair(pr))}</b><i>${dko ? "DK" : "fair"}</i></span></button>`; }).join("");
     const hl = headLine(p, mk), hd = p.dk && p.dk[`${mk}|${hl.l}`], open = mk === (["sog", "goals", "points", "assists"].includes(PSTATE.market) ? PSTATE.market : "sog");
     return `<div class="ps-sec ${open ? "open" : ""}"><button class="ps-h" data-psx="1"><b>${MNAME[mk]}</b><span class="ps-sum">${mk === "goals" && hl.l === 0.5 ? "Anytime" : "O " + hl.l} · ${pct(hl.pr)} · <em class="${hd ? "dk" : ""}">${am(hd || fair(hl.pr))}</em></span><span class="ps-chev">›</span></button>
       <div class="ps-rows"><div>${rows}<div class="ps-proj">Projection ${p.lam[mk].toFixed(2)} ${PNAME[mk]}</div></div></div></div>`; };

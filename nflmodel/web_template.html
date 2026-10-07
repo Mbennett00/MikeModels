@@ -493,8 +493,8 @@ function gameCard(g) {
       const P = (D.players || []).filter(p => p.game_id === g.game_id).sort((x, y) => y.p_td - x.p_td).slice(0, 6);
       body = P.length ? `<div class="xpl-h"><span>Most likely to score</span><span>Anytime TD</span></div>` + P.map(p => { const t = teamOf(p.team), q = tdQuote(p), q2 = tdQuote(p, 1.5);
         return `<div class="xpl" data-pp="${esc(p.id)}|${esc(p.game_id)}|td"><div class="pav sm" style="--tc:${esc(t.color)}"><span>${esc(initials(p.name))}</span>${p.headshot ? `<img src="${esc(p.headshot)}" alt="" loading="lazy" onload="this.previousElementSibling.style.visibility='hidden'" onerror="this.remove()">` : ""}${t.logo ? `<img class="ptl" src="${esc(t.logo)}" alt="" onerror="this.remove()">` : ""}</div>
-          <div class="pinfo"><div class="pnm">${esc(p.name)}</div><div class="pmeta">${esc(p.pos)} · ${esc(p.team)} · ${pct(q.pr)} to score</div></div>
-          <div class="xpl-b"><button class="pxb ${q.mkt ? "bk" : ""}" data-bet="${tdBet(p)}"><span class="pt">Anytime</span><b>${am(q.odds)}</b><i class="${q.mkt ? "pdk" : "pm"}">${q.mkt ? "MKT" : "fair"}</i></button>
+          <div class="pinfo"><div class="pnm">${esc(p.name)}</div><div class="pmeta">${esc(p.pos)} · ${pct(q.pr)} · fair ${am(fair(q.pr))}</div></div>
+          <div class="xpl-b"><button class="pxb ${q.mkt ? "bk" : ""} ${q.edge != null && q.edge > 0 ? "val" : ""}" data-bet="${tdBet(p)}"><span class="pt">Anytime</span><b>${am(q.odds)}</b><i class="${q.mkt ? "pdk" : "pm"}">${q.mkt ? "MKT" : "fair"}</i></button>
             <button class="pxb" data-bet="${tdBet(p, 1.5)}"><span class="pt">2+ TDs</span><b>${am(q2.odds)}</b><i class="pm">${pct(q2.pr)}</i></button></div></div>`; }).join("")
         + `<button class="xlink" data-allprops="${esc(g.game_id)}">All touchdown props for this game ›</button>` : `<div class="hint">Player projections appear before kickoff.</div>`;
     } else body = fieldHtml(g);
@@ -677,13 +677,12 @@ function likesHtml() {
 }
 function slateN() {
   const st = D.games.map(g => (scoreOf(g) || {}).state), live = st.filter(x => x === "in").length, fin = st.filter(x => x === "post").length;
-  const vals = D.games.filter(g => !scoreOf(g)).flatMap(g => mkBets(g).filter(b => b.edge != null && b.edge >= LIKE_EDGE).map(b => ({g, b}))).sort((x, y) => y.b.edge - x.b.edge);
-  const top = vals[0], logos = D.games.slice(0, 8).map(g => `<img src="${esc(g.home.logo)}" alt="" onerror="this.remove()">`).join("");
-  return `<div class="slate nfl"><div class="sl-top"><div><div class="sl-k">NFL · ${D.meta.week ? "WEEK " + D.meta.week : "THIS WEEK"}</div>
-      <div class="sl-t">${D.games.length} games${live ? ` <span class="sl-live"><i></i>${live} live</span>` : ""}</div></div><div class="sl-logos">${logos}</div></div>
-    <div class="sl-stats"><div><b>${vals.length}</b><span>value bets</span></div><div><b>${top ? "+" + (100 * top.b.edge).toFixed(1) + "%" : "–"}</b><span>top edge</span></div>
-      <div><b>${D.games.length - fin - live}</b><span>to play</span></div><div><b>${fin}<i>/${D.games.length}</i></b><span>final</span></div></div>
-    ${top ? `<div class="sl-best"><span class="sl-dot"></span>Best value: <b>${esc(label(top.g, top.b))}</b> · ${esc(top.g.away.abbr)}@${esc(top.g.home.abbr)} <em>${am(dkLive(top.g, top.b) || top.b.price || fair(top.b.p))}</em></div>` : ""}</div>`;
+  const vals = D.games.filter(nflOpen).flatMap(g => mkBets(g).filter(b => b.edge != null && b.edge >= LIKE_EDGE).map(b => ({g, b}))).sort((x, y) => y.b.edge - x.b.edge);
+  const top = vals[0];
+  return `<div class="slate2"><div class="s2-top"><div><div class="s2-k">NFL · ${D.meta.week ? "Week " + D.meta.week : "This week"}</div><div class="s2-t">${D.games.length} games</div></div>
+      ${live ? `<span class="sl-live"><i></i>${live} live</span>` : ""}</div>
+    <div class="s2-stats"><span><b class="g">${vals.length}</b> value bets</span><span><b class="g">${top ? "+" + (100 * top.b.edge).toFixed(1) + "%" : "–"}</b> top edge</span><span><b>${D.games.length - fin - live}</b> to play</span></div>
+    ${top ? `<div class="s2-best"><span class="sl-dot"></span><span>Best value</span><b>${esc(label(top.g, top.b))} · ${esc(top.g.away.abbr)}@${esc(top.g.home.abbr)}</b><em>${am(dkLive(top.g, top.b) || top.b.price || fair(top.b.p))}</em></div>` : ""}</div>`;
 }
 // upcoming games first (by kickoff), then live, then finished at the bottom
 function nflOpen(g) { return !!g && !scoreOf(g) && (!g.start_utc || new Date(g.start_utc) > Date.now() - 6e4); }
@@ -787,8 +786,8 @@ function prow(p) {
     <div class="pav" style="--tc:${esc(t.color)}"><span>${esc(initials(p.name))}</span>${p.headshot ? `<img src="${esc(p.headshot)}" alt="" loading="lazy" onload="this.previousElementSibling.style.visibility='hidden'" onerror="this.remove()">` : ""}${t.logo ? `<img class="ptl" src="${esc(t.logo)}" alt="" onerror="this.remove()">` : ""}</div>
     <div class="pinfo"><div class="pnm">${esc(p.name)}${p.status ? `<span class="plive post">${esc(ST(p.status))}</span>` : ""}</div>
       <div class="pmeta">${esc(p.pos)} · ${esc(p.team)}${p.num != null ? " #" + esc(p.num) : ""} · ${esc(where)}</div>
-      <div class="pmet"><span class="pbar ${heat}"><i style="width:${Math.round(100 * q.pr)}%"></i></span><em>${pct(q.pr)}</em><span class="pproj">${use}</span></div></div>
-    <button class="pxb pp ${q.mkt ? "bk" : ""}" data-bet="${i}"><span class="pt">Anytime</span><b>${am(q.odds)}</b><i class="${q.mkt ? "pdk" : "pm"}">${q.mkt ? "MKT" : "fair"}</i></button></div>`;
+      <div class="pmet"><span class="pbar ${heat}"><i style="width:${Math.round(100 * q.pr)}%"></i></span><em>${pct(q.pr)}</em><span class="pfair">fair ${am(fair(q.pr))}</span><span class="pproj">${use}</span></div></div>
+    <button class="pxb pp ${q.mkt ? "bk" : ""} ${q.edge != null && q.edge > 0 ? "val" : ""}" data-bet="${i}"><span class="pt">Anytime</span><b>${am(q.odds)}</b><i class="${q.mkt ? "pdk" : "pm"}">${q.mkt ? (q.edge != null && q.edge > 0 ? "+" + (100 * q.edge).toFixed(1) + "%" : "MKT") : "fair"}</i></button></div>`;
 }
 
 // ---------- 🍀 FEELING LUCKY: parlay of the day + anytime-TD darts ----------
@@ -930,7 +929,7 @@ function spotlightN(L) {
         ${t.logo ? `<img class="sp-wm" src="${esc(t.logo)}" alt="" onerror="this.remove()">` : ""}
         <div class="sp-ring"><svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="17" class="bg"/><circle cx="20" cy="20" r="17" class="fg" stroke-dasharray="${C * q.pr} ${C}" transform="rotate(-90 20 20)"/></svg><b>${Math.round(100 * q.pr)}</b></div>
         <div class="sp-shot"><span>${esc(initials(p.name))}</span>${p.headshot ? `<img src="${esc(p.headshot)}" alt="" loading="lazy" onload="this.previousElementSibling.style.visibility='hidden'" onerror="this.remove()">` : ""}</div>
-        <div class="sp-info"><div class="sp-n">${esc(p.name.split(" ").slice(-1)[0])}</div><div class="sp-m">${esc(p.pos)} · ${esc(p.team)} ${gameOf(p) && gameOf(p).home.abbr === p.team ? "vs" : "@"} ${esc(p.opp)}</div></div>
+        <div class="sp-info"><div class="sp-n">${esc(p.name.split(" ").slice(-1)[0])}</div><div class="sp-m">${esc(p.pos)} · ${esc(p.team)} · fair ${am(fair(q.pr))}</div></div>
         <button class="sp-btn ${q.mkt ? "dk" : ""}" data-bet="${i}"><span>${q.edge != null && q.edge > 0 ? "TD" : "Anytime TD"}</span><b>${am(q.odds)}</b>${q.edge != null && q.edge > 0 ? `<i>+${(100 * q.edge).toFixed(1)}%</i>` : ""}</button></div>`; }).join("")}</div>`;
 }
 function sections(L) {
@@ -978,7 +977,7 @@ function openPlayer(id, gid) {
   const rows = [0.5, 1.5].map(l => { const q = tdQuote(p, l), i = tdBet(p, l), heat = q.pr >= 0.4 ? "hi" : q.pr >= 0.25 ? "md" : "lo";
     return `<button class="ps-row" data-tdb="${i}"><span class="ps-l">${l === 0.5 ? "Anytime" : "2+ TDs"}</span>
       <span class="ps-bar ${heat}"><i style="width:${Math.round(100 * q.pr)}%"></i></span><span class="ps-c">${pct(q.pr)}</span>
-      <span class="ps-p ${q.mkt ? "dk" : ""}"><b>${am(q.odds)}</b><i>${q.mkt ? "MKT" : "fair"}</i></span></button>`; }).join("");
+      <span class="ps-f">${q.mkt ? `${am(fair(q.pr))}<i>fair</i>` : ""}</span><span class="ps-p ${q.mkt ? "dk" : ""}"><b>${am(q.odds)}</b><i>${q.mkt ? "MKT" : "fair"}</i></span></button>`; }).join("");
   const q0 = tdQuote(p);
   const chips = [p.pos, p.num != null ? `#${p.num}` : "", p.role].filter((c, k, a) => c && a.indexOf(c) === k).map(c => `<span>${esc(c)}</span>`).join("") + (p.status ? `<span class="warn">${esc(ST(p.status))}</span>` : "");
   $("#sheet").innerHTML = `<div class="ps-hero" style="--tc:${esc(t.color)}">${t.logo ? `<img class="ps-wm" src="${esc(t.logo)}" alt="" onerror="this.remove()">` : ""}
