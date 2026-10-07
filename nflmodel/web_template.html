@@ -747,7 +747,7 @@ function pMean(p, m) { return {rec: p.rec, rec_yds: p.rec_yds, rush_yds: p.rush_
 function marketsFor(p) { return p.role === "QB" ? ["pass_yds", "pass_td", "rush_yds", "td"] : p.role === "RB" ? ["rush_yds", "td", "rec_yds", "rec"] : ["rec_yds", "rec", "td"]; }
 function teamOf(abbr) { const g = D.games.find(x => x.home.abbr === abbr || x.away.abbr === abbr); return g ? (g.home.abbr === abbr ? g.home : g.away) : {abbr, color: "#555"}; }
 function gameOf(p) { return D.games.find(x => x.game_id === p.game_id); }
-function initials(n) { const q = String(n).split(" ").filter(Boolean); return q.length > 1 ? q[0][0] + q[q.length - 1][0] : String(n).slice(0, 2); }
+function initials(n) { const q = String(n).split(" ").filter((w, k) => w && (!k || !/^(jr|sr|ii|iii|iv|v)\.?$/i.test(w))); return q.length > 1 ? q[0][0] + q[q.length - 1][0] : String(n).slice(0, 2); }
 function avatar(p) { const t = teamOf(p.team);
   return `<div class="av" style="background:${esc(t.color)}"><span>${esc(initials(p.name))}</span>${p.headshot ? `<img src="${esc(p.headshot)}" alt="" loading="lazy" onerror="this.remove()">` : ""}</div>`; }
 let PS = {m: "td", game: "all", q: "", n: 24};
@@ -790,8 +790,8 @@ function prow(p) {
   return `<div class="prow4" data-pp="${esc(p.id)}|${esc(p.game_id)}|td" role="button">
     <div class="pav" style="--tc:${esc(t.color)}"><span>${esc(initials(p.name))}</span>${p.headshot ? `<img src="${esc(p.headshot)}" alt="" loading="lazy" onload="this.previousElementSibling.style.visibility='hidden'" onerror="this.remove()">` : ""}${t.logo ? `<img class="ptl" src="${esc(t.logo)}" alt="" onerror="this.remove()">` : ""}</div>
     <div class="pinfo"><div class="pnm">${esc(p.name)}${p.status ? `<span class="plive post">${esc(ST(p.status))}</span>` : ""}</div>
-      <div class="pmeta">${esc(p.pos)} · ${esc(p.team)}${p.num != null ? " #" + esc(p.num) : ""} · ${esc(where)}</div>
-      <div class="pmet"><span class="pbar ${heat}"><i style="width:${Math.round(100 * q.pr)}%"></i></span><em>${pct(q.pr)}</em><span class="pfair">fair ${am(fair(q.pr))}</span><span class="pproj">${use}</span></div></div>
+      <div class="pmeta">${esc(p.team)} · ${esc(p.pos)} · ${esc(where)}</div>
+      <div class="pmet"><span class="pbar ${heat}"><i style="width:${Math.round(100 * q.pr)}%"></i></span><em>${pct(q.pr)}</em>${q.mkt ? `<span class="pfair">fair ${am(fair(q.pr))}</span>` : ""}<span class="pproj">${use}</span></div></div>
     <button class="pxb pp ${q.mkt ? "bk" : ""} ${q.edge != null && q.edge > 0 ? "val" : ""}" data-bet="${i}"><span class="pt">Anytime</span><b>${am(q.odds)}</b><i class="${q.mkt ? "pdk" : "pm"}">${q.mkt ? (q.edge != null && q.edge > 0 ? "+" + (100 * q.edge).toFixed(1) + "%" : "MKT") : "fair"}</i></button></div>`;
 }
 
@@ -916,9 +916,9 @@ function props() {
   const L = propPool(), posted = (D.players || []).some(p => p.dk && p.dk["td|0.5"]);
   const waiting = [...new Set(L.map(p => p.game_id))].filter(gid => !L.some(p => p.game_id === gid && p.dk && p.dk["td|0.5"])).length;
   return `<div class="ptabs props-seg one"><i class="mkpill" style="--i:0"></i><button class="on">Anytime touchdown</button></div>
-    <div class="strip" style="padding-left:0"><button class="chip ${PS.search || PS.q ? "on" : ""}" data-psearch="1" aria-label="Search">🔍</button><button class="chip ${PS.game === "all" ? "on" : ""}" data-pg="all">All games</button>${gs.map(g => `<button class="chip gchip ${PS.game === g.game_id ? "on" : ""}" data-pg="${esc(g.game_id)}"><img src="${esc(g.away.logo)}" alt="" onerror="this.remove()"><img src="${esc(g.home.logo)}" alt="" onerror="this.remove()">${esc(g.away.abbr)} @ ${esc(g.home.abbr)}</button>`).join("")}</div>
+    <div class="strip" style="padding-left:0"><button class="chip ${PS.search || PS.q ? "on" : ""}" data-psearch="1" aria-label="Search"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button><button class="chip ${PS.game === "all" ? "on" : ""}" data-pg="all">All games</button>${gs.map(g => `<button class="chip gchip ${PS.game === g.game_id ? "on" : ""}" data-pg="${esc(g.game_id)}"><img src="${esc(g.away.logo)}" alt="" onerror="this.remove()"><img src="${esc(g.home.logo)}" alt="" onerror="this.remove()">${esc(g.away.abbr)} @ ${esc(g.home.abbr)}</button>`).join("")}</div>
     ${PS.search || PS.q ? `<input class="search" id="psearch" placeholder="Search a player or team" value="${esc(PS.q)}" autocomplete="off">` : ""}
-    ${waiting ? `<div class="pnote"><span class="pdot"></span>Book prices pending for ${waiting === 1 ? "1 game" : waiting + " games"} · showing model prices</div>` : posted ? `<div class="pnote"><span class="pdot ok"></span>Consensus price across US sportsbooks</div>` : ""}
+    ${waiting ? `<div class="pnote"><span class="pdot"></span>Book prices not posted yet · fair prices shown</div>` : posted ? `<div class="pnote"><span class="pdot ok"></span>Consensus price across US sportsbooks</div>` : ""}
     ${!PS.q.trim() && PS.game === "all" ? spotlightN(L) : ""}
     ${L.length ? sections(L) : `<div class="note">No players match.</div>`}`;
 }
@@ -928,14 +928,14 @@ function spotlightN(L) {
   const top = ready.map(p => ({p, q: tdQuote(p)})).sort((a, b) => ((b.q.edge ?? -1) - (a.q.edge ?? -1)) || (b.q.pr - a.q.pr)).slice(0, 8);
   if (top.length < 3) return "";
   const C = 2 * Math.PI * 17;
-  return `<div class="spot-h"><b>Model spotlight</b><span>${top.some(x => x.q.edge != null) ? "best value vs consensus" : "most likely to score"}</span></div>
+  return `<div class="spot-h"><b>Top picks</b><span>${top.some(x => x.q.edge != null) ? "Best value vs books" : "Most likely to score"}</span></div>
     <div class="spots">${top.map(({p, q}) => { const t = teamOf(p.team), i = tdBet(p);
       return `<div class="spot" style="--tc:${esc(t.color)}" data-pp="${esc(p.id)}|${esc(p.game_id)}|td">
         ${t.logo ? `<img class="sp-wm" src="${esc(t.logo)}" alt="" onerror="this.remove()">` : ""}
         <div class="sp-ring"><svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="17" class="bg"/><circle cx="20" cy="20" r="17" class="fg" stroke-dasharray="${C * q.pr} ${C}" transform="rotate(-90 20 20)"/></svg><b>${Math.round(100 * q.pr)}</b></div>
         <div class="sp-shot"><span>${esc(initials(p.name))}</span>${p.headshot ? `<img src="${esc(p.headshot)}" alt="" loading="lazy" onload="this.previousElementSibling.style.visibility='hidden'" onerror="this.remove()">` : ""}</div>
-        <div class="sp-info"><div class="sp-n">${esc(p.name.split(" ").slice(-1)[0])}</div><div class="sp-m">${esc(p.pos)} · ${esc(p.team)} · fair ${am(fair(q.pr))}</div></div>
-        <button class="sp-btn ${q.mkt ? "dk" : ""}" data-bet="${i}"><span>${q.edge != null && q.edge > 0 ? "TD" : "Anytime TD"}</span><b>${am(q.odds)}</b>${q.edge != null && q.edge > 0 ? `<i>+${(100 * q.edge).toFixed(1)}%</i>` : ""}</button></div>`; }).join("")}</div>`;
+        <div class="sp-info"><div class="sp-n">${esc(p.name.split(" ").filter((w, k) => !k || !/^(jr|sr|ii|iii|iv|v)\.?$/i.test(w)).slice(-1)[0])}</div><div class="sp-m">${esc(p.team)} · ${esc(p.pos)}</div></div>
+        <button class="sp-btn ${q.mkt ? "dk" : ""}" data-bet="${i}"><span>Anytime</span><b>${am(q.odds)}</b>${q.edge != null && q.edge > 0 ? `<i>+${(100 * q.edge).toFixed(1)}%</i>` : ""}</button></div>`; }).join("")}</div>`;
 }
 function sections(L) {
   // group by game in kickoff order; each game shows its top 6 (all when searching or filtered to one game)

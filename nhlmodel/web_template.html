@@ -601,7 +601,7 @@ function wireCheck() {
 function timeET(s) { if (!s) return ""; const d = new Date(s);
   return d.toLocaleTimeString("en-US", {hour: "numeric", minute: "2-digit", timeZone: "America/New_York"}); }
 function logo(t) { return `<img class="logo" src="${esc(t.logo)}" alt="${esc(t.abbr)}" onerror="this.outerHTML='<div class=&quot;code&quot;>${esc(t.abbr)}</div>'">`; }
-function initials(n) { const p = String(n).split(" ").filter(Boolean); return p.length > 1 ? p[0][0] + p[p.length - 1][0] : String(n).slice(0, 3); }
+function initials(n) { const p = String(n).split(" ").filter((w, k) => w && (!k || !/^(jr|sr|ii|iii|iv|v)\.?$/i.test(w))); return p.length > 1 ? p[0][0] + p[p.length - 1][0] : String(n).slice(0, 3); }
 function avatar(pl) { const c = (D.colors || {})[pl.team] || "#7a8894";
   return `<div class="av" style="background-color:${esc(c)}"><span>${esc(initials(pl.name))}</span>${pl.headshot ? `<img src="${esc(pl.headshot)}" alt="" loading="lazy" onload="this.previousElementSibling.style.visibility='hidden'" onerror="this.remove()">` : ""}</div>`; }
 function lum(hex) { const c = (hex || "#888").replace("#", ""); const f = i => { const v = parseInt(c.substr(i, 2), 16) / 255;
@@ -934,7 +934,7 @@ function prow(p, mk) {
   return `<div class="prow4" data-player="${p.id}" role="button">
     <div class="pav" style="--tc:${esc(col)}"><span>${esc(initials(p.name))}</span>${p.headshot ? `<img src="${esc(p.headshot)}" alt="" loading="lazy" onload="this.previousElementSibling.style.visibility='hidden'" onerror="this.remove()">` : ""}${tl ? `<img class="ptl" src="${esc(tl)}" alt="" onerror="this.remove()">` : ""}</div>
     <div class="pinfo"><div class="pnm">${esc(p.name)}${live}</div>
-      <div class="pmeta">${esc(p.pos || "")} · ${esc(p.team)}${p.num != null ? " #" + esc(p.num) : ""} · ${esc(matchupOf(p).split(" · ")[0])}</div>
+      <div class="pmeta">${esc(p.team)} · ${esc(p.pos || "")} · ${esc(matchupOf(p).split(" · ")[0])}</div>
       <div class="pmet"><span class="pbar ${heat}"><i style="width:${Math.round(100 * pr)}%"></i></span><em>${pct(pr)}</em>${dk ? `<span class="pfair">fair ${am(fair(pr))}</span>` : ""}<span class="pproj">proj ${lam.toFixed(mk === "goals" ? 2 : 1)}</span></div></div>
     <button class="pxb pp ${cls} ${dk ? "bk" : ""}" data-bet="${i}"><span class="pt">${mk === "goals" && l === 0.5 ? "Anytime" : "O " + l}</span><b>${dk ? am(dk) : am(fair(pr))}</b><i class="${dk ? "pdk" : "pm"}">${dk ? "DK" : "fair"}</i></button></div>`;
 }
@@ -957,14 +957,14 @@ function spotlight(list, mk) {
     .sort((a, b) => ((b.edge ?? -1) - (a.edge ?? -1)) || (b.pr - a.pr)).slice(0, 8);
   if (top.length < 3) return "";
   const C = 2 * Math.PI * 17;
-  return `<div class="spot-h"><b>Model spotlight</b><span>${top.some(x => x.edge != null) ? "best value vs DraftKings" : "strongest picks"}</span></div>
+  return `<div class="spot-h"><b>Top picks</b><span>${top.some(x => x.edge != null) ? "Best value vs DK" : "Model favorites"}</span></div>
     <div class="spots">${top.map(({p, l, pr, dk, edge}) => { const col = (D.colors || {})[p.team] || "#3a4656", tl = teamLogoUrl(p.team);
       const i = bet({player: p, market: mk, line: l, p: pr, label: `${p.name} ${mk === "goals" && l === 0.5 ? "to score" : `over ${l} ${PNAME[mk]}`}`});
       return `<div class="spot" style="--tc:${esc(col)}" data-player="${p.id}">
         ${tl ? `<img class="sp-wm" src="${esc(tl)}" alt="" onerror="this.remove()">` : ""}
         <div class="sp-ring"><svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="17" class="bg"/><circle cx="20" cy="20" r="17" class="fg" stroke-dasharray="${C * pr} ${C}" transform="rotate(-90 20 20)"/></svg><b>${Math.round(100 * pr)}</b></div>
         <div class="sp-shot"><span>${esc(initials(p.name))}</span>${p.headshot ? `<img src="${esc(p.headshot)}" alt="" loading="lazy" onload="this.previousElementSibling.style.visibility='hidden'" onerror="this.remove()">` : ""}</div>
-        <div class="sp-info"><div class="sp-n">${esc(p.name.split(" ").slice(-1)[0])}</div><div class="sp-m">${esc(p.team)} ${esc(matchupOf(p).split(" · ")[0])}</div></div>
+        <div class="sp-info"><div class="sp-n">${esc(p.name.split(" ").filter((w, k) => !k || !/^(jr|sr|ii|iii|iv|v)\.?$/i.test(w)).slice(-1)[0])}</div><div class="sp-m">${esc(p.team)} ${esc(matchupOf(p).split(" · ")[0])}</div></div>
         <button class="sp-btn ${dk ? "dk" : ""}" data-bet="${i}"><span>${mk === "goals" && l === 0.5 ? "Anytime" : `Over ${l}`}</span><b>${am(dk || fair(pr))}</b>${edge != null && edge > 0 ? `<i>+${(100 * edge).toFixed(1)}%</i>` : ""}</button></div>`; }).join("")}</div>`;
 }
 function sectionsNHL(list, mk) {
@@ -1117,13 +1117,13 @@ function props() {
   list.sort((x, y) => y.lam[mk] - x.lam[mk]);
   const total = list.length, n = S.n || 20;
   const mkt = mkt0;
-  const gms = `<button class="chip ${S.search || S.q ? "on" : ""}" data-search="1">🔍</button>`
+  const gms = `<button class="chip ${S.search || S.q ? "on" : ""}" data-search="1" aria-label="Search"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>`
     + `<button class="chip ${S.game === "all" ? "on" : ""}" data-g="all">All games</button>`
     + byStatus(D.games).filter(g => openG.has(g.game_id)).map(g => `<button class="chip gchip ${S.game === String(g.game_id) ? "on" : ""}" data-g="${g.game_id}"><img src="${esc(g.away.logo)}" alt="" onerror="this.remove()"><img src="${esc(g.home.logo)}" alt="" onerror="this.remove()">${esc(g.away.abbr)} @ ${esc(g.home.abbr)}</button>`).join("");
   return `<div class="ptabs props-seg">${mkt}</div>
     <div class="strip" style="padding-left:0">${gms}</div>
     ${S.search || S.q ? `<input class="search" id="pq" placeholder="Find a player" value="${esc(S.q)}" autocomplete="off">` : ""}
-    ${waiting ? `<div class="pnote"><span class="pdot"></span>DraftKings lines pending for ${waiting === 1 ? "1 game" : waiting + " games"} · showing model prices</div>` : ""}
+    ${waiting ? `<div class="pnote"><span class="pdot"></span>DK lines not posted yet for ${waiting === 1 ? "1 game" : waiting + " games"} · fair prices shown</div>` : ""}
     ${!S.q && S.game === "all" ? spotlight(list, mk) : ""}
     ${list.length ? sectionsNHL(list, mk) : `<div class="note">No players match.</div>`}`;
 }
