@@ -217,7 +217,7 @@ function mbCelebrate() {
   if (won.length) {
     const amt = won.reduce((a, b) => a + mbProfit(b), 0), big = won.some(b => b.kind === "parlay");
     try { mbCoins({getBoundingClientRect: () => ({left: innerWidth / 2 - 60, top: innerHeight * 0.4, width: 120, height: 60})}, 16); } catch (e) {}
-    if (won.some(funIsBig)) funBigWin(amt, big ? "PARLAY CASHED!" : "CASHED!", won.map(b => b.label).join(" · "));
+    if (won.some(funIsBig)) funBigWin(amt, big ? "PARLAY CASHED!" : "CASHED!", won.map(b => b.label).join(" · "), won.slice().sort((a, b) => mbProfit(b) - mbProfit(a))[0]);
     else { funBlip(); funHorn(0.9); }
     mbToast(`<div class="tbig">${big ? "🎰 PARLAY CASHED!" : "💰 CASHED!"}</div><div class="tamt">+${mbMoney(amt)}</div><div class="tsub">${esc(won.map(b => b.label).join(" · "))}</div>`, "win");
     mbBurst(big ? 60 : 36, ["💵", "🎉", "💰", "✨"]);
@@ -265,7 +265,7 @@ function mbTicket(b, noCash) {
   const co = noCash === true ? null : mbCashOffer(b);
   const acts = !b.id ? "" : b.status === "open"
     ? `<button data-mbs="${b.id}|won">Won</button><button data-mbs="${b.id}|lost">Lost</button><button data-mbs="${b.id}|push">Push</button><button data-mbd="${b.id}" class="del">Delete</button>`
-    : `<button data-mbs="${b.id}|open">Reopen</button><button data-mbd="${b.id}" class="del">Delete</button>`;
+    : `${(b.status === "won" || (b.status === "cashout" && (b.cash || 0) > b.stake)) ? `<button data-share="${b.id}" class="shr">Share</button>` : ""}<button data-mbs="${b.id}|open">Reopen</button><button data-mbd="${b.id}" class="del">Delete</button>`;
   return `<div class="ticket ${b.status}"><div class="tkh">${b.status === "open" && mbIsLive(b) ? `<span class="livetag"><span class="livedot"></span>LIVE</span>` : ""}<span class="tkmeta">${b.sport} · ${b.kind === "parlay" ? (b.sgp ? `<span class="sgpb">SGP</span>` : "Parlay") : "Single"}${b.boost ? ` <em class="tkb">🚀 +${100 * b.boost}%</em>` : ""}${b.ins ? ` <em class="tkb ins">🛡️</em>` : ""}</span><span class="tkodds">${mbSign(b.odds)}</span></div>
     ${body}<div class="tkdiv"></div>
     <div class="tkf"><div><span>Risk</span><b>${mbMoney(b.stake)}</b></div><div><span>${b.status === "won" ? "Won" : mbInsured(b) ? "Insured" : b.status === "cashout" ? "Cashed out" : b.status === "lost" ? "Lost" : b.status === "push" ? "Refund" : "To win"}</span><b class="${b.status === "won" ? "pos" : ""}">${res}</b></div>
@@ -356,7 +356,7 @@ function mbRewardsHtml() {
   const toks = [["boost25", "🚀", "+25% profit boost", "Boosts one bet's profit"], ["boost50", "🚀", "+50% profit boost", "Boosts one bet's profit"], ["ins", "🛡️", "Parlay insurance", "Stake back if a 3+ leg parlay misses by one"]];
   return `<section class="rw-pass" data-pass="1">${passRing(L, 88)}<div class="rw-pt"><span>Season Pass</span><b>${L.rank[2]} ${L.rank[1]}</b>
       <div class="rw-bar"><i style="width:${Math.round(100 * L.pct)}%"></i></div><em>${L.lvl < PASS_MAX ? `${L.need - L.into} XP to level ${L.lvl + 1} · ${passRewardText(nr)}` : "Max level · Hall of Fame"}</em></div><span class="rw-chev">›</span></section>
-    ${funRebuyHtml(s, W)}${mbDailyHtml(s)}${funMissionsHtml(s)}
+    ${typeof mbSharpCard === "function" ? mbSharpCard() : ""}${funRebuyHtml(s, W)}${mbDailyHtml(s)}${funMissionsHtml(s)}
     <div class="rw-h">Your rewards</div>
     <div class="rw-toks">${toks.map(([k, e, n, d]) => `<div class="rw-tok ${T[k] ? "" : "none"}"><em>${e}</em><div><b>${n}</b><i>${d}</i></div><span>×${T[k] || 0}</span></div>`).join("")}</div>
     ${funVsHtml(s)}
@@ -397,7 +397,7 @@ let MB_LASTTAB = null;
 function mbAfterRender(render) {
   MB_RENDER = render;
   document.querySelectorAll("[data-btab]").forEach(b => b.onclick = () => { mbHaptic(); MB_VIEW = "bets"; MB_BTAB = b.dataset.btab; render(); });
-  document.querySelectorAll("[data-go2]").forEach(b => b.onclick = () => { mbHaptic(); TAB = b.dataset.go2; render(); window.scrollTo(0, 0); }); mbFab(); mbWireBanner(render); try { funAfterRender(render); } catch (e) {}
+  document.querySelectorAll("[data-go2]").forEach(b => b.onclick = () => { mbHaptic(); TAB = b.dataset.go2; render(); window.scrollTo(0, 0); }); mbFab(); mbWireBanner(render); try { funAfterRender(render); } catch (e) {} try { mbWireSharp(render); } catch (e) {}
   const sp = document.getElementById("splash"); if (sp && !sp.classList.contains("out")) { sp.classList.add("out"); setTimeout(() => sp.remove(), 600); }
   const t = typeof TAB !== "undefined" ? TAB : "";   // a soft fade-up when the screen changes (not on live refreshes)
   if (t !== MB_LASTTAB) { const v = document.getElementById("view"); if (v) { v.classList.remove("enter"); void v.offsetWidth; v.classList.add("enter"); } MB_LASTTAB = t; }

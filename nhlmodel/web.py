@@ -197,11 +197,6 @@ def _write(out_dir: str, data: dict):
     _install(os.path.join(HERE, "web_template.html"), os.path.join(out_dir, "index.html"))
     for name in os.listdir(os.path.join(HERE, "web_assets")):   # home-screen icons
         shutil.copy(os.path.join(HERE, "web_assets", name), os.path.join(out_dir, name))
-    with open(os.path.join(out_dir, "manifest.webmanifest"), "w") as f:
-        json.dump(dict(name="MikeModels", short_name="MikeModels", start_url=".", display="standalone",
-                       background_color="#bfe0f2", theme_color="#bfe0f2",
-                       icons=[dict(src="icon-192.png", sizes="192x192", type="image/png"),
-                              dict(src="icon-512.png", sizes="512x512", type="image/png")]), f)
     open(os.path.join(out_dir, ".nojekyll"), "w").close()
     try:   # the NFL page lives next to this one (🏒 / 🏈 switch); keep it when only the NHL side rebuilds
         from nflmodel.daily import install_page

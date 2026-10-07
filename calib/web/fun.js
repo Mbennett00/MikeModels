@@ -43,18 +43,20 @@ function funGoalLight(ms = 1400) {
 }
 
 // ---- 💥 big win overlay: count-up, goal light, horn ----
-function funBigWin(amount, title, sub) {
+function funBigWin(amount, title, sub, bet) {
   document.querySelectorAll(".bigwin").forEach(x => x.remove());
   const d = document.createElement("div"); d.className = "bigwin";
   d.innerHTML = `<div class="bw-beams"></div><div class="bw-card"><div class="bw-siren">🚨</div><div class="bw-t">${esc(title)}</div>
-    <div class="bw-amt">+$0.00</div><div class="bw-sub">${esc(sub || "")}</div><button class="bw-ok">LET'S GO</button></div>`;
+    <div class="bw-amt">+$0.00</div><div class="bw-sub">${esc(sub || "")}</div><button class="bw-ok">LET'S GO</button>${bet && bet.id ? `<button class="bw-share" data-bwshare="${esc(bet.id)}">Share this win</button>` : ""}</div>`;
   document.body.appendChild(d); requestAnimationFrame(() => d.classList.add("in"));
   funHorn(2.2); mbHaptic("success"); mbBurst(70, ["💵", "🚨", "🏒", "💰", "✨"]);
   const el = d.querySelector(".bw-amt"), t0 = performance.now(), dur = 1500;
   const step = now => { const k = Math.min((now - t0) / dur, 1), e = 1 - Math.pow(1 - k, 3); el.textContent = "+" + mbMoney(amount * e); if (k < 1) requestAnimationFrame(step); };
   requestAnimationFrame(step);
   const close = () => { d.classList.remove("in"); setTimeout(() => d.remove(), 300); };
-  d.onclick = close; setTimeout(close, 9000);
+  d.onclick = close; const sb = d.querySelector("[data-bwshare]"); let keep = false;
+  if (sb) sb.onclick = e => { e.stopPropagation(); keep = true; close(); try { mbShareBet(sb.dataset.bwshare); } catch (er) {} };
+  setTimeout(() => { if (!keep) close(); }, sb ? 14000 : 9000);
 }
 // which wins deserve the full show
 const funIsBig = b => b.kind === "parlay" || b.odds >= 300 || mbProfit(b) >= 50 || b.boost;
