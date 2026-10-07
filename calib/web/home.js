@@ -103,10 +103,10 @@ function mbHomeHtml() {
   const nxt = passRewardText(passReward(Math.min(L.lvl + 1, PASS_MAX))).split(" · ")[0];
   const chip = (attr, icon, top, sub, cls = "") => `<button class="hx-chip ${cls}" ${attr}><span class="hx-ci">${ic(icon)}</span><span class="hx-ct"><b>${top}</b><i>${sub}</i></span></button>`;
   const today = [
-    D0.claimed ? chip('data-go="check"', "spin", "Spun today", `${D0.streak}-day streak`, "done") : chip('data-spin="1"', "spin", "Free spin", "Up to $250", "gold"),
-    chip('data-go="check"', "target", `Missions ${mdone}/3`, mdone >= 3 ? "All complete" : esc(M.find(m => !m.claimed).t)),
+    D0.claimed ? chip('data-go="rewards"', "spin", "Spun today", `${D0.streak}-day streak`, "done") : chip('data-spin="1"', "spin", "Free spin", "Up to $250", "gold"),
+    chip('data-go="rewards"', "target", `Missions ${mdone}/3`, mdone >= 3 ? "All complete" : esc(M.find(m => !m.claimed).t)),
     chip('data-pass="1"', "star", `Level ${L.lvl}`, L.lvl < PASS_MAX ? `${L.need - L.into} XP to ${esc(nxt)}` : "Max level"),
-    mb.length ? chip('data-go="check"', "vs", me.pl >= ms.pl ? "Ahead of model" : "Model leads", `${me.pl - ms.pl >= 0 ? "+" : "−"}$${Math.abs(me.pl - ms.pl).toFixed(0)}`) : "",
+    mb.length ? chip('data-go="rewards"', "vs", me.pl >= ms.pl ? "Ahead of model" : "Model leads", `${me.pl - ms.pl >= 0 ? "+" : "−"}$${Math.abs(me.pl - ms.pl).toFixed(0)}`) : "",
   ].join("");
   const qp = picks.map((q, i) => { const dec = q.legs.reduce((a, l) => a * mbDec(l.odds), 1), odds = q.legs.length > 1 ? mbAm(dec) : q.legs[0].odds;
     return `<div class="hx-qp"><div class="hx-qtag">${esc(q.tag || (q.legs.length > 1 ? "Parlay" : "Single"))}</div><div class="hx-qt">${esc(q.title)}</div>

@@ -325,36 +325,49 @@ function mbChart(bets) {
   done.forEach((b, i) => { run += mbProfit(b); pts.push({x: i + 1, y: run, t: `${b.label}: ${(run >= 0 ? "+" : "") + mbMoney(run)}`}); });
   return `<div class="card mbchart">${mhLine([{name: "Profit", color: run >= 0 ? MH_C2 : "#c0504d", pts}], {title: "Profit ($) after each settled bet", w: 320, h: 120, ref: "zero", yd: 0, L: 36, xl: ["first", "latest"]})}</div>`;
 }
+// ---- My Bets: tickets only, like a sportsbook (Open | Settled | Check a price) ----
+let MB_BTAB = "open";
+function mbBetTabs() {
+  const s = mbLoad(), bets = s.bets.filter(b => MB_SPORT === "all" || b.sport === MB_SPORT), n = bets.filter(b => b.status === "open").length;
+  const on = k => MB_VIEW === "bets" && MB_BTAB === k ? "on" : "";
+  return `<div class="mbtabs"><button class="${on("open")}" data-btab="open">Open${n ? ` <em>${n}</em>` : ""}</button><button class="${on("settled")}" data-btab="settled">Settled</button><button class="${MB_VIEW === "check" ? "on" : ""}" data-mbv="check">Check a price</button></div>`;
+}
 function mbView() {
-  const s = mbLoad(), all = s.bets, bets = all.filter(b => MB_SPORT === "all" || b.sport === MB_SPORT), W = mbWallet(s), st = mbStats(bets), stAll = mbStats(all);
+  const s = mbLoad(), all = s.bets, bets = all.filter(b => MB_SPORT === "all" || b.sport === MB_SPORT), W = mbWallet(s), st = mbStats(bets);
   const openAll = bets.filter(b => b.status === "open").sort((a, b) => b.ts.localeCompare(a.ts));
   const live = openAll.filter(mbIsLive), open = openAll.filter(b => !mbIsLive(b));
   const done = bets.filter(b => b.status !== "open").sort((a, b) => (b.result_ts || b.ts).localeCompare(a.result_ts || a.ts));
-  const w = done.filter(b => b.status === "won").length, l = done.filter(b => b.status === "lost").length, p = done.filter(b => b.status === "push").length;
-  const got = new Set(s.badges || []);
-  const xp = mbXP(s), T = mbTier(xp);
-  return `<div class="wallet ${stAll.streak >= 3 ? "onfire" : ""}">${stAll.streak >= 3 ? `<span class="firechip">🔥 ON FIRE · ${stAll.streak}W</span>` : ""}<div class="wtop"><div class="wl"><span>Balance</span><b>${mbMoney(W.available)}</b><i>${W.risk > 0 ? `${mbMoney(W.risk)} in play` : "no open bets"}</i></div>
-      <div class="wr ${W.pl > 0 ? "up" : W.pl < 0 ? "down" : ""}"><span>All-time</span><b>${(W.pl > 0 ? "+" : "") + mbMoney(W.pl)}</b></div></div>
-      ${(() => { const LV = mbLevel(xp), nr = passReward(Math.min(LV.lvl + 1, PASS_MAX));
-        return `<button class="lvl" data-pass="1">${passRing(LV, 54)}<div class="lvt"><b>${LV.rank[2]} ${LV.rank[1]} · Level ${LV.lvl}</b><i>${LV.lvl < PASS_MAX ? `${LV.into} / ${LV.need} XP to level ${LV.lvl + 1}` : "Max level"}</i>
-          <em>${LV.lvl < PASS_MAX ? `Next: ${passRewardText(nr)}` : "Hall of Fame. Legend."} ›</em></div></button>`; })()}${funTokensHtml(s)}</div>
-    ${funRebuyHtml(s, W)}${mbDailyHtml(s)}${funMissionsHtml(s)}${funVsHtml(s)}
-    ${new Set(all.map(b => b.sport)).size > 1 ? `<div class="strip" style="padding:0 0 10px">${[["all", "All"], ["NHL", "🏒 NHL"], ["NFL", "🏈 NFL"]].map(([k, n]) => `<button class="chip ${MB_SPORT === k ? "on" : ""}" data-mbsp="${k}">${n}</button>`).join("")}</div>` : ""}
-    <div class="card mbsum"><div class="mbtiles">
-      <div><span>Record</span><b>${w}-${l}${p ? "-" + p : ""}</b></div>
-      <div><span>ROI</span><b class="${st.roi > 0 ? "pos" : st.roi < 0 ? "neg" : ""}">${(st.roi >= 0 ? "+" : "") + (100 * st.roi).toFixed(1)}%</b></div>
-      <div><span>Streak</span><b>${st.streak ? "🔥" + st.streak + "W" : "–"}</b></div>
-      <div><span>Best win</span><b>${st.bigWin ? mbShort(st.bigWin) : "–"}</b></div></div>
-      ${MB_MSG ? `<div class="hint"><b>${esc(MB_MSG)}</b></div>` : ""}</div>
-    <div class="card badges"><div class="lk-h" style="font-size:16px">Badges <span class="pl-tag">${got.size}/${BADGES.length}</span></div>
-      <div class="bgrid">${BADGES.map(([k, e, n, d]) => `<div class="bdg ${got.has(k) ? "on" : ""}" title="${esc(d)}"><em>${e}</em><b>${n}</b><i>${d}</i></div>`).join("")}</div></div>
-    ${mbChart(bets)}${mbProfileHtml(bets)}
-    ${live.length ? `<div class="sec mbsec livesec"><span class="livedot"></span> Live sweat · ${live.length}</div>${live.map(mbTicket).join("")}` : ""}
-    ${open.length || !live.length ? `<div class="sec mbsec">${live.length ? "Upcoming" : "Open bets"} ${open.length ? `· ${mbMoney(open.reduce((a, b) => a + b.stake, 0))} in play` : ""}</div>` : ""}
-    ${open.length ? open.map(mbTicket).join("") : live.length ? "" : `<div class="note">No open bets. Tap any price, prop or parlay and ＋ Add to bet slip.</div>`}
-    ${done.length ? `<div class="sec mbsec">Settled</div>${done.slice(0, 40).map(mbTicket).join("")}` : ""}
-    <details class="card mbset"><summary>⚙️ Bankroll &amp; backup</summary>
-      <label class="sndrow"><input type="checkbox" id="mbsound" ${s.sound !== false ? "checked" : ""}> 🔊 Goal horn &amp; sounds</label>
+  const w = done.filter(b => b.status === "won").length, l = done.filter(b => b.status === "lost").length;
+  const toWin = openAll.reduce((a, b) => a + b.stake * (mbDec(b.odds) - 1) * (1 + (b.boost || 0)), 0);
+  const strip = `<div class="mbstrip"><div><span>Balance</span><b>${mbMoney(W.available)}</b></div><div><span>In play</span><b>${mbMoney(W.risk)}</b></div><div><span>${MB_BTAB === "settled" ? "Profit" : "To win"}</span><b class="${MB_BTAB === "settled" ? (st.pl >= 0 ? "pos" : "neg") : "pos"}">${MB_BTAB === "settled" ? (st.pl >= 0 ? "+" : "−") + mbMoney(Math.abs(st.pl)).replace("−", "") : mbMoney(toWin)}</b></div></div>`;
+  const sports = new Set(all.map(b => b.sport)).size > 1 ? `<div class="strip" style="padding:0 0 12px">${[["all", "All sports"], ["NHL", "NHL"], ["NFL", "NFL"]].map(([k, n]) => `<button class="chip ${MB_SPORT === k ? "on" : ""}" data-mbsp="${k}">${n}</button>`).join("")}</div>` : "";
+  const msg = MB_MSG ? `<div class="hint"><b>${esc(MB_MSG)}</b></div>` : "";
+  if (MB_BTAB === "settled") return strip + sports + msg + (done.length
+    ? `<div class="mbrec"><span><b>${w}–${l}</b> record</span><span><b class="${st.roi >= 0 ? "pos" : "neg"}">${(st.roi >= 0 ? "+" : "") + (100 * st.roi).toFixed(1)}%</b> ROI</span><span><b>${st.bigWin ? mbShort(st.bigWin) : "–"}</b> best win</span></div>${done.slice(0, 50).map(mbTicket).join("")}`
+    : `<div class="mbempty"><b>No settled bets yet</b><i>Your wins, losses and cash-outs land here.</i></div>`);
+  return strip + sports + msg + (live.length ? `<div class="mbh"><span class="livedot"></span>Live <em>${live.length}</em></div>${live.map(mbTicket).join("")}` : "")
+    + (open.length ? `${live.length ? `<div class="mbh">Upcoming <em>${open.length}</em></div>` : ""}${open.map(mbTicket).join("")}` : "")
+    + (!openAll.length ? `<div class="mbempty"><b>No open bets</b><i>Tap any price to build a slip. Quick picks on Home are one tap.</i><button class="mbgo" data-go2="games">Browse games</button></div>` : "");
+}
+// ---- Rewards: the reason to come back every day ----
+function mbRewardsHtml() {
+  const s = mbLoad(), all = s.bets, W = mbWallet(s), st = mbStats(all), L = mbLevel(mbXP(s)), got = new Set(s.badges || []), T = s.tokens || {};
+  const nr = passReward(Math.min(L.lvl + 1, PASS_MAX)), done = all.filter(b => b.status !== "open");
+  const toks = [["boost25", "🚀", "+25% profit boost", "Boosts one bet's profit"], ["boost50", "🚀", "+50% profit boost", "Boosts one bet's profit"], ["ins", "🛡️", "Parlay insurance", "Stake back if a 3+ leg parlay misses by one"]];
+  return `<section class="rw-pass" data-pass="1">${passRing(L, 88)}<div class="rw-pt"><span>Season Pass</span><b>${L.rank[2]} ${L.rank[1]}</b>
+      <div class="rw-bar"><i style="width:${Math.round(100 * L.pct)}%"></i></div><em>${L.lvl < PASS_MAX ? `${L.need - L.into} XP to level ${L.lvl + 1} · ${passRewardText(nr)}` : "Max level · Hall of Fame"}</em></div><span class="rw-chev">›</span></section>
+    ${funRebuyHtml(s, W)}${mbDailyHtml(s)}${funMissionsHtml(s)}
+    <div class="rw-h">Your rewards</div>
+    <div class="rw-toks">${toks.map(([k, e, n, d]) => `<div class="rw-tok ${T[k] ? "" : "none"}"><em>${e}</em><div><b>${n}</b><i>${d}</i></div><span>×${T[k] || 0}</span></div>`).join("")}</div>
+    ${funVsHtml(s)}
+    <div class="rw-h">Your stats</div>
+    <div class="rw-stats"><div><b>${done.filter(b => b.status === "won").length}–${done.filter(b => b.status === "lost").length}</b><span>Record</span></div><div><b class="${st.roi >= 0 ? "pos" : "neg"}">${(st.roi >= 0 ? "+" : "") + (100 * st.roi).toFixed(1)}%</b><span>ROI</span></div>
+      <div><b>${st.streak ? st.streak + "W" : "–"}</b><span>Streak</span></div><div><b class="${W.pl >= 0 ? "pos" : "neg"}">${(W.pl >= 0 ? "+" : "−") + mbShort(Math.abs(W.pl))}</b><span>All-time</span></div></div>
+    ${mbChart(all)}${mbProfileHtml(all)}
+    <div class="rw-h">Badges <em>${got.size}/${BADGES.length}</em></div>
+    <div class="bgrid rw-badges">${BADGES.map(([k, e, n, d]) => `<div class="bdg ${got.has(k) ? "on" : ""}" title="${esc(d)}"><em>${e}</em><b>${n}</b><i>${d}</i></div>`).join("")}</div>
+    <details class="card mbset"><summary>Settings · bankroll &amp; backup</summary>
+      <label class="sndrow"><input type="checkbox" id="mbsound" ${s.sound !== false ? "checked" : ""}> Goal horn &amp; sounds</label>
       <label class="f">Starting bankroll ($)</label><input id="mbstart" inputmode="decimal" value="${s.start}">
       <div class="mbx" style="margin-top:10px"><button id="mbexp">Copy backup</button><button id="mbimp">Restore backup</button><button id="mbreset" class="del">Reset all</button></div>
       <div class="hint">Paper money, stored in this browser only. On iPhone, the home-screen app and Safari keep separate copies: use Copy / Restore backup to move them.</div></details>`;
@@ -382,7 +395,9 @@ function mbWire(render) {
 // every render: keep the slip button and the wallet in the nav current
 let MB_LASTTAB = null;
 function mbAfterRender(render) {
-  MB_RENDER = render; mbFab(); mbWireBanner(render); try { funAfterRender(render); } catch (e) {}
+  MB_RENDER = render;
+  document.querySelectorAll("[data-btab]").forEach(b => b.onclick = () => { mbHaptic(); MB_VIEW = "bets"; MB_BTAB = b.dataset.btab; render(); });
+  document.querySelectorAll("[data-go2]").forEach(b => b.onclick = () => { mbHaptic(); TAB = b.dataset.go2; render(); window.scrollTo(0, 0); }); mbFab(); mbWireBanner(render); try { funAfterRender(render); } catch (e) {}
   const sp = document.getElementById("splash"); if (sp && !sp.classList.contains("out")) { sp.classList.add("out"); setTimeout(() => sp.remove(), 600); }
   const t = typeof TAB !== "undefined" ? TAB : "";   // a soft fade-up when the screen changes (not on live refreshes)
   if (t !== MB_LASTTAB) { const v = document.getElementById("view"); if (v) { v.classList.remove("enter"); void v.offsetWidth; v.classList.add("enter"); } MB_LASTTAB = t; }
@@ -393,6 +408,8 @@ window.addEventListener("scroll", () => { const h = document.querySelector(".hdr
 function mbIcon(k) {
   const P = {
     home: '<path d="M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5.5h-5V20H5a1 1 0 0 1-1-1z"/>',
+    rewards: '<path d="M8 4h8v5a4 4 0 0 1-8 0zM8 6H5a2 2 0 0 0 2 3.5M16 6h3a2 2 0 0 1-2 3.5M12 13v4M8.5 20h7M10 17h4"/>',
+    bell: '<path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2.2 2.2 0 0 0 4 0"/>',
     games: '<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5v17"/><circle cx="12" cy="12" r="2.6"/>',
     props: '<circle cx="12" cy="8" r="3.6"/><path d="M4.8 20c.9-3.7 3.7-5.6 7.2-5.6s6.3 1.9 7.2 5.6"/>',
     check: '<path d="M4 7.5A1.5 1.5 0 0 1 5.5 6h13A1.5 1.5 0 0 1 20 7.5V10a2 2 0 0 0 0 4v2.5a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 16.5V14a2 2 0 0 0 0-4z"/><path d="M14 6.5v11" stroke-dasharray="1.6 2"/>',

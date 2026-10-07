@@ -357,6 +357,7 @@ label.f { display: block; font-size: 13px; font-weight: 800; color: var(--ink-2)
   <div class="hdr"><img class="mlogo" src="logo-nhl.png" alt="MikeModels"><div class="t"><h1 id="title">Loading…</h1><div class="sub" id="sub">Warming up the Zamboni</div></div>
     <div class="sport"><a class="on" href="index.html"><img src="https://a.espncdn.com/i/teamlogos/leagues/500-dark/nhl.png" alt="NHL" onerror="this.outerHTML='NHL'"></a><a href="nfl.html"><img src="https://a.espncdn.com/i/teamlogos/leagues/500-dark/nfl.png" alt="NFL" onerror="this.outerHTML='NFL'"></a></div>
     <button class="iconbtn" id="gearBtn" aria-label="How the model is weighted">⚙️</button>
+    <button class="iconbtn" id="updBtn" aria-label="Model updates"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2.2 2.2 0 0 0 4 0"/></svg></button>
     <button class="iconbtn" id="infoBtn" aria-label="How it works">?</button></div>
   <div class="strip" id="strip"></div>
   <div id="view"></div>
@@ -522,9 +523,7 @@ async function refreshLive() {
 // ---------- Check ----------
 let C = {game: null, kind: "game", market: "moneyline", side: "home", dir: "over", line: null, player: null, pmarket: "sog", odds: ""};
 function check() {
-  const seg = `<div class="hv"><button class="${MB_VIEW === "bets" ? "on" : ""}" data-mbv="bets">My bets</button><button class="${MB_VIEW === "check" ? "on" : ""}" data-mbv="check">Check a price</button></div>`;
-  if (MB_VIEW === "bets") return seg + mbView();
-  return seg + checkPrice();
+  return mbBetTabs() + (MB_VIEW === "check" ? checkPrice() : mbView());
 }
 function checkPrice() {
   if (!D.games.length) return empty("🧊", "No games to check", "");
@@ -640,7 +639,7 @@ function strip() {
 }
 let NAV_IDX = null;
 function nav() {
-  const T = [["home", "Home"], ["games", "Games"], ["props", "Props"], ["check", "Bets"], ["updates", "Updates"]];
+  const T = [["home", "Home"], ["games", "Games"], ["props", "Props"], ["check", "My Bets"], ["rewards", "Rewards"]];
   $("#nav").style.setProperty("--n", T.length);
   const idx = Math.max(0, T.findIndex(([k]) => k === TAB)), from = NAV_IDX == null ? idx : NAV_IDX;
   $("#nav").innerHTML = `<i class="navpill" style="--i:${from}"></i>` + T.map(([k, n]) => `<button class="${TAB === k ? "on" : ""}" data-k="${k}">${mbIcon(k)}<span>${n}</span></button>`).join("");
@@ -866,7 +865,7 @@ function gstate(g) { const st = (LIVE[g.game_id] || {}).state; return st === "po
 function byStatus(gs) { return gs.slice().sort((a, b) => (gstate(a) - gstate(b)) || (new Date(a.start_utc || 0) - new Date(b.start_utc || 0))); }
 function games() {
   if (!D.games.length) return empty("🧊", "No games on the board", "Check back on the next game day.");
-  return slateHtml() + mbLiveBanner() + mbHero() + likesHtml() + record() + byStatus(D.games).map(gameCard).join("");
+  return slateHtml() + mbLiveBanner() + mbHero() + byStatus(D.games).map(gameCard).join("") + likesHtml() + record();
 }
 
 const LINES = {sog: [1.5, 2.5, 3.5, 4.5], goals: [0.5], points: [0.5, 1.5], assists: [0.5]};
@@ -1185,6 +1184,10 @@ let UFILTER = "all";
 let HV = "feed";   // Updates tab: feed or model health
 function hvSwitch() { return `<div class="hv"><button class="${HV === "feed" ? "on" : ""}" data-hv="feed">Feed</button><button class="${HV === "health" ? "on" : ""}" data-hv="health">Model health</button></div>`; }
 function updates() {
+  const links = `<div class="updlinks"><button data-info="1">How it works</button><button data-weights="1">Model weights</button></div>`;
+  return links + updatesInner();
+}
+function updatesInner() {
   if (HV === "health") return hvSwitch() + healthHtml((TODAY || D).calib, "NHL", ((TODAY || D).meta || {}).repo);
   const M = (TODAY || D).model, runs = (TODAY || D).updates || [];
   const fmtT = t => new Date(t).toLocaleString("en-US", {weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/New_York"});
@@ -1386,9 +1389,12 @@ function render() {
   BETS = [];
   try { mbAutoSettle("NHL", mbGrade); } catch (e) {}
   header(); strip(); nav();
-  const v = {home: mbHomeHtml, games, props, check, updates}[TAB]();
+  const v = {home: mbHomeHtml, games, props, check, updates, rewards: mbRewardsHtml}[TAB]();
   $("#view").innerHTML = v;
   if (TAB === "home") mbWireHome(render);
+  if (TAB === "rewards") mbWire(render);
+  document.querySelectorAll("[data-info]").forEach(b => b.onclick = () => D && openInfo());
+  document.querySelectorAll("[data-weights]").forEach(b => b.onclick = () => D && openWeights());
   if (TAB === "props") { wireProps(); wireMix(render, m => { PMODE = m; }); }
   if (TAB === "check") wireCheck();
   document.querySelectorAll("[data-like]").forEach(b => b.onclick = () => { LIKE = b.dataset.like; render(); });
@@ -1411,6 +1417,7 @@ function render() {
   mbMarkSlip();
 }
 $("#scrim").onclick = closeSheet;
+$("#updBtn").onclick = () => { if (!D) return; mbHaptic(); TAB = TAB === "updates" ? "home" : "updates"; render(); window.scrollTo(0, 0); };
 $("#infoBtn").onclick = () => D && openInfo();
 function openWeights() {
   $("#sheet").innerHTML = `<div class="grab"></div><button class="iconbtn close" id="shx" aria-label="Close">✕</button>

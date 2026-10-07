@@ -193,3 +193,57 @@ h1, .sh-t, .lk-h { font-family: var(--fh) !important; letter-spacing: -.02em !im
 .likes .chip { font-size: 12px !important; }
 .hz-tag { color: #ffbf73 !important; } .hero.gotn .hz-tag { color: var(--gold) !important; } .hero.hot .hz-tag { color: #ff9a9a !important; }
 .spot-h b { font: 600 17px var(--fh) !important; letter-spacing: -.02em; }
+
+/* ---------- header: logo, title, sport switch, bell ---------- */
+#gearBtn, #infoBtn { display: none !important; }
+.updlinks { display: flex; gap: 8px; margin: 0 0 14px; } .updlinks button { border: 0; border-radius: 999px; padding: 8px 14px; background: var(--s1); color: var(--t2); font: 600 12.5px var(--fb); }
+
+/* ---------- My Bets ---------- */
+.mbtabs { display: flex; gap: 22px; border-bottom: 1px solid var(--hair); margin: 0 2px 14px; }
+.mbtabs button { position: relative; border: 0; background: transparent; padding: 10px 0 12px; font: 600 15px var(--fb); color: var(--t3); }
+.mbtabs button.on { color: var(--t1); } .mbtabs button.on::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; border-radius: 2px; background: var(--acc); }
+.mbtabs em { font-style: normal; font: 700 11px var(--fb); padding: 1px 7px; border-radius: 999px; background: var(--acc); color: var(--acc-ink); margin-left: 4px; vertical-align: 1px; }
+.mbstrip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; border-radius: var(--r); overflow: hidden; margin-bottom: 16px; }
+.mbstrip div { background: var(--s1); padding: 12px 14px; } .mbstrip span { display: block; font: 600 10.5px var(--fb); letter-spacing: .08em; text-transform: uppercase; color: var(--t3); }
+.mbstrip b { font: 600 17px var(--fh); letter-spacing: -.02em; color: var(--t1); } .mbstrip b.pos { color: var(--acc); } .mbstrip b.neg { color: var(--red); }
+.mbh { display: flex; align-items: center; gap: 8px; font: 600 16px var(--fh); color: var(--t1); margin: 4px 2px 10px; } .mbh em { font-style: normal; font: 600 12px var(--fb); color: var(--t3); }
+.mbrec { display: flex; gap: 16px; margin: 0 2px 14px; font: 500 12.5px var(--fb); color: var(--t3); } .mbrec b { font: 600 14px var(--fh); color: var(--t1); } .mbrec b.pos { color: var(--acc); } .mbrec b.neg { color: var(--red); }
+.mbempty { text-align: center; padding: 40px 20px; border-radius: var(--r); background: var(--s1); } .mbempty b { display: block; font: 600 17px var(--fh); } .mbempty i { display: block; font-style: normal; font: 500 13px var(--fb); color: var(--t3); margin-top: 6px; }
+.mbgo { margin-top: 16px; border: 0; border-radius: 999px; padding: 11px 22px; background: var(--t1); color: #07090c; font: 700 13.5px var(--fb); }
+
+/* tickets: sportsbook style */
+.ticket { border-radius: var(--r) !important; padding: 14px 16px !important; margin-bottom: 10px !important; border-left-width: 1px !important; }
+.ticket.won { border-color: rgba(46,240,138,.25) !important; } .ticket.lost { opacity: .75; }
+.tkmeta { font: 600 11px var(--fb) !important; color: var(--t3) !important; letter-spacing: .04em; }
+.tksel { font: 600 15px var(--fb) !important; color: var(--t1) !important; } .tksub { color: var(--t3) !important; font-weight: 500 !important; }
+.tkodds { font: 600 16px var(--fh) !important; color: var(--t1) !important; }
+.tkf span { color: var(--t3) !important; font: 600 10.5px var(--fb) !important; letter-spacing: .06em; } .tkf b { font: 600 15px var(--fh) !important; }
+.tkpill { font: 700 10.5px var(--fb) !important; border-radius: 999px !important; }
+.tkdiv { border-color: var(--hair) !important; }
+.tkfoot { color: var(--t3) !important; font-weight: 500 !important; } .tkact button { color: var(--t3) !important; font-weight: 600 !important; }
+.cashout { background: var(--s2) !important; border: 1px solid rgba(242,201,109,.35) !important; } .cashout b { font-family: var(--fh) !important; color: var(--gold) !important; }
+
+/* ---------- Rewards ---------- */
+.rw-pass { display: flex; align-items: center; gap: 16px; padding: 20px 18px; border-radius: 22px; margin-bottom: 16px; cursor: pointer; position: relative; overflow: hidden;
+  background: radial-gradient(90% 120% at 0% 0%, rgba(242,201,109,.16), transparent 60%), var(--s1); border: 1px solid rgba(242,201,109,.18); }
+.rw-pass .pring circle { fill: var(--bg); } .rw-pass .pring b { font-size: 30px; }
+.rw-pt { flex: 1; min-width: 0; } .rw-pt span { font: 600 11px var(--fb); letter-spacing: .1em; text-transform: uppercase; color: var(--gold); }
+.rw-pt > b { display: block; font: 600 22px var(--fh); letter-spacing: -.02em; margin: 2px 0 10px; color: var(--t1); }
+.rw-bar { height: 6px; border-radius: 4px; background: rgba(255,255,255,.08); overflow: hidden; } .rw-bar i { display: block; height: 100%; border-radius: 4px; background: linear-gradient(90deg, #d9a840, #f6d98b); box-shadow: 0 0 10px rgba(242,201,109,.5); }
+.rw-pt em { display: block; font-style: normal; font: 500 12px var(--fb); color: var(--t2); margin-top: 8px; }
+.rw-chev { font-size: 26px; color: var(--t3); }
+.rw-h { display: flex; align-items: baseline; gap: 8px; font: 600 18px var(--fh); letter-spacing: -.02em; color: var(--t1); margin: 22px 2px 12px; } .rw-h em { font-style: normal; font: 600 12px var(--fb); color: var(--t3); }
+.rw-toks { display: flex; flex-direction: column; gap: 1px; border-radius: var(--r); overflow: hidden; }
+.rw-tok { display: grid; grid-template-columns: 34px 1fr auto; gap: 12px; align-items: center; padding: 13px 16px; background: var(--s1); }
+.rw-tok em { font-style: normal; font-size: 20px; } .rw-tok b { display: block; font: 600 14px var(--fb); } .rw-tok i { display: block; font-style: normal; font: 500 11.5px var(--fb); color: var(--t3); }
+.rw-tok span { font: 600 16px var(--fh); color: var(--gold); } .rw-tok.none { opacity: .45; } .rw-tok.none span { color: var(--t3); }
+.rw-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; border-radius: var(--r); overflow: hidden; margin-bottom: 12px; }
+.rw-stats div { background: var(--s1); padding: 14px 8px; text-align: center; } .rw-stats b { display: block; font: 600 17px var(--fh); letter-spacing: -.02em; } .rw-stats b.pos { color: var(--acc); } .rw-stats b.neg { color: var(--red); }
+.rw-stats span { font: 600 10px var(--fb); letter-spacing: .08em; text-transform: uppercase; color: var(--t3); }
+.rw-badges { margin-bottom: 18px; } .bdg { background: var(--s1) !important; border: 0 !important; } .bdg.on { background: rgba(242,201,109,.08) !important; box-shadow: inset 0 0 0 1px rgba(242,201,109,.3) !important; }
+.missions .lk-h, .vsm .lk-h { font-size: 18px !important; }
+/* cashed stamp: a faint watermark behind the ticket, never over the text */
+.ticket.won { isolation: isolate; }
+.ticket.won::after { z-index: -1; top: auto !important; bottom: 18px; right: 10px !important; font-size: 30px !important; color: rgba(46,240,138,.10) !important; border-color: rgba(46,240,138,.10) !important; text-shadow: none !important; }
+.ticket.won::after { display: none !important; }
+.s2-best { display: none !important; }
