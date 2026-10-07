@@ -1323,7 +1323,7 @@ function mbHero() {
   const ob = mbOddsBoost();
   if (ob) { const k = bet(ob.b);
     cards.push(`<div class="hero boost"><div class="hz-tag">ODDS BOOST</div><div class="hz-t">${esc(ob.leg.label)}</div><div class="hz-s">${esc(ob.leg.sub || "")} · model ${pct(ob.leg.p)}</div>
-      <div class="hz-row"><span class="hz-was">${mbSign(ob.was)}</span><span class="hz-arrow">→</span><button class="hz-btn" data-boost="1">${mbSign(ob.odds)}</button></div><div class="hz-f">Max $25 · once a day · paper money</div></div>`); }
+      <div class="hz-row"><span class="hz-was">${mbSign(ob.was)}</span><span class="hz-arrow">→</span><button class="hz-btn" data-boost="1">${mbSign(ob.odds)}</button></div><div class="hz-f">Max $25 · once a day · paper money</div>${(() => { let A = null; try { A = mbArtFor(ob.leg); } catch (e) {} return A && A.img ? `<img class="hz-art cut" src="${esc(A.img)}" alt="" onerror="this.remove()">` : A && A.logos ? `<span class="hz-art duo"><img src="${esc(A.logos[0])}" alt="" onerror="this.remove()"><img src="${esc(A.logos[1])}" alt="" onerror="this.remove()"></span>` : ""; })()}</div>`); }
   const gs = D.games.filter(open).map(g => { const ph = gameProb(g, "moneyline", "home"); return {g, close: Math.abs(ph - 0.5), tot: g.lam_home + g.lam_away}; })
     .sort((x, y) => (x.close - y.close) || (y.tot - x.tot));
   if (gs.length) { const g = gs[0].g, ph = gameProb(g, "moneyline", "home");
@@ -1349,6 +1349,10 @@ function mbOddsBoost() {
   return b ? {leg, b, was: leg.odds, odds} : null;
 }
 // 🏠 home hooks: which sport this is, and one-tap quick picks from the model
+// tonight's games for the Home strip: logos, time or score, who the model likes
+function mbMiniGames() { if (!D || !D.games.length) return [];
+  return byStatus(D.games).map(g => { const L = LIVE[g.game_id] || {}, st = L.state === "in" ? "live" : L.state === "post" ? "final" : "pre";
+    return {id: g.game_id, a: g.away, h: g.home, st, detail: st === "live" ? L.detail : st === "final" ? "Final" : timeET(g.start_utc), as: L.away, hs: L.home, ph: gameProb(g, "moneyline", "home")}; }); }
 function mbSportInfo() { return {sport: "NHL", line: D && D.games.length ? `${D.games.length} games ${D.meta.upcoming ? "next up" : "tonight"}` : "No games"}; }
 function mbQuickPicks() {
   if (!TODAY || D !== TODAY) return [];

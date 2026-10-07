@@ -1164,6 +1164,9 @@ function mbLegOf(o) {
   const g = o.g; return {label: o.label, sub: `${g.away.abbr} @ ${g.home.abbr}`, gid: g.game_id, start: g.start_utc, p: o.p, logos: [g.away.logo, g.home.logo], key: {t: "game", m: o.b.m, s: o.b.s, l: o.b.line}};
 }
 // 🏠 home hooks: which sport this is, and one-tap quick picks from the model
+function mbMiniGames() { if (!D || !D.games.length) return [];
+  return byStatus(D.games).map(g => { const sc = scoreOf(g), st = sc ? (sc.state === "in" ? "live" : "final") : "pre";
+    return {id: g.game_id, a: g.away, h: g.home, st, detail: st === "live" ? sc.detail : st === "final" ? "Final" : kickLab(g.start_utc), as: sc && sc.away, hs: sc && sc.home, ph: g.p_home}; }); }
 function mbSportInfo() { return {sport: "NFL", line: D && D.games.length ? `Week ${D.meta.week || ""} · ${D.games.length} games` : "No games"}; }
 function mbQuickPicks() {
   if (!D || !D.games.length) return [];

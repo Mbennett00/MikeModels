@@ -110,6 +110,7 @@ function mbHomeHtml() {
   ].join("");
   const qp = picks.map((q, i) => { const dec = q.legs.reduce((a, l) => a * mbDec(l.odds), 1), odds = q.legs.length > 1 ? mbAm(dec) : q.legs[0].odds;
     return `<div class="hx-qp"><div class="hx-qtag">${esc(q.tag || (q.legs.length > 1 ? "Parlay" : "Single"))}</div><div class="hx-qt">${esc(q.title)}</div>
+      <div class="hx-faces">${q.legs.map(l => mbPic(l)).join("")}</div>
       <div class="hx-legs">${q.legs.map(l => `<div class="hx-leg"><span class="hx-dot"></span><span>${esc(l.label)}</span><i>${mbSign(l.odds)}</i></div>`).join("")}</div>
       <div class="hx-qf"><div><b>${mbSign(odds)}</b><i>$10 pays ${mbMoney(10 * dec)}</i></div><button class="hx-add" data-qp="${i}">Add</button></div></div>`; }).join("");
   const sports = [["NHL", "index.html", "https://a.espncdn.com/i/teamlogos/leagues/500-dark/nhl.png", "Hockey"], ["NFL", "nfl.html", "https://a.espncdn.com/i/teamlogos/leagues/500-dark/nfl.png", "Football"]]
@@ -119,6 +120,8 @@ function mbHomeHtml() {
       <div class="hx-sub"><span class="${W.pl >= 0 ? "up" : "dn"}">${W.pl >= 0 ? "+" : "−"}${mbMoney(Math.abs(W.pl)).replace("−", "")}</span> all-time${W.risk > 0 ? ` · ${mbMoney(W.risk)} in play` : ""}</div></div>
       <button class="hx-lvl" data-pass="1">${passRing(L, 56)}<i>${L.rank[1]}</i></button>${typeof mbSpark === "function" ? mbSpark(s.bets) : ""}</section>
     <div class="hx-chips">${today}</div>
+    ${mbHeadlinerHtml(picks)}
+    ${mbStripHtml()}
     ${typeof mbSharpCard === "function" ? mbSharpCard() : ""}
     ${live.length ? `<div class="hx-h"><b><span class="livedot"></span>Live</b><button data-go="check">All bets</button></div><div class="hx-list">${live.slice(0, 3).map(b => { const P = mbWinProb(b);
       return `<button class="hx-row" data-go="check"><span class="hx-rt"><b>${esc(b.label)}</b><i>${esc(b.legs.map(l => (mbSweat(l) || {}).text || "").filter(Boolean)[0] || "")}</i></span>${P != null ? `<span class="hx-pc ${P >= 0.6 ? "hi" : P >= 0.35 ? "md" : "lo"}">${Math.round(100 * P)}%</span>` : ""}</button>`; }).join("")}</div>`
@@ -129,7 +132,31 @@ function mbHomeHtml() {
     ${done.length ? `<div class="hx-h"><b>Recent</b><button data-go="check">History</button></div><div class="hx-rec">${done.map(b => `<span class="hx-r ${b.status === "won" || b.status === "cashout" ? "w" : b.status === "lost" ? "l" : "p"}" title="${esc(b.label)}"></span>`).join("")}<em>${me.n ? `${s.bets.filter(b => b.status === "won").length}–${s.bets.filter(b => b.status === "lost").length}` : ""}</em></div>` : ""}
   </div>`;
 }
+// ⭐ tonight's headliner: the model's likeliest scorer, poster-style with a big player cutout
+function mbHeadlinerHtml(picks) {
+  let best = null;
+  for (const q of picks) for (const l of q.legs) { if (!l.key || l.key.t !== "prop") continue; let A = {}; try { A = Object.assign({}, l, mbArtFor(l) || {}); } catch (e) {}
+    if (!best || (l.p || 0) > (best.l.p || 0)) best = {l, A}; }
+  if (!best) return "";
+  const {l, A} = best, nm = A.name || l.label.replace(/ (to score|anytime TD).*$/i, ""), parts = nm.split(" "), first = parts[0], last = parts.slice(1).join(" ");
+  window.MB_HEAD = l;
+  return `<section class="hl"><div class="hl-bg">${A.logo ? `<img class="hl-logo" src="${esc(A.logo)}" alt="" onerror="this.remove()">` : ""}</div>
+    ${A.img ? `<img class="hl-cut" src="${esc(A.img)}" alt="" onerror="this.remove()">` : `<div class="hl-ini">${esc((first[0] || "") + (last[0] || ""))}</div>`}
+    <div class="hl-t"><span class="hl-tag">Tonight's headliner</span><b><i>${esc(first)}</i>${esc(last || first)}</b><em>${esc((() => { const t = l.label.replace(nm, "").trim(); return t ? t[0].toUpperCase() + t.slice(1) : l.label; })())}${l.p ? ` · model ${Math.round(100 * l.p)}%` : ""}</em>
+      <button class="hl-add" data-head="1"><span>Add</span><b>${mbSign(l.odds)}</b></button></div></section>`;
+}
+// 🏟️ tonight's games: a scrollable strip of matchups with logos
+function mbStripHtml() {
+  let G = []; try { G = typeof mbMiniGames === "function" ? mbMiniGames() : []; } catch (e) {}
+  if (!G.length) return "";
+  const tl = t => `<span class="gs-t"><img src="${esc(t.logo)}" alt="" onerror="this.outerHTML='<i>${esc(t.abbr)}</i>'"><b>${esc(t.abbr)}</b></span>`;
+  return `<div class="hx-h"><b>Tonight's games</b><button data-go="games">All ${G.length}</button></div><div class="gstrip">${G.slice(0, 16).map(g => `<button class="gs ${g.st}" data-go="games">
+    <div class="gs-row">${tl(g.a)}${g.st !== "pre" ? `<em>${g.as ?? ""}</em>` : `<em class="p">${Math.round(100 * (1 - g.ph))}%</em>`}</div>
+    <div class="gs-row">${tl(g.h)}${g.st !== "pre" ? `<em>${g.hs ?? ""}</em>` : `<em class="p">${Math.round(100 * g.ph)}%</em>`}</div>
+    <div class="gs-d">${g.st === "live" ? `<span class="livedot"></span>` : ""}${esc(g.detail || "")}</div></button>`).join("")}</div>`;
+}
 function mbWireHome(render) {
+  document.querySelectorAll("[data-head]").forEach(b => b.onclick = e => { e.stopPropagation(); const l = window.MB_HEAD; if (!l) return; slipAdd(Object.assign({}, l)); mbHaptic("success"); try { funBlip(); } catch (er) {} mbOpenSlip(); });
   document.querySelectorAll("[data-pass]").forEach(b => b.onclick = e => { e.stopPropagation(); mbHaptic(); mbOpenPass(); });
   document.querySelectorAll("#view [data-go]").forEach(b => b.onclick = e => { e.preventDefault(); mbHaptic(); TAB = b.dataset.go; if (TAB === "check") MB_VIEW = "bets"; render(); window.scrollTo(0, 0); });
   document.querySelectorAll("[data-qp]").forEach(b => b.onclick = () => { const q = (window.MB_QP || [])[Number(b.dataset.qp)]; if (!q) return;
