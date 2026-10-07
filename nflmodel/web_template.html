@@ -492,12 +492,12 @@ function gameCard(g) {
     } else if (view === "players" && !nflOpen(g)) body = `<div class="xclosed">🔒 Props are closed for this game · it ${(scoreOf(g) || {}).state === "post" ? "has finished" : "is underway"}</div>`;
     else if (view === "players") {
       const P = (D.players || []).filter(p => p.game_id === g.game_id).sort((x, y) => y.p_td - x.p_td).slice(0, 6);
-      body = P.length ? `<div class="xpl-h"><span>Most likely to score</span><span>Anytime TD</span></div>` + P.map(p => { const t = teamOf(p.team), q = tdQuote(p), q2 = tdQuote(p, 1.5);
+      body = P.length ? `<div class="xmk-sec xpl-sec"><span>Most likely to score</span><span>Anytime TD</span></div>` + P.map(p => { const t = teamOf(p.team), q = tdQuote(p), q2 = tdQuote(p, 1.5);
         return `<div class="xpl" data-pp="${esc(p.id)}|${esc(p.game_id)}|td"><div class="pav sm" style="--tc:${esc(t.color)}"><span>${esc(initials(p.name))}</span>${p.headshot ? `<img src="${esc(p.headshot)}" alt="" loading="lazy" onload="this.previousElementSibling.style.visibility='hidden'" onerror="this.remove()">` : ""}${t.logo ? `<img class="ptl" src="${esc(t.logo)}" alt="" onerror="this.remove()">` : ""}</div>
           <div class="pinfo"><div class="pnm">${esc(p.name)}</div><div class="pmeta">${esc(p.pos)} · ${pct(q.pr)} · fair ${am(fair(q.pr))}</div></div>
           <div class="xpl-b"><button class="pxb ${q.mkt ? "bk" : ""} ${q.edge != null && q.edge > 0 ? "val" : ""}" data-bet="${tdBet(p)}"><span class="pt">Anytime</span><b>${am(q.odds)}</b><i class="${q.mkt ? "pdk" : "pm"}">${q.mkt ? "MKT" : "fair"}</i></button>
             <button class="pxb" data-bet="${tdBet(p, 1.5)}"><span class="pt">2+ TDs</span><b>${am(q2.odds)}</b><i class="pm">${pct(q2.pr)}</i></button></div></div>`; }).join("")
-        + `<button class="xlink" data-allprops="${esc(g.game_id)}">All touchdown props for this game ›</button>` : `<div class="hint">Player projections appear before kickoff.</div>`;
+        + `<button class="xlink" data-allprops="${esc(g.game_id)}">All touchdown props for this game</button>` : `<div class="hint">Player projections appear before kickoff.</div>`;
     } else body = fieldHtml(g);
     html += `<div class="xpanel"><div class="xtabs">${tabs}</div><div class="xbody">${body}</div></div>`;
   }
@@ -560,8 +560,8 @@ const MX = [["Offense", "off"], ["Passing", "pas"], ["Defense", "dfn"], ["Pass d
 function matchupHtml(g) {
   const A = D.teams[g.away.abbr] || {}, H = D.teams[g.home.abbr] || {}, a = g.away, h = g.home, ph = g.p_home, C = 2 * Math.PI * 42;
   const ring = `<div class="xring"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="42" class="xr-bg"/>
-      <circle cx="50" cy="50" r="42" stroke="${esc(a.color)}" stroke-dasharray="${C * (1 - ph) - 1.5} ${C}" transform="rotate(-90 50 50)"/>
-      <circle cx="50" cy="50" r="42" stroke="${esc(h.color)}" stroke-dasharray="${C * ph - 1.5} ${C}" transform="rotate(${-90 + 360 * (1 - ph)} 50 50)"/></svg>
+      <circle cx="50" cy="50" r="42" stroke="${esc(h.color)}" stroke-dasharray="${C * ph - 1.5} ${C}" transform="rotate(-90 50 50)"/>
+      <circle cx="50" cy="50" r="42" stroke="${esc(a.color)}" stroke-dasharray="${C * (1 - ph) - 1.5} ${C}" transform="rotate(${-90 + 360 * ph} 50 50)"/></svg>
     <div class="xr-in"><b>${Math.round(g.pts_away)}<i>–</i>${Math.round(g.pts_home)}</b><span>proj score</span></div></div>`;
   const side = (t, p, al) => `<div class="xside ${al}">${logo(t)}<b>${pct(p)}</b><span>${esc(t.abbr)} win</span></div>`;
   const rows = MX.map(([lab, k]) => { const va = A[k] ?? 0, vh = H[k] ?? 0, sc = k === "pts" ? 8 : 0.15, ra = (A.rank || {})[k], rh = (H.rank || {})[k];
