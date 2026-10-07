@@ -82,37 +82,49 @@ function mbNavBalance(el, value) {   // tween the nav balance from what it showe
 }
 
 // ---- 🏠 home: the lobby ----
+const IC = {   // small line icons for the home screen
+  spin: '<circle cx="12" cy="12" r="8"/><path d="M12 4v8l5.5 5.5M12 12 6.5 17.5M12 12H4"/>',
+  target: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r=".8" fill="currentColor"/>',
+  star: '<path d="m12 4 2.4 4.9 5.4.8-3.9 3.8.9 5.4L12 16.4 7.2 18.9l.9-5.4-3.9-3.8 5.4-.8z"/>',
+  vs: '<path d="M5 6l4 12 4-12M15 17.5c.7.6 1.6 1 2.6 1 1.6 0 2.4-.9 2.4-2s-.9-1.6-2.4-2.1c-1.5-.5-2.4-1-2.4-2.1s.8-1.8 2.3-1.8c.9 0 1.7.3 2.3.8"/>',
+  bolt: '<path d="M13 3 5 13.5h6L10 21l8-10.5h-6z"/>',
+  chev: '<path d="m9 6 6 6-6 6"/>',
+};
+const ic = (k, cls = "") => `<svg class="hic ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${IC[k]}</svg>`;
 function mbHomeHtml() {
   const s = mbLoad(), W = mbWallet(s), L = mbLevel(mbXP(s)), D0 = mbDaily(s), M = funMissions(s), mdone = M.filter(m => m.claimed).length;
   const h = new Date().getHours(), hi = h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
   const info = typeof mbSportInfo === "function" ? mbSportInfo() : {sport: MB_PAGE, line: ""};
   const open = s.bets.filter(b => b.status === "open"), live = open.filter(mbIsLive);
-  const done = s.bets.filter(b => b.status !== "open").sort((a, b) => (b.result_ts || b.ts).localeCompare(a.result_ts || a.ts)).slice(0, 8);
+  const done = s.bets.filter(b => b.status !== "open").sort((a, b) => (b.result_ts || b.ts).localeCompare(a.result_ts || a.ts)).slice(0, 10);
   const mb = (s.model || {}).bets || [], me = mbStats(s.bets), ms = mbStats(mb);
   const picks = (() => { try { return typeof mbQuickPicks === "function" ? mbQuickPicks() || [] : []; } catch (e) { return []; } })();
   window.MB_QP = picks;
+  const nxt = passRewardText(passReward(Math.min(L.lvl + 1, PASS_MAX))).split(" · ")[0];
+  const chip = (attr, icon, top, sub, cls = "") => `<button class="hx-chip ${cls}" ${attr}><span class="hx-ci">${ic(icon)}</span><span class="hx-ct"><b>${top}</b><i>${sub}</i></span></button>`;
   const today = [
-    D0.claimed ? `<div class="tday done"><em>✅</em><b>Spun today</b><i>🔥 ${D0.streak}-day streak</i></div>` : `<button class="tday gold" data-spin="1"><em class="wspin">🎡</em><b>Free spin</b><i>Up to $250</i></button>`,
-    `<button class="tday" data-go="check"><em>🎯</em><b>Missions ${mdone}/3</b><i>${mdone >= 3 ? "All done!" : esc(M.find(m => !m.claimed).t)}</i></button>`,
-    `<button class="tday" data-pass="1"><em>🎖️</em><b>Level ${L.lvl}</b><i>Next: ${esc(passRewardText(passReward(Math.min(L.lvl + 1, PASS_MAX))).split(" · ")[0])}</i></button>`,
-    mb.length ? `<button class="tday" data-go="check"><em>${me.pl >= ms.pl ? "👑" : "🤖"}</em><b>${me.pl >= ms.pl ? "Beating the model" : "Model's ahead"}</b><i>${(me.pl - ms.pl >= 0 ? "+" : "−") + mbMoney(Math.abs(me.pl - ms.pl)).replace("−", "")}</i></button>` : "",
+    D0.claimed ? chip('data-go="check"', "spin", "Spun today", `${D0.streak}-day streak`, "done") : chip('data-spin="1"', "spin", "Free spin", "Up to $250", "gold"),
+    chip('data-go="check"', "target", `Missions ${mdone}/3`, mdone >= 3 ? "All complete" : esc(M.find(m => !m.claimed).t)),
+    chip('data-pass="1"', "star", `Level ${L.lvl}`, L.lvl < PASS_MAX ? `${L.need - L.into} XP to ${esc(nxt)}` : "Max level"),
+    mb.length ? chip('data-go="check"', "vs", me.pl >= ms.pl ? "Ahead of model" : "Model leads", `${me.pl - ms.pl >= 0 ? "+" : "−"}$${Math.abs(me.pl - ms.pl).toFixed(0)}`) : "",
   ].join("");
   const qp = picks.map((q, i) => { const dec = q.legs.reduce((a, l) => a * mbDec(l.odds), 1), odds = q.legs.length > 1 ? mbAm(dec) : q.legs[0].odds;
-    return `<div class="qp ${q.legs.length > 1 ? "multi" : ""}"><div class="qp-h"><span class="qp-tag">${esc(q.tag || (q.legs.length > 1 ? "PARLAY" : "SINGLE"))}</span><b>${mbSign(odds)}</b></div>
-      <div class="qp-t">${esc(q.title)}</div>${q.legs.map(l => `<div class="qp-l">${mbPic(l)}<span>${esc(l.label)}</span><i>${mbSign(l.odds)}</i></div>`).join("")}
-      <button class="qp-go" data-qp="${i}">${q.legs.length > 1 ? `Add ${q.legs.length}-leg parlay` : "Add to slip"} · $10 pays ${mbMoney(10 * dec)}</button></div>`; }).join("");
+    return `<div class="hx-qp"><div class="hx-qtag">${esc(q.tag || (q.legs.length > 1 ? "Parlay" : "Single"))}</div><div class="hx-qt">${esc(q.title)}</div>
+      <div class="hx-legs">${q.legs.map(l => `<div class="hx-leg"><span class="hx-dot"></span><span>${esc(l.label)}</span><i>${mbSign(l.odds)}</i></div>`).join("")}</div>
+      <div class="hx-qf"><div><b>${mbSign(odds)}</b><i>$10 pays ${mbMoney(10 * dec)}</i></div><button class="hx-add" data-qp="${i}">Add</button></div></div>`; }).join("");
   const sports = [["NHL", "index.html", "https://a.espncdn.com/i/teamlogos/leagues/500-dark/nhl.png", "Hockey"], ["NFL", "nfl.html", "https://a.espncdn.com/i/teamlogos/leagues/500-dark/nfl.png", "Football"]]
-    .map(([k, href, img, nm]) => `<a class="sptile ${k === info.sport ? "on" : ""}" href="${href}" ${k === info.sport ? 'data-go="games"' : ""}><img src="${img}" alt="" onerror="this.remove()"><b>${nm}</b><i>${k === info.sport ? esc(info.line || "Open") : "Switch"} ›</i></a>`).join("");
-  return `<div class="home">
-    <div class="hm-hi"><div><span>${hi}, Mike</span><b>${mbMoney(W.available)}</b><i>${W.risk > 0 ? `${mbMoney(W.risk)} in play · ` : ""}${W.pl >= 0 ? "+" : "−"}${mbMoney(Math.abs(W.pl)).replace("−", "")} all-time</i></div>
-      <button class="hm-lvl" data-pass="1">${passRing(L, 62)}<em>${L.rank[2]} ${L.rank[1]}</em></button></div>
-    <div class="tdays">${today}</div>
-    ${live.length ? `<div class="hm-sec"><b><span class="livedot"></span> Live now</b><button data-go="check">All bets ›</button></div>${live.slice(0, 3).map(b => { const P = mbWinProb(b);
-      return `<button class="hm-live" data-go="check"><div><b>${esc(b.label)}</b><i>${esc(b.legs.map(l => (mbSweat(l) || {}).text || "").filter(Boolean)[0] || "")}</i></div>${P != null ? `<span class="hm-p ${P >= 0.6 ? "hi" : P >= 0.35 ? "md" : "lo"}">${Math.round(100 * P)}%</span>` : ""}</button>`; }).join("")}`
-      : open.length ? `<button class="hm-open" data-go="check"><span>🎟️</span><b>${open.length} open bet${open.length > 1 ? "s" : ""}</b><i>${mbMoney(W.risk)} riding · to win ${mbMoney(open.reduce((a, b) => a + b.stake * (mbDec(b.odds) - 1) * (1 + (b.boost || 0)), 0))}</i><em>›</em></button>` : ""}
-    ${qp ? `<div class="hm-sec"><b>⚡ Quick picks</b><span>from the model</span></div><div class="qps">${qp}</div>` : ""}
-    <div class="hm-sec"><b>Sports</b></div><div class="sptiles">${sports}</div>
-    ${done.length ? `<div class="hm-sec"><b>Recent</b><button data-go="check">History ›</button></div><div class="recent">${done.map(b => `<span class="rc ${b.status}" title="${esc(b.label)}">${b.status === "won" ? "W" : b.status === "lost" ? (mbInsured(b) ? "🛡" : "L") : b.status === "cashout" ? "$" : "P"}<i>${b.status === "won" || b.status === "cashout" ? "+" + mbShort(Math.max(0, mbProfit(b))) : ""}</i></span>`).join("")}</div>` : ""}
+    .map(([k, href, img, nm]) => `<a class="hx-sport ${k === info.sport ? "on" : ""}" href="${href}" ${k === info.sport ? 'data-go="games"' : ""}><img src="${img}" alt="" onerror="this.remove()"><span><b>${nm}</b><i>${k === info.sport ? esc(info.line || "") : "Switch sport"}</i></span>${ic("chev")}</a>`).join("");
+  return `<div class="hx">
+    <section class="hx-hero"><div class="hx-hl"><div class="hx-eye">${hi}, Mike</div><div class="hx-bal">${mbMoney(W.available).replace(/(\.\d\d)$/, '<small>$1</small>')}</div>
+      <div class="hx-sub"><span class="${W.pl >= 0 ? "up" : "dn"}">${W.pl >= 0 ? "+" : "−"}${mbMoney(Math.abs(W.pl)).replace("−", "")}</span> all-time${W.risk > 0 ? ` · ${mbMoney(W.risk)} in play` : ""}</div></div>
+      <button class="hx-lvl" data-pass="1">${passRing(L, 56)}<i>${L.rank[1]}</i></button></section>
+    <div class="hx-chips">${today}</div>
+    ${live.length ? `<div class="hx-h"><b><span class="livedot"></span>Live</b><button data-go="check">All bets</button></div><div class="hx-list">${live.slice(0, 3).map(b => { const P = mbWinProb(b);
+      return `<button class="hx-row" data-go="check"><span class="hx-rt"><b>${esc(b.label)}</b><i>${esc(b.legs.map(l => (mbSweat(l) || {}).text || "").filter(Boolean)[0] || "")}</i></span>${P != null ? `<span class="hx-pc ${P >= 0.6 ? "hi" : P >= 0.35 ? "md" : "lo"}">${Math.round(100 * P)}%</span>` : ""}</button>`; }).join("")}</div>`
+      : open.length ? `<button class="hx-row solo" data-go="check"><span class="hx-rt"><b>${open.length} open bet${open.length > 1 ? "s" : ""}</b><i>${mbMoney(W.risk)} riding · to win ${mbMoney(open.reduce((a, b) => a + b.stake * (mbDec(b.odds) - 1) * (1 + (b.boost || 0)), 0))}</i></span>${ic("chev")}</button>` : ""}
+    ${qp ? `<div class="hx-h"><b>Quick picks</b><span>by the model</span></div><div class="hx-qps">${qp}</div>` : ""}
+    <div class="hx-h"><b>Sports</b></div><div class="hx-list">${sports}</div>
+    ${done.length ? `<div class="hx-h"><b>Recent</b><button data-go="check">History</button></div><div class="hx-rec">${done.map(b => `<span class="hx-r ${b.status === "won" || b.status === "cashout" ? "w" : b.status === "lost" ? "l" : "p"}" title="${esc(b.label)}"></span>`).join("")}<em>${me.n ? `${s.bets.filter(b => b.status === "won").length}–${s.bets.filter(b => b.status === "lost").length}` : ""}</em></div>` : ""}
   </div>`;
 }
 function mbWireHome(render) {

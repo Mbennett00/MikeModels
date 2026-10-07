@@ -166,8 +166,8 @@ function funMissionCheck() {   // pays out finished missions (and the all-three 
 function funMissionsHtml(s) {
   const M = funMissions(s), n = M.filter(m => m.claimed).length;
   const mid = new Date(); mid.setHours(24, 0, 0, 0); const hrs = Math.max(1, Math.round((mid - Date.now()) / 36e5));
-  return `<div class="card missions"><div class="lk-h" style="font-size:16px">🎯 Daily missions <span class="pl-tag">${n}/3</span><span class="ms-time">new in ${hrs}h</span></div>
-    ${M.map(m => `<div class="ms ${m.claimed ? "done" : ""} ${m.lvl}"><span class="ms-ic">${m.claimed ? "✅" : {easy: "🟢", medium: "🟡", hard: "🔴"}[m.lvl]}</span>
+  return `<div class="card missions"><div class="lk-h" style="font-size:16px">Daily missions <span class="pl-tag">${n}/3</span><span class="ms-time">new in ${hrs}h</span></div>
+    ${M.map(m => `<div class="ms ${m.claimed ? "done" : ""} ${m.lvl}"><span class="ms-ic"><i class="msd ${m.claimed ? "ok" : m.lvl}">${m.claimed ? "✓" : ""}</i></span>
       <div class="ms-b"><b>${esc(m.t)}</b><div class="ms-bar"><span style="width:${Math.round(100 * m.prog / m.n)}%"></span></div></div>
       <span class="ms-r">${m.claimed ? "Done" : `+$${m.r.cash}`}<i>${m.prog}/${m.n}</i></span></div>`).join("")}
     <div class="ms-all ${n >= 3 ? "on" : ""}">${n >= 3 ? "🚀 All three done · +25% boost earned" : "Finish all three for a 🚀 +25% profit boost"}</div></div>`;
@@ -230,7 +230,7 @@ function funVsHtml(s) {
   const ms = mbStats(mb), me = mbStats(s.bets);
   if (!mb.length && !today.length) return "";
   const lead = me.pl > ms.pl ? "you" : me.pl < ms.pl ? "model" : "tie";
-  return `<div class="card vsm"><div class="lk-h" style="font-size:16px">🤖 You vs the Model</div>
+  return `<div class="card vsm"><div class="lk-h" style="font-size:16px">You vs the Model</div>
     <div class="vs-row"><div class="vs-side ${lead === "you" ? "lead" : ""}"><span>You</span><b class="${me.pl >= 0 ? "pos" : "neg"}">${(me.pl >= 0 ? "+" : "") + mbMoney(me.pl)}</b><i>${(100 * me.roi).toFixed(1)}% ROI · ${me.n} bets</i></div>
       <div class="vs-mid">${lead === "you" ? "👑" : lead === "model" ? "🤖" : "🤝"}<em>VS</em></div>
       <div class="vs-side r ${lead === "model" ? "lead" : ""}"><span>Model</span><b class="${ms.pl >= 0 ? "pos" : "neg"}">${(ms.pl >= 0 ? "+" : "") + mbMoney(ms.pl)}</b><i>${(100 * ms.roi).toFixed(1)}% ROI · ${ms.n} bets</i></div></div>

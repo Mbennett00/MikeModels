@@ -313,7 +313,7 @@ function mbProfileHtml(bets) {
   const rows = Object.entries(grp).map(([n, f]) => { const x = done.filter(f), st = mbStats(x), w = x.filter(b => b.status === "won").length, l = x.filter(b => b.status === "lost").length;
     return {n, x, st, w, l}; }).filter(r => r.x.length);
   const best = rows.slice().sort((a, b) => b.st.pl - a.st.pl)[0], mx = Math.max(...rows.map(r => Math.abs(r.st.pl)), 1);
-  return `<div class="card prof"><div class="lk-h" style="font-size:16px">📊 Your betting profile</div>
+  return `<div class="card prof"><div class="lk-h" style="font-size:16px">Your betting profile</div>
     ${rows.map(r => `<div class="pf"><div class="pf-h"><b>${r.n}</b><span>${r.w}-${r.l} · ${r.w + r.l ? Math.round(100 * r.w / (r.w + r.l)) : 0}% wins · ${(100 * r.st.roi).toFixed(0)}% ROI</span></div>
       <div class="pf-bar"><span class="${r.st.pl >= 0 ? "pos" : "neg"}" style="width:${Math.max(3, Math.round(72 * Math.abs(r.st.pl) / mx))}%"></span><em class="${r.st.pl >= 0 ? "pos" : "neg"}">${(r.st.pl >= 0 ? "+" : "") + mbMoney(r.st.pl)}</em></div></div>`).join("")}
     ${best && best.st.pl > 0 ? `<div class="hint">💪 Your money-maker: <b>${best.n.toLowerCase()}</b>.</div>` : `<div class="hint">Nothing in the green yet. The model's VALUE tags are the place to start.</div>`}</div>`;
@@ -346,7 +346,7 @@ function mbView() {
       <div><span>Streak</span><b>${st.streak ? "🔥" + st.streak + "W" : "–"}</b></div>
       <div><span>Best win</span><b>${st.bigWin ? mbShort(st.bigWin) : "–"}</b></div></div>
       ${MB_MSG ? `<div class="hint"><b>${esc(MB_MSG)}</b></div>` : ""}</div>
-    <div class="card badges"><div class="lk-h" style="font-size:16px">🏅 Badges <span class="pl-tag">${got.size}/${BADGES.length}</span></div>
+    <div class="card badges"><div class="lk-h" style="font-size:16px">Badges <span class="pl-tag">${got.size}/${BADGES.length}</span></div>
       <div class="bgrid">${BADGES.map(([k, e, n, d]) => `<div class="bdg ${got.has(k) ? "on" : ""}" title="${esc(d)}"><em>${e}</em><b>${n}</b><i>${d}</i></div>`).join("")}</div></div>
     ${mbChart(bets)}${mbProfileHtml(bets)}
     ${live.length ? `<div class="sec mbsec livesec"><span class="livedot"></span> Live sweat · ${live.length}</div>${live.map(mbTicket).join("")}` : ""}
@@ -453,7 +453,7 @@ function mbSweatHtml(leg) {
 function mbIsLive(b) { return b.status === "open" && b.legs.some(l => { const w = mbSweat(l); return w && w.st !== "pre"; }); }
 function mbLiveBanner() {
   const s = mbLoad(), D = mbDaily(s);
-  const daily = D.claimed ? "" : `<button class="swbanner dailybanner" data-spin="1"><span>🎡</span><b>Free spin ready</b><i>🔥 day ${D.streak}</i><span>→</span></button>`;
+  const daily = "";   // the free spin lives on Home now
   return daily + mbSweatBanner(s);
 }
 function mbSweatBanner(s) {

@@ -10,7 +10,7 @@
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root {
   --turf: #2f7d3a; --turf-2: #368a41; --cream: #fffaf0; --navy: #14301f; --ink: #14301f; --ink-2: #4a5d50;
@@ -667,8 +667,8 @@ function likeRows() {
 function likesHtml() {
   const rows = likeRows();
   if (!rows.length) return D.games.some(g => g.state === "pre" && g.src === "odds")
-    ? `<div class="card likes"><div class="lk-h">💡 Model likes</div><div class="hint">Nothing clears a 4% edge right now. Smaller edges have barely beaten the juice in testing, so no picks beats forcing them.</div></div>` : "";
-  return `<div class="card likes"><div class="lk-h">💡 Model likes</div>${rows.map((r, i) => { const t = r.b.s === "away" ? r.g.away : r.g.home, cls = settle(r.g, r.b);
+    ? `<div class="card likes"><div class="lk-h">Model likes</div><div class="hint">Nothing clears a 4% edge right now. Smaller edges have barely beaten the juice in testing, so no picks beats forcing them.</div></div>` : "";
+  return `<div class="card likes"><div class="lk-h">Model likes</div>${rows.map((r, i) => { const t = r.b.s === "away" ? r.g.away : r.g.home, cls = settle(r.g, r.b);
     const j = bet({g: r.g, b: r.b, p: r.b.p, label: label(r.g, r.b)});
     return `<button class="likerow ${cls}" data-bet="${j}"><span class="lk-n">${i + 1}</span>${r.b.m === "total" ? duo(r.g, true) : logo(t)}
       <span class="lk-t"><b>${esc(label(r.g, r.b))}</b><span>${esc(r.g.away.abbr)} @ ${esc(r.g.home.abbr)} · model ${pct(r.b.p)} vs market ${pct(r.b.mkt)}</span></span>
@@ -923,7 +923,7 @@ function spotlightN(L) {
   const top = ready.map(p => ({p, q: tdQuote(p)})).sort((a, b) => ((b.q.edge ?? -1) - (a.q.edge ?? -1)) || (b.q.pr - a.q.pr)).slice(0, 8);
   if (top.length < 3) return "";
   const C = 2 * Math.PI * 17;
-  return `<div class="spot-h"><b>🔥 Model spotlight</b><span>${top.some(x => x.q.edge != null) ? "best value vs consensus" : "most likely to score"}</span></div>
+  return `<div class="spot-h"><b>Model spotlight</b><span>${top.some(x => x.q.edge != null) ? "best value vs consensus" : "most likely to score"}</span></div>
     <div class="spots">${top.map(({p, q}) => { const t = teamOf(p.team), i = tdBet(p);
       return `<div class="spot" style="--tc:${esc(t.color)}" data-pp="${esc(p.id)}|${esc(p.game_id)}|td">
         ${t.logo ? `<img class="sp-wm" src="${esc(t.logo)}" alt="" onerror="this.remove()">` : ""}
@@ -1100,7 +1100,7 @@ function openInfo() {
 function header() {
   const m = D.meta;
   $("#title").textContent = m.week ? `Week ${m.week}` : "NFL";
-  let sub = `${D.games.length} games`;
+  let sub = "NFL";
   if (m.generated_at) sub += " · ↻ " + new Date(m.generated_at).toLocaleString("en-US", {hour: "numeric", minute: "2-digit", timeZone: "America/New_York"});
   $("#sub").textContent = sub;
 }

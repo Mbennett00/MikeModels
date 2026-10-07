@@ -11,7 +11,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root {
   --ice: #bfe0f2; --ice-2: #d7ecf8; --cream: #fffaf0; --navy: #1f3448; --ink: #1f3448; --ink-2: #4d5d6c;
@@ -620,7 +620,7 @@ function bet(o) { BETS.push(o); return BETS.length - 1; }
 function header() {
   const m = D.meta;
   $("#title").textContent = !m.date ? "No games soon" : D === PREV ? "Last night" : (m.upcoming ? "Next up" : "Tonight");
-  let sub = m.date ? `${dayLab(D)} · ${m.games} game${m.games === 1 ? "" : "s"}` : "";
+  let sub = m.date ? dayLab(D) : "";
   if (m.generated_at && D === TODAY) sub += " · ↻ " + new Date(m.generated_at).toLocaleTimeString("en-US", {hour: "numeric", minute: "2-digit", timeZone: "America/New_York"});
   $("#sub").textContent = sub;
 }
@@ -805,7 +805,7 @@ function record() {
 }
 // ---------- model likes: the strongest opinions on the slate ----------
 let LIKE = "value";   // falls back to anytime goal when there are no sportsbook prices
-const LIKE_CATS = [["value", "💰 Best value"], ["goals", "🚨 Anytime goal"], ["win", "🏆 To win"], ["totals", "📊 Totals"], ["sog", "🎯 Shots"], ["points", "⭐ Points"]];
+const LIKE_CATS = [["value", "Best value"], ["goals", "Anytime goal"], ["win", "To win"], ["totals", "Totals"], ["sog", "Shots"], ["points", "Points"]];
 function likeRows() {
   const out = [], gname = g => `${g.away.abbr} @ ${g.home.abbr}`;
   if (LIKE === "value") {
@@ -845,7 +845,7 @@ function likesHtml() {
     return `<button class="likerow ${cls}" data-bet="${k}"><span class="lk-n r${i + 1}">${i + 1}</span>${r.player ? avatar(r.player) : logo(r.b.sel === "home" ? r.b.g.home : r.b.sel === "away" ? r.b.g.away : r.b.g.home)}
       <span class="lk-t"><b>${ic ? ic + " " : ""}${esc(r.label)}</b><span>${esc(r.sub)}</span></span>
       <span class="lk-p"><b>${pct(r.p)}</b><span>bet at ${betAt(r.p - thr(mk))}</span></span></button>`; }).join("");
-  return `<div class="card likes"><div class="lk-h"><span>⭐ Model likes tonight</span></div>
+  return `<div class="card likes"><div class="lk-h"><span>Model likes tonight</span></div>
     <div class="strip" style="padding:0;margin:8px 0 6px">${cats.map(([k, n]) => `<button class="chip ${LIKE === k ? "on" : ""}" data-like="${k}">${n}</button>`).join("")}</div>
     ${rows}<div class="lk-note">${LIKE === "value" ? `Biggest edges vs the market: model chance minus the average no-vig chance across the US books (CZR = Caesars' price, Mkt = the market's fair price). Check ${BOOKS()} current price before betting: tap a pick.`
       : `Highest chances on the slate, not guaranteed value: a big favourite can still be a bad price. Tap one to check ${BOOKS()} odds.`}</div></div>`;
@@ -958,7 +958,7 @@ function spotlight(list, mk) {
     .sort((a, b) => ((b.edge ?? -1) - (a.edge ?? -1)) || (b.pr - a.pr)).slice(0, 8);
   if (top.length < 3) return "";
   const C = 2 * Math.PI * 17;
-  return `<div class="spot-h"><b>🔥 Model spotlight</b><span>${top.some(x => x.edge != null) ? "best value vs DraftKings" : "strongest picks"}</span></div>
+  return `<div class="spot-h"><b>Model spotlight</b><span>${top.some(x => x.edge != null) ? "best value vs DraftKings" : "strongest picks"}</span></div>
     <div class="spots">${top.map(({p, l, pr, dk, edge}) => { const col = (D.colors || {})[p.team] || "#3a4656", tl = teamLogoUrl(p.team);
       const i = bet({player: p, market: mk, line: l, p: pr, label: `${p.name} ${mk === "goals" && l === 0.5 ? "to score" : `over ${l} ${PNAME[mk]}`}`});
       return `<div class="spot" style="--tc:${esc(col)}" data-player="${p.id}">
@@ -1319,19 +1319,19 @@ function mbHero() {
   const cards = [], open = g => !(LIVE[g.game_id] || {}).state || LIVE[g.game_id].state === "pre";
   const ob = mbOddsBoost();
   if (ob) { const k = bet(ob.b);
-    cards.push(`<div class="hero boost"><div class="hz-tag">🔥 ODDS BOOST</div><div class="hz-t">${esc(ob.leg.label)}</div><div class="hz-s">${esc(ob.leg.sub || "")} · model ${pct(ob.leg.p)}</div>
+    cards.push(`<div class="hero boost"><div class="hz-tag">ODDS BOOST</div><div class="hz-t">${esc(ob.leg.label)}</div><div class="hz-s">${esc(ob.leg.sub || "")} · model ${pct(ob.leg.p)}</div>
       <div class="hz-row"><span class="hz-was">${mbSign(ob.was)}</span><span class="hz-arrow">→</span><button class="hz-btn" data-boost="1">${mbSign(ob.odds)}</button></div><div class="hz-f">Max $25 · once a day · paper money</div></div>`); }
   const gs = D.games.filter(open).map(g => { const ph = gameProb(g, "moneyline", "home"); return {g, close: Math.abs(ph - 0.5), tot: g.lam_home + g.lam_away}; })
     .sort((x, y) => (x.close - y.close) || (y.tot - x.tot));
   if (gs.length) { const g = gs[0].g, ph = gameProb(g, "moneyline", "home");
     const side = (t, sel, p) => { const k = bet({g, market: "moneyline", sel, p, label: `${t.name} to win`, dk: dkFor(g, "moneyline", sel)}), d = dkFor(g, "moneyline", sel);
       return `<button class="hz-team" data-bet="${k}">${logo(t)}<b>${esc(t.abbr)}</b><span>${d && d.price ? am(d.price) : am(fair(p))}</span></button>`; };
-    cards.push(`<div class="hero gotn" style="--ca:${esc(g.away.color)};--ch:${esc(g.home.color)}"><div class="hz-tag">⭐ GAME OF THE NIGHT</div>
+    cards.push(`<div class="hero gotn" style="--ca:${esc(g.away.color)};--ch:${esc(g.home.color)}"><div class="hz-tag">GAME OF THE NIGHT</div>
       <div class="hz-s">${timeET(g.start_utc)} · proj ${g.lam_away.toFixed(1)}–${g.lam_home.toFixed(1)} · a coin flip by the model</div>
       <div class="hz-vs">${side(g.away, "away", 1 - ph)}<em>@</em>${side(g.home, "home", ph)}</div></div>`); }
   const hot = D.players.filter(p => p.lam.goals != null && open(D.games.find(g => g.game_id === p.game_id) || {})).map(p => ({p, pr: propProb(p, "goals", 0.5)})).sort((a, b) => b.pr - a.pr)[0];
   if (hot) { const p = hot.p, dk = p.dk && p.dk["goals|0.5"], k = bet({player: p, market: "goals", line: 0.5, p: hot.pr, label: `${p.name} to score`});
-    cards.push(`<div class="hero hot"><div class="hz-tag">🚨 HOT GOALSCORER</div><div class="hz-p">${avatar(p)}<div><div class="hz-t">${esc(p.name)}</div><div class="hz-s">${esc(p.team)} · ${pct(hot.pr)} to score · proj ${p.lam.goals.toFixed(2)}</div></div></div>
+    cards.push(`<div class="hero hot"><div class="hz-tag">HOT GOALSCORER</div><div class="hz-p">${avatar(p)}<div><div class="hz-t">${esc(p.name)}</div><div class="hz-s">${esc(p.team)} · ${pct(hot.pr)} to score · proj ${p.lam.goals.toFixed(2)}</div></div></div>
       <button class="hz-btn wide" data-bet="${k}">Anytime goal ${dk ? am(dk) + " DK" : am(fair(hot.pr))}</button></div>`); }
   if (!cards.length) return "";
   return `<div class="herowrap"><div class="heros" id="heros">${cards.join("")}</div><div class="hdots">${cards.map((_, i) => `<i class="${i ? "" : "on"}"></i>`).join("")}</div></div>`;
