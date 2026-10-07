@@ -146,6 +146,7 @@ function mbOpenSlip() {
       legs: [Object.assign({label: x.label, sub: x.sub, gid: x.gid, start: x.start, key: x.key, p: x.p, odds: x.odds}, legArt(x))]})));
     if (placed.some(b => !b)) { go.textContent = "Couldn't save (private browsing?)"; return; }
     if (v.some(x => x.special)) { const s2 = mbLoad(); s2.boostDay = mbDay(0); mbSave(s2); }
+    try { mbCoins(go, 10); } catch (e) {}
     mbHaptic("success"); funBlip(); slipSave([]); mbFab(); mbConfirm(placed);
   };
   document.getElementById("scrim").classList.add("open"); sh.classList.add("open");
@@ -174,7 +175,7 @@ function mbFab(pop) {
     <span class="sb-p">${n > 1 && slipParlayOk(v) ? `$${unit} pays ${mbMoney(unit * dec)}` : `${mbSign(v[n - 1].odds)}`}</span><span class="sb-go">›</span>` : "";
   if (pop) { f.classList.remove("pop"); void f.offsetWidth; f.classList.add("pop"); }
   const nb = document.querySelector('#nav [data-k="check"]');
-  if (nb) nb.innerHTML = `${mbIcon("check")}<span>${mbShort(mbWallet().available)}</span>${mbDaily().claimed ? "" : `<span class="navdot"></span>`}`;
+  if (nb) { nb.innerHTML = `${mbIcon("check")}<span>${mbShort(MB_NAV_SHOWN == null ? mbWallet().available : MB_NAV_SHOWN)}</span>${mbDaily().claimed ? "" : `<span class="navdot"></span>`}`; mbNavBalance(nb, mbWallet().available); }
 }
 
 // ---- grading + celebrations ----
@@ -215,6 +216,7 @@ function mbCelebrate() {
   fresh.forEach(b => b.seen = true); mbSave(s);
   if (won.length) {
     const amt = won.reduce((a, b) => a + mbProfit(b), 0), big = won.some(b => b.kind === "parlay");
+    try { mbCoins({getBoundingClientRect: () => ({left: innerWidth / 2 - 60, top: innerHeight * 0.4, width: 120, height: 60})}, 16); } catch (e) {}
     if (won.some(funIsBig)) funBigWin(amt, big ? "PARLAY CASHED!" : "CASHED!", won.map(b => b.label).join(" · "));
     else { funBlip(); funHorn(0.9); }
     mbToast(`<div class="tbig">${big ? "🎰 PARLAY CASHED!" : "💰 CASHED!"}</div><div class="tamt">+${mbMoney(amt)}</div><div class="tsub">${esc(won.map(b => b.label).join(" · "))}</div>`, "win");
@@ -333,10 +335,9 @@ function mbView() {
   const xp = mbXP(s), T = mbTier(xp);
   return `<div class="wallet ${stAll.streak >= 3 ? "onfire" : ""}">${stAll.streak >= 3 ? `<span class="firechip">🔥 ON FIRE · ${stAll.streak}W</span>` : ""}<div class="wtop"><div class="wl"><span>Balance</span><b>${mbMoney(W.available)}</b><i>${W.risk > 0 ? `${mbMoney(W.risk)} in play` : "no open bets"}</i></div>
       <div class="wr ${W.pl > 0 ? "up" : W.pl < 0 ? "down" : ""}"><span>All-time</span><b>${(W.pl > 0 ? "+" : "") + mbMoney(W.pl)}</b></div></div>
-      ${(() => { const C = 2 * Math.PI * 21, ni = TIERS.indexOf(T.nxt);
-        return `<div class="lvl"><div class="lvring"><svg viewBox="0 0 50 50"><circle cx="25" cy="25" r="21" class="bg"/><circle cx="25" cy="25" r="21" class="fg" stroke-dasharray="${C * T.pct} ${C}" transform="rotate(-90 25 25)"/></svg><span>${T.cur[2]}</span></div>
-          <div class="lvt"><b>${T.cur[0]}</b><i>${T.nxt ? `${xp} / ${T.nxt[1]} XP to ${T.nxt[2]} ${T.nxt[0]}` : `${xp} XP · top tier`}</i>
-            ${T.nxt ? `<em>Next reward: $${50 * ni} · 🚀 ${ni >= 3 ? "+50%" : "+25%"} boost · 🛡️ insurance</em>` : `<em>Hall of Fame. Legend status.</em>`}</div></div>`; })()}${funTokensHtml(s)}</div>
+      ${(() => { const LV = mbLevel(xp), nr = passReward(Math.min(LV.lvl + 1, PASS_MAX));
+        return `<button class="lvl" data-pass="1">${passRing(LV, 54)}<div class="lvt"><b>${LV.rank[2]} ${LV.rank[1]} · Level ${LV.lvl}</b><i>${LV.lvl < PASS_MAX ? `${LV.into} / ${LV.need} XP to level ${LV.lvl + 1}` : "Max level"}</i>
+          <em>${LV.lvl < PASS_MAX ? `Next: ${passRewardText(nr)}` : "Hall of Fame. Legend."} ›</em></div></button>`; })()}${funTokensHtml(s)}</div>
     ${funRebuyHtml(s, W)}${mbDailyHtml(s)}${funMissionsHtml(s)}${funVsHtml(s)}
     ${new Set(all.map(b => b.sport)).size > 1 ? `<div class="strip" style="padding:0 0 10px">${[["all", "All"], ["NHL", "🏒 NHL"], ["NFL", "🏈 NFL"]].map(([k, n]) => `<button class="chip ${MB_SPORT === k ? "on" : ""}" data-mbsp="${k}">${n}</button>`).join("")}</div>` : ""}
     <div class="card mbsum"><div class="mbtiles">
@@ -391,6 +392,7 @@ window.addEventListener("scroll", () => { const h = document.querySelector(".hdr
 // crisp line icons (tab bar)
 function mbIcon(k) {
   const P = {
+    home: '<path d="M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5.5h-5V20H5a1 1 0 0 1-1-1z"/>',
     games: '<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5v17"/><circle cx="12" cy="12" r="2.6"/>',
     props: '<circle cx="12" cy="8" r="3.6"/><path d="M4.8 20c.9-3.7 3.7-5.6 7.2-5.6s6.3 1.9 7.2 5.6"/>',
     check: '<path d="M4 7.5A1.5 1.5 0 0 1 5.5 6h13A1.5 1.5 0 0 1 20 7.5V10a2 2 0 0 0 0 4v2.5a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 16.5V14a2 2 0 0 0 0-4z"/><path d="M14 6.5v11" stroke-dasharray="1.6 2"/>',

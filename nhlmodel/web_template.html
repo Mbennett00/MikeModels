@@ -381,7 +381,7 @@ const MNAME = {goals: "Anytime goal", sog: "Shots on goal", assists: "Assists", 
 const BOOK = () => (TODAY && TODAY.meta && TODAY.meta.book) || "Caesars";      // sportsbook you compare against
 const BOOKS = () => BOOK() + (BOOK().endsWith("s") ? "'" : "'s");   // possessive: Caesars' / DraftKings'
 const BK = () => (TODAY && TODAY.meta && TODAY.meta.book_short) || "CZR";
-let D = null, TODAY = null, PREV = null, TAB = "games", PSTATE = {q: "", game: "all", market: "sog"};
+let D = null, TODAY = null, PREV = null, TAB = "home", PSTATE = {q: "", game: "all", market: "sog"};
 let LIVE = {};   // game_id -> live/final info from ESPN (scores, clock, player box score)
 const OPEN = new Set();   // game cards with "More" expanded
 const PANEL = {};         // game_id -> which panel tab is showing
@@ -640,7 +640,8 @@ function strip() {
 }
 let NAV_IDX = null;
 function nav() {
-  const T = [["games", "Games"], ["props", "Props"], ["check", "Bets"], ["updates", "Updates"]];
+  const T = [["home", "Home"], ["games", "Games"], ["props", "Props"], ["check", "Bets"], ["updates", "Updates"]];
+  $("#nav").style.setProperty("--n", T.length);
   const idx = Math.max(0, T.findIndex(([k]) => k === TAB)), from = NAV_IDX == null ? idx : NAV_IDX;
   $("#nav").innerHTML = `<i class="navpill" style="--i:${from}"></i>` + T.map(([k, n]) => `<button class="${TAB === k ? "on" : ""}" data-k="${k}">${mbIcon(k)}<span>${n}</span></button>`).join("");
   if (from !== idx) requestAnimationFrame(() => requestAnimationFrame(() => { const pl = $("#nav .navpill"); if (pl) pl.style.setProperty("--i", idx); }));
@@ -1344,6 +1345,20 @@ function mbOddsBoost() {
   try { LIKE = D.games.some(g => (g.dk || []).length) ? "value" : "goals"; const r = likeRows()[0]; b = r && Object.assign({p: r.p}, r.b); } finally { LIKE = keep; }
   return b ? {leg, b, was: leg.odds, odds} : null;
 }
+// 🏠 home hooks: which sport this is, and one-tap quick picks from the model
+function mbSportInfo() { return {sport: "NHL", line: D && D.games.length ? `${D.games.length} games ${D.meta.upcoming ? "next up" : "tonight"}` : "No games"}; }
+function mbQuickPicks() {
+  if (!TODAY || D !== TODAY) return [];
+  const out = [], picks = mbModelPicks().map(l => Object.assign(l, {sport: "NHL"}));
+  if (picks.length >= 2) out.push({tag: "MODEL PARLAY", title: `The model's top ${picks.length} tonight`, legs: picks});
+  const used = new Set(), gs = D.players.filter(p => p.lam.goals != null && notStarted(D.games.find(g => g.game_id === p.game_id) || {}))
+    .map(p => ({p, pr: propProb(p, "goals", 0.5)})).sort((a, b) => b.pr - a.pr).filter(x => used.has(x.p.game_id) ? false : (used.add(x.p.game_id), true)).slice(0, 3);
+  if (gs.length === 3) out.push({tag: "GOALSCORER 3-PACK", title: "Three likeliest scorers, three games", legs: gs.map(({p, pr}) => {
+    const b = {player: p, market: "goals", line: 0.5, p: pr, label: `${p.name} to score`}, dk = p.dk && p.dk["goals|0.5"];
+    return Object.assign(mbLegOf(b), {sport: "NHL", odds: dk || Math.round(fair(pr)), book: dk ? "DraftKings" : null}); })});
+  if (picks[0]) out.push({tag: "BEST VALUE", title: "The model's biggest edge", legs: [picks[0]]});
+  return out;
+}
 // 🤖 the model's own bets for "You vs the Model": its top 3 value edges (or most likely goalscorers before prices are up)
 function mbModelPicks() {
   if (!TODAY || D !== TODAY || !D.games.length) return [];
@@ -1371,8 +1386,9 @@ function render() {
   BETS = [];
   try { mbAutoSettle("NHL", mbGrade); } catch (e) {}
   header(); strip(); nav();
-  const v = {games, props, check, updates}[TAB]();
+  const v = {home: mbHomeHtml, games, props, check, updates}[TAB]();
   $("#view").innerHTML = v;
+  if (TAB === "home") mbWireHome(render);
   if (TAB === "props") { wireProps(); wireMix(render, m => { PMODE = m; }); }
   if (TAB === "check") wireCheck();
   document.querySelectorAll("[data-like]").forEach(b => b.onclick = () => { LIKE = b.dataset.like; render(); });

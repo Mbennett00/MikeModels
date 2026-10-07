@@ -250,14 +250,7 @@ function funWireVs(render) {
 }
 
 // ---- ⬆️ level-ups pay out, 💸 refill when broke, 🔥 on-fire wallet ----
-function funTierCheck() {
-  const s = mbLoad(), xp = mbXP(s); let i = 0; TIERS.forEach((t, j) => { if (xp >= t[1]) i = j; });
-  if (s.tierSeen == null) { s.tierSeen = i; mbSave(s); return; }
-  if (i <= s.tierSeen) return;
-  const t = TIERS[i], gifts = [funGive(s, {cash: 50 * i}), funGive(s, {tok: i >= 3 ? "boost50" : "boost25"}), funGive(s, {tok: "ins"})];
-  s.tierSeen = i; mbSave(s);
-  setTimeout(() => funBigWin(50 * i, `${t[2]} LEVEL UP: ${t[0].toUpperCase()}`, gifts.slice(1).join(" · ")), 600);
-}
+function funTierCheck() { passCheck(); }   // levels now come from the season pass (home.js)
 function funRebuyHtml(s, W) {
   if (W.available >= 5 || s.bets.some(b => b.status === "open")) return "";
   const ok = s.rebuy !== mbDay(0);
@@ -312,6 +305,7 @@ function funAfterRender(render) {
   try { funTierCheck(); } catch (e) {}
   try { funGoalWatch(); } catch (e) {}
   funWireVs(render); funWireRebuy(render);
+  document.querySelectorAll("[data-pass]").forEach(b => b.onclick = e => { e.stopPropagation(); mbHaptic(); mbOpenPass(); });
   document.querySelectorAll("[data-spin]").forEach(b => b.onclick = e => { e.stopPropagation(); mbHaptic(); funOpenWheel(render); });
   const snd = document.getElementById("mbsound");
   if (snd) snd.onchange = () => { const s = mbLoad(); s.sound = snd.checked; mbSave(s); if (snd.checked) funHorn(0.8); };

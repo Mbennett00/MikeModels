@@ -330,7 +330,7 @@ const sp = x => x == null ? "" : (x > 0 ? "+" : x < 0 ? "−" : "") + Math.abs(x
 const THR = 0.025;
 // walk-forward 2021-25: totals edges of 4%+ won 60.6% (94 bets); 3-4% about break-even after -110 juice; under 3% lost
 const LIKE_EDGE = 0.04;   // shade on the fair price before a bet is worth it (the model has not beaten closing lines)
-let D = null, TAB = "games", LIVE = {}, BETS = [], SH = null, C = {game: null, m: "spread", side: "home", line: null};
+let D = null, TAB = "home", LIVE = {}, BETS = [], SH = null, C = {game: null, m: "spread", side: "home", line: null};
 const OPEN = new Set(), PANEL = {};
 const BOOK = () => (D && D.meta.book) || "Caesars";
 const BOOKS = () => BOOK() + (BOOK().endsWith("s") ? "'" : "'s");
@@ -1116,7 +1116,8 @@ function strip() {
 }
 let NAV_IDX = null;
 function nav() {
-  const T = [["games", "Games"], ["props", "Props"], ["check", "Bets"], ["updates", "Updates"]];
+  const T = [["home", "Home"], ["games", "Games"], ["props", "Props"], ["check", "Bets"], ["updates", "Updates"]];
+  $("#nav").style.setProperty("--n", T.length);
   const idx = Math.max(0, T.findIndex(([k]) => k === TAB)), from = NAV_IDX == null ? idx : NAV_IDX;
   $("#nav").innerHTML = `<i class="navpill" style="--i:${from}"></i>` + T.map(([k, n]) => `<button class="${TAB === k ? "on" : ""}" data-k="${k}">${mbIcon(k === "games" ? "games" : k)}<span>${n}</span></button>`).join("");
   if (from !== idx) requestAnimationFrame(() => requestAnimationFrame(() => { const pl = $("#nav .navpill"); if (pl) pl.style.setProperty("--i", idx); }));
@@ -1157,6 +1158,24 @@ function mbLegOf(o) {
   if (o.tdp) return tdLeg(o);
   const g = o.g; return {label: o.label, sub: `${g.away.abbr} @ ${g.home.abbr}`, gid: g.game_id, start: g.start_utc, p: o.p, logos: [g.away.logo, g.home.logo], key: {t: "game", m: o.b.m, s: o.b.s, l: o.b.line}};
 }
+// 🏠 home hooks: which sport this is, and one-tap quick picks from the model
+function mbSportInfo() { return {sport: "NFL", line: D && D.games.length ? `Week ${D.meta.week || ""} · ${D.games.length} games` : "No games"}; }
+function mbQuickPicks() {
+  if (!D || !D.games.length) return [];
+  const out = [], used = new Set();
+  const vals = D.games.filter(nflOpen).flatMap(g => mkBets(g).filter(b => b.edge != null && b.edge >= LIKE_EDGE).map(b => ({g, b}))).sort((x, y) => y.b.edge - x.b.edge)
+    .filter(x => used.has(x.g.game_id) ? false : (used.add(x.g.game_id), true)).slice(0, 3);
+  const gleg = ({g, b}) => Object.assign(mbLegOf({g, b, p: b.p, label: label(g, b)}), {sport: "NFL", odds: dkLive(g, b) || b.price || Math.round(fair(b.p)), book: dkLive(g, b) ? "DraftKings" : null});
+  if (vals.length >= 2) out.push({tag: "MODEL PARLAY", title: `The model's top ${vals.length} edges`, legs: vals.map(gleg)});
+  const u2 = new Set(), tds = (D.players || []).filter(p => nflOpen(gameOf(p))).map(p => ({p, q: tdQuote(p)})).sort((a, b) => b.q.pr - a.q.pr)
+    .filter(x => u2.has(x.p.game_id) ? false : (u2.add(x.p.game_id), true)).slice(0, 3);
+  const tleg = ({p, q}) => Object.assign(tdLeg({tdp: p, l: 0.5, p: q.pr, label: `${p.name} anytime TD`}), {sport: "NFL", odds: q.odds, book: q.mkt ? "Consensus" : null});
+  if (tds.length === 3) out.push({tag: "TD 3-PACK", title: "Three likeliest scorers, three games", legs: tds.map(tleg)});
+  const tv = (D.players || []).filter(p => nflOpen(gameOf(p))).map(p => ({p, q: tdQuote(p)})).filter(x => x.q.edge != null && x.q.edge > 0).sort((a, b) => b.q.edge - a.q.edge)[0];
+  if (tv) out.push({tag: "BEST VALUE TD", title: `+${(100 * tv.q.edge).toFixed(1)}% vs the consensus`, legs: [tleg(tv)]});
+  else if (vals[0]) out.push({tag: "BEST VALUE", title: "The model's biggest edge", legs: [gleg(vals[0])]});
+  return out;
+}
 // a TD price tap toggles it on the slip, like a sportsbook
 function tdToggle(o) {
   const leg = tdLeg(o), k = slipKey(leg);
@@ -1194,7 +1213,8 @@ function mbLiveLeg(leg) {
 function render() {
   try { mbAutoSettle("NFL", mbGrade); } catch (e) {}
   BETS = []; header(); strip(); nav();
-  $("#view").innerHTML = {games, props, teams, check, updates}[TAB]();
+  $("#view").innerHTML = {home: mbHomeHtml, games, props, teams, check, updates}[TAB]();
+  if (TAB === "home") mbWireHome(render);
   document.querySelectorAll("[data-uf]").forEach(b => b.onclick = () => { UF = b.dataset.uf; render(); });
   document.querySelectorAll("[data-hv]").forEach(b => b.onclick = () => { HV = b.dataset.hv; render(); });
   if (TAB === "updates" && HV === "health") wireHealth(render);
