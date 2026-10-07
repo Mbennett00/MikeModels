@@ -471,7 +471,7 @@ function gameCard(g) {
         ${s ? `<b class="gscore ${s.state === "post" && mine < theirs ? "lose" : ""}">${mine}</b>` : ""}</div>
       ${pbtnN(g, sb, sb ? sp(sb.line) : "")}${pbtnN(g, tb, tb ? `${side === "away" ? "O" : "U"} ${tb.line}` : "")}${pbtnN(g, mb, "")}</div>`;
   };
-  let html = `<div class="card gc gc2 ${s && s.state === "in" ? "islive" : ""}" style="--ca:${esc(a.color)};--ch:${esc(h.color)}">
+  let html = `<div class="card gc gc2 ${s && s.state === "in" ? "islive" : ""}" style="--ca:${esc(a.color)};--ch:${esc(h.color)};--la:url('${esc(a.logo || "")}');--lh:url('${esc(h.logo || "")}')">
     <div class="ghead"><div class="status">${status}</div></div>
     <div class="gcols"><span></span><span>Spread</span><span>Total</span><span>Money</span></div>
     ${row(a, "away", 1 - ph, s && s.away, s && s.home)}${row(h, "home", ph, s && s.home, s && s.away)}

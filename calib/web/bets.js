@@ -396,6 +396,7 @@ function mbWire(render) {
 let MB_LASTTAB = null;
 function mbAfterRender(render) {
   MB_RENDER = render;
+  try { const v = document.getElementById("view"); if (v && window.MB_LAST_TAB !== TAB) { window.MB_LAST_TAB = TAB; v.classList.remove("vin"); void v.offsetWidth; v.classList.add("vin"); } } catch (e) {}
   document.querySelectorAll("[data-btab]").forEach(b => b.onclick = () => { mbHaptic(); MB_VIEW = "bets"; MB_BTAB = b.dataset.btab; render(); });
   document.querySelectorAll("[data-go2]").forEach(b => b.onclick = () => { mbHaptic(); TAB = b.dataset.go2; render(); window.scrollTo(0, 0); }); mbFab(); mbWireBanner(render); try { funAfterRender(render); } catch (e) {} try { mbWireSharp(render); } catch (e) {}
   const sp = document.getElementById("splash"); if (sp && !sp.classList.contains("out")) { sp.classList.add("out"); setTimeout(() => sp.remove(), 600); }

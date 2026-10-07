@@ -435,3 +435,59 @@ h1, .sh-t, .lk-h { font-family: var(--fh) !important; letter-spacing: -.02em !im
 .ix-steps { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; } .ix-steps div { display: flex; gap: 12px; align-items: center; padding: 12px 14px; border-radius: 14px; background: var(--s1); }
 .ix-steps b { width: 28px; height: 28px; flex: none; border-radius: 50%; display: grid; place-items: center; background: var(--acc); color: #04140a; font: 700 13px var(--fb); }
 .ix-steps span { font: 500 14px var(--fb); color: var(--t1); } .ix-steps em { font-style: normal; font-weight: 700; color: var(--acc); }
+
+/* ===================== visual step up ===================== */
+/* ambient depth: brand glow at the top, fine grain over everything */
+body { background:
+  radial-gradient(120% 50% at 50% -10%, rgba(46,240,138,.10), transparent 60%),
+  radial-gradient(80% 40% at 100% 0%, rgba(64,140,255,.07), transparent 60%), var(--bg) !important; background-attachment: fixed !important; }
+body::after { content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 1; opacity: .05; mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+.hdr { -webkit-backdrop-filter: saturate(160%) blur(18px) !important; backdrop-filter: saturate(160%) blur(18px) !important; background: rgba(5,6,8,.72) !important; border-bottom: 1px solid rgba(255,255,255,.05) !important; }
+
+/* screens glide in (once per tab switch) */
+#view.vin > * { animation: vrise .5s cubic-bezier(.2,.9,.3,1) both; }
+#view.vin > *:nth-child(2) { animation-delay: .04s; } #view.vin > *:nth-child(3) { animation-delay: .08s; } #view.vin > *:nth-child(4) { animation-delay: .12s; }
+#view.vin > *:nth-child(5) { animation-delay: .16s; } #view.vin > *:nth-child(6) { animation-delay: .2s; } #view.vin > *:nth-child(n+7) { animation-delay: .24s; }
+@keyframes vrise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { #view.vin > * { animation: none; } }
+
+/* game cards: team identity (colour stripe, big faded logos), real depth */
+.card.gc2 { overflow: hidden; background: linear-gradient(180deg, #11141a, #0b0d11) !important; border: 1px solid rgba(255,255,255,.07) !important;
+  box-shadow: 0 1px 0 rgba(255,255,255,.05) inset, 0 18px 40px -18px rgba(0,0,0,.8) !important; }
+.card.gc2::before { content: "" !important; position: absolute !important; inset: 0 !important; z-index: 0 !important; opacity: .09 !important; pointer-events: none; border: 0 !important; height: auto !important; width: auto !important; border-radius: inherit;
+  background: var(--la) left -34px top 34px / 150px auto no-repeat, var(--lh) right -34px top 96px / 150px auto no-repeat !important; filter: saturate(1.2); }
+.gc2::after { background:
+  linear-gradient(90deg, var(--ca), var(--ch)) top / 100% 3px no-repeat,
+  radial-gradient(60% 55% at 0% 10%, color-mix(in srgb, var(--ca) 22%, transparent), transparent 70%),
+  radial-gradient(60% 55% at 100% 55%, color-mix(in srgb, var(--ch) 20%, transparent), transparent 70%) !important; }
+.gc2.islive { border-color: rgba(255,77,77,.45) !important; }
+
+/* one price button, everywhere: quiet by default, mint when it's value, solid mint when it's on your slip */
+.pxb { background: rgba(255,255,255,.055) !important; border: 0 !important; box-shadow: inset 0 1px 0 rgba(255,255,255,.05) !important; transition: transform .15s cubic-bezier(.2,1.4,.4,1), background .15s !important; }
+.pxb:active { transform: scale(.94) !important; background: rgba(255,255,255,.1) !important; }
+.pxb b { color: var(--t1); }
+.pxb.val, .pxb.pp.bk, .xmk .pxb.val, .xpl-b .pxb.bk { background: rgba(46,240,138,.08) !important; box-shadow: inset 0 0 0 1px rgba(46,240,138,.28) !important; }
+.pxb.val::before { content: ""; position: absolute; top: 5px; right: 5px; width: 5px; height: 5px; border-radius: 50%; background: var(--acc); box-shadow: 0 0 8px var(--acc); opacity: 1 !important; inset: 5px 5px auto auto !important; }
+.pxb.insl, .pxb.pp.insl, .xmk .pxb.insl, .xpl-b .pxb.insl, .sp-btn.insl { background: var(--acc) !important; box-shadow: 0 6px 20px -6px rgba(46,240,138,.6) !important; animation: picked .3s cubic-bezier(.2,1.6,.4,1); }
+.pxb.insl b, .pxb.insl .pt, .pxb.insl i, .pxb.insl .pe, .pxb.insl .pm, .sp-btn.insl b, .sp-btn.insl span { color: #04140a !important; }
+.pxb.insl::after { display: none !important; } .pxb.insl::before { background: #04140a !important; box-shadow: none !important; }
+@keyframes picked { 0% { transform: scale(.9); } 60% { transform: scale(1.06); } 100% { transform: scale(1); } }
+.pxb.won { background: rgba(46,240,138,.14) !important; }
+
+/* calmer labels so the prices and names lead */
+.gcols span, .gc2 .status > span:last-child { font-weight: 600 !important; color: rgba(255,255,255,.34) !important; }
+.gtn span { font-weight: 500 !important; }
+.hx-h b, .rw-h, .spot-h b, .sx-h { position: relative; }
+.hx-h b::before, .rw-h::before { content: ""; display: inline-block; flex: none; width: 4px; height: 16px; border-radius: 2px; background: linear-gradient(180deg, var(--acc), #1fa866); margin-right: 8px; vertical-align: -2px; }
+.hx-h b { display: inline-flex !important; align-items: center; gap: 0 !important; }
+
+/* featured boost: gold foil, shimmering price */
+.hero.boost { background: linear-gradient(135deg, rgba(242,201,109,.16), rgba(255,140,40,.06) 45%, #0d0f13 75%) !important; border: 1px solid rgba(242,201,109,.35) !important; }
+.hero.boost .hz-btn { position: relative; overflow: hidden; }
+.hero.boost .hz-btn::after { content: ""; position: absolute; inset: 0; background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,.55) 50%, transparent 70%); transform: translateX(-120%); animation: foil 3.2s ease-in-out infinite; }
+@keyframes foil { 60%, 100% { transform: translateX(120%); } }
+
+/* nav: floating glass with a glow under the active tab */
+.nav .in { -webkit-backdrop-filter: saturate(160%) blur(20px) !important; backdrop-filter: saturate(160%) blur(20px) !important; background: rgba(14,16,20,.78) !important; border: 1px solid rgba(255,255,255,.07) !important; box-shadow: 0 20px 40px -10px rgba(0,0,0,.7) !important; }
+.nav button.on svg, .nav a.on svg { filter: drop-shadow(0 0 8px rgba(46,240,138,.55)); }

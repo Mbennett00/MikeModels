@@ -681,7 +681,7 @@ function gameCard(g) {
       ${pbtn(g, `${ou === "over" ? "Over" : "Under"} 6.5`, "total", ou, 6.5, `${ou === "over" ? "O" : "U"} 6.5`)}
       ${pbtn(g, `${t.name} to win`, "moneyline", side, undefined, "")}</div>`;
   };
-  let html = `<div class="card gc gc2 ${L.state === "in" ? "islive" : ""}" style="--ca:${esc(a.color)};--ch:${esc(h.color)}">
+  let html = `<div class="card gc gc2 ${L.state === "in" ? "islive" : ""}" style="--ca:${esc(a.color)};--ch:${esc(h.color)};--la:url('${esc(a.logo || "")}');--lh:url('${esc(h.logo || "")}')">
     <div class="ghead"><div class="status">${status}</div></div>
     <div class="gcols"><span></span><span>Puck line</span><span>Total</span><span>Money</span></div>
     ${row(a, "away", 1 - ph, L.away, L.home)}${row(h, "home", ph, L.home, L.away)}
