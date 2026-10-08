@@ -1,7 +1,7 @@
 /* Layout fit rules: keep text from clipping at any phone width (theme-independent). */
 /* ===================== fit: nothing cut off, nothing out of place ===================== */
 html, body { overflow-x: clip; }
-.hl-logo { right: -16px !important; width: 190px !important; }
+.hl-logo { right: 14px !important; top: 14px !important; width: 128px !important; }
 
 /* headliner: the surname style must not hit the price in the Add button */
 .hl-t .hl-add b { display: inline-block !important; margin: 0 !important; font: 600 14px var(--fh) !important; letter-spacing: -.01em !important; text-shadow: none !important; padding: 6px 12px !important; line-height: 1 !important; }

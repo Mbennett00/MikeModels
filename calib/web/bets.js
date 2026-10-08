@@ -118,13 +118,15 @@ function mbOpenSlip() {
     ${v.length ? `<div class="gseg c"><button class="${SLIP_MODE === "single" ? "on" : ""}" data-sm2="single">Singles</button>
       <button class="${SLIP_MODE === "parlay" ? "on" : ""} ${slipParlayOk(v) ? "" : "dis"}" data-sm2="parlay">${slipIsSGP(v) && slipParlayOk(v) ? `<span class="sgpb">SGP</span>` : "Parlay"}${v.length >= 2 ? `<em>${mbSign(mbAm(dec))}</em>` : ""}</button></div>
     ${v.length >= 2 && slipConflict(v) ? `<div class="slwarn">${esc(slipConflict(v))}</div>` : ""}
-    <div class="slipl c">${v.map(x => `<div class="slipi c ${mbStarted(x) ? "closed" : ""}">${mbPic(x)}
+    <div class="slipl c ${SLIP_MODE === "parlay" && v.length > 1 ? "chain" : ""}">${v.map(x => `<div class="slipi c ${mbStarted(x) ? "closed" : ""}">${mbPic(x)}
       <div class="slipt"><b>${x.special ? `<em class="bsttag">🔥 BOOST</em> ` : ""}${esc(x.label)}</b><i>${esc(x.sub || x.sport)}${x.book ? ` · ${esc(x.book.replace("DraftKings", "DK"))}` : ""}${mbStarted(x) ? " · started" : ""}</i></div>
       <span class="slipo ${x.was != null ? "moved" : ""}">${x.was != null ? `<s>${mbSign(x.was)}</s>` : ""}${mbSign(x.odds)}</span><button class="slipx" data-sx="${esc(slipKey(x))}" aria-label="Remove">×</button></div>`).join("")}</div>
     <div class="stkrow"><div class="stkin c"><em>$</em><input id="slipstake" inputmode="decimal" value="${stake || ""}" aria-label="Stake"></div>
       <div class="qchips c">${[5, 10, 25, 50].map(a => `<button class="${stake === a ? "on" : ""}" data-qs="${a}">$${a}</button>`).join("")}</div></div>
     ${toks}
-    <div class="slsum c"><span>${SLIP_MODE === "parlay" ? "Stake" : `${v.length} × ${mbMoney(stake)}`}${SLIP_INS ? " · 🛡️ insured" : ""}</span><span>To win ${bst ? `<em class="bstw">🚀 +${100 * bst}%</em>` : ""}<b>${mbMoney(win)}</b></span></div>
+    <div class="slsum c sl-pay"><div><span>${SLIP_MODE === "parlay" ? "Risk" : `${v.length} × ${mbMoney(stake)}`}</span><b>${mbMoney(tot)}</b></div>
+      <div><span>To win${bst ? ` <em class="bstw">+${100 * bst}%</em>` : ""}</span><b class="w">${mbMoney(win)}</b></div>
+      <div><span>Payout${SLIP_INS ? " · insured" : ""}</span><b>${mbMoney(payout)}</b></div></div>
     <button class="placebet c" id="slipgo" ${!v.length || closed || short || overcap || !(stake > 0) ? "disabled" : ""}><span>${label}</span>${!closed && !short && !overcap && stake > 0 ? `<em>Payout ${mbMoney(payout)}</em>` : ""}</button>
     <div class="slfoot">Balance ${mbMoney(W.available)}${stake > 0 && !short ? ` → ${mbMoney(W.available - tot)} after` : ""} · paper money</div>`
       : `<div class="slipempty"><div class="slicon">🧾</div><b>Your bet slip is empty</b><span>Tap any price or prop, then add it to your slip.</span></div>`}`;

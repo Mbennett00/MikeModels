@@ -11,7 +11,7 @@
   --bg: #0b0c0f; --s1: #15171c; --s2: #1d2027; --s3: #272b33;
   --hair: rgba(255,255,255,.07); --hair2: rgba(255,255,255,.12);
   --t1: #f6f7f9; --t2: #a7adb8; --t3: #6c7380;
-  --brand: #ffffff; --brand-d: #e4e7ec; --brand-ink: #0b0c0f;
+  --brand: #6f8dff; --brand-d: #5874f0; --brand-ink: #ffffff; --brand2: #a77bff; --g-brand: linear-gradient(135deg, #6f8dff, #a77bff);
   --acc: #34d17b; --acc-d: #1fb563; --acc-ink: #04140a; --gold: #f2c96d; --red: #ff5a5f;
   --r: 16px; --ease: cubic-bezier(.2,.8,.2,1);
 }
@@ -237,3 +237,111 @@ body::after { opacity: .03 !important; }
 .vs-mk .pxb { min-width: 0 !important; padding: 0 9px !important; }
 .vs-mk .pxb .pt { font-size: clamp(10px, 3vw, 11.5px) !important; overflow: hidden; text-overflow: clip; }
 .vs-mk .pxb b { font-size: clamp(13px, 3.9vw, 15px) !important; }
+
+/* ===================== a little colour ===================== */
+body { background: radial-gradient(90% 30% at 15% -8%, rgba(111,141,255,.12), transparent 70%), radial-gradient(70% 25% at 100% 0%, rgba(167,123,255,.08), transparent 70%), var(--bg) !important; }
+.hx-hero { background: radial-gradient(70% 90% at 100% 0%, rgba(167,123,255,.22), transparent 60%), radial-gradient(60% 80% at 0% 100%, rgba(111,141,255,.16), transparent 60%), linear-gradient(180deg, #181b24, #121419) !important; }
+.hx-spark path[fill="none"] { stroke: #8fa5ff !important; } .hx-spark circle { fill: #8fa5ff !important; } .hx-spark stop { stop-color: #8fa5ff !important; }
+.hx-hero .pring circle.fg { stroke: #8fa5ff !important; } .hx-hero .pring i { color: #8fa5ff !important; }
+.hx-hero .hx-lvl i { background: var(--g-brand) !important; color: #fff !important; }
+.hl { background: radial-gradient(80% 110% at 95% 100%, rgba(111,141,255,.30), transparent 60%), radial-gradient(60% 80% at 0% 0%, rgba(167,123,255,.14), transparent 60%), linear-gradient(135deg, #1b1f2b, #121419) !important; }
+.hl-tag { background: var(--g-brand) !important; color: #fff !important; }
+.hl-t .hl-add b { background: var(--g-brand) !important; }
+.hx-chip .hx-ci { background: rgba(111,141,255,.16) !important; color: #a9b9ff !important; } .hx-chip.gold .hx-ci { background: var(--g-brand) !important; color: #fff !important; }
+.hx-chip.gold i { color: #a9b9ff !important; }
+.hx-h b::before, .rw-h::before { background: var(--g-brand) !important; }
+.sx-t span, .rw-pt span { color: #a9b9ff !important; }
+.story:not(.live):not(.final) .st-ring { background: var(--g-brand) !important; }
+.hx-add, .mbgo, .placebet, .addslip, .ix-go, .shx-go:not(.alt), .bw-ok, .hz-btn, .daily button, .daily .spinbtn { background: var(--g-brand) !important; color: #fff !important; box-shadow: 0 10px 24px -12px rgba(111,141,255,.8) !important; }
+.placebet em, .addslip b { background: rgba(255,255,255,.18) !important; color: #fff !important; }
+.pxb.insl, .pxb.pp.insl, .xmk .pxb.insl, .xpl-b .pxb.insl, .sp-btn.insl { background: var(--g-brand) !important; border-color: transparent !important; box-shadow: 0 8px 20px -8px rgba(111,141,255,.8) !important; }
+.pxb.insl b, .pxb.insl .pt, .pxb.insl i, .sp-btn.insl b, .sp-btn.insl span { color: #fff !important; }
+.navpill { background: rgba(111,141,255,.16) !important; }
+.nav button.on, .nav button.on * { color: #a9b9ff !important; }
+.mkpill, .mbtabs button.on::after { background: var(--g-brand) !important; }
+.strip .chip.on, .xtabs button.on { background: var(--g-brand) !important; color: #fff !important; border-color: transparent !important; }
+.hero.boost { background: radial-gradient(80% 100% at 100% 0%, rgba(167,123,255,.22), transparent 60%), var(--s1) !important; border-color: rgba(167,123,255,.4) !important; }
+.hero.boost .hz-tag { background: var(--g-brand) !important; color: #fff !important; }
+.rw-pass { background: radial-gradient(80% 120% at 0% 0%, rgba(111,141,255,.18), transparent 60%), var(--s1) !important; border-color: rgba(111,141,255,.35) !important; }
+.rw-bar i { background: var(--g-brand) !important; }
+.vs-at { background: var(--g-brand); -webkit-background-clip: text; background-clip: text; color: transparent !important; }
+.vs-pct { background: rgba(111,141,255,.14) !important; color: #c3cdff !important; }
+.slipfab { border-color: rgba(111,141,255,.55) !important; }
+
+/* ===================== images: everything fits inside its frame ===================== */
+.hl-logo { right: 14px !important; top: 14px !important; width: 128px !important; }
+.ps-wm { right: 12px !important; top: 12px !important; width: 150px !important; }
+.hz-art.duo { right: 10px !important; width: 40% !important; height: 76% !important; }
+.hz-art.duo img { width: 54% !important; height: auto; object-fit: contain; }
+.lpic { overflow: visible !important; border-radius: 50%; }
+.lpic .hs { object-fit: cover !important; object-position: center 12% !important; background: var(--s2) !important; }
+.lpic .tb { right: 0 !important; bottom: 0 !important; width: 18px !important; height: 18px !important; object-fit: contain !important; padding: 2px; background: #0f1115 !important; border: 1px solid var(--hair2) !important; }
+.lpic.duo { border-radius: 50%; background: var(--s2); }
+.lpic.duo .l1, .lpic.duo .l2 { width: 58% !important; height: 58% !important; object-fit: contain !important; }
+.lpic.duo .l1 { left: 6% !important; top: 6% !important; } .lpic.duo .l2 { right: 6% !important; bottom: 6% !important; }
+.pav > img:not(.ptl), .sp-shot img { object-fit: cover !important; object-position: center 12% !important; }
+.pav .ptl, .gchip img, .gsec-h .duo3 img, .gs-t img, .vs-logo img, .st-in img, .ps-team img { object-fit: contain !important; }
+
+/* ===================== bet slip ===================== */
+#sheet .slhead { align-items: center; margin-bottom: 14px; }
+#sheet .slhead .sh-t { font: 800 24px var(--fd) !important; }
+.slcount { background: var(--g-brand) !important; color: #fff !important; border-radius: 999px !important; }
+.slclr { color: var(--t2) !important; }
+#sheet .gseg.c { background: var(--s2) !important; border-radius: 12px !important; padding: 3px !important; }
+#sheet .gseg.c button.on { background: var(--g-brand) !important; color: #fff !important; }
+#sheet .gseg.c button.on em { color: rgba(255,255,255,.85) !important; }
+.slwarn { color: #ffb36b !important; background: rgba(255,140,60,.08); padding: 8px 12px; border-radius: 10px; font-weight: 600 !important; }
+.slipl.c { display: flex; flex-direction: column; gap: 8px; margin: 12px 0 14px; border: 0 !important; }
+.slipi.c { display: grid !important; grid-template-columns: 42px minmax(0, 1fr) auto 24px; gap: 12px; align-items: center; padding: 12px !important; border: 1px solid var(--hair) !important; border-radius: 14px !important; background: var(--s1) !important; position: relative; }
+.slipi.c .lpic, .slipi.c .lpic .hs, .slipi.c .lpic .ini { width: 42px !important; height: 42px !important; }
+.slipt b { font: 700 14.5px var(--fb) !important; line-height: 1.25; white-space: normal !important; }
+.slipt i { font: 500 12px var(--fb) !important; color: var(--t3) !important; white-space: normal !important; }
+.slipo { font: 800 15px var(--fh) !important; padding: 7px 11px !important; border-radius: 10px !important; background: rgba(111,141,255,.14) !important; color: #c3cdff !important; border: 0 !important; }
+.slipx { width: 24px; height: 24px; border-radius: 50%; background: var(--s2) !important; color: var(--t2) !important; font-size: 14px !important; display: grid; place-items: center; padding: 0 !important; }
+/* parlay: legs chained like a ticket */
+.slipl.chain { gap: 0; border: 1px solid rgba(111,141,255,.35) !important; border-radius: 16px !important; overflow: hidden; background: var(--s1); }
+.slipl.chain .slipi.c { border: 0 !important; border-radius: 0 !important; background: transparent !important; }
+.slipl.chain .slipi.c + .slipi.c { border-top: 1px dashed var(--hair2) !important; }
+.slipl.chain .slipi.c::before { content: ""; position: absolute; left: 32px; top: 0; bottom: 0; width: 2px; background: linear-gradient(180deg, #6f8dff, #a77bff); opacity: .45; z-index: 0; }
+.slipl.chain .slipi.c:first-child::before { top: 50%; } .slipl.chain .slipi.c:last-child::before { bottom: 50%; }
+.slipl.chain .lpic { z-index: 1; }
+.stkrow { gap: 8px !important; }
+.stkin.c { background: var(--s1) !important; border: 1px solid rgba(111,141,255,.45) !important; border-radius: 14px !important; }
+.stkin.c input { font: 800 22px var(--fh) !important; color: var(--t1) !important; }
+.qchips.c button { background: var(--s1) !important; border: 1px solid var(--hair) !important; border-radius: 12px !important; color: var(--t1) !important; font: 700 14px var(--fb) !important; }
+.qchips.c button.on { background: rgba(111,141,255,.18) !important; border-color: rgba(111,141,255,.6) !important; color: #fff !important; }
+.sl-pay { display: grid !important; grid-template-columns: repeat(3, 1fr); gap: 1px; padding: 0 !important; border-radius: 14px; overflow: hidden; margin: 14px 0 12px !important; background: var(--hair); }
+.sl-pay > div { background: var(--s1); padding: 12px 12px 11px; display: flex; flex-direction: column; gap: 4px; }
+.sl-pay span { font: 600 11px var(--fb); color: var(--t3); letter-spacing: .04em; text-transform: uppercase; white-space: nowrap; }
+.sl-pay b { font: 800 18px var(--fh); color: var(--t1); font-variant-numeric: tabular-nums; } .sl-pay b.w { color: var(--acc); }
+.placebet.c { height: 58px !important; border-radius: 16px !important; display: flex !important; align-items: center; justify-content: space-between !important; padding: 0 18px !important; }
+.placebet.c span { font: 800 17px var(--fb) !important; } .placebet.c em { font: 700 13px var(--fb) !important; padding: 5px 10px !important; border-radius: 999px !important; font-style: normal; }
+.slfoot { color: var(--t3) !important; }
+/* confirmation */
+.okring { background: var(--g-brand) !important; color: #fff !important; box-shadow: 0 0 0 8px rgba(111,141,255,.15) !important; }
+.pl-sum div b { font-family: var(--fh) !important; }
+.mbx button#okbets { background: var(--g-brand) !important; color: #fff !important; border: 0 !important; }
+
+/* ===================== Props: rows become cards ===================== */
+.card.gsec .prow4 { background: var(--s1); border: 1px solid var(--hair) !important; border-radius: 16px; padding: 12px !important; margin-bottom: 8px; }
+.gsec-h { border-bottom: 0 !important; padding-bottom: 8px !important; }
+.prow4 .pav { width: 48px !important; height: 48px !important; background: radial-gradient(circle at 50% 30%, color-mix(in srgb, var(--tc) 45%, #1d2027), #15171c) !important; }
+.prow4 .pxb.pp { background: var(--s2) !important; min-width: 82px !important; }
+.spot { background: radial-gradient(90% 70% at 50% 0%, color-mix(in srgb, var(--tc) 30%, transparent), transparent 70%), var(--s1) !important; }
+.pbar.md i { background: #8fa5ff !important; }
+
+/* ===================== My Bets ===================== */
+.mbstrip { gap: 8px !important; background: none !important; }
+.mbstrip div { border: 1px solid var(--hair) !important; border-radius: 14px !important; }
+.mbstrip div:first-child { background: radial-gradient(100% 120% at 0% 0%, rgba(111,141,255,.18), transparent 60%), var(--s1) !important; }
+.ticket { padding: 16px !important; }
+.ticket.open { border-left: 1px solid var(--hair) !important; box-shadow: inset 3px 0 0 #6f8dff !important; }
+.ticket.won { border-left: 1px solid var(--hair) !important; box-shadow: inset 3px 0 0 var(--acc) !important; }
+.ticket.lost { border-left: 1px solid var(--hair) !important; box-shadow: inset 3px 0 0 var(--red) !important; }
+.tkleg { padding: 8px 0 !important; }
+.tkodds { color: #c3cdff !important; }
+.wprob .wpb i { background: var(--g-brand) !important; }
+.cashout { border-color: rgba(111,141,255,.5) !important; } .cashout b { color: #c3cdff !important; }
+.sl-pay b { color: var(--t1) !important; } .sl-pay b.w { color: var(--acc) !important; }
+.hx-hero .hx-lvl > i, .hx-hero .hx-lvl i { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.hl-cut { height: 178px !important; bottom: 6px !important; right: 8px !important; }
