@@ -88,15 +88,17 @@ function healthHtml(H, sport, repo) {
   let rc = `<div class="hint">No recalibration has run yet. It runs automatically every Monday morning, or press the button.</div>`;
   if (last) {
     const ok = last.status === "applied", b = last.before || {}, a = last.after || {};
-    rc = `<div class="mh-st ${ok ? "ok" : "no"}">${ok ? "RECALIBRATION COMPLETE" : last.status === "insufficient" ? "NOT ENOUGH DATA YET" : "RECALIBRATION REJECTED"}</div>
+    // a rejected attempt is the safety check doing its job: the current model beat the candidate, so it stays
+    const kept = last.status === "rejected", plain = kept && /did not improve|no statistically/.test(last.reason || "");
+    rc = `<div class="mh-st ${ok ? "ok" : kept ? "kept" : "no"}">${ok ? "RECALIBRATION COMPLETE" : last.status === "insufficient" ? "NOT ENOUGH DATA YET" : "CHECKED · NO CHANGE NEEDED"}</div>
       <div class="hint" style="margin-top:2px">${sport} model v${esc(last.from_version)} ${ok ? `→ v${esc(last.version)}` : `stays (attempt v${esc(last.version)} not applied)`} · ${esc(fmtD(last.created_at))}</div>
       ${b.mae != null ? `<div class="mh-kv"><div><span>MAE (walk-forward)</span><b>${mhF(b.mae, 3)} → ${mhF(a.mae, 3)}</b></div><div><span>Bias</span><b>${mhS(b.bias)} → ${mhS(a.bias)}</b></div>
         <div><span>Sample</span><b>${(last.n || 0).toLocaleString()} ${esc(sport)} predictions</b></div><div><span>Held out</span><b>${((last.backtest || {}).all || {}).n || "–"}</b></div></div>` : ""}
-      <div class="hint">${esc(last.reason || "")}</div>
+      <div class="hint">${plain ? `Tested a recalibrated version against the current model on ${(((last.backtest || {}).all || {}).n || 0).toLocaleString()} past predictions it hadn't seen. It wasn't more accurate (average miss ${mhF(b.mae, 3)} vs ${mhF(a.mae, 3)}), so the current model was kept. That means there's no consistent bias left to correct.` : esc(last.reason || "")}</div>
       ${ok && last.changes ? `<div class="sec" style="margin-top:8px">Changes</div><ul class="mh-ch">${last.changes.map(c => `<li>${esc(c)}</li>`).join("")}</ul>` : ""}`;
   }
   const url = `https://github.com/${repo || "Mbennett00/NHLModel"}/actions/workflows/recalibrate.yml`;
-  const vers = (H.versions || []).slice(0, 6).map(v => `<div class="mh-v"><b>v${esc(v.version)}</b><span class="${esc(v.status)}">${esc(v.status)}</span><span>${esc(fmtD(v.created_at))}${v.n ? ` · ${v.n} obs` : ""}${v.before && v.after && v.before.mae != null ? ` · MAE ${mhF(v.before.mae, 3)}→${mhF(v.after.mae, 3)}` : ""}</span></div>`).join("");
+  const vers = (H.versions || []).slice(0, 6).map(v => `<div class="mh-v"><b>v${esc(v.version)}</b><span class="${esc(v.status)}">${esc(v.status === "rejected" ? "kept current" : v.status)}</span><span>${esc(fmtD(v.created_at))}${v.n ? ` · ${v.n} obs` : ""}${v.before && v.after && v.before.mae != null ? ` · MAE ${mhF(v.before.mae, 3)}→${mhF(v.after.mae, 3)}` : ""}</span></div>`).join("");
   return `<div class="card"><div class="mh-h">🩺 Model health <span>v${esc(act.version || "1.0")} · ${n.toLocaleString()} predictions stored</span></div>
       <div class="mh-tiles">${tile("MAE", mhF(all.mae), unit)}${tile("RMSE", mhF(all.rmse), unit)}${tile("Bias", mhS(all.bias), all.bias > 0 ? "too high" : all.bias < 0 ? "too low" : "")}${tile("Calibration", cal.n ? mhF(cal.brier, 3) : "–", cal.n ? `Brier · ECE ${mhF(100 * cal.ece, 1)}pt` : "win prob")}</div>
       ${wt}</div>

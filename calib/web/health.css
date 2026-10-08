@@ -27,7 +27,7 @@
 .mh-c details { font-size: 11px; font-weight: 700; color: var(--muted); margin-top: 2px; } .mh-c details table { width: 100%; font-size: 11px; }
 .mh-rc { background: linear-gradient(160deg, #f1f7ff, var(--cream)); }
 .mh-st { font-family: var(--fh); font-weight: 700; font-size: 16px; letter-spacing: .03em; }
-.mh-st.ok { color: #2e8b57; } .mh-st.no { color: #9a6a12; }
+.mh-st.ok { color: #2e8b57; } .mh-st.no { color: #9a6a12; } .mh-st.kept { color: #3a86c8; }
 .mh-kv { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; margin: 8px 0; }
 .mh-kv div { display: flex; flex-direction: column; } .mh-kv span { font-size: 11px; font-weight: 800; color: var(--muted); }
 .mh-kv b { font-family: var(--fh); font-size: 16px; color: var(--navy); }
