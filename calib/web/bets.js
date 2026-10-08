@@ -112,7 +112,7 @@ function mbOpenSlip() {
   const tot = SLIP_MODE === "parlay" ? stake : stake * v.length, win = (SLIP_MODE === "parlay" ? stake * (dec - 1) : v.reduce((a, x) => a + stake * (mbDec(x.odds) - 1), 0)) * (1 + bst);
   const closed = v.filter(mbStarted).length, short = tot > W.available + 1e-9, overcap = v.some(x => x.special) && stake > 25;
   const payout = tot + win;
-  const label = closed ? "Remove started games" : overcap ? "Odds Boost max stake is $25" : short ? "Not enough balance" : !(stake > 0) ? "Enter a stake" : `Place ${mbMoney(tot)}`;
+  const label = closed ? "Remove started games" : overcap ? "Odds Boost max stake is $25" : short ? "Not enough balance" : !(stake > 0) ? "Enter a stake" : `${window.MB_TAP_PLACE ? "Place" : "Hold to place"} ${mbMoney(tot)}`;
   sh.innerHTML = `<div class="grab"></div><button class="iconbtn close" id="shx" aria-label="Close">✕</button>
     <div class="slhead"><div class="sh-t">Bet slip</div><span class="slcount">${v.length}</span>${v.length ? `<button class="slclr" id="slipclr">Clear</button>` : ""}</div>
     ${v.length ? `<div class="gseg c"><button class="${SLIP_MODE === "single" ? "on" : ""}" data-sm2="single">Singles</button>
@@ -127,6 +127,7 @@ function mbOpenSlip() {
     <div class="slsum c sl-pay"><div><span>${SLIP_MODE === "parlay" ? "Risk" : `${v.length} × ${mbMoney(stake)}`}</span><b>${mbMoney(tot)}</b></div>
       <div><span>To win${bst ? ` <em class="bstw">+${100 * bst}%</em>` : ""}</span><b class="w">${mbMoney(win)}</b></div>
       <div><span>Payout${SLIP_INS ? " · insured" : ""}</span><b>${mbMoney(payout)}</b></div></div>
+    ${typeof stkRiskHtml === "function" && !short ? stkRiskHtml(tot) : ""}
     <button class="placebet c" id="slipgo" ${!v.length || closed || short || overcap || !(stake > 0) ? "disabled" : ""}><span>${label}</span>${!closed && !short && !overcap && stake > 0 ? `<em>Payout ${mbMoney(payout)}</em>` : ""}</button>
     <div class="slfoot">Balance ${mbMoney(W.available)}${stake > 0 && !short ? ` → ${mbMoney(W.available - tot)} after` : ""} · paper money</div>`
       : `<div class="slipempty"><div class="slicon">🧾</div><b>Your bet slip is empty</b><span>Tap any price or prop, then add it to your slip.</span></div>`}`;
@@ -140,7 +141,7 @@ function mbOpenSlip() {
   const clr = document.getElementById("slipclr"); if (clr) clr.onclick = () => { slipSave([]); mbFab(); re(); };
   funWireTokens(sh, re);
   const go = document.getElementById("slipgo");
-  if (go) go.onclick = () => {
+  const placeNow = () => {
     const placed = [], tk = funTakeTokens(SLIP_MODE === "parlay");
     if (SLIP_MODE === "parlay") placed.push(mbAdd({sport: v[0].sport, kind: "parlay", label: `${v.length}-leg ${slipIsSGP(v) ? "Same Game Parlay" : "parlay"}`, sgp: slipIsSGP(v) || undefined, odds: mbAm(dec), stake, ...tk,
       legs: v.map(x => Object.assign({label: x.label, sub: x.sub, gid: x.gid, start: x.start, key: x.key, p: x.p, odds: x.odds, dec: mbDec(x.odds), sport: x.sport}, legArt(x)))}));
@@ -151,6 +152,7 @@ function mbOpenSlip() {
     try { mbCoins(go, 10); } catch (e) {}
     mbHaptic("success"); funBlip(); slipSave([]); mbFab(); mbConfirm(placed);
   };
+  if (go) { if (typeof stkHold === "function") stkHold(go, placeNow); else go.onclick = placeNow; }
   document.getElementById("scrim").classList.add("open"); sh.classList.add("open");
 }
 function mbConfirm(placed) {
@@ -271,7 +273,7 @@ function mbTicket(b, noCash) {
   return `<div class="ticket ${b.status}"><div class="tkh">${b.status === "open" && mbIsLive(b) ? `<span class="livetag"><span class="livedot"></span>LIVE</span>` : ""}<span class="tkmeta">${b.sport} · ${b.kind === "parlay" ? (b.sgp ? `<span class="sgpb">SGP</span>` : "Parlay") : "Single"}${b.boost ? ` <em class="tkb">🚀 +${100 * b.boost}%</em>` : ""}${b.ins ? ` <em class="tkb ins">🛡️</em>` : ""}</span><span class="tkodds">${mbSign(b.odds)}</span></div>
     ${body}<div class="tkdiv"></div>
     <div class="tkf"><div><span>Risk</span><b>${mbMoney(b.stake)}</b></div><div><span>${b.status === "won" ? "Won" : mbInsured(b) ? "Insured" : b.status === "cashout" ? "Cashed out" : b.status === "lost" ? "Lost" : b.status === "push" ? "Refund" : "To win"}</span><b class="${b.status === "won" ? "pos" : ""}">${res}</b></div>
-      <span class="tkpill ${b.status}">${pill}</span></div>
+      <span class="tkpill ${b.status}">${pill}</span></div>${typeof stkBadBeat === "function" ? stkBadBeat(b) : ""}
     ${(() => { const P = noCash === true ? null : mbWinProb(b); return P == null ? "" : `<div class="wprob ${P >= 0.6 ? "hi" : P >= 0.35 ? "md" : "lo"}"><span>Chance to cash</span><div class="wpb"><i style="width:${Math.round(100 * P)}%"></i></div><b>${Math.round(100 * P)}%</b></div>`; })()}
     ${co ? `<button class="cashout ${co.dir}" data-co="${b.id}"><span>Cash out</span><b>${mbMoney(co.value)}</b>${co.dir ? `<i>${co.dir === "up" ? "▲" : "▼"}</i>` : ""}</button>` : ""}
     <div class="tkfoot"><span>#${esc(b.id || "")} · ${when}</span>${acts ? `<span class="tkact">${acts}</span>` : ""}</div></div>`;
@@ -347,7 +349,7 @@ function mbView() {
   if (MB_BTAB === "settled") return strip + sports + msg + (done.length
     ? `<div class="mbrec"><span><b>${w}–${l}</b> record</span><span><b class="${st.roi >= 0 ? "pos" : "neg"}">${(st.roi >= 0 ? "+" : "") + (100 * st.roi).toFixed(1)}%</b> ROI</span><span><b>${st.bigWin ? mbShort(st.bigWin) : "–"}</b> best win</span></div>${done.slice(0, 50).map(mbTicket).join("")}`
     : `<div class="mbempty"><b>No settled bets yet</b><i>Your wins, losses and cash-outs land here.</i></div>`);
-  return strip + sports + msg + (live.length ? `<div class="mbh"><span class="livedot"></span>Live <em>${live.length}</em></div>${live.map(mbTicket).join("")}` : "")
+  return strip + sports + msg + (live.length ? `<div class="mbh"><span class="livedot"></span>Live <em>${live.length}</em><button class="mbh-sw" data-sweat="1">Sweat room ›</button></div>${live.map(mbTicket).join("")}` : "")
     + (open.length ? `${live.length ? `<div class="mbh">Upcoming <em>${open.length}</em></div>` : ""}${open.map(mbTicket).join("")}` : "")
     + (!openAll.length ? `<div class="mbempty"><b>No open bets</b><i>Tap any price to build a slip. Quick picks on Home are one tap.</i><button class="mbgo" data-go2="games">Browse games</button></div>` : "");
 }
@@ -400,7 +402,7 @@ function mbAfterRender(render) {
   MB_RENDER = render;
   try { const v = document.getElementById("view"); if (v && window.MB_LAST_TAB !== TAB) { window.MB_LAST_TAB = TAB; v.classList.remove("vin"); void v.offsetWidth; v.classList.add("vin"); } } catch (e) {}
   document.querySelectorAll("[data-btab]").forEach(b => b.onclick = () => { mbHaptic(); MB_VIEW = "bets"; MB_BTAB = b.dataset.btab; render(); });
-  document.querySelectorAll("[data-go2]").forEach(b => b.onclick = () => { mbHaptic(); TAB = b.dataset.go2; render(); window.scrollTo(0, 0); }); mbFab(); mbWireBanner(render); try { funAfterRender(render); } catch (e) {} try { mbWireSharp(render); } catch (e) {}
+  document.querySelectorAll("[data-go2]").forEach(b => b.onclick = () => { mbHaptic(); TAB = b.dataset.go2; render(); window.scrollTo(0, 0); }); mbFab(); mbWireBanner(render); try { funAfterRender(render); } catch (e) {} try { mbWireSharp(render); } catch (e) {} try { stkAfterRender(render); } catch (e) {}
   const sp = document.getElementById("splash"); if (sp && !sp.classList.contains("out")) { sp.classList.add("out"); setTimeout(() => sp.remove(), 600); }
   const t = typeof TAB !== "undefined" ? TAB : "";   // a soft fade-up when the screen changes (not on live refreshes)
   if (t !== MB_LASTTAB) { const v = document.getElementById("view"); if (v) { v.classList.remove("enter"); void v.offsetWidth; v.classList.add("enter"); } MB_LASTTAB = t; }
@@ -480,7 +482,7 @@ function mbSweatBanner(s) {
   const open = s.bets.filter(b => b.status === "open" && b.sport === MB_PAGE), live = open.filter(mbIsLive);
   if (!live.length) return "";
   const hitting = live.filter(b => b.legs.every(l => { const w = mbSweat(l); return w && /hit|up/.test(w.st); })).length;
-  return `<button class="swbanner" data-gobets="1"><span class="livedot"></span><b>Sweating ${live.length} live bet${live.length > 1 ? "s" : ""}</b><i>${hitting ? hitting + " on track" : "tap to follow"}</i><span>→</span></button>`;
+  return `<button class="swbanner" data-sweat="1"><span class="livedot"></span><b>Sweating ${live.length} live bet${live.length > 1 ? "s" : ""}</b><i>${hitting ? hitting + " on track · " : ""}open the sweat room</i><span>→</span></button>`;
 }
 function mbWireBanner(render) {
   document.querySelectorAll("[data-gobets]").forEach(b => b.onclick = () => { mbHaptic(); MB_VIEW = "bets"; if (typeof TAB !== "undefined") TAB = "check"; render(); window.scrollTo(0, 0); });

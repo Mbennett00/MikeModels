@@ -117,13 +117,13 @@ function mbHomeHtml() {
     .map(([k, href, img, nm]) => `<a class="hx-sport ${k === info.sport ? "on" : ""}" href="${href}" ${k === info.sport ? 'data-go="games"' : ""}><img src="${img}" alt="" onerror="this.remove()"><span><b>${nm}</b><i>${k === info.sport ? esc(info.line || "") : "Switch sport"}</i></span>${ic("chev")}</a>`).join("");
   return `<div class="hx">
     <section class="hx-hero"><div class="hx-hl"><div class="hx-eye">${hi}, Mike</div><div class="hx-bal">${mbMoney(W.available).replace(/(\.\d\d)$/, '<small>$1</small>')}</div>
-      <div class="hx-sub"><span class="${W.pl >= 0 ? "up" : "dn"}">${W.pl >= 0 ? "+" : "−"}${mbMoney(Math.abs(W.pl)).replace("−", "")}</span> all-time${W.risk > 0 ? ` · ${mbMoney(W.risk)} in play` : ""}</div></div>
+      <div class="hx-sub"><span class="${W.pl >= 0 ? "up" : "dn"}">${W.pl >= 0 ? "+" : "−"}${mbMoney(Math.abs(W.pl)).replace("−", "")}</span> all-time${W.risk > 0 ? ` · ${mbMoney(W.risk)} in play` : ""}</div>${typeof stkRunLine === "function" ? stkRunLine() : ""}</div>
       <button class="hx-lvl" data-pass="1">${passRing(L, 56)}<i>${L.rank[1]}</i></button>${typeof mbSpark === "function" ? mbSpark(s.bets) : ""}</section>
     <div class="hx-chips">${today}</div>
     ${mbHeadlinerHtml(picks)}
     ${mbStripHtml()}
     ${typeof mbSharpCard === "function" ? mbSharpCard() : ""}
-    ${live.length ? `<div class="hx-h"><b><span class="livedot"></span>Live</b><button data-go="check">All bets</button></div><div class="hx-list">${live.slice(0, 3).map(b => { const P = mbWinProb(b);
+    ${live.length ? `<div class="hx-h"><b><span class="livedot"></span>Live</b><button data-sweat="1">Sweat room ›</button></div><div class="hx-list">${live.slice(0, 3).map(b => { const P = mbWinProb(b);
       return `<button class="hx-row" data-go="check"><span class="hx-rt"><b>${esc(b.label)}</b><i>${esc(b.legs.map(l => (mbSweat(l) || {}).text || "").filter(Boolean)[0] || "")}</i></span>${P != null ? `<span class="hx-pc ${P >= 0.6 ? "hi" : P >= 0.35 ? "md" : "lo"}">${Math.round(100 * P)}%</span>` : ""}</button>`; }).join("")}</div>`
       : open.length ? `<button class="hx-row solo" data-go="check"><span class="hx-rt"><b>${open.length} open bet${open.length > 1 ? "s" : ""}</b><i>${mbMoney(W.risk)} riding · to win ${mbMoney(open.reduce((a, b) => a + b.stake * (mbDec(b.odds) - 1) * (1 + (b.boost || 0)), 0))}</i></span>${ic("chev")}</button>` : ""}
     ${qp ? `<div class="hx-h"><b>Quick picks</b><span>by the model</span></div><div class="hx-qps">${qp}</div>` : ""}

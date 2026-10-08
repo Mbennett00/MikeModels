@@ -256,12 +256,11 @@ function funTierCheck() { passCheck(); }   // levels now come from the season pa
 function funRebuyHtml(s, W) {
   if (W.available >= 5 || s.bets.some(b => b.status === "open")) return "";
   const ok = s.rebuy !== mbDay(0);
-  return `<div class="daily rebuy"><div class="gift">💸</div><div class="dt"><b>${ok ? "Running on empty?" : "Refill used today"}</b><i>${ok ? "Grab a $500 paper refill (once a day)" : "Come back tomorrow for another refill"}</i></div>${ok ? `<button class="claim" id="mbrebuy">Refill</button>` : ""}</div>`;
+  return `<div class="daily rebuy"><div class="gift">💸</div><div class="dt"><b>${ok ? "Busted. Start a new run?" : "New run used today"}</b><i>${ok ? "A fresh $1,000 bankroll, once a day" : "Come back tomorrow for your next run"}</i></div>${ok ? `<button class="claim" id="mbrebuy">New run</button>` : ""}</div>`;
 }
 function funWireRebuy(render) {
   const b = document.getElementById("mbrebuy"); if (!b) return;
-  b.onclick = () => { const s = mbLoad(); if (s.rebuy === mbDay(0)) return; s.rebuy = mbDay(0); s.bonus = (s.bonus || 0) + 500; mbSave(s);
-    mbHaptic("success"); funBlip(); mbBurst(24, ["💵", "✨"]); mbToast(`<div class="tbig">💸 Refilled</div><div class="tamt">+$500.00</div>`, "win"); render(); };
+  b.onclick = () => stkNewRun(render);
 }
 function funTokensHtml(s) {
   const T = s.tokens || {}, ks = Object.keys(TOKENS).filter(k => T[k] > 0);
