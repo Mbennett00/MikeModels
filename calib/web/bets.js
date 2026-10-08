@@ -165,7 +165,8 @@ function mbConfirm(placed) {
     <div class="mbx"><button id="okmore">Keep betting</button><button id="okbets">My bets</button></div>`;
   document.getElementById("shx").onclick = document.getElementById("okmore").onclick = () => { closeSheet(); MB_RENDER && MB_RENDER(); };
   document.getElementById("okbets").onclick = () => { closeSheet(); MB_VIEW = "bets"; if (typeof TAB !== "undefined") TAB = "check"; MB_RENDER && MB_RENDER(); window.scrollTo(0, 0); };
-  mbBurst(18, ["🎟️", "✨"]);
+  mbBurst(18, ["🎟️", "✨"]); sh.classList.add("fx-placed"); setTimeout(() => sh.classList.remove("fx-placed"), 1600);
+  try { fxConfetti(90); } catch (e) {}
 }
 // floating slip button + wallet in the nav
 function mbFab(pop) {
@@ -403,7 +404,7 @@ function mbAfterRender(render) {
   try { const v = document.getElementById("view"); if (v && window.MB_LAST_TAB !== TAB) { window.MB_LAST_TAB = TAB; v.classList.remove("vin"); void v.offsetWidth; v.classList.add("vin"); } } catch (e) {}
   document.querySelectorAll("[data-btab]").forEach(b => b.onclick = () => { mbHaptic(); MB_VIEW = "bets"; MB_BTAB = b.dataset.btab; render(); });
   document.querySelectorAll("[data-go2]").forEach(b => b.onclick = () => { mbHaptic(); TAB = b.dataset.go2; render(); window.scrollTo(0, 0); }); mbFab(); mbWireBanner(render); try { funAfterRender(render); } catch (e) {} try { mbWireSharp(render); } catch (e) {} try { stkAfterRender(render); } catch (e) {}
-  const sp = document.getElementById("splash"); if (sp && !sp.classList.contains("out")) { sp.classList.add("out"); setTimeout(() => sp.remove(), 600); }
+  if (typeof fxAfterRender === "function") fxAfterRender(); else { const sp = document.getElementById("splash"); if (sp && !sp.classList.contains("out")) { sp.classList.add("out"); setTimeout(() => sp.remove(), 600); } }
   const t = typeof TAB !== "undefined" ? TAB : "";   // a soft fade-up when the screen changes (not on live refreshes)
   if (t !== MB_LASTTAB) { const v = document.getElementById("view"); if (v) { v.classList.remove("enter"); void v.offsetWidth; v.classList.add("enter"); } MB_LASTTAB = t; }
 }

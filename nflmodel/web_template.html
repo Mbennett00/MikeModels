@@ -471,7 +471,7 @@ function gameCard(g) {
         ${s ? `<b class="gscore ${s.state === "post" && mine < theirs ? "lose" : ""}">${mine}</b>` : ""}</div>
       ${pbtnN(g, sb, sb ? sp(sb.line) : "")}${pbtnN(g, tb, tb ? `${side === "away" ? "O" : "U"} ${tb.line}` : "")}${pbtnN(g, mb, "")}</div>`;
   };
-  let html = `<div class="card gc gc2 ${s && s.state === "in" ? "islive" : ""}" style="--ca:${esc(a.color)};--ch:${esc(h.color)};--la:url('${esc(a.logo || "")}');--lh:url('${esc(h.logo || "")}')">
+  let html = `<div data-gid="${esc(String(g.game_id))}" class="card gc gc2 ${s && s.state === "in" ? "islive" : ""}" style="--ca:${esc(a.color)};--ch:${esc(h.color)};--la:url('${esc(a.logo || "")}');--lh:url('${esc(h.logo || "")}')">
     ${(() => { const sa = find("spread", "away"), sh = find("spread", "home"), to = find("total", "over"), tu = find("total", "under"), qb = t => esc(t.qb ? t.qb.split(" ").slice(-1)[0] : "QB TBD");
       return mbVersus({a, h, ph, aSub: qb(a), hSub: qb(h), state: s && s.state === "in" ? "live" : s ? "final" : "pre",
         time: kickLab(g.start_utc) + wx, proj: `proj ${Math.round(g.model_total / 2 - g.model_margin / 2)}–${Math.round(g.model_total / 2 + g.model_margin / 2)}`, detail: s && s.detail, as: s && s.away, hs: s && s.home,

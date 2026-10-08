@@ -1,0 +1,59 @@
+/* ===== 🎬 production layer ===== */
+.fx-confetti { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 600; pointer-events: none; }
+
+/* splash: logo punches in, light sweeps, then it opens like a curtain */
+.splash { background: radial-gradient(60% 40% at 50% 45%, rgba(111,141,255,.22), transparent 70%), #07080b !important; overflow: hidden; }
+.splash::before { content: ""; position: absolute; inset: -50%; background: conic-gradient(from 0deg, transparent, rgba(111,141,255,.18), transparent 30%, rgba(167,123,255,.16), transparent 60%); animation: splspin 2.4s linear infinite; }
+@keyframes splspin { to { transform: rotate(360deg); } }
+.splash img, .splash b, .splash i { position: relative; z-index: 1; }
+.splash.fx-hold img { animation: splpunch .9s cubic-bezier(.2,1.6,.4,1) both !important; }
+.splash.fx-hold b { animation: splrise .7s .25s cubic-bezier(.2,.9,.2,1) both; }
+.splash b span { background: linear-gradient(135deg, #6f8dff, #a77bff); -webkit-background-clip: text; background-clip: text; color: transparent !important; }
+@keyframes splpunch { 0% { transform: scale(.3) rotate(-12deg); opacity: 0; filter: blur(8px); } 70% { transform: scale(1.12) rotate(2deg); opacity: 1; filter: none; } 100% { transform: scale(1); } }
+@keyframes splrise { from { transform: translateY(14px); opacity: 0; letter-spacing: .3em; } to { transform: none; opacity: 1; } }
+.splash.fx-open { animation: splopen .65s cubic-bezier(.7,0,.2,1) forwards; }
+@keyframes splopen { 0% { clip-path: inset(0 0 0 0); } 100% { clip-path: inset(50% 0 50% 0); opacity: .4; } }
+
+/* bet placed: the ticket prints out of a slot, then gets stamped */
+#sheet.fx-placed .okring { animation: okpop .6s cubic-bezier(.2,1.6,.4,1) both; }
+@keyframes okpop { 0% { transform: scale(0) rotate(-90deg); } 100% { transform: none; } }
+#sheet.fx-placed .ticket { position: relative; animation: tkprint .9s .15s cubic-bezier(.2,.9,.25,1) both; transform-origin: top; }
+@keyframes tkprint { 0% { clip-path: inset(0 0 100% 0); transform: translateY(-18px); } 70% { clip-path: inset(0 0 0 0); transform: translateY(3px); } 100% { clip-path: inset(0 0 0 0); transform: none; } }
+#sheet.fx-placed .ticket::after { content: "PLACED"; position: absolute; right: 16px; top: 46px; padding: 3px 10px; border: 2.5px solid #8fa5ff; border-radius: 8px; color: #8fa5ff;
+  font: 900 15px var(--fd, sans-serif); letter-spacing: .14em; transform: rotate(-10deg); animation: tkstamp .45s 1s cubic-bezier(.2,1.6,.4,1) both; pointer-events: none; display: block !important; }
+@keyframes tkstamp { 0% { transform: rotate(-10deg) scale(2.4); opacity: 0; } 100% { transform: rotate(-10deg) scale(1); opacity: .9; } }
+
+/* live cards: a light runs around the border */
+.gc2.islive { position: relative; }
+.gc2.islive > .vs-top::before { content: ""; position: absolute; inset: -1px; border-radius: 21px; padding: 1.5px; pointer-events: none; z-index: 2;
+  background: conic-gradient(from var(--fxa, 0deg), transparent 0 70%, rgba(255,90,95,.9) 85%, transparent 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; animation: fxspin 3s linear infinite; }
+@property --fxa { syntax: "<angle>"; initial-value: 0deg; inherits: false; }
+@keyframes fxspin { to { --fxa: 360deg; } }
+.gc2 .vs-top { position: static; }
+
+/* goal: the card flashes the scoring team's colour, a ribbon sweeps across, the score flips */
+.gc2.fx-goal { animation: fxgoal 1.6s ease-out; }
+@keyframes fxgoal { 0% { box-shadow: 0 0 0 0 var(--goal); } 10% { box-shadow: 0 0 0 3px var(--goal), 0 0 60px -6px var(--goal); } 100% { box-shadow: 0 0 0 0 transparent; } }
+.fx-ribbon { position: absolute; left: -10%; right: -10%; top: 38%; z-index: 5; display: flex; align-items: center; justify-content: center; gap: 12px; padding: 10px 0;
+  background: linear-gradient(90deg, transparent, var(--goal) 18%, var(--goal) 82%, transparent); transform: skewY(-4deg); pointer-events: none;
+  animation: fxrib 3.1s cubic-bezier(.2,.9,.2,1) both; }
+.fx-ribbon b { font: 900 30px var(--fd, sans-serif); letter-spacing: .2em; color: #fff; text-shadow: 0 2px 12px rgba(0,0,0,.5); }
+.fx-ribbon span { font: 800 14px var(--fb, sans-serif); color: rgba(255,255,255,.9); text-transform: uppercase; letter-spacing: .1em; }
+@keyframes fxrib { 0% { transform: skewY(-4deg) translateX(-110%); } 12% { transform: skewY(-4deg) translateX(0); } 85% { transform: skewY(-4deg) translateX(0); opacity: 1; } 100% { transform: skewY(-4deg) translateX(110%); opacity: 0; } }
+.fx-flip { display: inline-block; animation: fxflip .7s cubic-bezier(.2,1.4,.4,1); color: var(--goal, #fff) !important; }
+@keyframes fxflip { 0% { transform: rotateX(90deg) scale(1.6); } 100% { transform: none; } }
+
+/* rolling numbers */
+.fx-rolling { transition: color .3s; } .fx-rolling.fx-up { color: #7ee2a8 !important; } .fx-rolling.fx-dn { color: #ff9a9d !important; }
+
+/* tap ripple */
+.pxb, .hx-add, .hl-add, .sp-btn, .placebet, .stk-go { position: relative; overflow: hidden; }
+.fx-rip { position: absolute; border-radius: 50%; background: rgba(255,255,255,.28); transform: scale(0); animation: fxrip .6s ease-out forwards; pointer-events: none; }
+@keyframes fxrip { to { transform: scale(1); opacity: 0; } }
+
+/* big win: brighter beams */
+.bigwin .bw-beams { background: conic-gradient(from 0deg, transparent 0 10%, rgba(111,141,255,.22) 12%, transparent 14% 30%, rgba(167,123,255,.2) 32%, transparent 34% 50%, rgba(52,209,123,.22) 52%, transparent 54% 70%, rgba(255,209,102,.2) 72%, transparent 74%) !important; }
+.bigwin .bw-amt { background: linear-gradient(135deg, #7ee2a8, #ffffff 50%, #8fa5ff); -webkit-background-clip: text; background-clip: text; color: transparent !important; }
+
+@media (prefers-reduced-motion: reduce) { .splash::before, .gc2.islive > .vs-top::before, .fx-ribbon, #sheet.fx-placed .ticket { animation: none !important; } }

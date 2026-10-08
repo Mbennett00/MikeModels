@@ -681,7 +681,7 @@ function gameCard(g) {
       ${pbtn(g, `${ou === "over" ? "Over" : "Under"} 6.5`, "total", ou, 6.5, `${ou === "over" ? "O" : "U"} 6.5`)}
       ${pbtn(g, `${t.name} to win`, "moneyline", side, undefined, "")}</div>`;
   };
-  let html = `<div class="card gc gc2 ${L.state === "in" ? "islive" : ""}" style="--ca:${esc(a.color)};--ch:${esc(h.color)};--la:url('${esc(a.logo || "")}');--lh:url('${esc(h.logo || "")}')">
+  let html = `<div data-gid="${esc(String(g.game_id))}" class="card gc gc2 ${L.state === "in" ? "islive" : ""}" style="--ca:${esc(a.color)};--ch:${esc(h.color)};--la:url('${esc(a.logo || "")}');--lh:url('${esc(h.logo || "")}')">
     ${(() => { const plA = favH ? 1.5 : -1.5, sg = x => `${x > 0 ? "+" : ""}${x}`, gk = t => `<i class="dot ${gdot(t)}"></i>${esc(t.goalie ? t.goalie.split(" ").slice(-1)[0] : "TBD")}`;
       return mbVersus({a, h, ph, aSub: gk(a), hSub: gk(h), state: L.state === "in" ? "live" : L.state === "post" ? "final" : "pre",
         time: timeET(g.start_utc), proj: `proj ${g.lam_away.toFixed(1)}–${g.lam_home.toFixed(1)}`, detail: L.detail, as: L.away, hs: L.home,
