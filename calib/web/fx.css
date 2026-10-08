@@ -57,3 +57,61 @@
 .bigwin .bw-amt { background: linear-gradient(135deg, #7ee2a8, #ffffff 50%, #8fa5ff); -webkit-background-clip: text; background-clip: text; color: transparent !important; }
 
 @media (prefers-reduced-motion: reduce) { .splash::before, .gc2.islive > .vs-top::before, .fx-ribbon, #sheet.fx-placed .ticket { animation: none !important; } }
+
+/* ===================== big layout changes ===================== */
+/* mode switches (Pick'em | List, Feed | Board) */
+.pmode { display: inline-flex; gap: 2px; padding: 3px; margin: 2px 0 14px; border-radius: 999px; background: var(--s1); border: 1px solid var(--hair); }
+.pmode button { border: 0; background: none; color: var(--t2); font: 700 13px var(--fb); padding: 7px 16px; border-radius: 999px; }
+.pmode button.on { background: var(--g-brand, #6f8dff); color: #fff; box-shadow: 0 6px 16px -8px rgba(111,141,255,.8); }
+
+/* 🎯 Pick'em cards */
+.pk-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 4px 0 14px; }
+.pk { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; padding: 14px 10px 10px; border-radius: 20px; overflow: hidden; isolation: isolate;
+  background: radial-gradient(120% 60% at 50% 0%, color-mix(in srgb, var(--tc) 38%, transparent), transparent 70%), var(--s1); border: 1px solid var(--hair); transition: transform .2s, border-color .2s; }
+.pk::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: var(--tc); }
+.pk.picked { border-color: rgba(111,141,255,.7); box-shadow: 0 10px 30px -16px rgba(111,141,255,.9); }
+.pk.pk-pop { animation: pkpop .35s cubic-bezier(.2,1.6,.4,1); } @keyframes pkpop { 50% { transform: scale(1.04); } }
+.pk-face { position: relative; width: 84px; height: 84px; border-radius: 50%; border: 0; padding: 0; overflow: visible;
+  background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--tc) 55%, #1d2027), #121419 75%); box-shadow: 0 0 0 2px rgba(255,255,255,.08), 0 12px 24px -10px var(--tc); }
+.pk-face > img:not(.pk-tl) { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 50%; object-fit: cover; object-position: center 12%; }
+.pk-ini { font: 800 24px var(--fd); color: rgba(255,255,255,.8); }
+.pk-tl { position: absolute; right: -2px; bottom: -2px; width: 26px; height: 26px; border-radius: 50%; object-fit: contain; padding: 3px; background: #0f1115; border: 1px solid var(--hair2); }
+.pk-nm { margin-top: 10px; font: 800 14.5px/1.15 var(--fd); color: var(--t1); min-height: 2.3em; display: flex; align-items: center; }
+.pk-mt { font: 600 11px var(--fb); color: var(--t3); }
+.pk-line { margin: 10px 0 6px; display: flex; flex-direction: column; align-items: center; }
+.pk-line b { font: 900 34px/1 var(--fh); letter-spacing: -.03em; color: #fff; } .pk-line span { font: 600 11px var(--fb); color: var(--t2); margin-top: 3px; }
+.pk-proj { width: 100%; margin-bottom: 10px; } .pk-proj i { display: block; height: 4px; border-radius: 2px; background: rgba(255,255,255,.08); position: relative; overflow: hidden; margin: 0 6px 5px; }
+.pk-proj i::after { content: ""; position: absolute; top: 0; bottom: 0; width: var(--g); border-radius: 2px; }
+.pk-proj.pk-more i::after { left: 50%; background: var(--acc); } .pk-proj.pk-less i::after { right: 50%; background: #ff8a8e; }
+.pk-proj span { font: 600 10.5px var(--fb); color: var(--t3); }
+.pk-btns { width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.pk-b { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 8px 0; border-radius: 12px; border: 1px solid var(--hair2); background: var(--s2); color: var(--t1); }
+.pk-b span { font: 800 12px var(--fb); } .pk-b b { font: 700 12px var(--fh); color: var(--t2); }
+.pk-b.pk-up span { color: var(--acc); } .pk-b.pk-dn span { color: #ff9a9d; }
+.pk-b.insl { background: var(--g-brand, #6f8dff) !important; border-color: transparent; } .pk-b.insl span, .pk-b.insl b { color: #fff !important; }
+
+/* 📺 ticker */
+.hdr { flex-wrap: wrap !important; }
+.tkr { flex: 0 0 calc(100% + 32px); order: 99; margin: 8px -16px -8px; display: flex; align-items: stretch; height: 30px; border-top: 1px solid var(--hair); background: rgba(0,0,0,.35); overflow: hidden; }
+.tk-tag { flex: none; display: flex; align-items: center; gap: 6px; padding: 0 10px 0 14px; font: 900 10px var(--fb); letter-spacing: .12em; color: #fff; background: linear-gradient(90deg, #6f8dff, #a77bff); clip-path: polygon(0 0, 100% 0, calc(100% - 8px) 100%, 0 100%); }
+.tk-win { flex: 1; overflow: hidden; -webkit-mask: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent); mask: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent); }
+.tk-run { display: inline-flex; align-items: center; height: 100%; white-space: nowrap; animation: tkscroll var(--dur, 40s) linear infinite; }
+@keyframes tkscroll { to { transform: translateX(-50%); } }
+.tk-i { display: inline-flex; align-items: center; gap: 5px; padding: 0 4px; font: 600 11.5px var(--fb); color: var(--t2); }
+.tk-i img { width: 16px; height: 16px; object-fit: contain; } .tk-i b { color: var(--t1); font-weight: 800; } .tk-i i { font-style: normal; color: var(--t3); font-size: 10.5px; }
+.tk-i strong { font: 800 12.5px var(--fh); color: #fff; } .tk-i em { font-style: normal; font: 900 9px var(--fb); letter-spacing: .08em; color: #fff; background: var(--red); padding: 2px 5px; border-radius: 4px; }
+.tk-i em.f { background: var(--s3); color: var(--t2); } .tk-at { color: var(--t3); } .tk-d { color: var(--t3); font-size: 10.5px; margin-left: 2px; }
+.tk-sep { display: inline-block; width: 4px; height: 4px; border-radius: 50%; background: var(--t3); margin: 0 14px; opacity: .6; }
+
+/* 🎞️ Feed: each game becomes a full-screen matchup poster */
+html:has(body.gfeed) { scroll-snap-type: y proximity; }
+body.gfeed .gc2 { min-height: calc(100svh - 230px); display: flex; flex-direction: column; justify-content: center; scroll-snap-align: center; margin-bottom: 18px !important;
+  background: radial-gradient(90% 55% at 0% 0%, color-mix(in srgb, var(--ca) 42%, transparent), transparent 70%), radial-gradient(90% 55% at 100% 100%, color-mix(in srgb, var(--ch) 40%, transparent), transparent 70%), #0e1015 !important; }
+body.gfeed .gc2 .vs-top { padding: 26px 14px 16px; }
+body.gfeed .vs-logo { width: clamp(76px, 24vw, 104px); height: clamp(76px, 24vw, 104px); }
+body.gfeed .vs-team .gtn b { font-size: clamp(17px, 5vw, 21px) !important; }
+body.gfeed .vs-pct { font-size: 17px; padding: 5px 14px; }
+body.gfeed .vs-at { font-size: 40px; } body.gfeed .vs-score { font-size: 54px; } body.gfeed .vs-time { font-size: 14px; }
+body.gfeed .vs-tug { height: 7px; margin: 6px 18px 20px; }
+body.gfeed .vs-mk .pxb { height: 54px !important; } body.gfeed .vs-mks { gap: 8px; padding-bottom: 8px; }
+body.gfeed .vs-lab { font-size: 13px; }

@@ -867,7 +867,7 @@ function gstate(g) { const st = (LIVE[g.game_id] || {}).state; return st === "po
 function byStatus(gs) { return gs.slice().sort((a, b) => (gstate(a) - gstate(b)) || (new Date(a.start_utc || 0) - new Date(b.start_utc || 0))); }
 function games() {
   if (!D.games.length) return empty("🧊", "No games on the board", "Check back on the next game day.");
-  return slateHtml() + mbLiveBanner() + mbHero() + byStatus(D.games).map(gameCard).join("") + likesHtml() + record();
+  return (typeof fxGameMode === "function" ? fxGameMode() : "") + slateHtml() + mbLiveBanner() + mbHero() + byStatus(D.games).map(gameCard).join("") + likesHtml() + record();
 }
 
 const LINES = {sog: [1.5, 2.5, 3.5, 4.5], goals: [0.5], points: [0.5, 1.5], assists: [0.5]};
@@ -1100,6 +1100,23 @@ function luckyBanner() {
   const P = mixParlay(poolNHL(), "nhl|" + (D.meta.date || ""), {side: 1, total: 2, sog: 2, pts: 2, goal: 1}, 0.02, {key: "mix"}); if (!P) return "";
   return `<button class="lk-banner" data-golucky="1"><em>🍀</em><span class="lb-t"><b>Parlay of the day</b><i>${P.legs.length} legs · ${P.priced ? "pays" : "fair"} ${am(amOf(P.dec))}</i></span><span class="lb-go">Feeling lucky →</span></button>`;
 }
+// 🎯 Pick'em: one card per player, More / Less on the line, one tap to the slip
+let PKMODE = (() => { try { return localStorage.getItem("mm_pmode") || "pick"; } catch (e) { return "pick"; } })();
+const PUNIT = {sog: "Shots on goal", goals: "Goals", points: "Points", assists: "Assists"};
+function pickCard(p, mk) {
+  const {l, pr} = headLine(p, mk); if (pr == null || pr < 0.04 || pr > 0.96) return "";
+  const dk = p.dk && p.dk[`${mk}|${l}`], col = (D.colors || {})[p.team] || "#556070", tl = teamLogoUrl(p.team), lam = p.lam[mk];
+  const nm = `${p.name} ${mk === "goals" && l === 0.5 ? "to score" : `over ${l} ${PNAME[mk]}`}`;
+  const o = bet({player: p, market: mk, line: l, p: pr, dir: "over", label: nm, odds: dk || Math.round(fair(pr)), book: dk ? "DraftKings" : null});
+  const u = bet({player: p, market: mk, line: l, p: 1 - pr, dir: "under", label: `${p.name} ${mk === "goals" && l === 0.5 ? "no goal" : `under ${l} ${PNAME[mk]}`}`, odds: Math.round(fair(1 - pr))});
+  const lean = lam > l ? "more" : "less", gap = Math.min(1, Math.abs(lam - l) / Math.max(l, 0.5));
+  return `<div class="pk" style="--tc:${esc(col)}">
+    <button class="pk-face" data-player="${p.id}"><span class="pk-ini">${esc(initials(p.name))}</span>${p.headshot ? `<img src="${esc(p.headshot)}" alt="" loading="lazy" onerror="this.remove()">` : ""}${tl ? `<img class="pk-tl" src="${esc(tl)}" alt="" onerror="this.remove()">` : ""}</button>
+    <div class="pk-nm">${esc(p.name)}</div><div class="pk-mt">${esc(p.team)} · ${esc(matchupOf(p).split(" · ")[0])}</div>
+    <div class="pk-line"><b>${l}</b><span>${PUNIT[mk]}</span></div>
+    <div class="pk-proj pk-${lean}"><i style="--g:${(gap * 100).toFixed(0)}%"></i><span>Model ${lam.toFixed(mk === "goals" ? 2 : 1)} · leans ${lean === "more" ? "More" : "Less"}</span></div>
+    <div class="pk-btns"><button class="pk-b pk-dn" data-pick="${u}"><span>Less ↓</span><b>${am(BETS[u].odds)}</b></button><button class="pk-b pk-up ${dk ? "bk" : ""}" data-pick="${o}"><span>More ↑</span><b>${am(BETS[o].odds)}</b></button></div></div>`;
+}
 function props() {
   if (!D.players.length) return empty("👤", "No player projections yet", "");
   const S = PSTATE, mk = S.market;
@@ -1122,7 +1139,11 @@ function props() {
   const gms = `<button class="chip ${S.search || S.q ? "on" : ""}" data-search="1" aria-label="Search"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>`
     + `<button class="chip ${S.game === "all" ? "on" : ""}" data-g="all">All games</button>`
     + byStatus(D.games).filter(g => openG.has(g.game_id)).map(g => `<button class="chip gchip ${S.game === String(g.game_id) ? "on" : ""}" data-g="${g.game_id}"><img src="${esc(g.away.logo)}" alt="" onerror="this.remove()"><img src="${esc(g.home.logo)}" alt="" onerror="this.remove()">${esc(g.away.abbr)} @ ${esc(g.home.abbr)}</button>`).join("");
-  return `<div class="ptabs props-seg">${mkt}</div>
+  const mode = `<div class="pmode"><button class="${PKMODE === "pick" ? "on" : ""}" data-pmode="pick">Pick'em</button><button class="${PKMODE === "list" ? "on" : ""}" data-pmode="list">List</button></div>`;
+  if (PKMODE === "pick") return `${mode}<div class="ptabs props-seg">${mkt}</div><div class="strip" style="padding-left:0">${gms}</div>
+    ${S.search || S.q ? `<input class="search" id="pq" placeholder="Find a player" value="${esc(S.q)}" autocomplete="off">` : ""}
+    ${list.length ? `<div class="pk-grid">${list.slice(0, n).map(p => pickCard(p, mk)).join("")}</div>${list.length > n ? `<button class="gmore" data-showmore="1">Show more players</button>` : ""}` : `<div class="note">No players match.</div>`}`;
+  return `${mode}<div class="ptabs props-seg">${mkt}</div>
     <div class="strip" style="padding-left:0">${gms}</div>
     ${S.search || S.q ? `<input class="search" id="pq" placeholder="Find a player" value="${esc(S.q)}" autocomplete="off">` : ""}
     ${waiting ? `<div class="pnote"><span class="pdot"></span>DK lines not posted yet for ${waiting === 1 ? "1 game" : waiting + " games"} · fair prices shown</div>` : ""}
@@ -1138,6 +1159,13 @@ function wireProps() {
   document.querySelectorAll("[data-search]").forEach(b => b.onclick = () => {
     PSTATE.search = !(PSTATE.search || PSTATE.q); if (!PSTATE.search) PSTATE.q = ""; render(); $("#pq")?.focus(); });
   document.querySelectorAll("[data-showmore]").forEach(b => b.onclick = () => { PSTATE.n = (PSTATE.n || 20) + 20; render(); });
+  document.querySelectorAll("[data-pmode]").forEach(b => b.onclick = () => { PKMODE = b.dataset.pmode; try { localStorage.setItem("mm_pmode", PKMODE); } catch (e) {} mbHaptic(); render(); });
+  document.querySelectorAll("[data-pick]").forEach(el => el.onclick = e => { e.stopPropagation(); const b = BETS[Number(el.dataset.pick)]; if (!b) return;
+    const leg = Object.assign(mbLegOf(b), {sport: "NHL", odds: b.odds, book: b.book || null}), k = slipKey(leg), v = slipLoad();
+    if (v.some(x => slipKey(x) === k)) slipRemove(k);
+    else { slipSave(v.filter(x => !(x.key && x.key.t === "prop" && String(x.key.pid) === String(b.player.id) && x.key.mk === b.market))); slipAdd(leg);
+      el.closest(".pk").classList.remove("pk-pop"); void el.offsetWidth; el.closest(".pk").classList.add("pk-pop"); }
+    mbHaptic(); mbFab(); });
 }
 
 // ---------- player sheet: every line for one player ----------
@@ -1261,7 +1289,7 @@ function mbDefOdds(b) { const d = b.dk || (b.g ? dkFor(b.g, b.market, b.sel, b.l
 function mbLegOf(b) {
   if (b.player) { const p = b.player, g = D.games.find(x => x.game_id === p.game_id);
     return {label: b.label, sub: g ? gameLabel(g) : p.team, gid: p.game_id, start: g && g.start_utc, p: b.p, img: p.headshot, logo: teamLogoUrl(p.team), name: p.name,
-            key: {t: "prop", pid: p.id, name: p.name, team: p.team, mk: b.market, l: b.line, dir: "over"}}; }
+            key: {t: "prop", pid: p.id, name: p.name, team: p.team, mk: b.market, l: b.line, dir: b.dir || "over"}}; }
   return {label: b.label, sub: b.g ? gameLabel(b.g) : "", gid: b.g.game_id, start: b.g.start_utc, p: b.p, logos: [b.g.away.logo, b.g.home.logo], key: {t: "game", m: b.market, s: b.sel, l: b.line}};
 }
 function mbGrade(leg) {
@@ -1315,6 +1343,8 @@ function mbLegProb(leg) {
 // ✓ prices already on the slip light up
 function mbMarkSlip() {
   const keys = new Set(slipLoad().map(slipKey));
+  document.querySelectorAll("#view [data-pick]").forEach(el => { const b = BETS[Number(el.dataset.pick)]; if (!b) return;
+    let on = false; try { on = keys.has(slipKey(mbLegOf(b))); } catch (e) {} el.classList.toggle("insl", on); el.closest(".pk") && el.closest(".pk").classList.toggle("picked", !!el.closest(".pk").querySelector(".insl")); });
   document.querySelectorAll("#view [data-bet]").forEach(el => { const b = BETS[Number(el.dataset.bet)]; if (!b) return;
     let on = false; try { on = keys.has(slipKey(mbLegOf(b))); } catch (e) {} el.classList.toggle("insl", on); });
 }

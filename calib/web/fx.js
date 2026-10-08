@@ -74,6 +74,34 @@ function fxSplash() {
 
 function fxAfterRender() {
   try { fxSplash(); } catch (e) {}
+  try { fxTicker(); } catch (e) {}
+  try { fxWireModes(typeof MB_RENDER !== "undefined" ? MB_RENDER : null); } catch (e) {}
   try { fxGoals(); } catch (e) {}
   try { fxBalance(); } catch (e) {}
+}
+
+// ---- 📺 broadcast ticker under the header: every game, scrolling ----
+function fxTicker() {
+  const hdr = document.querySelector(".hdr"); if (!hdr || typeof mbMiniGames !== "function") return;
+  let G = []; try { G = mbMiniGames(); } catch (e) {}
+  let t = document.getElementById("tkr");
+  if (!G.length) { if (t) t.remove(); return; }
+  const item = g => `<span class="tk-i ${g.st}">${g.st === "live" ? `<em>LIVE</em>` : g.st === "final" ? `<em class="f">FINAL</em>` : ""}<img src="${esc(g.a.logo)}" alt="" onerror="this.remove()"><b>${esc(g.a.abbr)}</b>${g.st === "pre" ? `<i>${Math.round(100 * (1 - g.ph))}%</i>` : `<strong>${g.as ?? 0}</strong>`}
+    <span class="tk-at">${g.st === "pre" ? "@" : "–"}</span>${g.st === "pre" ? "" : `<strong>${g.hs ?? 0}</strong>`}<b>${esc(g.h.abbr)}</b><img src="${esc(g.h.logo)}" alt="" onerror="this.remove()">${g.st === "pre" ? `<i>${Math.round(100 * g.ph)}%</i>` : ""}
+    <span class="tk-d">${esc(g.st === "pre" ? g.detail || "" : g.st === "live" ? g.detail || "" : "")}</span></span>`;
+  const html = G.map(item).join(`<span class="tk-sep"></span>`), sig = G.map(g => g.id + g.st + g.as + g.hs).join("|");
+  if (!t) { t = document.createElement("div"); t.id = "tkr"; t.className = "tkr"; hdr.appendChild(t); }
+  if (t.dataset.sig === sig) return;
+  t.dataset.sig = sig;
+  t.innerHTML = `<div class="tk-tag">${G.some(g => g.st === "live") ? `<span class="livedot"></span>LIVE` : "TONIGHT"}</div><div class="tk-win"><div class="tk-run" style="--dur:${Math.max(20, G.length * 6)}s">${html}<span class="tk-sep"></span>${html}<span class="tk-sep"></span></div></div>`;
+}
+
+// ---- 🎞️ Games: Board or Feed (one big matchup poster per screen) ----
+let FX_GMODE = (() => { try { return localStorage.getItem("mm_gmode") || "feed"; } catch (e) { return "feed"; } })();
+function fxGameMode() {
+  return `<div class="pmode gmode"><button class="${FX_GMODE === "feed" ? "on" : ""}" data-gmode="feed">Feed</button><button class="${FX_GMODE === "board" ? "on" : ""}" data-gmode="board">Board</button></div>`;
+}
+function fxWireModes(render) {
+  document.body.classList.toggle("gfeed", typeof TAB !== "undefined" && TAB === "games" && FX_GMODE === "feed");
+  document.querySelectorAll("[data-gmode]").forEach(b => b.onclick = () => { FX_GMODE = b.dataset.gmode; try { localStorage.setItem("mm_gmode", FX_GMODE); } catch (e) {} mbHaptic(); render && render(); });
 }

@@ -698,7 +698,7 @@ function gstate(g) { const s = scoreOf(g); return s && s.state === "post" ? 2 : 
 function byStatus(gs) { return gs.slice().sort((a, b) => (gstate(a) - gstate(b)) || (new Date(a.start_utc || 0) - new Date(b.start_utc || 0))); }
 function games() {
   if (!D.games.length) return empty("🏟️", "No games this week", "The schedule will show here once the next week is set.");
-  return slateN() + mbLiveBanner() + byStatus(D.games).map(gameCard).join("") + likesHtml();
+  return (typeof fxGameMode === "function" ? fxGameMode() : "") + slateN() + mbLiveBanner() + byStatus(D.games).map(gameCard).join("") + likesHtml();
 }
 
 
