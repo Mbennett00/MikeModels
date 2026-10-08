@@ -1,6 +1,6 @@
 /* =====================================================================
    PRO: Underdog x DraftKings x Action Network (loaded after luxe.css).
-   Near-black charcoal, flat cards with fine borders, one signature yellow
+   Near-black charcoal, flat cards with fine borders, one white accent
    for brand / calls to action / your picks, green only for value and wins,
    data chips and bars for the model's numbers. Smooth, quick motion.
    ===================================================================== */
@@ -11,14 +11,14 @@
   --bg: #0b0c0f; --s1: #15171c; --s2: #1d2027; --s3: #272b33;
   --hair: rgba(255,255,255,.07); --hair2: rgba(255,255,255,.12);
   --t1: #f6f7f9; --t2: #a7adb8; --t3: #6c7380;
-  --brand: #ffd426; --brand-d: #e6bb00; --brand-ink: #161200;
-  --acc: #34d17b; --acc-d: #1fb563; --acc-ink: #04140a; --gold: #ffd426; --red: #ff5a5f;
+  --brand: #ffffff; --brand-d: #e4e7ec; --brand-ink: #0b0c0f;
+  --acc: #34d17b; --acc-d: #1fb563; --acc-ink: #04140a; --gold: #f2c96d; --red: #ff5a5f;
   --r: 16px; --ease: cubic-bezier(.2,.8,.2,1);
 }
 
 /* ---------- canvas ---------- */
 html, body.nhl, body.nfl { background: var(--bg) !important; }
-body { background: radial-gradient(90% 30% at 50% -8%, rgba(255,212,38,.07), transparent 70%), var(--bg) !important; font-family: var(--fb) !important; -webkit-font-smoothing: antialiased; }
+body { background: radial-gradient(90% 30% at 50% -8%, rgba(255,255,255,.07), transparent 70%), var(--bg) !important; font-family: var(--fb) !important; -webkit-font-smoothing: antialiased; }
 body::after { opacity: .03 !important; }
 * { -webkit-tap-highlight-color: transparent; }
 .hdr { background: rgba(11,12,15,.82) !important; border-bottom: 1px solid var(--hair) !important; }
@@ -39,7 +39,7 @@ body::after { opacity: .03 !important; }
   background: var(--s1) !important; border: 1px solid var(--hair) !important; box-shadow: none !important; }
 
 /* ---------- Home: balance ---------- */
-.hx-hero { background: radial-gradient(70% 90% at 100% 0%, rgba(255,212,38,.16), transparent 60%), linear-gradient(180deg, #191b21, #121418) !important;
+.hx-hero { background: radial-gradient(70% 90% at 100% 0%, rgba(255,255,255,.16), transparent 60%), linear-gradient(180deg, #191b21, #121418) !important;
   border: 1px solid var(--hair2) !important; box-shadow: 0 20px 40px -24px rgba(0,0,0,.9) !important; }
 .hx-hero::before, .hx-hero::after { display: none !important; }
 .hx-hero .hx-eye { color: var(--t2) !important; font: 600 12px var(--fb) !important; letter-spacing: .06em !important; }
@@ -65,18 +65,6 @@ body::after { opacity: .03 !important; }
 .sx-svg stop:first-child { stop-color: var(--brand) !important; } .sx-svg stop:last-child { stop-color: var(--acc) !important; }
 
 /* ---------- headliner: an Underdog player card ---------- */
-.hl { background: radial-gradient(80% 120% at 90% 100%, rgba(255,255,255,.35), transparent 55%), linear-gradient(135deg, #ffe066, #ffd426 55%, #ffbf1a) !important;
-  border: 0 !important; box-shadow: 0 22px 44px -22px rgba(255,212,38,.55) !important; }
-.hl::before { background: repeating-linear-gradient(115deg, rgba(0,0,0,.05) 0 2px, transparent 2px 20px) !important; }
-.hl-logo { opacity: .16 !important; filter: grayscale(1) contrast(1.2) !important; mix-blend-mode: multiply; }
-.hl-cut { filter: drop-shadow(0 12px 18px rgba(80,60,0,.35)) !important; }
-.hl-tag { color: #fff !important; background: #111 !important; padding: 5px 10px; border-radius: 999px; align-self: flex-start; box-shadow: none !important; letter-spacing: .1em !important; }
-.hl-t > b { color: #111 !important; text-shadow: none !important; }
-.hl-t > b i { color: rgba(17,17,17,.7) !important; font-weight: 600 !important; font-family: var(--fb) !important; }
-.hl-t em { color: rgba(17,17,17,.72) !important; font-weight: 600 !important; }
-.hl-add { background: #111 !important; color: #fff !important; box-shadow: 0 10px 22px -10px rgba(0,0,0,.6) !important; }
-.hl-t .hl-add b { background: var(--brand) !important; color: var(--brand-ink) !important; box-shadow: none !important; animation: none !important; }
-.hl-ini { background: rgba(0,0,0,.08) !important; color: rgba(17,17,17,.6) !important; }
 
 /* tonight's games strip */
 .gs { background: var(--s1) !important; border: 1px solid var(--hair) !important; }
@@ -95,7 +83,7 @@ body::after { opacity: .03 !important; }
 
 /* ---------- buttons: yellow, smooth ---------- */
 .hx-add, .mbgo, .placebet, .addslip, .ix-go, .shx-go:not(.alt), .bw-ok, .hz-btn, .daily button, .daily .spinbtn {
-  background: var(--brand) !important; color: var(--brand-ink) !important; border: 0 !important; box-shadow: 0 8px 20px -10px rgba(255,212,38,.6) !important;
+  background: var(--brand) !important; color: var(--brand-ink) !important; border: 0 !important; box-shadow: 0 8px 20px -10px rgba(255,255,255,.6) !important;
   font-family: var(--fb) !important; font-weight: 800 !important; animation: none !important; transition: transform .14s var(--ease), filter .14s !important; }
 .hx-add:active, .mbgo:active, .placebet:active, .addslip:active, .ix-go:active, .hz-btn:active, .daily button:active { transform: scale(.96) !important; filter: brightness(.95); }
 .placebet:disabled { background: var(--s3) !important; color: var(--t3) !important; box-shadow: none !important; }
@@ -108,7 +96,7 @@ body::after { opacity: .03 !important; }
 .pxb.val, .pxb.pp.bk, .xmk .pxb.val, .xpl-b .pxb.bk { background: rgba(52,209,123,.08) !important; border-color: rgba(52,209,123,.35) !important; box-shadow: none !important; }
 .pxb.val b, .pxb.pp.bk b { color: var(--acc) !important; } .pxb .pe { color: var(--acc) !important; }
 .pxb.val::before { background: var(--acc) !important; box-shadow: none !important; }
-.pxb.insl, .pxb.pp.insl, .xmk .pxb.insl, .xpl-b .pxb.insl, .sp-btn.insl { background: var(--brand) !important; border-color: var(--brand) !important; box-shadow: 0 8px 18px -8px rgba(255,212,38,.7) !important; }
+.pxb.insl, .pxb.pp.insl, .xmk .pxb.insl, .xpl-b .pxb.insl, .sp-btn.insl { background: var(--brand) !important; border-color: var(--brand) !important; box-shadow: 0 8px 18px -8px rgba(255,255,255,.7) !important; }
 .pxb.insl b, .pxb.insl .pt, .pxb.insl i, .pxb.insl .pe, .pxb.insl .pm, .sp-btn.insl b, .sp-btn.insl span { color: var(--brand-ink) !important; }
 .pxb.insl::before { background: var(--brand-ink) !important; }
 
@@ -127,7 +115,7 @@ body::after { opacity: .03 !important; }
 .s2-stats b.g { color: var(--acc) !important; }
 
 /* featured: Odds Boost */
-.hero.boost { background: linear-gradient(135deg, rgba(255,212,38,.12), var(--s1) 55%) !important; border: 1px solid rgba(255,212,38,.35) !important; box-shadow: none !important; }
+.hero.boost { background: linear-gradient(135deg, rgba(255,255,255,.12), var(--s1) 55%) !important; border: 1px solid rgba(255,255,255,.35) !important; box-shadow: none !important; }
 .hero.boost .hz-tag { display: inline-block; color: var(--brand-ink) !important; background: var(--brand) !important; padding: 4px 10px; border-radius: 6px; font-weight: 800 !important; box-shadow: none !important; }
 .hero.boost .hz-btn::after { display: none !important; }
 .hero:not(.boost) { background: var(--s1) !important; border: 1px solid var(--hair) !important; box-shadow: none !important; }
@@ -164,29 +152,88 @@ body::after { opacity: .03 !important; }
 .ticket.lost { border-left: 3px solid var(--red) !important; }
 .tkpill.won { background: var(--acc) !important; color: var(--acc-ink) !important; }
 .tkact .shr { color: var(--brand) !important; }
-.cashout { background: var(--s2) !important; border: 1px solid rgba(255,212,38,.4) !important; } .cashout b { color: var(--brand) !important; }
+.cashout { background: var(--s2) !important; border: 1px solid rgba(255,255,255,.4) !important; } .cashout b { color: var(--brand) !important; }
 .wprob .wpb i { background: var(--brand) !important; } .wprob.hi .wpb i { background: var(--acc) !important; }
 
 /* ---------- Rewards ---------- */
-.rw-pass { background: radial-gradient(80% 120% at 0% 0%, rgba(255,212,38,.14), transparent 60%), var(--s1) !important; border: 1px solid rgba(255,212,38,.3) !important; }
+.rw-pass { background: radial-gradient(80% 120% at 0% 0%, rgba(255,255,255,.14), transparent 60%), var(--s1) !important; border: 1px solid rgba(255,255,255,.3) !important; }
 .rw-pt span { color: var(--brand) !important; }
 .rw-bar i { background: var(--brand) !important; box-shadow: none !important; }
-.daily { background: var(--s1) !important; border: 1px solid rgba(255,212,38,.3) !important; box-shadow: none !important; }
+.daily { background: var(--s1) !important; border: 1px solid rgba(255,255,255,.3) !important; box-shadow: none !important; }
 .daily .dt b, .daily b { font-family: var(--fd) !important; }
 .missions .lk-h { font-family: var(--fd) !important; font-weight: 800 !important; }
 .missions .ms-r, .missions .ms-r b { color: var(--acc) !important; }
 .rw-tok span { color: var(--brand) !important; }
-.bdg.on { background: rgba(255,212,38,.08) !important; box-shadow: inset 0 0 0 1px rgba(255,212,38,.3) !important; }
+.bdg.on { background: rgba(255,255,255,.08) !important; box-shadow: inset 0 0 0 1px rgba(255,255,255,.3) !important; }
 
 /* ---------- nav: DraftKings-style bar, yellow marker ---------- */
 .nav .in { background: rgba(17,18,22,.92) !important; border: 1px solid var(--hair2) !important; box-shadow: 0 16px 36px -12px rgba(0,0,0,.8) !important; }
-.navpill { background: rgba(255,212,38,.13) !important; box-shadow: none !important; }
+.navpill { background: rgba(255,255,255,.13) !important; box-shadow: none !important; }
 .nav button { color: var(--t3) !important; }
 .nav button.on, .nav button.on * { color: var(--brand) !important; -webkit-text-fill-color: currentColor !important; }
 .nav button.on svg { filter: none !important; }
 
 /* slip bar */
-.slipfab { background: #111316 !important; border: 1px solid rgba(255,212,38,.45) !important; box-shadow: 0 16px 36px -12px rgba(0,0,0,.85) !important; }
+.slipfab { background: #111316 !important; border: 1px solid rgba(255,255,255,.45) !important; box-shadow: 0 16px 36px -12px rgba(0,0,0,.85) !important; }
 
 /* sheets slide like a native app */
 #sheet { transition: transform .38s cubic-bezier(.2,.9,.2,1) !important; }
+
+/* ---------- headliner: dark poster ---------- */
+.hl { background: radial-gradient(90% 120% at 90% 100%, rgba(255,255,255,.10), transparent 55%), linear-gradient(135deg, #1c1f26, #121419) !important; border: 1px solid var(--hair2) !important; box-shadow: 0 22px 44px -26px rgba(0,0,0,.9) !important; }
+.hl::before { background: repeating-linear-gradient(115deg, rgba(255,255,255,.03) 0 2px, transparent 2px 22px) !important; }
+.hl-logo { opacity: .18 !important; filter: none !important; mix-blend-mode: normal; }
+.hl-tag { color: var(--t1) !important; background: rgba(255,255,255,.1) !important; padding: 5px 10px; border-radius: 999px; align-self: flex-start; box-shadow: none !important; letter-spacing: .1em !important; }
+.hl-t > b { color: #fff !important; } .hl-t > b i { color: var(--t2) !important; font-family: var(--fb) !important; font-weight: 600 !important; }
+.hl-t em { color: var(--t2) !important; }
+.hl-add { background: #fff !important; color: #0b0c0f !important; box-shadow: none !important; }
+.hl-t .hl-add b { background: #0b0c0f !important; color: #fff !important; animation: none !important; }
+.hl-ini { background: rgba(255,255,255,.06) !important; color: var(--t2) !important; }
+
+/* ---------- face-off game card ---------- */
+.gc2 .ghead, .gc2 .gcols, .gc2 .grow, .gc2 .gbar { display: none !important; }
+.vs-top { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: start; gap: 6px; padding: 18px 14px 10px; }
+.vs-team { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; min-width: 0; }
+.vs-logo { width: clamp(46px, 14vw, 56px); height: clamp(46px, 14vw, 56px); border-radius: 50%; display: grid; place-items: center;
+  background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--tc) 45%, #1d2027), #15171c 75%); box-shadow: 0 0 0 1px rgba(255,255,255,.08), 0 10px 22px -10px var(--tc); }
+.vs-logo img { width: 72%; height: 72%; object-fit: contain; filter: drop-shadow(0 2px 4px rgba(0,0,0,.5)); }
+.vs-logo i { font: 800 13px var(--fb); font-style: normal; color: #fff; }
+.vs-team .gtn { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; width: 100%; }
+.vs-team .gtn b { font: 800 clamp(14px, 4.2vw, 16px)/1.15 var(--fd) !important; color: var(--t1); white-space: normal !important; }
+.vs-team .gtn span { justify-content: center; font: 500 11.5px var(--fb) !important; color: var(--t3) !important; }
+.vs-pct { font: 700 13px var(--fh); font-style: normal; color: var(--t1); padding: 3px 10px; border-radius: 999px; background: var(--s2); }
+.vs-mid { display: flex; flex-direction: column; align-items: center; gap: 6px; padding-top: 6px; min-width: 76px; }
+.vs-time { font: 700 12.5px var(--fb); color: var(--t1); white-space: nowrap; }
+.vs-at { font: 800 22px var(--fd); color: var(--t3); letter-spacing: .04em; }
+.vs-proj { font: 500 11px var(--fb); color: var(--t3); white-space: nowrap; }
+.vs-score { display: flex; align-items: center; gap: 6px; font: 800 30px var(--fd); color: var(--t1); font-variant-numeric: tabular-nums; }
+.vs-score i { color: var(--t3); font-style: normal; font-weight: 600; } .vs-score .lose { color: var(--t3); }
+.vs-mid .live { font: 800 10.5px var(--fb); letter-spacing: .1em; color: #fff; background: var(--red); padding: 3px 8px; border-radius: 6px; }
+.vs-mid .final { font: 800 10.5px var(--fb); letter-spacing: .1em; color: var(--t2); background: var(--s2); padding: 3px 8px; border-radius: 6px; }
+.vs-tug { display: flex; gap: 3px; height: 4px; margin: 4px 16px 12px; } .vs-tug i { display: block; border-radius: 3px; opacity: .85; }
+.vs-mks { display: flex; flex-direction: column; gap: 6px; padding: 0 12px 4px; }
+.vs-mk { display: grid; grid-template-columns: minmax(64px, .8fr) 1fr 1fr; gap: 6px; align-items: center; }
+.vs-lab { font: 600 12px var(--fb); color: var(--t2); }
+.vs-mk .pxb { height: 46px !important; flex-direction: row !important; justify-content: space-between !important; padding: 0 12px !important; gap: 6px !important; }
+.vs-mk .pxb .pt { font: 600 11.5px var(--fb) !important; color: var(--t2) !important; white-space: nowrap; }
+.vs-mk .pxb b { font-size: 15px !important; }
+.vs-mk .pxb .pm, .vs-mk .pxb .pe { display: none !important; }
+.vs-mk .pxb.val::before { top: 4px !important; right: 4px !important; }
+
+/* ---------- Tonight stories ---------- */
+.stories { display: flex; gap: 14px; overflow-x: auto; margin: 0 -16px 22px; padding: 4px 16px 6px; scrollbar-width: none; } .stories::-webkit-scrollbar { display: none; }
+.story { flex: 0 0 auto; width: 74px; display: flex; flex-direction: column; align-items: center; gap: 6px; border: 0; background: none; color: var(--t1); padding: 0; }
+.st-ring { width: 68px; height: 68px; border-radius: 50%; padding: 2.5px; background: linear-gradient(135deg, #8a93a3, #3a404b); }
+.story.live .st-ring { background: conic-gradient(from 0deg, #ff5a5f, #ff9a5a, #ff5a5f); animation: spinring 3s linear infinite; }
+.story.final .st-ring { background: var(--s3); }
+@keyframes spinring { to { filter: hue-rotate(20deg); } }
+.st-in { width: 100%; height: 100%; border-radius: 50%; background: var(--s1); border: 2px solid var(--bg); position: relative; display: block; overflow: hidden; }
+.st-in img, .st-in i { position: absolute; width: 50%; height: 50%; object-fit: contain; display: grid; place-items: center; font: 800 9px var(--fb); font-style: normal; }
+.st-in > :first-child { left: 10%; top: 12%; } .st-in > :last-child { right: 10%; bottom: 12%; }
+.story b { font: 700 11px var(--fb); white-space: nowrap; } .story i { font: 600 10px var(--fb); font-style: normal; color: var(--t3); white-space: nowrap; }
+.story.live i { color: var(--red); }
+.card.gc2::before { display: none !important; }
+.vs-mk { grid-template-columns: clamp(58px, 18vw, 76px) minmax(0, 1fr) minmax(0, 1fr) !important; }
+.vs-mk .pxb { min-width: 0 !important; padding: 0 9px !important; }
+.vs-mk .pxb .pt { font-size: clamp(10px, 3vw, 11.5px) !important; overflow: hidden; text-overflow: clip; }
+.vs-mk .pxb b { font-size: clamp(13px, 3.9vw, 15px) !important; }

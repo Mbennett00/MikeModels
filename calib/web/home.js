@@ -146,14 +146,14 @@ function mbHeadlinerHtml(picks) {
       <button class="hl-add" data-head="1"><span>Add</span><b>${mbSign(l.odds)}</b></button></div></section>`;
 }
 // 🏟️ tonight's games: a scrollable strip of matchups with logos
-function mbStripHtml() {
+function mbStripHtml() {   // story-style bubbles: one per game, ring shows live / upcoming / final
   let G = []; try { G = typeof mbMiniGames === "function" ? mbMiniGames() : []; } catch (e) {}
   if (!G.length) return "";
-  const tl = t => `<span class="gs-t"><img src="${esc(t.logo)}" alt="" onerror="this.outerHTML='<i>${esc(t.abbr)}</i>'"><b>${esc(t.abbr)}</b></span>`;
-  return `<div class="hx-h"><b>Tonight's games</b><button data-go="games">All ${G.length}</button></div><div class="gstrip">${G.slice(0, 16).map(g => `<button class="gs ${g.st}" data-go="games">
-    <div class="gs-row">${tl(g.a)}${g.st !== "pre" ? `<em>${g.as ?? ""}</em>` : `<em class="p">${Math.round(100 * (1 - g.ph))}%</em>`}</div>
-    <div class="gs-row">${tl(g.h)}${g.st !== "pre" ? `<em>${g.hs ?? ""}</em>` : `<em class="p">${Math.round(100 * g.ph)}%</em>`}</div>
-    <div class="gs-d">${g.st === "live" ? `<span class="livedot"></span>` : ""}${esc(g.detail || "")}</div></button>`).join("")}</div>`;
+  const lg = t => `<img src="${esc(t.logo)}" alt="" onerror="this.outerHTML='<i>${esc(t.abbr)}</i>'">`;
+  return `<div class="hx-h"><b>Tonight</b><button data-go="games">All ${G.length} games</button></div><div class="stories">${G.slice(0, 16).map(g => `<button class="story ${g.st}" data-go="games">
+    <span class="st-ring"><span class="st-in">${lg(g.a)}${lg(g.h)}</span></span>
+    <b>${esc(g.a.abbr)} ${g.st === "pre" ? "@" : `${g.as ?? 0}–${g.hs ?? 0}`} ${esc(g.h.abbr)}</b>
+    <i>${g.st === "live" ? "LIVE" : esc(g.detail || "")}</i></button>`).join("")}</div>`;
 }
 function mbWireHome(render) {
   document.querySelectorAll("[data-head]").forEach(b => b.onclick = e => { e.stopPropagation(); const l = window.MB_HEAD; if (!l) return; slipAdd(Object.assign({}, l)); mbHaptic("success"); try { funBlip(); } catch (er) {} mbOpenSlip(); });
@@ -161,4 +161,21 @@ function mbWireHome(render) {
   document.querySelectorAll("#view [data-go]").forEach(b => b.onclick = e => { e.preventDefault(); mbHaptic(); TAB = b.dataset.go; if (TAB === "check") MB_VIEW = "bets"; render(); window.scrollTo(0, 0); });
   document.querySelectorAll("[data-qp]").forEach(b => b.onclick = () => { const q = (window.MB_QP || [])[Number(b.dataset.qp)]; if (!q) return;
     q.legs.forEach(l => slipAdd(Object.assign({}, l))); if (q.legs.length > 1) SLIP_MODE = "parlay"; mbHaptic("success"); try { funBlip(); } catch (e) {} mbOpenSlip(); });
+}
+
+// 🆚 face-off game card: teams across from each other, a win-probability tug bar, markets as labelled rows.
+// o = {a, h, ph, aSub, hSub, state: pre|live|final, time, proj, detail, as, hs, rows: [[label, btnAway, btnHome]]}
+function mbVersus(o) {
+  const team = (t, side, sub, p) => `<div class="vs-team ${side}" style="--tc:${esc(t.color || "#556")}">
+      <div class="vs-logo"><img src="${esc(t.logo || "")}" alt="" onerror="this.outerHTML='<i>${esc(t.abbr)}</i>'"></div>
+      <div class="gtn"><b>${esc(t.name)}</b><span>${sub}</span></div>
+      ${o.state === "pre" ? `<em class="vs-pct">${Math.round(100 * p)}%</em>` : ""}</div>`;
+  const mid = o.state === "pre" ? `<span class="vs-time">${esc(o.time || "")}</span><b class="vs-at">VS</b><span class="vs-proj">${esc(o.proj || "")}</span>`
+    : `<span class="${o.state === "live" ? "live" : "final"}">${o.state === "live" ? "LIVE" : "FINAL"}</span>
+       <b class="vs-score"><span class="${o.state === "final" && o.as < o.hs ? "lose" : ""}">${o.as ?? 0}</span><i>–</i><span class="${o.state === "final" && o.hs < o.as ? "lose" : ""}">${o.hs ?? 0}</span></b>
+       <span class="vs-proj">${esc(o.state === "live" ? o.detail || "" : "")}</span>`;
+  const pa = Math.round(100 * (1 - o.ph));
+  return `<div class="vs-top">${team(o.a, "a", o.aSub, 1 - o.ph)}<div class="vs-mid">${mid}</div>${team(o.h, "h", o.hSub, o.ph)}</div>
+    <div class="vs-tug"><i style="width:${pa}%;background:${esc(o.a.color || "#556")}"></i><i style="width:${100 - pa}%;background:${esc(o.h.color || "#556")}"></i></div>
+    <div class="vs-mks">${o.rows.map(([lab, x, y]) => `<div class="vs-mk"><span class="vs-lab">${lab}</span>${x}${y}</div>`).join("")}</div>`;
 }

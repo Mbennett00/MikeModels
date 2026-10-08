@@ -682,10 +682,12 @@ function gameCard(g) {
       ${pbtn(g, `${t.name} to win`, "moneyline", side, undefined, "")}</div>`;
   };
   let html = `<div class="card gc gc2 ${L.state === "in" ? "islive" : ""}" style="--ca:${esc(a.color)};--ch:${esc(h.color)};--la:url('${esc(a.logo || "")}');--lh:url('${esc(h.logo || "")}')">
-    <div class="ghead"><div class="status">${status}</div></div>
-    <div class="gcols"><span></span><span>Puck line</span><span>Total</span><span>Money</span></div>
-    ${row(a, "away", 1 - ph, L.away, L.home)}${row(h, "home", ph, L.home, L.away)}
-    <div class="gbar"><div style="width:${100 * (1 - ph)}%;background:${esc(a.color)}"></div><div style="width:${100 * ph}%;background:${esc(h.color)}"></div></div>
+    ${(() => { const plA = favH ? 1.5 : -1.5, sg = x => `${x > 0 ? "+" : ""}${x}`, gk = t => `<i class="dot ${gdot(t)}"></i>${esc(t.goalie ? t.goalie.split(" ").slice(-1)[0] : "TBD")}`;
+      return mbVersus({a, h, ph, aSub: gk(a), hSub: gk(h), state: L.state === "in" ? "live" : L.state === "post" ? "final" : "pre",
+        time: timeET(g.start_utc), proj: `proj ${g.lam_away.toFixed(1)}–${g.lam_home.toFixed(1)}`, detail: L.detail, as: L.away, hs: L.home,
+        rows: [["Moneyline", pbtn(g, `${a.name} to win`, "moneyline", "away", undefined, a.abbr), pbtn(g, `${h.name} to win`, "moneyline", "home", undefined, h.abbr)],
+               ["Puck line", pbtn(g, `${a.abbr} ${sg(plA)}`, "puckline", "away", plA, sg(plA)), pbtn(g, `${h.abbr} ${sg(-plA)}`, "puckline", "home", -plA, sg(-plA))],
+               ["Total 6.5", pbtn(g, "Over 6.5", "total", "over", 6.5, "Over"), pbtn(g, "Under 6.5", "total", "under", 6.5, "Under")]]}); })()}
     <div class="body">`;
   if (OPEN.has(g.game_id)) {
     const view = PANEL[g.game_id] || "matchup";

@@ -472,10 +472,12 @@ function gameCard(g) {
       ${pbtnN(g, sb, sb ? sp(sb.line) : "")}${pbtnN(g, tb, tb ? `${side === "away" ? "O" : "U"} ${tb.line}` : "")}${pbtnN(g, mb, "")}</div>`;
   };
   let html = `<div class="card gc gc2 ${s && s.state === "in" ? "islive" : ""}" style="--ca:${esc(a.color)};--ch:${esc(h.color)};--la:url('${esc(a.logo || "")}');--lh:url('${esc(h.logo || "")}')">
-    <div class="ghead"><div class="status">${status}</div></div>
-    <div class="gcols"><span></span><span>Spread</span><span>Total</span><span>Money</span></div>
-    ${row(a, "away", 1 - ph, s && s.away, s && s.home)}${row(h, "home", ph, s && s.home, s && s.away)}
-    <div class="gbar"><div style="width:${100 * (1 - ph)}%;background:${esc(a.color)}"></div><div style="width:${100 * ph}%;background:${esc(h.color)}"></div></div>
+    ${(() => { const sa = find("spread", "away"), sh = find("spread", "home"), to = find("total", "over"), tu = find("total", "under"), qb = t => esc(t.qb ? t.qb.split(" ").slice(-1)[0] : "QB TBD");
+      return mbVersus({a, h, ph, aSub: qb(a), hSub: qb(h), state: s && s.state === "in" ? "live" : s ? "final" : "pre",
+        time: kickLab(g.start_utc) + wx, proj: `proj ${Math.round(g.model_total / 2 - g.model_margin / 2)}–${Math.round(g.model_total / 2 + g.model_margin / 2)}`, detail: s && s.detail, as: s && s.away, hs: s && s.home,
+        rows: [["Moneyline", pbtnN(g, find("ml", "away"), a.abbr), pbtnN(g, find("ml", "home"), h.abbr)],
+               ["Spread", pbtnN(g, sa, sa ? sp(sa.line) : ""), pbtnN(g, sh, sh ? sp(sh.line) : "")],
+               [`Total ${to ? to.line : ""}`, pbtnN(g, to, "Over"), pbtnN(g, tu, "Under")]]}); })()}
     <div class="body">`;
   if (OPEN.has(g.game_id)) {
     const v0 = PANEL[g.game_id] || "matchup", view = ["matchup", "bets", "players", "field"].includes(v0) ? v0 : "matchup";
