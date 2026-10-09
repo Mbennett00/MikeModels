@@ -94,43 +94,74 @@ const ic = (k, cls = "") => `<svg class="hic ${cls}" viewBox="0 0 24 24" fill="n
 function mbHomeHtml() {
   const s = mbLoad(), W = mbWallet(s), L = mbLevel(mbXP(s)), D0 = mbDaily(s), M = funMissions(s), mdone = M.filter(m => m.claimed).length;
   const h = new Date().getHours(), hi = h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
-  const info = typeof mbSportInfo === "function" ? mbSportInfo() : {sport: MB_PAGE, line: ""};
   const open = s.bets.filter(b => b.status === "open"), live = open.filter(mbIsLive);
-  const done = s.bets.filter(b => b.status !== "open").sort((a, b) => (b.result_ts || b.ts).localeCompare(a.result_ts || a.ts)).slice(0, 10);
-  const mb = (s.model || {}).bets || [], me = mbStats(s.bets), ms = mbStats(mb);
+  const done = s.bets.filter(b => b.status !== "open").sort((a, b) => (b.result_ts || b.ts).localeCompare(a.result_ts || a.ts)).slice(0, 12);
+  const me = mbStats(s.bets);
   const picks = (() => { try { return typeof mbQuickPicks === "function" ? mbQuickPicks() || [] : []; } catch (e) { return []; } })();
   window.MB_QP = picks;
   const nxt = passRewardText(passReward(Math.min(L.lvl + 1, PASS_MAX))).split(" · ")[0];
-  const chip = (attr, icon, top, sub, cls = "") => `<button class="hx-chip ${cls}" ${attr}><span class="hx-ci">${ic(icon)}</span><span class="hx-ct"><b>${top}</b><i>${sub}</i></span></button>`;
-  const today = [
-    D0.claimed ? chip('data-go="rewards"', "spin", "Spun today", `${D0.streak}-day streak`, "done") : chip('data-spin="1"', "spin", "Free spin", "Up to $250", "gold"),
-    chip('data-go="rewards"', "target", `Missions ${mdone}/3`, mdone >= 3 ? "All complete" : esc(M.find(m => !m.claimed).t)),
-    chip('data-pass="1"', "star", `Level ${L.lvl}`, L.lvl < PASS_MAX ? `${L.need - L.into} XP to ${esc(nxt)}` : "Max level"),
-    mb.length ? chip('data-go="rewards"', "vs", me.pl >= ms.pl ? "Ahead of model" : "Model leads", `${me.pl - ms.pl >= 0 ? "+" : "−"}$${Math.abs(me.pl - ms.pl).toFixed(0)}`) : "",
-  ].join("");
-  const qp = picks.map((q, i) => { const dec = q.legs.reduce((a, l) => a * mbDec(l.odds), 1), odds = q.legs.length > 1 ? mbAm(dec) : q.legs[0].odds;
-    return `<div class="hx-qp"><div class="hx-qtag">${esc(q.tag || (q.legs.length > 1 ? "Parlay" : "Single"))}</div><div class="hx-qt">${esc(q.title)}</div>
-      <div class="hx-faces">${q.legs.map(l => mbPic(l)).join("")}</div>
-      <div class="hx-legs">${q.legs.map(l => `<div class="hx-leg"><span class="hx-dot"></span><span>${esc(l.label)}</span><i>${mbSign(l.odds)}</i></div>`).join("")}</div>
-      <div class="hx-qf"><div><b>${mbSign(odds)}</b><i>$10 pays ${mbMoney(10 * dec)}</i></div><button class="hx-add" data-qp="${i}">Add</button></div></div>`; }).join("");
-  const sports = [["NHL", "index.html", "https://a.espncdn.com/i/teamlogos/leagues/500-dark/nhl.png", "Hockey"], ["NFL", "nfl.html", "https://a.espncdn.com/i/teamlogos/leagues/500-dark/nfl.png", "Football"]]
-    .map(([k, href, img, nm]) => `<a class="hx-sport ${k === info.sport ? "on" : ""}" href="${href}" ${k === info.sport ? 'data-go="games"' : ""}><img src="${img}" alt="" onerror="this.remove()"><span><b>${nm}</b><i>${k === info.sport ? esc(info.line || "") : "Switch sport"}</i></span>${ic("chev")}</a>`).join("");
-  return `<div class="hx">
-    <section class="hx-hero"><div class="hx-hl"><div class="hx-eye">${hi}, Mike</div><div class="hx-bal">${mbMoney(W.available).replace(/(\.\d\d)$/, '<small>$1</small>')}</div>
-      <div class="hx-sub"><span class="${W.pl >= 0 ? "up" : "dn"}">${W.pl >= 0 ? "+" : "−"}${mbMoney(Math.abs(W.pl)).replace("−", "")}</span> all-time${W.risk > 0 ? ` · ${mbMoney(W.risk)} in play` : ""}</div>${typeof stkRunLine === "function" ? stkRunLine() : ""}</div>
-      <button class="hx-lvl" data-pass="1">${passRing(L, 56)}<i>${L.rank[1]}</i></button>${typeof mbSpark === "function" ? mbSpark(s.bets) : ""}</section>
-    <div class="hx-chips">${today}</div>
-    ${mbHeadlinerHtml(picks)}
-    ${mbStripHtml()}
-    ${typeof mbSharpCard === "function" ? mbSharpCard() : ""}
-    ${live.length ? `<div class="hx-h"><b><span class="livedot"></span>Live</b><button data-sweat="1">Sweat room ›</button></div><div class="hx-list">${live.slice(0, 3).map(b => { const P = mbWinProb(b);
+  const run = (() => { try { return stkTrack(); } catch (e) { return null; } })();
+  const act = (attr, icon, top, sub, cls = "") => `<button class="w-act ${cls}" ${attr}><span class="w-ai">${icon}</span><b>${top}</b><i>${sub}</i></button>`;
+  const wallet = `<section class="w-card">
+      <div class="w-top"><span class="w-k">${hi}, Mike</span>${run ? `<span class="w-run">Run #${run.run.n} · ${run.off >= 0.01 ? `<em class="dn">${Math.round(100 * run.off)}% off peak</em>` : `<em class="up">at peak</em>`}</span>` : ""}</div>
+      <div class="w-bal">${mbMoney(W.available).replace(/(\.\d\d)$/, "<small>$1</small>")}</div>
+      <div class="w-sub"><span class="w-pl ${W.pl >= 0 ? "up" : "dn"}">${W.pl >= 0 ? "▲" : "▼"} ${mbMoney(Math.abs(W.pl)).replace("−", "")}</span><span>all-time</span>${W.risk > 0 ? `<span class="w-ip">${mbMoney(W.risk)} in play</span>` : ""}</div>
+      <div class="w-spark">${typeof mbSpark === "function" ? mbSpark(s.bets, 360, 70) : ""}</div>
+      <div class="w-acts">
+        ${D0.claimed ? act('data-go="rewards"', ic("spin"), "Spun", `${D0.streak}-day streak`, "done") : act('data-spin="1"', ic("spin"), "Free spin", "Up to $250", "hot")}
+        ${act('data-go="rewards"', ic("target"), `Missions`, `${mdone}/3 done`)}
+        <button class="w-act hx-lvl" data-pass="1"><span class="w-ai">${passRing(L, 30)}</span><b>${L.rank[1]}</b><i>${L.lvl < PASS_MAX ? `${esc(nxt)} next` : "Max level"}</i></button>
+      </div></section>`;
+  // featured: one swipeable rail of same-sized cards (odds boost, the headliner, the model's picks)
+  const feat = [];
+  try { const ob = typeof mbOddsBoost === "function" ? mbOddsBoost() : null;
+    if (ob) { let A = null; try { A = mbArtFor(ob.leg); } catch (e) {}
+      feat.push(`<div class="fc boost"><span class="fc-tag">⚡ Odds boost</span><b class="fc-t">${esc(ob.leg.label)}</b><i class="fc-s">${esc(ob.leg.sub || "")}${ob.leg.p ? ` · model ${Math.round(100 * ob.leg.p)}%` : ""}</i>
+        <div class="fc-f"><span class="fc-was">${mbSign(ob.was)}</span><button class="fc-btn" data-boost="1">${mbSign(ob.odds)}</button></div>${fcArt(A)}</div>`); } } catch (e) {}
+  const head = mbHeadliner(picks);
+  if (head) { const {l, A, first, last, what} = head;
+    feat.push(`<div class="fc head" style="--tc:${esc(A.color || "#6f8dff")}"><span class="fc-tag">★ Headliner</span><b class="fc-t"><small>${esc(first)}</small>${esc(last || first)}</b><i class="fc-s">${esc(what)}${l.p ? ` · model ${Math.round(100 * l.p)}%` : ""}</i>
+      <div class="fc-f"><button class="fc-btn" data-head="1">Add ${mbSign(l.odds)}</button></div>${A.logo ? `<img class="fc-wm" src="${esc(A.logo)}" alt="" onerror="this.remove()">` : ""}${A.img ? `<img class="fc-cut" src="${esc(A.img)}" alt="" onerror="this.remove()">` : ""}</div>`); }
+  picks.forEach((q, i) => { const dec = q.legs.reduce((a, l) => a * mbDec(l.odds), 1), odds = q.legs.length > 1 ? mbAm(dec) : q.legs[0].odds;
+    feat.push(`<div class="fc pick"><span class="fc-tag">${esc(q.tag || (q.legs.length > 1 ? "Parlay" : "Single"))}</span><b class="fc-t sm">${esc(q.title)}</b>
+      <div class="fc-legs">${q.legs.slice(0, 3).map(l => `<span><span class="fc-pic">${mbPic(l)}</span><em>${esc(l.label)}</em><i>${mbSign(l.odds)}</i></span>`).join("")}</div>
+      <div class="fc-f"><span class="fc-pay">$10 pays <b>${mbMoney(10 * dec)}</b></span><button class="fc-btn" data-qp="${i}">Add ${mbSign(odds)}</button></div></div>`); });
+  let G = []; try { G = typeof mbMiniGames === "function" ? mbMiniGames(true) : []; } catch (e) {}
+  const lg = t => `<img src="${esc(t.logo || "")}" alt="" onerror="this.outerHTML='<i>${esc(t.abbr)}</i>'">`;
+  const games = G.slice(0, 6).map(g => `<div class="gl-r ${g.st}">
+      <button class="gl-m" data-go="games"><span class="gl-st">${g.st === "live" ? `<b class="gl-live">LIVE</b>${esc(g.detail || "")}` : g.st === "final" ? "Final" : esc(g.detail || "")}</span>
+        <span class="gl-t">${lg(g.a)}<b>${esc(g.a.name || g.a.abbr)}</b>${g.st === "pre" ? `<em>${Math.round(100 * (1 - g.ph))}%</em>` : `<strong>${g.as ?? 0}</strong>`}</span>
+        <span class="gl-t">${lg(g.h)}<b>${esc(g.h.name || g.h.abbr)}</b>${g.st === "pre" ? `<em>${Math.round(100 * g.ph)}%</em>` : `<strong>${g.hs ?? 0}</strong>`}</span></button>
+      ${g.btnA && g.st === "pre" ? `<span class="gl-px">${g.btnA}${g.btnH}</span>` : ""}</div>`).join("");
+  return `<div class="hx hx2">
+    ${wallet}
+    ${live.length ? `<div class="hx-h"><b><span class="livedot"></span>Sweating now</b><button data-sweat="1">Sweat room ›</button></div><div class="hx-list">${live.slice(0, 3).map(b => { const P = mbWinProb(b);
       return `<button class="hx-row" data-go="check"><span class="hx-rt"><b>${esc(b.label)}</b><i>${esc(b.legs.map(l => (mbSweat(l) || {}).text || "").filter(Boolean)[0] || "")}</i></span>${P != null ? `<span class="hx-pc ${P >= 0.6 ? "hi" : P >= 0.35 ? "md" : "lo"}">${Math.round(100 * P)}%</span>` : ""}</button>`; }).join("")}</div>`
       : open.length ? `<button class="hx-row solo" data-go="check"><span class="hx-rt"><b>${open.length} open bet${open.length > 1 ? "s" : ""}</b><i>${mbMoney(W.risk)} riding · to win ${mbMoney(open.reduce((a, b) => a + b.stake * (mbDec(b.odds) - 1) * (1 + (b.boost || 0)), 0))}</i></span>${ic("chev")}</button>` : ""}
-    ${qp ? `<div class="hx-h"><b>Quick picks</b><span>by the model</span></div><div class="hx-qps">${qp}</div>` : ""}
-    <div class="hx-h"><b>Sports</b></div><div class="hx-list">${sports}</div>
+    ${feat.length ? `<div class="hx-h"><b>Featured</b><span class="fz-dots">${feat.map((_, i) => `<i class="${i ? "" : "on"}"></i>`).join("")}</span></div><div class="fz" id="fz">${feat.join("")}</div>` : ""}
+    ${games ? `<div class="hx-h"><b>${G.some(g => g.st === "live") ? "Tonight · live" : "Tonight's games"}</b><button data-go="games">All ${G.length} ›</button></div><div class="gl">${games}</div>` : ""}
+    ${typeof mbSharpCard === "function" ? mbSharpCard() : ""}
+    ${done.length ? `<div class="hx-h"><b>Your form</b><button data-go="check">History ›</button></div><div class="hx-rec">${done.map(b => `<span class="hx-r ${b.status === "won" || b.status === "cashout" ? "w" : b.status === "lost" ? "l" : "p"}" title="${esc(b.label)}"></span>`).join("")}<em>${me.n ? `${s.bets.filter(b => b.status === "won").length}–${s.bets.filter(b => b.status === "lost").length}` : ""}</em></div>` : ""}
     ${typeof mbInstallHtml === "function" ? mbInstallHtml() : ""}
-    ${done.length ? `<div class="hx-h"><b>Recent</b><button data-go="check">History</button></div><div class="hx-rec">${done.map(b => `<span class="hx-r ${b.status === "won" || b.status === "cashout" ? "w" : b.status === "lost" ? "l" : "p"}" title="${esc(b.label)}"></span>`).join("")}<em>${me.n ? `${s.bets.filter(b => b.status === "won").length}–${s.bets.filter(b => b.status === "lost").length}` : ""}</em></div>` : ""}
   </div>`;
+}
+function fcArt(A) {
+  if (!A) return "";
+  if (A.img) return `<img class="fc-cut" src="${esc(A.img)}" alt="" onerror="this.remove()">`;
+  if (A.logos) return `<span class="fc-duo"><img src="${esc(A.logos[0])}" alt="" onerror="this.remove()"><img src="${esc(A.logos[1])}" alt="" onerror="this.remove()"></span>`;
+  return "";
+}
+// the model's likeliest scorer among the quick picks, for the Featured rail
+function mbHeadliner(picks) {
+  let best = null;
+  for (const q of picks) for (const l of q.legs) { if (!l.key || l.key.t !== "prop") continue; let A = {}; try { A = Object.assign({}, l, mbArtFor(l) || {}); } catch (e) {}
+    if (!best || (l.p || 0) > (best.l.p || 0)) best = {l, A}; }
+  if (!best) return null;
+  const {l, A} = best, nm = A.name || l.label.replace(/ (to score|anytime TD).*$/i, ""), parts = nm.split(" ");
+  try { const t = (D.games || []).flatMap(g => [g.home, g.away]).find(t => t.abbr === (A.team || (l.key || {}).team)); if (t) A.color = t.color; } catch (e) {}
+  window.MB_HEAD = l;
+  const t = l.label.replace(nm, "").trim();
+  return {l, A, first: parts[0], last: parts.slice(1).join(" "), what: t ? t[0].toUpperCase() + t.slice(1) : l.label};
 }
 // ⭐ tonight's headliner: the model's likeliest scorer, poster-style with a big player cutout
 function mbHeadlinerHtml(picks) {
@@ -156,6 +187,8 @@ function mbStripHtml() {   // story-style bubbles: one per game, ring shows live
     <i>${g.st === "live" ? "LIVE" : esc(g.detail || "")}</i></button>`).join("")}</div>`;
 }
 function mbWireHome(render) {
+  const fz = document.getElementById("fz"); if (fz) fz.onscroll = () => { const c = fz.firstElementChild; if (!c) return; const k = Math.round(fz.scrollLeft / (c.offsetWidth + 12));
+    document.querySelectorAll(".fz-dots i").forEach((d, j) => d.classList.toggle("on", j === k)); };
   document.querySelectorAll("[data-head]").forEach(b => b.onclick = e => { e.stopPropagation(); const l = window.MB_HEAD; if (!l) return; slipAdd(Object.assign({}, l)); mbHaptic("success"); try { funBlip(); } catch (er) {} mbOpenSlip(); });
   document.querySelectorAll("[data-pass]").forEach(b => b.onclick = e => { e.stopPropagation(); mbHaptic(); mbOpenPass(); });
   document.querySelectorAll("#view [data-go]").forEach(b => b.onclick = e => { e.preventDefault(); mbHaptic(); TAB = b.dataset.go; if (TAB === "check") MB_VIEW = "bets"; render(); window.scrollTo(0, 0); });
@@ -166,6 +199,7 @@ function mbWireHome(render) {
 // 🆚 face-off game card: teams across from each other, a win-probability tug bar, markets as labelled rows.
 // o = {a, h, ph, aSub, hSub, state: pre|live|final, time, proj, detail, as, hs, rows: [[label, btnAway, btnHome]]}
 function mbVersus(o) {
+  if (typeof FX_GMODE === "undefined" || FX_GMODE !== "feed") return mbBoard(o);
   const team = (t, side, sub, p) => `<div class="vs-team ${side}" style="--tc:${esc(t.color || "#556")}">
       <div class="vs-logo"><img src="${esc(t.logo || "")}" alt="" onerror="this.outerHTML='<i>${esc(t.abbr)}</i>'"></div>
       <div class="gtn"><b>${esc(t.name)}</b><span>${sub}</span></div>
@@ -178,4 +212,20 @@ function mbVersus(o) {
   return `<div class="vs-top">${team(o.a, "a", o.aSub, 1 - o.ph)}<div class="vs-mid">${mid}</div>${team(o.h, "h", o.hSub, o.ph)}</div>
     <div class="vs-tug"><i style="width:${pa}%;background:${esc(o.a.color || "#556")}"></i><i style="width:${100 - pa}%;background:${esc(o.h.color || "#556")}"></i></div>
     <div class="vs-mks">${o.rows.map(([lab, x, y]) => `<div class="vs-mk"><span class="vs-lab">${lab}</span>${x}${y}</div>`).join("")}</div>`;
+}
+
+// 📋 board card: the classic sportsbook grid. Two team rows, three price columns (line · total · moneyline).
+function mbBoard(o) {
+  const ml = o.rows[0], ln = o.rows[1], to = o.rows[2], tl = (String(to[0]).match(/[\d.]+/) || [""])[0];
+  const tot = (b, k) => String(b).replace(/<span class="pt">(Over|Under)<\/span>/, `<span class="pt">${k} ${tl}</span>`);
+  const head = String(ln[0]).replace("Puck line", "Puck");
+  const team = (t, sub, p, sc, other) => `<div class="bx-tm" style="--tc:${esc(t.color || "#556")}"><span class="bx-lg"><img src="${esc(t.logo || "")}" alt="" onerror="this.outerHTML='<i>${esc(t.abbr)}</i>'"></span>
+      <span class="bx-nm"><b>${esc(t.name)}</b><i>${o.state === "pre" ? `<em class="bx-p">${Math.round(100 * p)}%</em>` : ""}${sub}</i></span>${o.state === "pre" ? "" : `<strong class="bx-sc ${o.state === "final" && sc < other ? "lose" : ""}">${sc ?? 0}</strong>`}</div>`;
+  const st = o.state === "live" ? `<span class="bx-live">LIVE</span><span>${esc(o.detail || "")}</span>` : o.state === "final" ? `<span class="bx-fin">FINAL</span>` : `<span class="bx-time">${esc(o.time || "")}</span><span class="bx-proj">${esc(o.proj || "")}</span>`;
+  const pa = Math.round(100 * (1 - o.ph));
+  return `<div class="bx">
+    <div class="bx-top"><span class="bx-st">${st}</span><span class="bx-h">${esc(head)}</span><span class="bx-h">Total</span><span class="bx-h">Money</span></div>
+    <div class="bx-row">${team(o.a, o.aSub, 1 - o.ph, o.as, o.hs)}${ln[1]}${tot(to[1], "O")}${ml[1]}</div>
+    <div class="bx-row">${team(o.h, o.hSub, o.ph, o.hs, o.as)}${ln[2]}${tot(to[2], "U")}${ml[2]}</div>
+    <div class="bx-tug" title="Model win chance"><i style="width:${pa}%;background:${esc(o.a.color || "#556")}"></i><i style="width:${100 - pa}%;background:${esc(o.h.color || "#556")}"></i></div></div>`;
 }

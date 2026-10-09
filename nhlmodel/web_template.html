@@ -354,11 +354,11 @@ label.f { display: block; font-size: 13px; font-weight: 800; color: var(--ink-2)
 <body class="nhl">
 <div class="splash" id="splash"><img src="logo-nhl.png" alt=""><b>Mike<span>Models</span></b><i></i></div>
 <div class="wrap">
-  <div class="hdr"><img class="mlogo" src="logo-nhl.png" alt="MikeModels"><div class="t"><h1 id="title">Loading…</h1><div class="sub" id="sub">Warming up the Zamboni</div></div>
-    <div class="sport"><a class="on" href="index.html"><img src="https://a.espncdn.com/i/teamlogos/leagues/500-dark/nhl.png" alt="NHL" onerror="this.outerHTML='NHL'"></a><a href="nfl.html"><img src="https://a.espncdn.com/i/teamlogos/leagues/500-dark/nfl.png" alt="NFL" onerror="this.outerHTML='NFL'"></a></div>
+  <div class="hdr"><div class="hb1"><img class="mlogo" src="logo-nhl.png" alt="MikeModels"><div class="t"><h1 id="title">Loading…</h1><div class="sub" id="sub">Warming up the Zamboni</div></div></div>
+    <div class="hb2"><div class="sport"><a class="on" href="index.html"><img src="https://a.espncdn.com/i/teamlogos/leagues/500-dark/nhl.png" alt="" onerror="this.remove()">NHL</a><a href="nfl.html"><img src="https://a.espncdn.com/i/teamlogos/leagues/500-dark/nfl.png" alt="" onerror="this.remove()">NFL</a></div>
     <button class="iconbtn" id="gearBtn" aria-label="How the model is weighted">⚙️</button>
     <button class="iconbtn" id="updBtn" aria-label="Model updates"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2.2 2.2 0 0 0 4 0"/></svg></button>
-    <button class="iconbtn" id="infoBtn" aria-label="How it works">?</button></div>
+    <button class="iconbtn" id="infoBtn" aria-label="How it works">?</button></div></div>
   <div class="strip" id="strip"></div>
   <div id="view"></div>
   <div class="foot">Data from the NHL, Daily Faceoff &amp; ESPN · bet responsibly</div>
@@ -638,15 +638,7 @@ function strip() {
     D = b.dataset.day === "prev" ? PREV : TODAY; PSTATE.game = "all"; C.game = null; OPEN.clear(); render(); window.scrollTo(0, 0); });
 }
 let NAV_IDX = null;
-function nav() {
-  const T = [["home", "Home"], ["games", "Games"], ["props", "Props"], ["check", "My Bets"], ["rewards", "Rewards"]];
-  $("#nav").style.setProperty("--n", T.length);
-  const idx = Math.max(0, T.findIndex(([k]) => k === TAB)), from = NAV_IDX == null ? idx : NAV_IDX;
-  $("#nav").innerHTML = `<i class="navpill" style="--i:${from}"></i>` + T.map(([k, n]) => `<button class="${TAB === k ? "on" : ""}" data-k="${k}">${mbIcon(k)}<span>${n}</span></button>`).join("");
-  if (from !== idx) requestAnimationFrame(() => requestAnimationFrame(() => { const pl = $("#nav .navpill"); if (pl) pl.style.setProperty("--i", idx); }));
-  NAV_IDX = idx;
-  $("#nav").querySelectorAll("button").forEach(b => b.onclick = () => { if (TAB !== b.dataset.k) mbHaptic(); TAB = b.dataset.k; render(); window.scrollTo(0, 0); });
-}
+function nav() { shNav(render); }
 
 function dkFor(g, market, sel, line) {
   return (g.dk || []).find(x => x.m === market && x.s === sel && (line == null ? x.l == null : Math.abs((x.l ?? 99) - line) < 1e-6));
@@ -867,7 +859,7 @@ function gstate(g) { const st = (LIVE[g.game_id] || {}).state; return st === "po
 function byStatus(gs) { return gs.slice().sort((a, b) => (gstate(a) - gstate(b)) || (new Date(a.start_utc || 0) - new Date(b.start_utc || 0))); }
 function games() {
   if (!D.games.length) return empty("🧊", "No games on the board", "Check back on the next game day.");
-  return (typeof fxGameMode === "function" ? fxGameMode() : "") + slateHtml() + mbLiveBanner() + mbHero() + byStatus(D.games).map(gameCard).join("") + likesHtml() + record();
+  return (typeof fxGameMode === "function" ? fxGameMode() : "") + slateHtml() + mbLiveBanner() + byStatus(D.games).map(gameCard).join("") + likesHtml() + record();
 }
 
 const LINES = {sog: [1.5, 2.5, 3.5, 4.5], goals: [0.5], points: [0.5, 1.5], assists: [0.5]};
@@ -1382,9 +1374,10 @@ function mbOddsBoost() {
 }
 // 🏠 home hooks: which sport this is, and one-tap quick picks from the model
 // tonight's games for the Home strip: logos, time or score, who the model likes
-function mbMiniGames() { if (!D || !D.games.length) return [];
+function mbMiniGames(px) { if (!D || !D.games.length) return [];
   return byStatus(D.games).map(g => { const L = LIVE[g.game_id] || {}, st = L.state === "in" ? "live" : L.state === "post" ? "final" : "pre";
-    return {id: g.game_id, a: g.away, h: g.home, st, detail: st === "live" ? L.detail : st === "final" ? "Final" : timeET(g.start_utc), as: L.away, hs: L.home, ph: gameProb(g, "moneyline", "home")}; }); }
+    return Object.assign({id: g.game_id, a: g.away, h: g.home, st, detail: st === "live" ? L.detail : st === "final" ? "Final" : timeET(g.start_utc), as: L.away, hs: L.home, ph: gameProb(g, "moneyline", "home")},
+      px && st === "pre" ? {btnA: pbtn(g, `${g.away.name} to win`, "moneyline", "away", undefined, g.away.abbr), btnH: pbtn(g, `${g.home.name} to win`, "moneyline", "home", undefined, g.home.abbr)} : {}); }); }
 function mbSportInfo() { return {sport: "NHL", line: D && D.games.length ? `${D.games.length} games ${D.meta.upcoming ? "next up" : "tonight"}` : "No games"}; }
 function mbQuickPicks() {
   if (!TODAY || D !== TODAY) return [];

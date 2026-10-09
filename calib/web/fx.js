@@ -97,9 +97,9 @@ function fxTicker() {
 }
 
 // ---- 🎞️ Games: Board or Feed (one big matchup poster per screen) ----
-let FX_GMODE = (() => { try { return localStorage.getItem("mm_gmode") || "feed"; } catch (e) { return "feed"; } })();
+let FX_GMODE = (() => { try { return localStorage.getItem("mm_gmode") || "board"; } catch (e) { return "board"; } })();
 function fxGameMode() {
-  return `<div class="pmode gmode"><button class="${FX_GMODE === "feed" ? "on" : ""}" data-gmode="feed">Feed</button><button class="${FX_GMODE === "board" ? "on" : ""}" data-gmode="board">Board</button></div>`;
+  return `<div class="pmode gmode"><button class="${FX_GMODE === "board" ? "on" : ""}" data-gmode="board">Board</button><button class="${FX_GMODE === "feed" ? "on" : ""}" data-gmode="feed">Feed</button></div>`;
 }
 function fxWireModes(render) {
   document.body.classList.toggle("gfeed", typeof TAB !== "undefined" && TAB === "games" && FX_GMODE === "feed");

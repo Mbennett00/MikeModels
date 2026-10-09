@@ -307,11 +307,11 @@ label.f { display: block; font-size: 13px; font-weight: 800; color: var(--ink-2)
 <body class="nfl">
 <div class="splash" id="splash"><img src="logo-nfl.png" alt=""><b>Mike<span>Models</span></b><i></i></div>
 <div class="wrap">
-  <div class="hdr"><img class="mlogo" src="logo-nfl.png" alt="MikeModels"><div class="t"><h1 id="title">Loading…</h1><div class="sub" id="sub">Lining the field</div></div>
-    <div class="sport"><a href="index.html"><img src="https://a.espncdn.com/i/teamlogos/leagues/500-dark/nhl.png" alt="NHL" onerror="this.outerHTML='NHL'"></a><a class="on" href="nfl.html"><img src="https://a.espncdn.com/i/teamlogos/leagues/500-dark/nfl.png" alt="NFL" onerror="this.outerHTML='NFL'"></a></div>
+  <div class="hdr"><div class="hb1"><img class="mlogo" src="logo-nfl.png" alt="MikeModels"><div class="t"><h1 id="title">Loading…</h1><div class="sub" id="sub">Lining the field</div></div></div>
+    <div class="hb2"><div class="sport"><a href="index.html"><img src="https://a.espncdn.com/i/teamlogos/leagues/500-dark/nhl.png" alt="" onerror="this.remove()">NHL</a><a class="on" href="nfl.html"><img src="https://a.espncdn.com/i/teamlogos/leagues/500-dark/nfl.png" alt="" onerror="this.remove()">NFL</a></div>
     <button class="iconbtn" id="gearBtn" aria-label="How the model is weighted">⚙️</button>
     <button class="iconbtn" id="updBtn" aria-label="Model updates"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2.2 2.2 0 0 0 4 0"/></svg></button>
-    <button class="iconbtn" id="infoBtn" aria-label="How it works">?</button></div>
+    <button class="iconbtn" id="infoBtn" aria-label="How it works">?</button></div></div>
   <div class="strip" id="strip"></div>
   <div id="view"></div>
   <div class="foot">Data from nflverse, The Odds API &amp; ESPN · bet responsibly</div>
@@ -1122,15 +1122,7 @@ function strip() {
   $("#strip").innerHTML = h; $("#strip").style.display = h ? "" : "none";
 }
 let NAV_IDX = null;
-function nav() {
-  const T = [["home", "Home"], ["games", "Games"], ["props", "Props"], ["check", "My Bets"], ["rewards", "Rewards"]];
-  $("#nav").style.setProperty("--n", T.length);
-  const idx = Math.max(0, T.findIndex(([k]) => k === TAB)), from = NAV_IDX == null ? idx : NAV_IDX;
-  $("#nav").innerHTML = `<i class="navpill" style="--i:${from}"></i>` + T.map(([k, n]) => `<button class="${TAB === k ? "on" : ""}" data-k="${k}">${mbIcon(k === "games" ? "games" : k)}<span>${n}</span></button>`).join("");
-  if (from !== idx) requestAnimationFrame(() => requestAnimationFrame(() => { const pl = $("#nav .navpill"); if (pl) pl.style.setProperty("--i", idx); }));
-  NAV_IDX = idx;
-  $("#nav").querySelectorAll("button").forEach(b => b.onclick = () => { if (TAB !== b.dataset.k) mbHaptic(); TAB = b.dataset.k; render(); window.scrollTo(0, 0); });
-}
+function nav() { shNav(render); }
 // 📝 paper bets: game lines grade from final scores; NFL props are settled by hand (no box scores on this page)
 const MB_PAGE = "NFL";
 function mbGrade(leg) {
@@ -1166,9 +1158,11 @@ function mbLegOf(o) {
   const g = o.g; return {label: o.label, sub: `${g.away.abbr} @ ${g.home.abbr}`, gid: g.game_id, start: g.start_utc, p: o.p, logos: [g.away.logo, g.home.logo], key: {t: "game", m: o.b.m, s: o.b.s, l: o.b.line}};
 }
 // 🏠 home hooks: which sport this is, and one-tap quick picks from the model
-function mbMiniGames() { if (!D || !D.games.length) return [];
-  return byStatus(D.games).map(g => { const sc = scoreOf(g), st = sc ? (sc.state === "in" ? "live" : "final") : "pre";
-    return {id: g.game_id, a: g.away, h: g.home, st, detail: st === "live" ? sc.detail : st === "final" ? "Final" : kickLab(g.start_utc), as: sc && sc.away, hs: sc && sc.home, ph: g.p_home}; }); }
+function mbMiniGames(px) { if (!D || !D.games.length) return [];
+  return byStatus(D.games).map(g => { const sc = scoreOf(g), st = sc ? (sc.state === "in" ? "live" : "final") : "pre", B = px && st === "pre" ? mkBets(g) : [];
+    const ml = sd => B.find(b => b.m === "ml" && b.s === sd);
+    return Object.assign({id: g.game_id, a: g.away, h: g.home, st, detail: st === "live" ? sc.detail : st === "final" ? "Final" : kickLab(g.start_utc), as: sc && sc.away, hs: sc && sc.home, ph: g.p_home},
+      px && st === "pre" ? {btnA: pbtnN(g, ml("away"), g.away.abbr), btnH: pbtnN(g, ml("home"), g.home.abbr)} : {}); }); }
 function mbSportInfo() { return {sport: "NFL", line: D && D.games.length ? `Week ${D.meta.week || ""} · ${D.games.length} games` : "No games"}; }
 function mbQuickPicks() {
   if (!D || !D.games.length) return [];

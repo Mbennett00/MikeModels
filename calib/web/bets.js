@@ -170,6 +170,7 @@ function mbConfirm(placed) {
 }
 // floating slip button + wallet in the nav
 function mbFab(pop) {
+  if (typeof shSlipBtn === "function" && shSlipBtn(pop)) { if (typeof mbMarkSlip === "function") { try { mbMarkSlip(); } catch (e) {} } return; }
   let f = document.getElementById("slipfab");
   if (!f) { f = document.createElement("button"); f.id = "slipfab"; f.className = "slipfab"; f.onclick = () => mbOpenSlip(); document.body.appendChild(f); }
   const v = slipLoad(), n = v.length; f.style.display = n ? "flex" : "none";
@@ -403,7 +404,7 @@ function mbAfterRender(render) {
   MB_RENDER = render;
   try { const v = document.getElementById("view"); if (v && window.MB_LAST_TAB !== TAB) { window.MB_LAST_TAB = TAB; v.classList.remove("vin"); void v.offsetWidth; v.classList.add("vin"); } } catch (e) {}
   document.querySelectorAll("[data-btab]").forEach(b => b.onclick = () => { mbHaptic(); MB_VIEW = "bets"; MB_BTAB = b.dataset.btab; render(); });
-  document.querySelectorAll("[data-go2]").forEach(b => b.onclick = () => { mbHaptic(); TAB = b.dataset.go2; render(); window.scrollTo(0, 0); }); mbFab(); mbWireBanner(render); try { funAfterRender(render); } catch (e) {} try { mbWireSharp(render); } catch (e) {} try { stkAfterRender(render); } catch (e) {}
+  document.querySelectorAll("[data-go2]").forEach(b => b.onclick = () => { mbHaptic(); TAB = b.dataset.go2; render(); window.scrollTo(0, 0); }); mbFab(); mbWireBanner(render); try { funAfterRender(render); } catch (e) {} try { mbWireSharp(render); } catch (e) {} try { shAfterRender(render); } catch (e) {} try { stkAfterRender(render); } catch (e) {}
   if (typeof fxAfterRender === "function") fxAfterRender(); else { const sp = document.getElementById("splash"); if (sp && !sp.classList.contains("out")) { sp.classList.add("out"); setTimeout(() => sp.remove(), 600); } }
   const t = typeof TAB !== "undefined" ? TAB : "";   // a soft fade-up when the screen changes (not on live refreshes)
   if (t !== MB_LASTTAB) { const v = document.getElementById("view"); if (v) { v.classList.remove("enter"); void v.offsetWidth; v.classList.add("enter"); } MB_LASTTAB = t; }
