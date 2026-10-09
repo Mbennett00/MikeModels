@@ -40,5 +40,6 @@ function shAfterRender(render) {
   [...b.classList].filter(c => c.startsWith("tab-")).forEach(c => b.classList.remove(c));
   b.classList.add("tab-" + (typeof TAB !== "undefined" ? TAB : "home"));
   try { shHeader(render); } catch (e) {}
+  const h = document.querySelector(".hdr"); if (h) document.documentElement.style.setProperty("--hdrh", h.offsetHeight + "px");   // for the sticky Games switch + feed snapping
   shSlipBtn();
 }

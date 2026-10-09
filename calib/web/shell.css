@@ -308,3 +308,12 @@ body.shell .s2-t { font: italic 800 34px/1 var(--fd) !important; text-transform:
 .gl-t strong { font-size: 22px !important; }
 .bx-h { letter-spacing: .05em; overflow: visible; }
 .vs-live { margin: 12px 14px 4px !important; } .vs-live b { font-family: var(--fd) !important; font-size: 28px !important; }
+/* the Board | Feed switch stays pinned under the app bar on Games, so it is always reachable (Feed snaps card to card) */
+body.shell.tab-games .gmode { position: sticky !important; top: calc(var(--hdrh, 100px) + 6px); z-index: 25; background: rgba(16,20,31,.92) !important;
+  -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); box-shadow: 0 10px 24px -12px rgba(0,0,0,.8) !important; }
+html:has(body.shell.gfeed) { scroll-padding-top: calc(var(--hdrh, 100px) + 62px); }
+body.shell.gfeed .gc2 { scroll-snap-align: start !important; min-height: calc(100svh - var(--hdrh, 100px) - 150px) !important; }
+body.shell.gfeed .slate2 { scroll-snap-align: start; }
+body.shell .s2-stats { font-size: 12.5px !important; flex-wrap: nowrap !important; white-space: nowrap; }
+body.shell .vs-team .gtn b { font: 800 clamp(15px, 4.6vw, 20px)/1.05 var(--fd) !important; text-transform: uppercase; letter-spacing: .01em !important; overflow-wrap: anywhere; }
+body.shell .vs-team { min-width: 0; }
