@@ -737,13 +737,15 @@ function fairLine(mu, m, p) {
   return best;
 }
 // DraftKings prop prices published with the page: p.dk["market|line"] = {o: over, u: under}
-function dkLines(p, m) { return Object.keys(p.dk || {}).filter(k => k.startsWith(m + "|") && p.dk[k].o != null).map(k => Number(k.split("|")[1])).sort((a, b) => a - b); }
+function dkLines(p, m) { return Object.keys(p.dk || {}).filter(k => k.startsWith(m + "|") && (p.dk[k].o != null || p.dk[k].l)).map(k => Number(k.split("|")[1])).sort((a, b) => a - b); }
 function dkOver(p, m, L) { const x = p.dk && p.dk[`${m}|${m === "td" ? 0.5 : L}`]; return x ? x.o : null; }
 // the line to show: DraftKings' main line (over price nearest even) when DK has one, else the model's even-money line
 function showLine(p, m) {
   if (m === "td") return 0.5;
   const dk = dkLines(p, m); if (!dk.length) return fairLine(pMean(p, m), m, p);
-  return dk.map(L => ({L, d: Math.abs(implied(p.dk[`${m}|${L}`].o) - 0.5)})).sort((a, b) => a.d - b.d)[0].L;
+  const priced = dk.filter(L => p.dk[`${m}|${L}`].o != null);   // a line with a price nearest even, else DraftKings' main (line-only) line
+  if (!priced.length) return dk.filter(L => p.dk[`${m}|${L}`].l).sort((a, b) => Math.abs(pOver(p, m, a) - 0.5) - Math.abs(pOver(p, m, b) - 0.5))[0];
+  return priced.map(L => ({L, d: Math.abs(implied(p.dk[`${m}|${L}`].o) - 0.5)})).sort((a, b) => a.d - b.d)[0].L;
 }
 const dkTag = o => o != null ? `<i class="bkt">DK</i>` : "";
 function pMean(p, m) { return {rec: p.rec, rec_yds: p.rec_yds, rush_yds: p.rush_yds, pass_yds: p.pass_yds, pass_td: p.lam_pass_td}[m]; }
@@ -795,12 +797,12 @@ function prowY(p) {
   const t = teamOf(p.team), g = gameOf(p), m = PS.m, L = showLine(p, m), mu = pMean(p, m), where = g ? (g.home.abbr === p.team ? "vs " : "@ ") + p.opp : "";
   const use = m === "rec_yds" ? `${p.tgt.toFixed(1)} tgt` : m === "rec" ? `${p.tgt.toFixed(1)} tgt` : m === "rush_yds" ? `${p.car.toFixed(1)} car` : `${p.lam_pass_td.toFixed(1)} TD`;
   const btn = dir => { const i = ydBet(p, m, L, dir), o = BETS[i];
-    return `<button class="pxb pp ${o.mkt ? "bk" : ""}" data-bet="${i}"><span class="pt">${dir === "under" ? "U" : "O"} ${L}</span><b>${am(o.odds)}</b><i class="${o.mkt ? "pdk" : "pm"}">${o.mkt ? "DK" : pct(o.p)}</i></button>`; };
+    return `<button class="pxb pp ${o.mkt ? "bk" : ""}" data-bet="${i}"><span class="pt">${dir === "under" ? "U" : "O"} ${L}</span><b>${am(o.odds)}</b><i class="${o.mkt ? "pdk" : "pm"}">${o.mkt ? "DK" : pct(o.p)}</i></button>`; }, dkl = p.dk && p.dk[`${m}|${L}`];
   return `<div class="prow4 yd" data-pp="${esc(p.id)}|${esc(p.game_id)}|${m}" role="button">
     <div class="pav" style="--tc:${esc(t.color)}"><span>${esc(initials(p.name))}</span>${p.headshot ? `<img src="${esc(p.headshot)}" alt="" loading="lazy" onload="this.previousElementSibling.style.visibility='hidden'" onerror="this.remove()">` : ""}${t.logo ? `<img class="ptl" src="${esc(t.logo)}" alt="" onerror="this.remove()">` : ""}</div>
     <div class="pinfo"><div class="pnm">${esc(p.name)}${p.status ? `<span class="plive post">${esc(ST(p.status))}</span>` : ""}</div>
       <div class="pmeta">${esc(p.team)} · ${esc(p.pos)} · ${esc(where)}</div>
-      <div class="pmet"><span class="pproj">Proj <b>${m === "rec" ? mu.toFixed(1) : Math.round(mu)}</b> · ${use}</span></div></div>
+      <div class="pmet"><span class="pproj">Proj <b>${m === "rec" ? mu.toFixed(1) : Math.round(mu)}</b> · ${use}${dkl ? ` · <em class="dkl">DK line</em>` : ""}</span></div></div>
     <div class="ydb">${btn("over")}${btn("under")}</div></div>`;
 }
 function prow(p) {
@@ -940,7 +942,7 @@ function props() {
   return TABS + `
     <div class="strip" style="padding-left:0"><button class="chip ${PS.search || PS.q ? "on" : ""}" data-psearch="1" aria-label="Search"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button><button class="chip ${PS.game === "all" ? "on" : ""}" data-pg="all">All games</button>${gs.map(g => `<button class="chip gchip ${PS.game === g.game_id ? "on" : ""}" data-pg="${esc(g.game_id)}"><img src="${esc(g.away.logo)}" alt="" onerror="this.remove()"><img src="${esc(g.home.logo)}" alt="" onerror="this.remove()">${esc(g.away.abbr)} @ ${esc(g.home.abbr)}</button>`).join("")}</div>
     ${PS.search || PS.q ? `<input class="search" id="psearch" placeholder="Search a player or team" value="${esc(PS.q)}" autocomplete="off">` : ""}
-    ${PS.m !== "td" ? (L.some(p => dkLines(p, PS.m).length) ? `<div class="pnote"><span class="pdot ok"></span>DraftKings lines where posted · model's line otherwise</div>` : `<div class="pnote"><span class="pdot"></span>Model's line · fair prices until DraftKings posts</div>`) : waiting ? `<div class="pnote"><span class="pdot"></span>Book prices not posted yet · fair prices shown</div>` : posted ? `<div class="pnote"><span class="pdot ok"></span>${D.meta.props_book === "DraftKings" ? "DraftKings prices" : "Consensus price across US sportsbooks"}</div>` : ""}
+    ${PS.m !== "td" ? (L.some(p => dkLines(p, PS.m).length) ? `<div class="pnote"><span class="pdot ok"></span>DraftKings lines · priced by the model</div>` : `<div class="pnote"><span class="pdot"></span>Model's line · fair prices until DraftKings posts</div>`) : waiting ? `<div class="pnote"><span class="pdot"></span>Book prices not posted yet · fair prices shown</div>` : posted ? `<div class="pnote"><span class="pdot ok"></span>${D.meta.props_book === "DraftKings" ? "DraftKings prices" : "Consensus price across US sportsbooks"}</div>` : ""}
     ${PS.m === "td" && !PS.q.trim() && PS.game === "all" ? spotlightN(L) : ""}
     ${L.length ? sections(L) : `<div class="note">No players match.</div>`}`;
 }

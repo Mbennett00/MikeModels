@@ -1,4 +1,6 @@
-"""DraftKings NFL player-prop prices from ESPN's free API (no key, no Odds API credits).
+"""DraftKings NFL player-prop lines (and prices, when present) from ESPN's free API (no key, no Odds API credits).
+ESPN's NFL feed mostly carries DraftKings' main yardage / catches line without the price (Oct 2026): those come
+through as {"l": 1} and the page prices DraftKings' line with the model.
 
 Same feed as nhlmodel.espn_props: the slate run fetches it (ESPN blocks browsers) and publishes the prices with
 the page. One-sided markets are always safe to read: Anytime TD (= over 0.5) and the yardage / receptions
@@ -87,7 +89,9 @@ def parse(items: list, names: dict, seen: Counter | None = None) -> dict:
         else:
             px = _side_prices(it)
             if not px:
-                continue
+                if mk == "td":
+                    continue
+                px = {"l": 1}   # ESPN often carries DraftKings' line without its price: the page prices that line
         d = out.setdefault(names[m.group(1)], {}).setdefault(f"{mk}|{line:g}", {})
         d.update(px)
         if mk == "td":
@@ -135,12 +139,12 @@ def fetch(norm, log=print) -> dict:
             log(f"nfl espn props: event {eid} failed ({e})")
             continue
         items = pb.get("items", [])
-        priced = [x for x in items if x.get("odds")]
-        if not games and items:   # format check (logged until the first game parses)
-            import json as _j
-            smp = next((x for x in priced if "Milestones" in ((x.get("type") or {}).get("name") or "")), priced[0] if priced else items[0])
-            log(f"nfl espn props: event {eid} {ev.get('shortName')}: {len(items)} items, {len(priced)} with odds, "
-                f"count={pb.get('count')} pages={pb.get('pageCount')}; {len(names)} roster names; sample {_j.dumps(smp)[:700]}")
+        for pg in range(2, min(int(pb.get("pageCount") or 1), 4) + 1):   # ~1,200 items a game: two pages
+            try:
+                items += requests.get(f"{CORE}/events/{eid}/competitions/{eid}/odds/{PROVIDER}/propBets?limit=1000&page={pg}",
+                                      headers=UA, timeout=25).json().get("items", [])
+            except Exception:
+                break
         got = parse(items, names, seen)
         if got:
             games[f"{side.get('away')}@{side.get('home')}"] = dict(commence=ev.get("date"), players=got)

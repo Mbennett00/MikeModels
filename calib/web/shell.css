@@ -347,3 +347,4 @@ body.shell .props-seg button { font: 800 13px var(--fd) !important; letter-spaci
 .ydb .pxb i { font-size: 10px !important; }
 .prow4.yd .pproj b { color: var(--t1); font-family: var(--fh); }
 .prow4.yd .pmeta, .prow4.yd .pproj { white-space: normal !important; overflow: visible !important; text-overflow: clip !important; }
+.prow4.yd .dkl { font-style: normal; color: var(--acc); font-weight: 700; }

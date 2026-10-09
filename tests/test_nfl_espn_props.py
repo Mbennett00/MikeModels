@@ -15,8 +15,8 @@ def test_parse_one_sided_and_sided_totals():
         {"athlete": ref(1), "type": {"name": "Anytime Touchdown Scorer"}, "odds": {"american": {"value": "+120"}}},
         {"athlete": ref(1), "type": {"name": "Receiving Yards Milestones"}, "odds": {"american": {"value": "-150"}}, "current": {"target": {"value": 50}}},
         {"athlete": ref(1), "type": {"name": "Total Receptions"}, "odds": {"over": {"american": {"value": "-115"}}, "under": {"american": {"value": "-105"}}}, "current": {"target": {"value": 4.5}}},
-        {"athlete": ref(1), "type": {"name": "Total Rushing Yards"}, "odds": {"american": {"value": "-110"}}, "current": {"target": {"value": 9.5}}},   # side unknown: skipped
+        {"athlete": ref(1), "type": {"name": "Total Rushing Yards (incl. overtime)"}, "current": {"target": {"value": 9.5}}},   # line only
         {"athlete": ref(7), "type": {"name": "Anytime Touchdown Scorer"}, "odds": {"american": {"value": "+300"}}},   # not on a roster we know
     ]
     out = parse(items, {"1": "jamarrchase"})
-    assert out == {"jamarrchase": {"td|0.5": {"o": 120, "n": 1, "best": 120, "src": "DK"}, "rec_yds|49.5": {"o": -150}, "rec|4.5": {"o": -115, "u": -105}}}
+    assert out == {"jamarrchase": {"td|0.5": {"o": 120, "n": 1, "best": 120, "src": "DK"}, "rec_yds|49.5": {"o": -150}, "rec|4.5": {"o": -115, "u": -105}, "rush_yds|9.5": {"l": 1}}}
