@@ -675,7 +675,7 @@ function gameCard(g) {
   };
   let html = `<div data-gid="${esc(String(g.game_id))}" class="card gc gc2 ${L.state === "in" ? "islive" : ""}" style="--ca:${esc(a.color)};--ch:${esc(h.color)};--la:url('${esc(a.logo || "")}');--lh:url('${esc(h.logo || "")}')">
     ${(() => { const plA = favH ? 1.5 : -1.5, sg = x => `${x > 0 ? "+" : ""}${x}`, gk = t => `<i class="dot ${gdot(t)}"></i>${esc(t.goalie ? t.goalie.split(" ").slice(-1)[0] : "TBD")}`;
-      return mbVersus({a, h, ph, aSub: gk(a), hSub: gk(h), state: L.state === "in" ? "live" : L.state === "post" ? "final" : "pre",
+      return mbVersus({a, h, ph, lph: livePh(g), aSub: gk(a), hSub: gk(h), state: L.state === "in" ? "live" : L.state === "post" ? "final" : "pre",
         time: timeET(g.start_utc), proj: `proj ${g.lam_away.toFixed(1)}–${g.lam_home.toFixed(1)}`, detail: L.detail, as: L.away, hs: L.home,
         rows: [["Moneyline", pbtn(g, `${a.name} to win`, "moneyline", "away", undefined, a.abbr), pbtn(g, `${h.name} to win`, "moneyline", "home", undefined, h.abbr)],
                ["Puck line", pbtn(g, `${a.abbr} ${sg(plA)}`, "puckline", "away", plA, sg(plA)), pbtn(g, `${h.abbr} ${sg(-plA)}`, "puckline", "home", -plA, sg(-plA))],
@@ -854,8 +854,10 @@ function slateHtml() {
     <div class="s2-stats"><span><b class="g">${vals.length}</b> value bets</span><span><b class="g">${top ? "+" + (100 * top.x.edge).toFixed(1) + "%" : "–"}</b> top edge</span><span><b>${gc}</b>/${tm} goalies</span></div>
     ${top ? `<div class="s2-best"><span class="sl-dot"></span><span>Best value</span><b>${esc(nm)}</b><em>${am(top.x.price)}</em></div>` : ""}</div>`;
 }
-// upcoming games first (by puck drop), then live, then finished at the bottom
-function gstate(g) { const st = (LIVE[g.game_id] || {}).state; return st === "post" ? 2 : st === "in" ? 1 : notStarted(g) ? 0 : 1; }
+// live games first, then upcoming (by puck drop), then finished at the bottom
+function gstate(g) { const st = (LIVE[g.game_id] || {}).state; return st === "post" ? 2 : st === "in" ? 0 : notStarted(g) ? 1 : 1.5; }
+// the model's in-game chance the home team wins (null before puck drop / after the final)
+function livePh(g) { const st = (LIVE[g.game_id] || {}).state; if (st !== "in") return null; try { return mbLegProb({gid: g.game_id, key: {t: "game", m: "moneyline", s: "home"}}); } catch (e) { return null; } }
 function byStatus(gs) { return gs.slice().sort((a, b) => (gstate(a) - gstate(b)) || (new Date(a.start_utc || 0) - new Date(b.start_utc || 0))); }
 function games() {
   if (!D.games.length) return empty("🧊", "No games on the board", "Check back on the next game day.");
@@ -1376,7 +1378,7 @@ function mbOddsBoost() {
 // tonight's games for the Home strip: logos, time or score, who the model likes
 function mbMiniGames(px) { if (!D || !D.games.length) return [];
   return byStatus(D.games).map(g => { const L = LIVE[g.game_id] || {}, st = L.state === "in" ? "live" : L.state === "post" ? "final" : "pre";
-    return Object.assign({id: g.game_id, a: g.away, h: g.home, st, detail: st === "live" ? L.detail : st === "final" ? "Final" : timeET(g.start_utc), as: L.away, hs: L.home, ph: gameProb(g, "moneyline", "home")},
+    return Object.assign({id: g.game_id, a: g.away, h: g.home, st, detail: st === "live" ? L.detail : st === "final" ? "Final" : timeET(g.start_utc), as: L.away, hs: L.home, ph: gameProb(g, "moneyline", "home"), lph: livePh(g)},
       px && st === "pre" ? {btnA: pbtn(g, `${g.away.name} to win`, "moneyline", "away", undefined, g.away.abbr), btnH: pbtn(g, `${g.home.name} to win`, "moneyline", "home", undefined, g.home.abbr)} : {}); }); }
 function mbSportInfo() { return {sport: "NHL", line: D && D.games.length ? `${D.games.length} games ${D.meta.upcoming ? "next up" : "tonight"}` : "No games"}; }
 function mbQuickPicks() {

@@ -1,6 +1,8 @@
 // ---------- 🧭 APP SHELL: app bar (wallet + level), league tabs, docked tab bar with the bet slip in the middle ----------
 // Shared by both pages. Pages call shNav(render) from nav(); shAfterRender() runs after every render.
 document.body.classList.add("shell");
+// the date / last-update line sits on the league-tab row so the title row has room for the wallet
+(() => { const sub = document.getElementById("sub"), hb2 = document.querySelector(".hb2"); if (sub && hb2) hb2.insertBefore(sub, hb2.querySelector(".iconbtn")); })();
 const SH_TABS = [["home", "Home"], ["games", "Games"], ["slip", "Bet slip"], ["props", "Props"], ["check", "My Bets"]];
 const SH_SLIP_IC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5h12v17l-2-1.4-2 1.4-2-1.4-2 1.4-2-1.4-2 1.4z"/><path d="M9 8.5h6M9 12h6M9 15.5h3.5"/></svg>';
 function shNav(render) {

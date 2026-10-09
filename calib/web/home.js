@@ -128,11 +128,13 @@ function mbHomeHtml() {
       <div class="fc-f"><span class="fc-pay">$10 pays <b>${mbMoney(10 * dec)}</b></span><button class="fc-btn" data-qp="${i}">Add ${mbSign(odds)}</button></div></div>`); });
   let G = []; try { G = typeof mbMiniGames === "function" ? mbMiniGames(true) : []; } catch (e) {}
   const lg = t => `<img src="${esc(t.logo || "")}" alt="" onerror="this.outerHTML='<i>${esc(t.abbr)}</i>'">`;
-  const games = G.slice(0, 6).map(g => `<div class="gl-r ${g.st}">
+  const games = G.slice(0, 6).map(g => `<div class="gl-r gs-${g.st}">
       <button class="gl-m" data-go="games"><span class="gl-st">${g.st === "live" ? `<b class="gl-live">LIVE</b>${esc(g.detail || "")}` : g.st === "final" ? "Final" : esc(g.detail || "")}</span>
         <span class="gl-t">${lg(g.a)}<b>${esc(g.a.name || g.a.abbr)}</b>${g.st === "pre" ? `<em>${Math.round(100 * (1 - g.ph))}%</em>` : `<strong>${g.as ?? 0}</strong>`}</span>
         <span class="gl-t">${lg(g.h)}<b>${esc(g.h.name || g.h.abbr)}</b>${g.st === "pre" ? `<em>${Math.round(100 * g.ph)}%</em>` : `<strong>${g.hs ?? 0}</strong>`}</span></button>
-      ${g.btnA && g.st === "pre" ? `<span class="gl-px">${g.btnA}${g.btnH}</span>` : ""}</div>`).join("");
+      ${g.btnA && g.st === "pre" ? `<span class="gl-px">${g.btnA}${g.btnH}</span>`
+        : g.st === "live" && g.lph != null ? `<span class="gl-lv"><em>${Math.round(100 * (1 - g.lph))}%</em><em>${Math.round(100 * g.lph)}%</em><i>live win</i></span>`
+        : g.st === "final" ? `<span class="gl-fin">${(g.hs ?? 0) > (g.as ?? 0) ? esc(g.h.abbr) : esc(g.a.abbr)} win</span>` : ""}</div>`).join("");
   return `<div class="hx hx2">
     ${wallet}
     ${live.length ? `<div class="hx-h"><b><span class="livedot"></span>Sweating now</b><button data-sweat="1">Sweat room ›</button></div><div class="hx-list">${live.slice(0, 3).map(b => { const P = mbWinProb(b);
@@ -208,7 +210,10 @@ function mbVersus(o) {
     : `<span class="${o.state === "live" ? "live" : "final"}">${o.state === "live" ? "LIVE" : "FINAL"}</span>
        <b class="vs-score"><span class="${o.state === "final" && o.as < o.hs ? "lose" : ""}">${o.as ?? 0}</span><i>–</i><span class="${o.state === "final" && o.hs < o.as ? "lose" : ""}">${o.hs ?? 0}</span></b>
        <span class="vs-proj">${esc(o.state === "live" ? o.detail || "" : "")}</span>`;
-  const pa = Math.round(100 * (1 - o.ph));
+  const pa = Math.round(100 * (1 - o.ph)), lpa = o.lph == null ? null : Math.round(100 * (1 - o.lph));
+  if (o.state === "live") return `<div class="vs-top">${team(o.a, "a", o.aSub, 1 - o.ph)}<div class="vs-mid">${mid}</div>${team(o.h, "h", o.hSub, o.ph)}</div>
+    <div class="vs-tug"><i style="width:${lpa ?? pa}%;background:${esc(o.a.color || "#556")}"></i><i style="width:${100 - (lpa ?? pa)}%;background:${esc(o.h.color || "#556")}"></i></div>
+    <div class="vs-live">${lpa == null ? `<span>Betting closed · game in progress</span>` : `<b>${lpa}%</b><span>Live win chance</span><b>${100 - lpa}%</b>`}</div>`;
   return `<div class="vs-top">${team(o.a, "a", o.aSub, 1 - o.ph)}<div class="vs-mid">${mid}</div>${team(o.h, "h", o.hSub, o.ph)}</div>
     <div class="vs-tug"><i style="width:${pa}%;background:${esc(o.a.color || "#556")}"></i><i style="width:${100 - pa}%;background:${esc(o.h.color || "#556")}"></i></div>
     <div class="vs-mks">${o.rows.map(([lab, x, y]) => `<div class="vs-mk"><span class="vs-lab">${lab}</span>${x}${y}</div>`).join("")}</div>`;
@@ -223,8 +228,16 @@ function mbBoard(o) {
       <span class="bx-nm"><b>${esc(t.name)}</b><i>${o.state === "pre" ? `<em class="bx-p">${Math.round(100 * p)}%</em>` : ""}${sub}</i></span>${o.state === "pre" ? "" : `<strong class="bx-sc ${o.state === "final" && sc < other ? "lose" : ""}">${sc ?? 0}</strong>`}</div>`;
   const st = o.state === "live" ? `<span class="bx-live">LIVE</span><span>${esc(o.detail || "")}</span>` : o.state === "final" ? `<span class="bx-fin">FINAL</span>` : `<span class="bx-time">${esc(o.time || "")}</span><span class="bx-proj">${esc(o.proj || "")}</span>`;
   const pa = Math.round(100 * (1 - o.ph));
-  return `<div class="bx">
-    <div class="bx-top"><span class="bx-st">${st}</span><span class="bx-h">${esc(head)}</span><span class="bx-h">Total</span><span class="bx-h">Money</span></div>
+  if (o.state === "live") {   // prices are closed once the game starts: show the score and the model's live win chance instead
+    const lp = o.lph, lv = (t, p, sc, other) => `<div class="bx-row lv">${team(t, o.aSub === undefined ? "" : (t === o.a ? o.aSub : o.hSub), 0, sc, other)}
+      <div class="bx-lv" style="--tc:${esc(t.color || "#556")}">${lp == null ? `<span class="bx-lvn">${sc > other ? "Leading" : sc < other ? "Trailing" : "Tied"}</span>` : `<i style="width:${Math.max(3, Math.round(100 * p))}%"></i><b>${Math.round(100 * p)}%</b>`}</div></div>`;
+    return `<div class="bx bx-on">
+      <div class="bx-top"><span class="bx-st">${st}</span><span class="bx-h wide">${lp == null ? "Prices closed" : "Live win chance"}</span></div>
+      ${lv(o.a, lp == null ? 0 : 1 - lp, o.as ?? 0, o.hs ?? 0)}${lv(o.h, lp == null ? 0 : lp, o.hs ?? 0, o.as ?? 0)}
+      <div class="bx-note">Pregame betting closed · pregame model ${esc(o.a.abbr)} ${pa}% · ${esc(o.h.abbr)} ${100 - pa}%</div></div>`;
+  }
+  return `<div class="bx bx-${o.state}">
+    <div class="bx-top"><span class="bx-st">${st}</span><span class="bx-h">${o.state === "final" ? "" : esc(head)}</span><span class="bx-h">${o.state === "final" ? "Results" : "Total"}</span><span class="bx-h">${o.state === "final" ? "" : "Money"}</span></div>
     <div class="bx-row">${team(o.a, o.aSub, 1 - o.ph, o.as, o.hs)}${ln[1]}${tot(to[1], "O")}${ml[1]}</div>
     <div class="bx-row">${team(o.h, o.hSub, o.ph, o.hs, o.as)}${ln[2]}${tot(to[2], "U")}${ml[2]}</div>
     <div class="bx-tug" title="Model win chance"><i style="width:${pa}%;background:${esc(o.a.color || "#556")}"></i><i style="width:${100 - pa}%;background:${esc(o.h.color || "#556")}"></i></div></div>`;

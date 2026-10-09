@@ -141,7 +141,7 @@ body.shell .nav .navdot { display: none; }
 .fc.pick .fc-tag { background: var(--g-brand); }
 .fc-legs { display: flex; flex-direction: column; gap: 5px; margin-top: 8px; min-height: 0; overflow: hidden; }
 .fc-legs > span { display: grid; grid-template-columns: 22px 1fr auto; align-items: center; gap: 7px; font: 600 12.5px var(--fb); color: #fff; }
-.fc-legs em { font-style: normal; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .fc-legs i { font: 700 12px var(--fh); font-style: normal; color: rgba(255,255,255,.7); }
+.fc-legs em { font-style: normal; line-height: 1.2; } .fc-legs i { font: 700 12px var(--fh); font-style: normal; color: rgba(255,255,255,.7); }
 .fc-pic { width: 22px; height: 22px; border-radius: 50%; overflow: hidden; display: grid; place-items: center; background: rgba(255,255,255,.1); }
 .fc-pic > * { width: 22px !important; height: 22px !important; min-width: 0 !important; margin: 0 !important; border: 0 !important; box-shadow: none !important; font-size: 8px !important; }
 .fc-pic img { object-fit: cover; }
@@ -163,7 +163,7 @@ body.shell .nav .navdot { display: none; }
 .gl-px .pxb { height: 36px !important; min-height: 0 !important; width: 100% !important; padding: 0 6px !important; flex-direction: row !important; justify-content: center !important; }
 .gl-px .pxb .pt, .gl-px .pxb .pm, .gl-px .pxb .pe { display: none !important; }
 .gl-px .pxb b { font-size: 14px !important; }
-.gl-r.final .gl-t strong { color: var(--t2); }
+.gl-r.gs-final .gl-t strong { color: var(--t2); }
 
 /* hide the leftovers the lobby replaced */
 .hx2 .hx-chips, .hx2 .hl, .hx2 .stories { display: none !important; }
@@ -214,3 +214,30 @@ body.shell.tab-games .s2-stats { font-size: 12.5px !important; }
 body.shell .gmode { height: 34px !important; padding: 3px !important; float: right; margin: 6px 0 0 !important; position: relative; z-index: 2; }
 body.shell .gmode button { height: 28px !important; padding: 0 12px !important; font-size: 12px !important; }
 .w-spark .hx-spark { position: static !important; inset: auto !important; width: 100% !important; height: 100% !important; margin: 0 !important; transform: none !important; }
+
+/* date line on the tab row */
+body.shell .hb2 #sub { flex: 0 1 auto; min-width: 0; margin: 0 2px 0 auto; font: 600 11px var(--fb) !important; color: var(--t3) !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body.shell .hb2 .sport { margin-right: 0; }
+body.shell .hdr .t { display: flex; align-items: center; }
+
+/* ---------- live games: score + live win chance, no stale prices ---------- */
+.bx-h.wide { grid-column: 2 / 5; text-align: right; padding-right: 2px; }
+.bx-row.lv { grid-template-columns: minmax(0, 1fr) clamp(140px, 44vw, 214px); }
+.bx-row.lv .bx-tm { grid-template-columns: 28px minmax(0, 1fr) auto; }
+.bx-lv { position: relative; height: 40px; border-radius: 12px; background: var(--s2); overflow: hidden; display: flex; align-items: center; justify-content: flex-end; padding: 0 12px; }
+.bx-lv i { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(90deg, color-mix(in srgb, var(--tc) 55%, transparent), color-mix(in srgb, var(--tc) 85%, transparent)); border-radius: 12px; transition: width .6s var(--ease); }
+.bx-lv b { position: relative; font: 800 16px var(--fh); color: #fff; font-variant-numeric: tabular-nums; text-shadow: 0 1px 4px rgba(0,0,0,.6); }
+.bx-lvn { font: 700 12px var(--fb); color: var(--t2); }
+.bx-note { margin: 10px -12px 0; padding: 8px 12px; border-top: 1px solid var(--hair); font: 600 11px var(--fb); color: var(--t3); }
+.bx.bx-on .bx-sc { font-size: 24px; }
+.bx.bx-final .pxb { opacity: .55; } .bx.bx-final .pxb.won { opacity: 1; } .bx.bx-final .pxb.val::after { display: none; }
+.vs-live { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 12px 4px 4px; font: 600 12px var(--fb); color: var(--t2); }
+.vs-live b { font: 800 22px var(--fh); color: #fff; font-variant-numeric: tabular-nums; }
+.vs-live span:only-child { margin: 0 auto; }
+/* home list */
+.gl-lv { display: grid; grid-template-rows: 1fr 1fr auto; gap: 4px; width: 74px; text-align: center; align-self: stretch; padding-top: 18px; }
+.gl-lv em { font: 800 15px var(--fh); font-style: normal; color: var(--t1); font-variant-numeric: tabular-nums; display: grid; place-items: center; height: 28px; border-radius: 9px; background: var(--s2); }
+.gl-lv i { font: 700 9.5px var(--fb); font-style: normal; color: var(--t3); letter-spacing: .04em; text-transform: uppercase; }
+.gl-fin { font: 800 11px var(--fb); color: var(--t3); letter-spacing: .04em; text-transform: uppercase; width: 74px; text-align: center; }
+.gl-r.gs-live { background: linear-gradient(90deg, rgba(255,59,71,.08), transparent 60%); }
+@media (max-width: 380px) { body.shell .sport a { padding: 0 8px !important; gap: 5px; } body.shell .hb2 #sub { font-size: 10.5px !important; } }

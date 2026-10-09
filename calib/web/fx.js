@@ -86,7 +86,7 @@ function fxTicker() {
   let G = []; try { G = mbMiniGames(); } catch (e) {}
   let t = document.getElementById("tkr");
   if (!G.length) { if (t) t.remove(); return; }
-  const item = g => `<span class="tk-i ${g.st}">${g.st === "live" ? `<em>LIVE</em>` : g.st === "final" ? `<em class="f">FINAL</em>` : ""}<img src="${esc(g.a.logo)}" alt="" onerror="this.remove()"><b>${esc(g.a.abbr)}</b>${g.st === "pre" ? `<i>${Math.round(100 * (1 - g.ph))}%</i>` : `<strong>${g.as ?? 0}</strong>`}
+  const item = g => `<span class="tk-i tk-${g.st}">${g.st === "live" ? `<em>LIVE</em>` : g.st === "final" ? `<em class="f">FINAL</em>` : ""}<img src="${esc(g.a.logo)}" alt="" onerror="this.remove()"><b>${esc(g.a.abbr)}</b>${g.st === "pre" ? `<i>${Math.round(100 * (1 - g.ph))}%</i>` : `<strong>${g.as ?? 0}</strong>`}
     <span class="tk-at">${g.st === "pre" ? "@" : "–"}</span>${g.st === "pre" ? "" : `<strong>${g.hs ?? 0}</strong>`}<b>${esc(g.h.abbr)}</b><img src="${esc(g.h.logo)}" alt="" onerror="this.remove()">${g.st === "pre" ? `<i>${Math.round(100 * g.ph)}%</i>` : ""}
     <span class="tk-d">${esc(g.st === "pre" ? g.detail || "" : g.st === "live" ? g.detail || "" : "")}</span></span>`;
   const html = G.map(item).join(`<span class="tk-sep"></span>`), sig = G.map(g => g.id + g.st + g.as + g.hs).join("|");
