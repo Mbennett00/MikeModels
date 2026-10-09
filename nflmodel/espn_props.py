@@ -133,7 +133,12 @@ def fetch(norm, log=print) -> dict:
         except Exception as e:
             log(f"nfl espn props: event {eid} failed ({e})")
             continue
-        got = parse(pb.get("items", []), names, seen)
+        items = pb.get("items", [])
+        if not games and not seen and items:   # one sample per run, to keep the parser honest about ESPN's format
+            import json as _j
+            smp = next((x for x in items if "Milestones" in ((x.get("type") or {}).get("name") or "")), items[0])
+            log(f"nfl espn props: {len(names)} roster names; sample item {_j.dumps(smp)[:900]}")
+        got = parse(items, names, seen)
         if got:
             games[f"{side.get('away')}@{side.get('home')}"] = dict(commence=ev.get("date"), players=got)
     n = sum(len(g["players"]) for g in games.values())
