@@ -959,7 +959,7 @@ function wireProps() {
   document.querySelectorAll("[data-gopen]").forEach(b => b.onclick = () => { const k = b.dataset.gopen; GOPEN.has(k) ? GOPEN.delete(k) : GOPEN.add(k); render(); });
   document.querySelectorAll("[data-pm]").forEach(b => b.onclick = () => { PS.m = b.dataset.pm; PS.n = 24; render(); });
   document.querySelectorAll("[data-pg]").forEach(b => b.onclick = () => { PS.game = b.dataset.pg; PS.n = 24; render(); });
-  const si = $("#psearch"); if (si) si.oninput = e => { PS.q = e.target.value; const pos = e.target.selectionStart; render(); const n = $("#psearch"); n.focus(); n.setSelectionRange(pos, pos); };
+  const si = $("#psearch"); if (si) si.oninput = e => { PS.q = e.target.value; const pos = e.target.selectionStart; render(); const n = $("#psearch"); if (n) { n.focus(); n.setSelectionRange(pos, pos); } };
   $("#pmore") && ($("#pmore").onclick = () => { PS.n += 24; render(); });
 }
 function gamePlayers(g) {
@@ -1084,8 +1084,8 @@ function drawSheet() {
   mbWireTrack(() => SH && SH.num ? SH.sign * Number(SH.num) : NaN, o.b.price || Math.round(fair(o.p)),
     () => ({sport: "NFL", kind: "single", label: o.label,
             legs: [{label: o.label, sub: `${g.away.abbr} @ ${g.home.abbr}`, gid: g.game_id, start: g.start_utc, p: o.p, logos: [g.away.logo, g.home.logo], key: {t: "game", m: o.b.m, s: o.b.s, l: o.b.line}}]}));
-  $("#sheet").querySelectorAll("[data-s]").forEach(x => x.onclick = () => { SH.sign = Number(x.dataset.s); drawSheet(); });
-  $("#odds").oninput = e => { SH.num = e.target.value.replace(/[^0-9]/g, ""); const o2 = SH.sign * Number(SH.num);
+  $("#sheet").querySelectorAll("[data-s]").forEach(x => x.onclick = () => { if (!SH) return; SH.sign = Number(x.dataset.s); drawSheet(); });
+  $("#odds").oninput = e => { if (!SH) return; SH.num = e.target.value.replace(/[^0-9]/g, ""); const o2 = SH.sign * Number(SH.num);
     $("#vd").innerHTML = SH.num && Math.abs(o2) >= 100 ? verdictHtml(o.p, o2) : `<div class="hint">Keep typing… (American odds, e.g. -110)</div>`; };
 }
 function openInfo() {

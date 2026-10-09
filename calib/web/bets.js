@@ -9,9 +9,25 @@ function mbLoad() {
   try { const s = JSON.parse(localStorage.getItem(MB_KEY) || "null"); if (s && Array.isArray(s.bets)) return Object.assign({start: 1000, unit: 10, badges: []}, s); } catch (e) {}
   return {start: 1000, unit: 10, bets: [], badges: []};
 }
+// every team (ESPN logo code, other abbreviations, nickname), so a pick keeps its logo after its game leaves the slate
+const MB_TEAMS = {
+  NHL: "ana|ANA|Ducks;bos|BOS|Bruins;buf|BUF|Sabres;cgy|CGY|Flames;car|CAR|Hurricanes;chi|CHI|Blackhawks;col|COL|Avalanche;cbj|CBJ|Blue Jackets;dal|DAL|Stars;det|DET|Red Wings;edm|EDM|Oilers;fla|FLA|Panthers;la|LA,LAK|Kings;min|MIN|Wild;mtl|MTL|Canadiens;nsh|NSH|Predators;nj|NJ,NJD|Devils;nyi|NYI|Islanders;nyr|NYR|Rangers;ott|OTT|Senators;phi|PHI|Flyers;pit|PIT|Penguins;sj|SJ,SJS|Sharks;sea|SEA|Kraken;stl|STL|Blues;tb|TB,TBL|Lightning;tor|TOR|Maple Leafs;utah|UTA,UTAH|Mammoth;van|VAN|Canucks;vgk|VGK|Golden Knights;wsh|WSH|Capitals;wpg|WPG|Jets",
+  NFL: "ari|ARI|Cardinals;atl|ATL|Falcons;bal|BAL|Ravens;buf|BUF|Bills;car|CAR|Panthers;chi|CHI|Bears;cin|CIN|Bengals;cle|CLE|Browns;dal|DAL|Cowboys;den|DEN|Broncos;det|DET|Lions;gb|GB|Packers;hou|HOU|Texans;ind|IND|Colts;jax|JAX,JAC|Jaguars;kc|KC|Chiefs;lv|LV|Raiders;lac|LAC|Chargers;lar|LAR,LA|Rams;mia|MIA|Dolphins;min|MIN|Vikings;ne|NE|Patriots;no|NO|Saints;nyg|NYG|Giants;nyj|NYJ|Jets;phi|PHI|Eagles;pit|PIT|Steelers;sf|SF|49ers;sea|SEA|Seahawks;tb|TB|Buccaneers;ten|TEN|Titans;wsh|WSH,WAS|Commanders"};
+function mbTeamLogo(sport, code) { return `https://a.espncdn.com/i/teamlogos/${sport === "NFL" ? "nfl" : "nhl"}/500-dark/${code}.png`; }
+function mbTeamsIn(l) {   // logos of the teams a pick's text names, in the order they appear
+  const sport = l.sport || (typeof MB_PAGE !== "undefined" ? MB_PAGE : "NHL"), txt = ` ${l.label || ""} ${l.sub || ""} ${(l.key && l.key.team) || ""} `, hits = [];
+  for (const row of MB_TEAMS[sport === "NFL" ? "NFL" : "NHL"].split(";")) {
+    const [code, abs, nick] = row.split("|"), m = txt.search(new RegExp(`(?:^|[^A-Za-z0-9])(?:${nick}|${abs.split(",").join("|")})(?![A-Za-z])`));
+    if (m >= 0) hits.push([m, mbTeamLogo(sport, code)]); }
+  return hits.sort((a, b) => a[0] - b[0]).map(h => h[1]);
+}
 // pick art: player headshot with a team-logo badge, or the two team logos for a game line
 function mbPic(l) {
   if (!l.img && !l.logos && typeof mbArtFor === "function") { try { l = Object.assign({}, l, mbArtFor(l) || {}); } catch (e) {} }
+  if (!l.img && !l.logos && !l.logo) { const t = mbTeamsIn(l);   // game no longer on the slate: find the teams by name
+    if (l.key && l.key.t === "prop") { if (t[0]) l = Object.assign({}, l, {logo: t[0]}); }
+    else if (t.length >= 2) l = Object.assign({}, l, {logos: t.slice(0, 2)});
+    else return `<span class="lpic solo"><img class="l1" src="${esc(t[0] || `https://a.espncdn.com/i/teamlogos/leagues/500-dark/${(l.sport || (typeof MB_PAGE !== "undefined" ? MB_PAGE : "NHL")) === "NFL" ? "nfl" : "nhl"}.png`)}" alt="" onerror="this.remove()"></span>`; }
   const ini = String(l.name || l.label || "").split(" ").filter(Boolean).slice(0, 2).map(w => w[0]).join("");
   if (l.img || (l.key && l.key.t === "prop")) return `<span class="lpic">${l.img ? `<img class="hs" src="${esc(l.img)}" alt="" loading="lazy" onerror="this.outerHTML='<span class=&quot;ini&quot;>${esc(ini)}</span>'">` : `<span class="ini">${esc(ini)}</span>`}${l.logo ? `<img class="tb" src="${esc(l.logo)}" alt="" onerror="this.remove()">` : ""}</span>`;
   if (l.logos && l.logos.length) return `<span class="lpic duo"><img class="l1" src="${esc(l.logos[0])}" alt="" onerror="this.remove()"><img class="l2" src="${esc(l.logos[1])}" alt="" onerror="this.remove()"></span>`;

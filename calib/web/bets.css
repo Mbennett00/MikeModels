@@ -165,3 +165,4 @@
 .dkl button { flex: none; border: 1px solid var(--line); background: var(--surf-2); color: #fff; border-radius: 10px; padding: 6px 9px; font: 700 12px var(--fb); display: flex; gap: 5px; }
 .dkl button b { color: var(--muted); font-weight: 800; } .dkl button.on { border-color: var(--acc, #2fe06e); } .dkl button.on b { color: var(--acc, #2fe06e); }
 .dkl .bkt { position: static; flex: none; margin-left: 2px; }
+.lpic.solo { display: grid; place-items: center; border-radius: 50%; background: #1a2233; } .lpic.solo .l1 { width: 72%; height: 72%; object-fit: contain; filter: drop-shadow(0 2px 3px rgba(0,0,0,.5)); }

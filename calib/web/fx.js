@@ -30,11 +30,13 @@ function fxRoll(el, from, to, ms = 900, fmt) {
     if (k < 1) requestAnimationFrame(step); else setTimeout(() => el.classList.remove("fx-rolling", "fx-up", "fx-dn"), 400); };
   requestAnimationFrame(step);
 }
-function fxBalance() {   // the Home balance rolls from what you last saw
-  const el = document.querySelector(".hx-bal"); if (!el) return;
-  const now = mbWallet().available; let was = null;
+function fxBalance() {   // the Home balance rolls from what you last saw (and catches up if a reward landed while the screen drew)
+  const el = document.querySelector(".w-bal, .hx-bal"); if (!el) return;
+  const now = mbWallet().available, shown = Number(el.textContent.replace(/[^\d.−-]/g, "").replace("−", "-")); let was = null;
   try { was = Number(sessionStorage.getItem("fx_bal")); sessionStorage.setItem("fx_bal", String(now)); } catch (e) {}
-  if (was != null && isFinite(was) && was > 0 && Math.abs(was - now) >= .01 && !el.dataset.rolled) { el.dataset.rolled = "1"; fxRoll(el, was, now, 1200); }
+  if (el.dataset.rolled) return;
+  const from = was != null && isFinite(was) && was > 0 && Math.abs(was - now) >= .01 ? was : isFinite(shown) && Math.abs(shown - now) >= .01 ? shown : null;
+  if (from != null) { el.dataset.rolled = "1"; fxRoll(el, from, now, 1200); }
 }
 
 // ---- live game cards: goal flash, score flip, ribbon ----

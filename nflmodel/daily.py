@@ -28,6 +28,17 @@ HERE = os.path.dirname(__file__)
 EDGE_FLAG = 0.06   # edge (model minus market no-vig) that earns the 💰; the model has not beaten closing lines
 
 
+def _headshots(info_) -> dict:
+    """ESPN's cut-out headshot first (crisp, transparent), nflverse's nfl.com photo as the page's fallback."""
+    if info_ is None:
+        return dict(headshot=None)
+    nfl = info_.headshot_url if isinstance(getattr(info_, "headshot_url", None), str) else None
+    eid = getattr(info_, "espn_id", None)
+    if eid is not None and pd.notna(eid):
+        return dict(headshot=f"https://a.espncdn.com/i/headshots/nfl/players/full/{int(eid)}.png", headshot_alt=nfl)
+    return dict(headshot=nfl)
+
+
 def fair_american(p: float) -> float | None:
     if p is None or not (0 < p < 1):
         return None
@@ -459,7 +470,7 @@ def player_props(cache, site, seasons, season, games, R, live, now_et, log=print
             rec = dict(id=r.player_id, game_id=r.game_id, team=r.team, opp=r.opp, name=full, role=r.role,
                        pos=info_.position if info_ is not None else r.role,
                        num=int(info_.jersey_number) if info_ is not None and pd.notna(info_.jersey_number) else None,
-                       headshot=info_.headshot_url if info_ is not None and isinstance(info_.headshot_url, str) else None,
+                       **_headshots(info_),
                        status=q_keys.get((r.team, I.norm(full))),
                        tgt=_r(r.tgt, 2), rec=_r(r.rec, 2), rec_yds=_r(r.rec_yds, 1), car=_r(r.car, 2),
                        rush_yds=_r(r.rush_yds, 1), lam_td=_r(r.lam_td, 4), p_td=_r(1 - math.exp(-r.lam_td), 4), lv=lv)

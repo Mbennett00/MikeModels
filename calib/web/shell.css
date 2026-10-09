@@ -317,3 +317,20 @@ body.shell.gfeed .slate2 { scroll-snap-align: start; }
 body.shell .s2-stats { font-size: 12.5px !important; flex-wrap: nowrap !important; white-space: nowrap; }
 body.shell .vs-team .gtn b { font: 800 clamp(15px, 4.6vw, 20px)/1.05 var(--fd) !important; text-transform: uppercase; letter-spacing: .01em !important; overflow-wrap: anywhere; }
 body.shell .vs-team { min-width: 0; }
+
+/* ---------- clean-up: Pick'em cards + daily spin in the house style ---------- */
+body.shell .pk { background: radial-gradient(90% 46% at 50% 0%, color-mix(in srgb, var(--tc) 22%, transparent), transparent 75%), linear-gradient(180deg, #131a29, #0e131f) !important;
+  border: 1px solid var(--hair2) !important; box-shadow: inset 0 1px 0 rgba(255,255,255,.05) !important; }
+body.shell .pk::before { height: 2px; opacity: .9; }
+body.shell .pk-face { box-shadow: 0 0 0 2px rgba(255,255,255,.1), 0 10px 22px -12px rgba(0,0,0,.9) !important; }
+body.shell .pk-nm { font: 800 16px/1.05 var(--fd) !important; letter-spacing: .02em; text-transform: uppercase; }
+body.shell .pk-line b { font: 800 40px/1 var(--fd) !important; letter-spacing: 0 !important; }
+body.shell .pk-b { background: #1a2233 !important; border-color: rgba(170,190,255,.1) !important; }
+body.shell .pk-b span { font: 800 13px var(--fd) !important; letter-spacing: .05em; text-transform: uppercase; }
+body.shell .pk-b b { font: 700 13px var(--fh) !important; }
+body.shell .daily, body.shell .dailybanner { background: radial-gradient(120% 140% at 100% 0%, rgba(255,122,69,.22), transparent 55%), linear-gradient(180deg, #131a29, #0e131f) !important;
+  border: 1px solid rgba(255,140,100,.3) !important; box-shadow: inset 0 1px 0 rgba(255,255,255,.05) !important; }
+body.shell .daily b { color: #fff !important; font: 800 17px var(--fd) !important; letter-spacing: .02em; text-transform: uppercase; }
+body.shell .daily i { color: var(--t2) !important; }
+body.shell .daily button, body.shell .daily .spinbtn { background: var(--g-brand) !important; color: #fff !important; box-shadow: 0 8px 18px -10px rgba(255,122,69,.9) !important; border: 0 !important; }
+.bx-nm b { font-size: clamp(13.5px, 3.8vw, 16px) !important; letter-spacing: 0 !important; }

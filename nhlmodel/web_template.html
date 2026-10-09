@@ -595,7 +595,7 @@ function wireCheck() {
   on("cp", "onchange", e => { C.player = e.target.value; render(); });
   on("cpm", "onchange", e => { C.pmarket = e.target.value; C.line = null; render(); });
   on("cl", "onchange", e => { C.line = parseFloat(e.target.value); render(); });
-  on("co", "oninput", e => { C.odds = e.target.value; const pos = e.target.selectionStart; render(); const n = $("#co"); n.focus(); n.setSelectionRange(pos, pos); });
+  on("co", "oninput", e => { C.odds = e.target.value; const pos = e.target.selectionStart; render(); const n = $("#co"); if (n) { n.focus(); n.setSelectionRange(pos, pos); } });
 }
 // ---------- rendering ----------
 function timeET(s) { if (!s) return ""; const d = new Date(s);
@@ -1146,7 +1146,7 @@ function props() {
 }
 function wireProps() {
   const q = $("#pq");
-  if (q) q.oninput = () => { PSTATE.q = q.value; const pos = q.selectionStart; render(); const n = $("#pq"); n.focus(); n.setSelectionRange(pos, pos); };
+  if (q) q.oninput = () => { PSTATE.q = q.value; const pos = q.selectionStart; render(); const n = $("#pq"); if (n) { n.focus(); n.setSelectionRange(pos, pos); } };
   document.querySelectorAll("[data-m]").forEach(b => b.onclick = () => { PSTATE.market = b.dataset.m; PSTATE.n = 20; render(); });
   document.querySelectorAll("[data-gopen]").forEach(b => b.onclick = () => { const k = Number(b.dataset.gopen); GOPEN.has(k) ? GOPEN.delete(k) : GOPEN.add(k); render(); });
   document.querySelectorAll("[data-g]").forEach(b => b.onclick = () => { PSTATE.game = b.dataset.g; PSTATE.n = 20; render(); });
@@ -1262,8 +1262,8 @@ function drawSheet() {
     ${mbTrackHtml(mbDefOdds(b))}`;
   $("#shx").onclick = closeSheet;
   mbWireTrack(() => SH && SH.num ? SH.sign * Number(SH.num) : NaN, mbDefOdds(b), () => ({sport: "NHL", kind: "single", label: b.label, legs: [mbLegOf(b)]}));
-  $("#sheet").querySelectorAll("[data-s]").forEach(x => x.onclick = () => { SH.sign = Number(x.dataset.s); drawSheet(); $("#odds").focus(); });
-  $("#odds").oninput = e => { SH.num = e.target.value.replace(/[^0-9]/g, ""); const o2 = SH.sign * Number(SH.num);
+  $("#sheet").querySelectorAll("[data-s]").forEach(x => x.onclick = () => { if (!SH) return; SH.sign = Number(x.dataset.s); drawSheet(); $("#odds").focus(); });
+  $("#odds").oninput = e => { if (!SH) return; SH.num = e.target.value.replace(/[^0-9]/g, ""); const o2 = SH.sign * Number(SH.num);
     $("#vd").innerHTML = SH.num && Math.abs(o2) >= 100 ? verdictHtml(b.p, b.market, o2) : `<div class="hint">Keep typing… (American odds, e.g. 115)</div>`; };
 }
 function openInfo() {
@@ -1342,29 +1342,6 @@ function mbMarkSlip() {
   document.querySelectorAll("#view [data-bet]").forEach(el => { const b = BETS[Number(el.dataset.bet)]; if (!b) return;
     let on = false; try { on = keys.has(slipKey(mbLegOf(b))); } catch (e) {} el.classList.toggle("insl", on); });
 }
-// 🔥 featured strip at the top of Games: today's Odds Boost, the game of the night, a hot goalscorer
-function mbHero() {
-  if (D !== TODAY || !D.games.length) return "";
-  const cards = [], open = g => !(LIVE[g.game_id] || {}).state || LIVE[g.game_id].state === "pre";
-  const ob = mbOddsBoost();
-  if (ob) { const k = bet(ob.b);
-    cards.push(`<div class="hero boost"><div class="hz-tag">ODDS BOOST</div><div class="hz-t">${esc(ob.leg.label)}</div><div class="hz-s">${esc(ob.leg.sub || "")} · model ${pct(ob.leg.p)}</div>
-      <div class="hz-row"><span class="hz-was">${mbSign(ob.was)}</span><span class="hz-arrow">→</span><button class="hz-btn" data-boost="1">${mbSign(ob.odds)}</button></div><div class="hz-f">Max $25 · once a day · paper money</div>${(() => { let A = null; try { A = mbArtFor(ob.leg); } catch (e) {} return A && A.img ? `<img class="hz-art cut" src="${esc(A.img)}" alt="" onerror="this.remove()">` : A && A.logos ? `<span class="hz-art duo"><img src="${esc(A.logos[0])}" alt="" onerror="this.remove()"><img src="${esc(A.logos[1])}" alt="" onerror="this.remove()"></span>` : ""; })()}</div>`); }
-  const gs = D.games.filter(open).map(g => { const ph = gameProb(g, "moneyline", "home"); return {g, close: Math.abs(ph - 0.5), tot: g.lam_home + g.lam_away}; })
-    .sort((x, y) => (x.close - y.close) || (y.tot - x.tot));
-  if (gs.length) { const g = gs[0].g, ph = gameProb(g, "moneyline", "home");
-    const side = (t, sel, p) => { const k = bet({g, market: "moneyline", sel, p, label: `${t.name} to win`, dk: dkFor(g, "moneyline", sel)}), d = dkFor(g, "moneyline", sel);
-      return `<button class="hz-team" data-bet="${k}">${logo(t)}<b>${esc(t.abbr)}</b><span>${d && d.price ? am(d.price) : am(fair(p))}</span></button>`; };
-    cards.push(`<div class="hero gotn" style="--ca:${esc(g.away.color)};--ch:${esc(g.home.color)}"><div class="hz-tag">GAME OF THE NIGHT</div>
-      <div class="hz-s">${timeET(g.start_utc)} · proj ${g.lam_away.toFixed(1)}–${g.lam_home.toFixed(1)} · a coin flip by the model</div>
-      <div class="hz-vs">${side(g.away, "away", 1 - ph)}<em>@</em>${side(g.home, "home", ph)}</div></div>`); }
-  const hot = D.players.filter(p => p.lam.goals != null && open(D.games.find(g => g.game_id === p.game_id) || {})).map(p => ({p, pr: propProb(p, "goals", 0.5)})).sort((a, b) => b.pr - a.pr)[0];
-  if (hot) { const p = hot.p, dk = p.dk && p.dk["goals|0.5"], k = bet({player: p, market: "goals", line: 0.5, p: hot.pr, label: `${p.name} to score`});
-    cards.push(`<div class="hero hot"><div class="hz-tag">HOT GOALSCORER</div><div class="hz-p">${avatar(p)}<div><div class="hz-t">${esc(p.name)}</div><div class="hz-s">${esc(p.team)} · ${pct(hot.pr)} to score · proj ${p.lam.goals.toFixed(2)}</div></div></div>
-      <button class="hz-btn wide" data-bet="${k}">Anytime goal ${dk ? am(dk) + " DK" : am(fair(hot.pr))}</button></div>`); }
-  if (!cards.length) return "";
-  return `<div class="herowrap"><div class="heros" id="heros">${cards.join("")}</div><div class="hdots">${cards.map((_, i) => `<i class="${i ? "" : "on"}"></i>`).join("")}</div></div>`;
-}
 // the daily Odds Boost: the model's top pick with 30% more profit, capped at a $25 stake, once a day
 function mbOddsBoost() {
   const s = mbLoad(); if (s.boostDay === mbDay(0)) return null;
@@ -1440,8 +1417,6 @@ function render() {
   $("#view").querySelectorAll("[data-allprops]").forEach(el => el.onclick = () => { PSTATE.game = el.dataset.allprops; PSTATE.q = ""; TAB = "props"; render(); window.scrollTo(0, 0); });
   $("#view").querySelectorAll("[data-more]").forEach(el => el.onclick = () => {
     const id = Number(el.dataset.more); OPEN.has(id) ? OPEN.delete(id) : OPEN.add(id); render(); });
-  const hs = $("#heros"); if (hs) hs.onscroll = () => { const i = Math.round(hs.scrollLeft / (hs.firstElementChild.offsetWidth + 10));
-    document.querySelectorAll(".hdots i").forEach((d, j) => d.classList.toggle("on", i === j)); };
   $("#view").querySelectorAll("[data-boost]").forEach(el => el.onclick = e => { e.stopPropagation(); const ob = mbOddsBoost(); if (!ob) return;
     slipAdd(Object.assign({}, ob.leg, {sport: "NHL", odds: ob.odds, was: ob.was, special: true, book: null})); mbHaptic("success"); try { funBlip(); } catch (x) {} mbOpenSlip(); });
   mbAfterRender(render);

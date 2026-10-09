@@ -171,7 +171,7 @@ def load_weather(cache: str, seasons) -> dict:
 def rosters(season: int, cache: str, log=print) -> pd.DataFrame:
     """Latest weekly roster entry per player: position, status (ACT / RES ...), headshot."""
     f = os.path.join(cache, f"roster_{season}.csv")
-    cols = ["season", "week", "team", "position", "status", "full_name", "gsis_id", "headshot_url", "jersey_number"]
+    cols = ["season", "week", "team", "position", "status", "full_name", "gsis_id", "espn_id", "headshot_url", "jersey_number"]
     try:
         if LOCAL:
             r = pd.read_csv(os.path.join(LOCAL, f"roster{season}.csv"), usecols=lambda c: c in cols)

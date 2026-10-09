@@ -172,29 +172,6 @@ function mbHeadliner(picks) {
   const t = l.label.replace(nm, "").trim();
   return {l, A, first: parts[0], last: parts.slice(1).join(" "), what: t ? t[0].toUpperCase() + t.slice(1) : l.label};
 }
-// ⭐ tonight's headliner: the model's likeliest scorer, poster-style with a big player cutout
-function mbHeadlinerHtml(picks) {
-  let best = null;
-  for (const q of picks) for (const l of q.legs) { if (!l.key || l.key.t !== "prop") continue; let A = {}; try { A = Object.assign({}, l, mbArtFor(l) || {}); } catch (e) {}
-    if (!best || (l.p || 0) > (best.l.p || 0)) best = {l, A}; }
-  if (!best) return "";
-  const {l, A} = best, nm = A.name || l.label.replace(/ (to score|anytime TD).*$/i, ""), parts = nm.split(" "), first = parts[0], last = parts.slice(1).join(" ");
-  window.MB_HEAD = l;
-  return `<section class="hl"><div class="hl-bg">${A.logo ? `<img class="hl-logo" src="${esc(A.logo)}" alt="" onerror="this.remove()">` : ""}</div>
-    ${A.img ? `<img class="hl-cut" src="${esc(A.img)}" alt="" onerror="this.remove()">` : `<div class="hl-ini">${esc((first[0] || "") + (last[0] || ""))}</div>`}
-    <div class="hl-t"><span class="hl-tag">Tonight's headliner</span><b><i>${esc(first)}</i>${esc(last || first)}</b><em>${esc((() => { const t = l.label.replace(nm, "").trim(); return t ? t[0].toUpperCase() + t.slice(1) : l.label; })())}${l.p ? ` · model ${Math.round(100 * l.p)}%` : ""}</em>
-      <button class="hl-add" data-head="1"><span>Add</span><b>${mbSign(l.odds)}</b></button></div></section>`;
-}
-// 🏟️ tonight's games: a scrollable strip of matchups with logos
-function mbStripHtml() {   // story-style bubbles: one per game, ring shows live / upcoming / final
-  let G = []; try { G = typeof mbMiniGames === "function" ? mbMiniGames() : []; } catch (e) {}
-  if (!G.length) return "";
-  const lg = t => `<img src="${esc(t.logo)}" alt="" onerror="this.outerHTML='<i>${esc(t.abbr)}</i>'">`;
-  return `<div class="hx-h"><b>Tonight</b><button data-go="games">All ${G.length} games</button></div><div class="stories">${G.slice(0, 16).map(g => `<button class="story ${g.st}" data-go="games">
-    <span class="st-ring"><span class="st-in">${lg(g.a)}${lg(g.h)}</span></span>
-    <b>${esc(g.a.abbr)} ${g.st === "pre" ? "@" : `${g.as ?? 0}–${g.hs ?? 0}`} ${esc(g.h.abbr)}</b>
-    <i>${g.st === "live" ? "LIVE" : esc(g.detail || "")}</i></button>`).join("")}</div>`;
-}
 function mbWireHome(render) {
   const fz = document.getElementById("fz"); if (fz) fz.onscroll = () => { const c = fz.firstElementChild; if (!c) return; const k = Math.round(fz.scrollLeft / (c.offsetWidth + 12));
     document.querySelectorAll(".fz-dots i").forEach((d, j) => d.classList.toggle("on", j === k)); };

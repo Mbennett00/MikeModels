@@ -3,6 +3,14 @@
 document.body.classList.add("shell");
 // the date / last-update line sits on the league-tab row so the title row has room for the wallet
 (() => { const sub = document.getElementById("sub"), hb2 = document.querySelector(".hb2"); if (sub && hb2) hb2.insertBefore(sub, hb2.querySelector(".iconbtn")); })();
+// image fallbacks: a headshot that fails to load swaps to its alternate photo before the page's own fallback (initials) kicks in
+const MB_IMG_ALT = {};
+document.addEventListener("error", e => { const im = e.target; if (!im || im.tagName !== "IMG" || im.dataset.alt) return;
+  const alt = MB_IMG_ALT[im.getAttribute("src")]; if (!alt) return; im.dataset.alt = "1"; e.stopImmediatePropagation(); im.src = alt; }, true);
+function shImgAlts() { try { for (const d of [typeof TODAY !== "undefined" && TODAY, typeof D !== "undefined" && D]) if (d && d.players && !d._alts) {
+  d._alts = 1; for (const p of d.players) { if (!p.headshot) continue;
+    const alt = p.headshot_alt || (/\/mugs\/nhl\/\d+\/[A-Z]+\//.test(p.headshot) ? p.headshot.replace(/\/mugs\/nhl\/\d+\/[A-Z]+\//, "/mugs/nhl/latest/") : null);   // NHL: this season's mug, else the latest one
+    if (alt) MB_IMG_ALT[p.headshot] = alt; } } } catch (e) {} }
 const SH_TABS = [["home", "Home"], ["games", "Games"], ["slip", "Bet slip"], ["props", "Props"], ["check", "My Bets"]];
 const SH_SLIP_IC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5h12v17l-2-1.4-2 1.4-2-1.4-2 1.4-2-1.4-2 1.4z"/><path d="M9 8.5h6M9 12h6M9 15.5h3.5"/></svg>';
 function shNav(render) {
@@ -36,6 +44,7 @@ function shHeader(render) {
   r.querySelectorAll("[data-shgo]").forEach(b => b.onclick = () => { mbHaptic(); TAB = TAB === b.dataset.shgo ? "home" : b.dataset.shgo; if (TAB === "check") MB_VIEW = "bets"; render(); window.scrollTo(0, 0); });
 }
 function shAfterRender(render) {
+  shImgAlts();
   const b = document.body;
   [...b.classList].filter(c => c.startsWith("tab-")).forEach(c => b.classList.remove(c));
   b.classList.add("tab-" + (typeof TAB !== "undefined" ? TAB : "home"));
