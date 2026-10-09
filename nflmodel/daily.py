@@ -187,6 +187,12 @@ def run(state: str = "state", log=print) -> dict:
     dpath = os.path.join(site, "nfl_tdprops.json")
     dkp = O.load_cached(dpath) or {}
     dkp.setdefault("events", {})
+    # DraftKings props from ESPN's free feed (TD, yards, catches): no credits. The paid anytime-TD pull below only
+    # runs for games ESPN has no TD prices for.
+    from . import espn_props as EP
+    ep = EP.fetch(I.norm, log) if os.environ.get("NFL_ESPN_PROPS", "1") != "0" else {}
+    ep_games = ep.get("games", {}) if ep else {}
+    ep_td_home = {k.split("@")[1] for k, v in ep_games.items() if any("td|0.5" in d for d in v["players"].values())}
     tdkey = os.environ.get("ODDS_API_KEY") if os.environ.get("NFL_TD_ODDS", "1") != "0" else None
     now_utc = now_et.tz_convert("UTC")
     ev_all = {}
@@ -197,7 +203,10 @@ def run(state: str = "state", log=print) -> dict:
         games_today = [1] if any(pd.Timestamp(g.gameday).date() == now_et.date() for g in upcoming.itertuples()) else []
         if O.props_due(dkp, now_et, games_today, os.environ.get("NFL_ODDS_PULL") == "1"):
             ev_all = O.match(O.fetch_events(tdkey, log), wk)
-            todays = [dict(ev, gid=gid) for gid, ev in ev_all.items() if today(ev)]
+            home_of = dict(zip(wk.game_id, wk.home_team))
+            todays = [dict(ev, gid=gid) for gid, ev in ev_all.items() if today(ev) and home_of.get(gid) not in ep_td_home]
+            if ep_td_home:
+                log(f"nfl td odds: ESPN (free) already prices {len(ep_td_home)} games; paid pull for {len(todays)}")
             got = O.fetch_td(tdkey, todays, I.norm, log) if todays else {}
             if got:
                 cut = now_utc - pd.Timedelta(days=8)
@@ -380,9 +389,15 @@ def run(state: str = "state", log=print) -> dict:
     attach_props(lineup, players)
     # consensus anytime-TD prices onto each player (matched by team names + kickoff, then player name)
     by_gid = {v.get("gid"): v for v in dkp["events"].values()}
+    key_of = {g.game_id: f"{g.away_team}@{g.home_team}" for g in wk.itertuples()}
     for p_ in players:
-        p_["dk"] = ((by_gid.get(p_["game_id"]) or {}).get("players") or {}).get(I.norm(p_["name"])) or None
-    meta.update(props_book="Consensus" if dkp.get("fetched_at") else None, props_at=dkp.get("fetched_at"))
+        nm = I.norm(p_["name"])
+        cons = ((by_gid.get(p_["game_id"]) or {}).get("players") or {}).get(nm) or {}
+        dk = dict(((ep_games.get(key_of.get(p_["game_id"])) or {}).get("players") or {}).get(nm) or {})
+        dk.update(cons)          # multi-book consensus TD price wins over DraftKings' alone when both exist
+        p_["dk"] = dk or None
+    meta.update(props_book="Consensus" if dkp.get("fetched_at") else ("DraftKings" if ep_games else None),
+                props_at=dkp.get("fetched_at") or (ep or {}).get("fetched_at"))
     out = dict(meta=meta, games=games, players=players, teams=team_table(R, rows, season), key_m=cfg.key_m, key_t=cfg.key_t,
                injuries=injuries, lineups=lineup)
     try:
