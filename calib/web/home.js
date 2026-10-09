@@ -244,7 +244,7 @@ function mbBoard(o) {
       <div class="bx-note">Pregame betting closed · pregame model ${esc(o.a.abbr)} ${pa}% · ${esc(o.h.abbr)} ${100 - pa}%</div></div>`;
   }
   return `<div class="bx bx-${o.state}">
-    <div class="bx-top"><span class="bx-st">${st}</span><span class="bx-h">${o.state === "final" ? "" : esc(head)}</span><span class="bx-h">${o.state === "final" ? "Results" : "Total"}</span><span class="bx-h">${o.state === "final" ? "" : "Money"}</span></div>
+    <div class="bx-top"><span class="bx-st">${st}</span><span class="bx-h">${o.state === "final" ? "" : esc(head)}</span><span class="bx-h">${o.state === "final" ? "Result" : "Total"}</span><span class="bx-h">${o.state === "final" ? "" : "Money"}</span></div>
     <div class="bx-row">${team(o.a, o.aSub, 1 - o.ph, o.as, o.hs)}${ln[1]}${tot(to[1], "O")}${ml[1]}</div>
     <div class="bx-row">${team(o.h, o.hSub, o.ph, o.hs, o.as)}${ln[2]}${tot(to[2], "U")}${ml[2]}</div>
     <div class="bx-tug" title="Model win chance"><i style="width:${pa}%;background:${esc(o.a.color || "#556")}"></i><i style="width:${100 - pa}%;background:${esc(o.h.color || "#556")}"></i></div></div>`;
