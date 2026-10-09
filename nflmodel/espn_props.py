@@ -125,7 +125,8 @@ def fetch(norm, log=print) -> dict:
                     for a in (g.get("items", []) if isinstance(g, dict) and "items" in g else [g]):
                         if a.get("id") and (a.get("fullName") or a.get("displayName")):
                             names[str(a["id"])] = norm(a.get("fullName") or a.get("displayName"))
-            except Exception:
+            except Exception as e:
+                log(f"nfl espn props: roster {tid} failed ({e})")
                 continue
         eid = ev.get("id")
         try:
@@ -134,10 +135,12 @@ def fetch(norm, log=print) -> dict:
             log(f"nfl espn props: event {eid} failed ({e})")
             continue
         items = pb.get("items", [])
-        if not games and not seen and items:   # one sample per run, to keep the parser honest about ESPN's format
+        priced = [x for x in items if x.get("odds")]
+        if not games and items:   # format check (logged until the first game parses)
             import json as _j
-            smp = next((x for x in items if "Milestones" in ((x.get("type") or {}).get("name") or "")), items[0])
-            log(f"nfl espn props: {len(names)} roster names; sample item {_j.dumps(smp)[:900]}")
+            smp = next((x for x in priced if "Milestones" in ((x.get("type") or {}).get("name") or "")), priced[0] if priced else items[0])
+            log(f"nfl espn props: event {eid} {ev.get('shortName')}: {len(items)} items, {len(priced)} with odds, "
+                f"count={pb.get('count')} pages={pb.get('pageCount')}; {len(names)} roster names; sample {_j.dumps(smp)[:700]}")
         got = parse(items, names, seen)
         if got:
             games[f"{side.get('away')}@{side.get('home')}"] = dict(commence=ev.get("date"), players=got)
