@@ -1,7 +1,7 @@
 // ===== 🎬 production layer: confetti, ticket print, goal flashes, rolling numbers, cinematic splash =====
 
 // ---- confetti (canvas, no library) ----
-function fxConfetti(n = 140, colors = ["#6f8dff", "#a77bff", "#34d17b", "#ffffff", "#ffd166"], origin) {
+function fxConfetti(n = 140, colors = ["#ff7a45", "#ff4d8d", "#34d17b", "#ffffff", "#ffd166"], origin) {
   if (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   const c = document.createElement("canvas"), dpr = Math.min(2, window.devicePixelRatio || 1), W = innerWidth, H = innerHeight;
   c.className = "fx-confetti"; c.width = W * dpr; c.height = H * dpr; document.body.appendChild(c);
@@ -99,9 +99,17 @@ function fxTicker() {
 // ---- 🎞️ Games: Board or Feed (one big matchup poster per screen) ----
 let FX_GMODE = (() => { try { return localStorage.getItem("mm_gmode") || "board"; } catch (e) { return "board"; } })();
 function fxGameMode() {
-  return `<div class="pmode gmode"><button class="${FX_GMODE === "board" ? "on" : ""}" data-gmode="board">Board</button><button class="${FX_GMODE === "feed" ? "on" : ""}" data-gmode="feed">Feed</button></div>`;
+  const I = {board: '<path d="M4 6h16M4 12h16M4 18h16"/>', feed: '<rect x="5" y="3.5" width="14" height="17" rx="2.5"/>'};
+  const b = k => `<button class="${FX_GMODE === k ? "on" : ""}" data-gmode="${k}" aria-label="${k === "board" ? "Board" : "Feed"} view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">${I[k]}</svg>${k === "board" ? "Board" : "Feed"}</button>`;
+  return `<div class="pmode gmode">${b("board")}${b("feed")}</div>`;
 }
 function fxWireModes(render) {
   document.body.classList.toggle("gfeed", typeof TAB !== "undefined" && TAB === "games" && FX_GMODE === "feed");
-  document.querySelectorAll("[data-gmode]").forEach(b => b.onclick = () => { FX_GMODE = b.dataset.gmode; try { localStorage.setItem("mm_gmode", FX_GMODE); } catch (e) {} mbHaptic(); render && render(); });
+  // switching views keeps the game you were looking at on screen, with a quick fade instead of a jump
+  document.querySelectorAll("[data-gmode]").forEach(b => b.onclick = () => { if (FX_GMODE === b.dataset.gmode) return;
+    const top = [...document.querySelectorAll(".gc2[data-gid]")].find(c => c.getBoundingClientRect().bottom > 160), gid = top && window.scrollY > 200 ? top.dataset.gid : null;
+    FX_GMODE = b.dataset.gmode; try { localStorage.setItem("mm_gmode", FX_GMODE); } catch (e) {} mbHaptic(); render && render();
+    const c = gid && document.querySelector(`.gc2[data-gid="${CSS.escape(gid)}"]`);
+    window.scrollTo({top: c ? c.getBoundingClientRect().top + window.scrollY - 130 : 0, behavior: "instant"});
+    const v = document.getElementById("view"); if (v && v.animate) v.animate([{opacity: 0, transform: "scale(.985)"}, {opacity: 1, transform: "none"}], {duration: 260, easing: "cubic-bezier(.2,.8,.2,1)"}); });
 }

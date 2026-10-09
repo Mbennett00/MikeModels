@@ -113,19 +113,26 @@ function mbHomeHtml() {
         <button class="w-act hx-lvl" data-pass="1"><span class="w-ai">${passRing(L, 30)}</span><b>${L.rank[1]}</b><i>${L.lvl < PASS_MAX ? `${esc(nxt)} next` : "Max level"}</i></button>
       </div></section>`;
   // featured: one swipeable rail of same-sized cards (odds boost, the headliner, the model's picks)
-  const feat = [];
+  // every card shares one frame: tag + model chip, headline, detail, and a full-width add bar with the price
+  const feat = [], card = (kind, attr, tag, chip, title, sub, mid, cl, cp, art, style = "") => `<div class="fc fc-${kind}" ${style}>${art || ""}
+      <div class="fc-hd"><span class="fc-tag">${tag}</span>${chip ? `<span class="fc-chip">${chip}</span>` : ""}</div>
+      <b class="fc-t">${title}</b>${sub ? `<i class="fc-s">${sub}</i>` : ""}${mid || ""}
+      <button class="fc-cta" ${attr}><span class="fc-cl">${cl}</span><span class="fc-cp">${cp}</span></button></div>`;
+  let boostLeg = null;
   try { const ob = typeof mbOddsBoost === "function" ? mbOddsBoost() : null;
-    if (ob) { let A = null; try { A = mbArtFor(ob.leg); } catch (e) {}
-      feat.push(`<div class="fc boost"><span class="fc-tag">⚡ Odds boost</span><b class="fc-t">${esc(ob.leg.label)}</b><i class="fc-s">${esc(ob.leg.sub || "")}${ob.leg.p ? ` · model ${Math.round(100 * ob.leg.p)}%` : ""}</i>
-        <div class="fc-f"><span class="fc-was">${mbSign(ob.was)}</span><button class="fc-btn" data-boost="1">${mbSign(ob.odds)}</button></div>${fcArt(A)}</div>`); } } catch (e) {}
+    if (ob) { let A = null; try { A = mbArtFor(ob.leg); } catch (e) {} boostLeg = ob.leg.label;
+      feat.push(card("boost", 'data-boost="1"', "⚡ Odds boost", ob.leg.p ? `model ${Math.round(100 * ob.leg.p)}% · max $25` : "max $25", esc(ob.leg.label), esc(ob.leg.sub || ""), "",
+        `<s>${mbSign(ob.was)}</s> boosted`, mbSign(ob.odds), fcArt(A))); } } catch (e) {}
   const head = mbHeadliner(picks);
   if (head) { const {l, A, first, last, what} = head;
-    feat.push(`<div class="fc head" style="--tc:${esc(A.color || "#6f8dff")}"><span class="fc-tag">★ Headliner</span><b class="fc-t"><small>${esc(first)}</small>${esc(last || first)}</b><i class="fc-s">${esc(what)}${l.p ? ` · model ${Math.round(100 * l.p)}%` : ""}</i>
-      <div class="fc-f"><button class="fc-btn" data-head="1">Add ${mbSign(l.odds)}</button></div>${A.logo ? `<img class="fc-wm" src="${esc(A.logo)}" alt="" onerror="this.remove()">` : ""}${A.img ? `<img class="fc-cut" src="${esc(A.img)}" alt="" onerror="this.remove()">` : ""}</div>`); }
-  picks.forEach((q, i) => { const dec = q.legs.reduce((a, l) => a * mbDec(l.odds), 1), odds = q.legs.length > 1 ? mbAm(dec) : q.legs[0].odds;
-    feat.push(`<div class="fc pick"><span class="fc-tag">${esc(q.tag || (q.legs.length > 1 ? "Parlay" : "Single"))}</span><b class="fc-t sm">${esc(q.title)}</b>
-      <div class="fc-legs">${q.legs.slice(0, 3).map(l => `<span><span class="fc-pic">${mbPic(l)}</span><em>${esc(l.label)}</em><i>${mbSign(l.odds)}</i></span>`).join("")}</div>
-      <div class="fc-f"><span class="fc-pay">$10 pays <b>${mbMoney(10 * dec)}</b></span><button class="fc-btn" data-qp="${i}">Add ${mbSign(odds)}</button></div></div>`); });
+    feat.push(card("head", 'data-head="1"', "★ Tonight's headliner", l.p ? `model ${Math.round(100 * l.p)}%` : "", `<small>${esc(first)}</small>${esc(last || first)}`, esc(what), "",
+      "Add to slip", mbSign(l.odds), (A.logo ? `<img class="fc-wm" src="${esc(A.logo)}" alt="" onerror="this.remove()">` : "") + (A.img ? `<img class="fc-cut" src="${esc(A.img)}" alt="" onerror="this.remove()">` : ""),
+      `style="--tc:${esc(A.color || "#ff7a45")}"`)); }
+  picks.forEach((q, i) => { if (feat.length >= 4 || (q.legs.length === 1 && q.legs[0].label === boostLeg)) return;
+    const dec = q.legs.reduce((a, l) => a * mbDec(l.odds), 1), odds = q.legs.length > 1 ? mbAm(dec) : q.legs[0].odds;
+    feat.push(card("pick", `data-qp="${i}"`, esc(q.tag || (q.legs.length > 1 ? "Parlay" : "Single")), q.legs.length > 1 ? `${q.legs.length} legs` : "", esc(q.title), "",
+      `<div class="fc-legs">${q.legs.slice(0, 3).map(l => `<span><span class="fc-pic">${mbPic(l)}</span><em>${esc(l.label)}</em><i>${mbSign(l.odds)}</i></span>`).join("")}</div>`,
+      `$10 pays <b>${mbMoney(10 * dec)}</b>`, mbSign(odds))); });
   let G = []; try { G = typeof mbMiniGames === "function" ? mbMiniGames(true) : []; } catch (e) {}
   const lg = t => `<img src="${esc(t.logo || "")}" alt="" onerror="this.outerHTML='<i>${esc(t.abbr)}</i>'">`;
   const games = G.slice(0, 6).map(g => `<div class="gl-r gs-${g.st}">
