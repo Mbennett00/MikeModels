@@ -53,9 +53,9 @@ def test_espn_props_parse_one_sided_markets_only():
     items = [
         {"athlete": ref(1), "type": {"name": "Anytime Goalscorer"}, "odds": {"american": {"value": "+550"}}},
         {"athlete": ref(1), "type": {"name": "Shots on Goal Milestones"}, "odds": {"american": {"value": "-110"}}, "current": {"target": {"value": 3.0}}},
-        {"athlete": ref(1), "type": {"name": "Points Milestones"}, "odds": {"american": {"value": "EVEN"}}, "current": {"target": {"value": 1.0}}},
+        {"athlete": ref(1), "type": {"name": "Points Milestones"}, "odds": {"american": {"value": "EVEN"}}, "current": {"target": {"value": 1.0}}},   # points / assists dropped
         {"athlete": ref(1), "type": {"name": "Total Points"}, "odds": {"american": {"value": "+150"}}, "current": {"target": {"value": 0.5}}},   # two-sided: skipped
         {"athlete": ref(9), "type": {"name": "Anytime Goalscorer"}, "odds": {"american": {"value": "+300"}}},   # not on a roster we know
     ]
     out = parse(items, {"1": "jackhughes"})
-    assert out == {"jackhughes": {"goals|0.5": 550, "sog|2.5": -110, "points|0.5": 100}}
+    assert out == {"jackhughes": {"goals|0.5": 550, "sog|2.5": -110}}

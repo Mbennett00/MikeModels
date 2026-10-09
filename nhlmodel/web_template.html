@@ -559,7 +559,7 @@ function checkPrice() {
     if (!ps.find(x => String(x.id) === String(C.player))) C.player = ps.length ? String(ps[0].id) : null;
     market = C.pmarket;
     form += `<label class="f">Player</label><select id="cp">${ps.map(x => opt(x.id, `${x.name} (${x.team})`, C.player)).join("")}</select>
-      <div class="row2"><div><label class="f">Prop</label><select id="cpm">${opt("sog", "Shots", market)}${opt("goals", "Goals", market)}${opt("points", "Points", market)}${opt("assists", "Assists", market)}</select></div>
+      <div class="row2"><div><label class="f">Prop</label><select id="cpm">${opt("sog", "Shots", market)}${opt("goals", "Goals", market)}</select></div>
       <div><label class="f">Over/Under</label><select id="cd">${opt("over", "Over", C.dir)}${opt("under", "Under", C.dir)}</select></div></div>
       <label class="f">Line</label><input id="cl" type="number" step="1" inputmode="decimal" value="${C.line ?? (market === "sog" ? 2.5 : 0.5)}">`;
     const pl = ps.find(x => String(x.id) === String(C.player));
@@ -798,7 +798,7 @@ function record() {
 }
 // ---------- model likes: the strongest opinions on the slate ----------
 let LIKE = "value";   // falls back to anytime goal when there are no sportsbook prices
-const LIKE_CATS = [["value", "Best value"], ["goals", "Anytime goal"], ["win", "To win"], ["totals", "Totals"], ["sog", "Shots"], ["points", "Points"]];
+const LIKE_CATS = [["value", "Best value"], ["goals", "Anytime goal"], ["win", "To win"], ["totals", "Totals"], ["sog", "Shots"]];
 function likeRows() {
   const out = [], gname = g => `${g.away.abbr} @ ${g.home.abbr}`;
   if (LIKE === "value") {
@@ -1056,7 +1056,6 @@ function poolNHL() {
         pool.push({gid: g.game_id, start: g.start_utc, img: pl.headshot, logo: teamLogoUrl(pl.team), name: pl.name, key: {t: "prop", pid: pl.id, name: pl.name, team: pl.team, mk, l: line, dir: "over"}, kind, title: `${pl.name} ${title}`, sub: `${pl.team} ${pl.team === g.home.abbr ? "vs" : "@"} ${opp.abbr}`, p, price: null, attr: `data-bet="${k}"`, cls, ic, pic: head(pl), why: tags, w: p * boost * wmul}); };
       if (pl.lam.sog != null) { const c = [3.5, 2.5, 1.5].map(l => ({l, p: nbSF(l, pl.lam.sog, r[pl.pos] || 8)})).find(x => x.p >= 0.58 && x.p <= 0.78);
         if (c) add("sog", c.l, c.p, "sog", `${c.l + 0.5}+ shots`, 1); }
-      if (pl.lam.points != null) { const p = propProb(pl, "points", 0.5); if (p >= 0.52) add("points", 0.5, p, "pts", "1+ point", 1); }
       if (pl.lam.goals != null) { const p = propProb(pl, "goals", 0.5); if (p >= 0.33) add("goals", 0.5, p, "goal", "to score", 0.85); }
     }
   }
@@ -1114,12 +1113,12 @@ function pickCard(p, mk) {
 function props() {
   if (!D.players.length) return empty("👤", "No player projections yet", "");
   const S = PSTATE, mk = S.market;
-  const MK4 = [["sog", "Shots"], ["goals", "Goals"], ["points", "Points"], ["assists", "Assists"]], mi = Math.max(0, MK4.findIndex(([k]) => k === mk));
+  const MK4 = [["sog", "Shots"], ["goals", "Goals"]], mi = Math.max(0, MK4.findIndex(([k]) => k === mk));
   const mkt0 = `<i class="mkpill" style="--i:${mi}"></i>` + MK4.map(([k, nm]) => `<button class="${mk === k ? "on" : ""}" data-m="${k}">${nm}</button>`).join("");
-  if (mk === "lucky") return `<div class="ptabs props-seg">${mkt0}</div>` + luckyNHL();
+  if (mk === "lucky") return `<div class="ptabs props-seg" style="--n:2">${mkt0}</div>` + luckyNHL();
   const openG = new Set(D.games.filter(notStarted).map(g => g.game_id));
   if (S.game !== "all" && !openG.has(Number(S.game)) && !openG.has(S.game)) S.game = "all";
-  if (!openG.size) return `<div class="ptabs props-seg">${mkt0}</div>` + empty("🔒", "Props are closed", "Every game on this slate has started or finished. Props reopen for the next slate.");
+  if (!openG.size) return `<div class="ptabs props-seg" style="--n:2">${mkt0}</div>` + empty("🔒", "Props are closed", "Every game on this slate has started or finished. Props reopen for the next slate.");
   let list = D.players.filter(p => p.lam[mk] != null && openG.has(p.game_id));
   if (S.q) list = list.filter(p => normName(p.name).includes(normName(S.q)));
   if (S.game !== "all") list = list.filter(p => String(p.game_id) === S.game);
@@ -1134,10 +1133,10 @@ function props() {
     + `<button class="chip ${S.game === "all" ? "on" : ""}" data-g="all">All games</button>`
     + byStatus(D.games).filter(g => openG.has(g.game_id)).map(g => `<button class="chip gchip ${S.game === String(g.game_id) ? "on" : ""}" data-g="${g.game_id}"><img src="${esc(g.away.logo)}" alt="" onerror="this.remove()"><img src="${esc(g.home.logo)}" alt="" onerror="this.remove()">${esc(g.away.abbr)} @ ${esc(g.home.abbr)}</button>`).join("");
   const mode = `<div class="pmode"><button class="${PKMODE === "pick" ? "on" : ""}" data-pmode="pick">Pick'em</button><button class="${PKMODE === "list" ? "on" : ""}" data-pmode="list">List</button></div>`;
-  if (PKMODE === "pick") return `${mode}<div class="ptabs props-seg">${mkt}</div><div class="strip" style="padding-left:0">${gms}</div>
+  if (PKMODE === "pick") return `${mode}<div class="ptabs props-seg" style="--n:2">${mkt}</div><div class="strip" style="padding-left:0">${gms}</div>
     ${S.search || S.q ? `<input class="search" id="pq" placeholder="Find a player" value="${esc(S.q)}" autocomplete="off">` : ""}
     ${list.length ? `<div class="pk-grid">${list.slice(0, n).map(p => pickCard(p, mk)).join("")}</div>${list.length > n ? `<button class="gmore" data-showmore="1">Show more players</button>` : ""}` : `<div class="note">No players match.</div>`}`;
-  return `${mode}<div class="ptabs props-seg">${mkt}</div>
+  return `${mode}<div class="ptabs props-seg" style="--n:2">${mkt}</div>
     <div class="strip" style="padding-left:0">${gms}</div>
     ${S.search || S.q ? `<input class="search" id="pq" placeholder="Find a player" value="${esc(S.q)}" autocomplete="off">` : ""}
     ${waiting ? `<div class="pnote"><span class="pdot"></span>DK lines not posted yet for ${waiting === 1 ? "1 game" : waiting + " games"} · fair prices shown</div>` : ""}
@@ -1170,7 +1169,7 @@ function openPlayer(id) {
   const col = (D.colors || {})[p.team] || "#3a4656", tl = teamLogoUrl(p.team);
   const opp = g ? (g.home.abbr === p.team ? g.away : g.home) : null, at = g && g.home.abbr === p.team ? "vs" : "@";
   const PB = [];
-  const tiles = [["sog", "Shots"], ["goals", "Goals"], ["points", "Points"], ["assists", "Assists"]].filter(([mk]) => p.lam[mk] != null)
+  const tiles = [["sog", "Shots"], ["goals", "Goals"]].filter(([mk]) => p.lam[mk] != null)
     .map(([mk, n]) => `<div class="ps-tile"><b>${p.lam[mk].toFixed(mk === "sog" ? 1 : 2)}</b><span>${n}</span>${s && !s.dnp ? `<i>${L.state === "in" ? "live" : "final"} ${s[mk]}</i>` : ""}</div>`).join("");
   const sec = mk => { if (p.lam[mk] == null) return "";
     const rows = [...new Set([...SHEET_LINES[mk], ...dkLines(p, mk)])].sort((a, b) => a - b).map(l => { const pr = propProb(p, mk, l), dko = p.dk && p.dk[`${mk}|${l}`]; if (pr < 0.03 && !dko) return "";
@@ -1180,7 +1179,7 @@ function openPlayer(id) {
       return `<button class="ps-row ${cls}" data-pb="${PB.length - 1}"><span class="ps-l">${mk === "goals" && l === 0.5 ? "Anytime" : `Over ${l}`}</span>
         <span class="ps-bar ${heat}"><i style="width:${Math.round(100 * pr)}%"></i></span><span class="ps-c">${pct(pr)}</span>
         <span class="ps-f">${dko ? `${am(fair(pr))}<i>fair</i>` : ""}</span><span class="ps-p ${dko ? "dk" : ""}"><b>${am(dko || fair(pr))}</b><i>${dko ? "DK" : "fair"}</i></span></button>`; }).join("");
-    const hl = headLine(p, mk), hd = p.dk && p.dk[`${mk}|${hl.l}`], open = mk === (["sog", "goals", "points", "assists"].includes(PSTATE.market) ? PSTATE.market : "sog");
+    const hl = headLine(p, mk), hd = p.dk && p.dk[`${mk}|${hl.l}`], open = mk === (["sog", "goals"].includes(PSTATE.market) ? PSTATE.market : "sog");
     return `<div class="ps-sec ${open ? "open" : ""}"><button class="ps-h" data-psx="1"><b>${MNAME[mk]}</b><span class="ps-sum">${mk === "goals" && hl.l === 0.5 ? "Anytime" : "O " + hl.l} · ${pct(hl.pr)} · <em class="${hd ? "dk" : ""}">${am(hd || fair(hl.pr))}</em></span><span class="ps-chev">›</span></button>
       <div class="ps-rows"><div>${rows}<div class="ps-proj">Projection ${p.lam[mk].toFixed(2)} ${PNAME[mk]}</div></div></div></div>`; };
   const chips = [p.pos, slot.length ? slot[0].line : "", slot.length && slot[0].pp ? `PP${slot[0].pp}` : "", p.num != null ? `#${p.num}` : ""].filter(Boolean).map(c => `<span>${esc(c)}</span>`).join("");
@@ -1191,7 +1190,7 @@ function openPlayer(id) {
           <div class="ps-name">${esc(p.name)}</div><div class="ps-chips">${chips}${p.confirmed ? "" : `<span class="warn">projected lineup</span>`}</div>
           <div class="ps-when">${g ? esc(timeET(g.start_utc)) : ""}${L.state === "in" ? ` · <b class="lv">LIVE ${esc(L.detail || "")}</b>` : ""}</div></div></div>
       <div class="ps-tiles">${tiles}</div></div>
-    <div class="ps-body">${["sog", "goals", "points", "assists"].map(sec).join("")}
+    <div class="ps-body">${["sog", "goals"].map(sec).join("")}
       <div class="ps-foot">Tap any line to bet it · DK = DraftKings price · fair = model price</div></div>`;
   $("#shx").onclick = closeSheet;
   $("#sheet").querySelectorAll("[data-pb]").forEach(el => el.onclick = () => openSheet(PB[Number(el.dataset.pb)]));

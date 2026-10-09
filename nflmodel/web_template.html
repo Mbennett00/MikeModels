@@ -754,7 +754,7 @@ function initials(n) { const q = String(n).split(" ").filter((w, k) => w && (!k 
 function avatar(p) { const t = teamOf(p.team);
   return `<div class="av" style="background:${esc(t.color)}"><span>${esc(initials(p.name))}</span>${p.headshot ? `<img src="${esc(p.headshot)}" alt="" loading="lazy" onerror="this.remove()">` : ""}</div>`; }
 let PS = {m: "td", game: "all", q: "", n: 24};
-const PCHIPS = [["td", "TD"], ["rec_yds", "Receiving"], ["rush_yds", "Rushing"], ["pass_yds", "Passing"]];
+const PCHIPS = [["td", "TDs"], ["rec_yds", "Rec yds"], ["rush_yds", "Rush yds"], ["pass_yds", "Pass yds"], ["rec", "Catches"]];
 function propPool() {
   const P = (D.players || []).filter(p => nflOpen(gameOf(p)) && (PS.game === "all" || p.game_id === PS.game));
   const q = PS.q.trim().toLowerCase(), m = PS.m;
@@ -762,6 +762,7 @@ function propPool() {
   if (m === "td") L = L.filter(p => p.p_td >= 0.08).sort((a, b) => b.p_td - a.p_td);
   else if (m === "rec_yds") L = L.filter(p => p.role !== "QB" && p.rec_yds >= 12).sort((a, b) => b.rec_yds - a.rec_yds);
   else if (m === "rush_yds") L = L.filter(p => p.rush_yds >= 12 && (p.role !== "QB" || p.rush_yds >= 15)).sort((a, b) => b.rush_yds - a.rush_yds);
+  else if (m === "rec") L = L.filter(p => p.role !== "QB" && p.rec >= 1.8).sort((a, b) => b.rec - a.rec);
   else L = L.filter(p => p.pass_yds != null).sort((a, b) => b.pass_yds - a.pass_yds);
   // once DraftKings has posted this market for a game, only list the players DK is pricing
   const dkG = new Set(P.filter(p => dkLines(p, m).length).map(p => p.game_id));
@@ -786,7 +787,24 @@ function pcard(p) {
 }
 // one slim sportsbook-style row per player
 const GOPEN = new Set();   // game sections expanded past the top rows
+// yardage / catches: Over and Under at the model's even-money line (DraftKings' line when the page has one).
+// Priced by the model, so these cost no Odds API credits.
+function ydBet(p, m, L, dir) { const po = pOver(p, m, L), pr = dir === "under" ? 1 - po : po, dk = p.dk && p.dk[`${m}|${L}`], o = dk && (dir === "under" ? dk.u : dk.o);
+  return bet({tdp: p, mk: m, l: L, dir, p: pr, odds: o || Math.round(fair(pr)), mkt: !!o, label: `${p.name} ${dir === "under" ? "under" : "over"} ${L} ${PU[m]}`}); }
+function prowY(p) {
+  const t = teamOf(p.team), g = gameOf(p), m = PS.m, L = showLine(p, m), mu = pMean(p, m), where = g ? (g.home.abbr === p.team ? "vs " : "@ ") + p.opp : "";
+  const use = m === "rec_yds" ? `${p.tgt.toFixed(1)} tgt` : m === "rec" ? `${p.tgt.toFixed(1)} tgt` : m === "rush_yds" ? `${p.car.toFixed(1)} car` : `${p.lam_pass_td.toFixed(1)} TD`;
+  const btn = dir => { const i = ydBet(p, m, L, dir), o = BETS[i];
+    return `<button class="pxb pp ${o.mkt ? "bk" : ""}" data-bet="${i}"><span class="pt">${dir === "under" ? "U" : "O"} ${L}</span><b>${am(o.odds)}</b><i class="${o.mkt ? "pdk" : "pm"}">${o.mkt ? "DK" : pct(o.p)}</i></button>`; };
+  return `<div class="prow4 yd" data-pp="${esc(p.id)}|${esc(p.game_id)}|${m}" role="button">
+    <div class="pav" style="--tc:${esc(t.color)}"><span>${esc(initials(p.name))}</span>${p.headshot ? `<img src="${esc(p.headshot)}" alt="" loading="lazy" onload="this.previousElementSibling.style.visibility='hidden'" onerror="this.remove()">` : ""}${t.logo ? `<img class="ptl" src="${esc(t.logo)}" alt="" onerror="this.remove()">` : ""}</div>
+    <div class="pinfo"><div class="pnm">${esc(p.name)}${p.status ? `<span class="plive post">${esc(ST(p.status))}</span>` : ""}</div>
+      <div class="pmeta">${esc(p.team)} · ${esc(p.pos)} · ${esc(where)}</div>
+      <div class="pmet"><span class="pproj">Proj <b>${m === "rec" ? mu.toFixed(1) : Math.round(mu)}</b> · ${use}</span></div></div>
+    <div class="ydb">${btn("over")}${btn("under")}</div></div>`;
+}
 function prow(p) {
+  if (PS.m !== "td") return prowY(p);
   const t = teamOf(p.team), g = gameOf(p), q = tdQuote(p), i = tdBet(p), where = g ? (g.home.abbr === p.team ? "vs " : "@ ") + p.opp : "";
   const heat = q.pr >= 0.4 ? "hi" : q.pr >= 0.25 ? "md" : "lo";
   const use = p.role === "QB" ? `${Math.round(p.rush_yds)} rush yds` : p.role === "RB" ? `${p.car.toFixed(0)} car · ${p.tgt.toFixed(1)} tgt` : `${p.tgt.toFixed(1)} tgt`;
@@ -912,17 +930,18 @@ function luckyBanner() {
 }
 function props() {
   if (!(D.players || []).length) return empty("👤", "No player props yet", "Projections show up once this week's games are priced.");
-  PS.m = "td";
+  if (!PCHIPS.some(([k]) => k === PS.m)) PS.m = "td";
+  const TABS = `<div class="ptabs props-seg mk5" style="--n:${PCHIPS.length}"><i class="mkpill" style="--i:${Math.max(0, PCHIPS.findIndex(([k]) => k === PS.m))}"></i>${PCHIPS.map(([k, n]) => `<button class="${PS.m === k ? "on" : ""}" data-pm="${k}">${n}</button>`).join("")}</div>`;
   const gs = byStatus(D.games).filter(g => nflOpen(g) && (D.players || []).some(p => p.game_id === g.game_id));
   if (PS.game !== "all" && !gs.some(g => g.game_id === PS.game)) PS.game = "all";
-  if (!gs.length) return `<div class="ptabs props-seg one"><i class="mkpill" style="--i:0"></i><button class="on">Anytime touchdown</button></div>` + empty("🔒", "Props are closed", "Every game this week has kicked off. Props reopen for next week's games.");
+  if (!gs.length) return TABS + empty("🔒", "Props are closed", "Every game this week has kicked off. Props reopen for next week's games.");
   const L = propPool(), posted = (D.players || []).some(p => p.dk && p.dk["td|0.5"]);
   const waiting = [...new Set(L.map(p => p.game_id))].filter(gid => !L.some(p => p.game_id === gid && p.dk && p.dk["td|0.5"])).length;
-  return `<div class="ptabs props-seg one"><i class="mkpill" style="--i:0"></i><button class="on">Anytime touchdown</button></div>
+  return TABS + `
     <div class="strip" style="padding-left:0"><button class="chip ${PS.search || PS.q ? "on" : ""}" data-psearch="1" aria-label="Search"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button><button class="chip ${PS.game === "all" ? "on" : ""}" data-pg="all">All games</button>${gs.map(g => `<button class="chip gchip ${PS.game === g.game_id ? "on" : ""}" data-pg="${esc(g.game_id)}"><img src="${esc(g.away.logo)}" alt="" onerror="this.remove()"><img src="${esc(g.home.logo)}" alt="" onerror="this.remove()">${esc(g.away.abbr)} @ ${esc(g.home.abbr)}</button>`).join("")}</div>
     ${PS.search || PS.q ? `<input class="search" id="psearch" placeholder="Search a player or team" value="${esc(PS.q)}" autocomplete="off">` : ""}
-    ${waiting ? `<div class="pnote"><span class="pdot"></span>Book prices not posted yet · fair prices shown</div>` : posted ? `<div class="pnote"><span class="pdot ok"></span>Consensus price across US sportsbooks</div>` : ""}
-    ${!PS.q.trim() && PS.game === "all" ? spotlightN(L) : ""}
+    ${PS.m !== "td" ? `<div class="pnote"><span class="pdot"></span>Model's line · fair prices · settles from the box score</div>` : waiting ? `<div class="pnote"><span class="pdot"></span>Book prices not posted yet · fair prices shown</div>` : posted ? `<div class="pnote"><span class="pdot ok"></span>Consensus price across US sportsbooks</div>` : ""}
+    ${PS.m === "td" && !PS.q.trim() && PS.game === "all" ? spotlightN(L) : ""}
     ${L.length ? sections(L) : `<div class="note">No players match.</div>`}`;
 }
 // 🔥 spotlight: best value vs the consensus price, else the most likely scorers
@@ -1151,7 +1170,7 @@ function tdQuote(p, l = 0.5) {
 function tdBet(p, l = 0.5) { const q = tdQuote(p, l); return bet({tdp: p, l, p: q.pr, odds: q.odds, mkt: q.mkt, label: `${p.name} ${l === 0.5 ? "anytime TD" : "2+ TDs"}`}); }
 function tdLeg(o) { const p = o.tdp, g = gameOf(p);
   return {label: o.label, sub: `${p.team} ${g && g.home.abbr === p.team ? "vs" : "@"} ${p.opp}`, gid: p.game_id, start: g && g.start_utc, p: o.p, img: p.headshot, logo: teamOf(p.team).logo, name: p.name,
-          key: {t: "prop", pid: p.id, name: p.name, team: p.team, mk: "td", l: o.l, dir: "over"}}; }
+          key: {t: "prop", pid: p.id, name: p.name, team: p.team, mk: o.mk || "td", l: o.l, dir: o.dir || "over"}}; }
 // what a tapped price becomes on the slip
 function mbLegOf(o) {
   if (o.tdp) return tdLeg(o);
@@ -1185,7 +1204,7 @@ function tdToggle(o) {
   const leg = tdLeg(o), k = slipKey(leg);
   if (slipLoad().some(x => slipKey(x) === k)) { slipRemove(k); mbFab(); mbHaptic(); return false; }
   if (mbStarted(leg)) { mbToast(`<div class="tsub">That game has started: betting is closed.</div>`); return false; }
-  slipAdd(Object.assign({}, leg, {sport: "NFL", odds: o.odds, book: o.mkt ? "Consensus" : null})); mbHaptic(); try { funBlip(); } catch (e) {}
+  slipAdd(Object.assign({}, leg, {sport: "NFL", odds: o.odds, book: o.mkt ? (o.mk && o.mk !== "td" ? "DraftKings" : "Consensus") : null})); mbHaptic(); try { funBlip(); } catch (e) {}
   return true;
 }
 // ✓ prices already on the slip light up

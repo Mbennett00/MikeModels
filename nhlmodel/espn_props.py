@@ -16,7 +16,7 @@ from .data.teams import norm_name
 UA = {"User-Agent": "Mozilla/5.0 (MikeModels odds)"}
 SITE = "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl"
 CORE = "https://sports.core.api.espn.com/v2/sports/hockey/leagues/nhl"
-TYPES = {"Anytime Goalscorer": "goals", "Shots on Goal Milestones": "sog", "Points Milestones": "points", "Assists Milestones": "assists"}
+TYPES = {"Anytime Goalscorer": "goals", "Shots on Goal Milestones": "sog"}   # points / assists markets dropped from the page
 PROVIDER = "100"   # DraftKings
 
 

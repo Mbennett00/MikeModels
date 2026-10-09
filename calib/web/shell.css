@@ -334,3 +334,16 @@ body.shell .daily b { color: #fff !important; font: 800 17px var(--fd) !importan
 body.shell .daily i { color: var(--t2) !important; }
 body.shell .daily button, body.shell .daily .spinbtn { background: var(--g-brand) !important; color: #fff !important; box-shadow: 0 8px 18px -10px rgba(255,122,69,.9) !important; border: 0 !important; }
 .bx-nm b { font-size: clamp(13.5px, 3.8vw, 16px) !important; letter-spacing: 0 !important; }
+/* market tabs size to however many markets a sport has (NHL: Shots, Goals · NFL: TDs, yards, catches) */
+body.shell .props-seg { grid-template-columns: repeat(var(--n, 4), 1fr) !important; }
+body.shell .props-seg .mkpill { width: calc(100% / var(--n, 4)) !important; }
+body.shell .props-seg button { font: 800 13px var(--fd) !important; letter-spacing: .05em; text-transform: uppercase; padding-left: 2px !important; padding-right: 2px !important; }
+/* NFL yardage rows: Over / Under side by side */
+.prow4.yd { grid-template-columns: auto minmax(0, 1fr) auto !important; }
+.ydb { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+.ydb .pxb { width: 62px !important; min-width: 0 !important; height: 52px !important; padding: 3px 2px !important; }
+.ydb .pxb .pt { font: 600 11px var(--fh) !important; color: var(--t2) !important; }
+.ydb .pxb b { font: 700 15px var(--fh) !important; }
+.ydb .pxb i { font-size: 10px !important; }
+.prow4.yd .pproj b { color: var(--t1); font-family: var(--fh); }
+.prow4.yd .pmeta, .prow4.yd .pproj { white-space: normal !important; overflow: visible !important; text-overflow: clip !important; }

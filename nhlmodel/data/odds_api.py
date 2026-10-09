@@ -17,7 +17,7 @@ from .teams import abbrev, norm_name
 BASE = "https://api.the-odds-api.com/v4/sports/icehockey_nhl"
 GAME_MARKETS = "h2h,spreads,totals"
 EVENT_MARKETS = ["team_totals", "totals_p1", "h2h_3_way_p1"]
-PROP_MARKETS = ["player_goal_scorer_anytime", "player_shots_on_goal", "player_assists", "player_points"]
+PROP_MARKETS = ["player_goal_scorer_anytime", "player_shots_on_goal"]   # assists / points dropped (credits)
 MAP = {"h2h": "moneyline", "spreads": "puckline", "totals": "total", "team_totals": "team_total",
        "totals_p1": "p1_total", "h2h_3_way_p1": "p1_3way", "player_goal_scorer_anytime": "goals",
        "player_shots_on_goal": "sog", "player_assists": "assists", "player_points": "points"}
