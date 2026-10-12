@@ -39,9 +39,12 @@ jobs:
       web: ${{ steps.web.outputs.web }}
     env:
       GH_TOKEN: ${{ github.token }}
-      # One sportsbook's game lines from the-odds-api.com, pulled by the first run after 10:30am and between 5:45-8pm ET
-      # (3 credits each); other runs reuse the latest prices. "0" = no feed, "1" = full feed incl. props.
-      ODDS_ENABLED: "lean"   # game lines, 2 pulls a day (~180 credits / month)
+      # The site is projections only: no sportsbook odds are pulled (zero Odds API credits). "lean" = game lines
+      # twice a day (3 credits each), "1" = full feed incl. props, if prices are ever wanted again.
+      ODDS_ENABLED: "0"
+      NFL_TD_ODDS: "0"       # no anytime-TD price pulls
+      NFL_ESPN_PROPS: "0"    # no DraftKings prop lines
+      NHL_ESPN_PROPS: "0"
       ODDS_BOOK: williamhill_us     # Caesars (The Odds API key); e.g. draftkings, fanduel, betmgm
       ODDS_BOOK_NAME: Caesars
       ODDS_BOOK_SHORT: CZR
