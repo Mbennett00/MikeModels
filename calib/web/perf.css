@@ -14,9 +14,8 @@ body.shell .hdr { -webkit-backdrop-filter: none !important; backdrop-filter: non
 /* tab change: no full-page blur in the transition */
 @keyframes vtout { to { opacity: 0; transform: scale(.99); } }
 @keyframes vtin { from { opacity: 0; transform: scale(1.01); } }
-/* long lists: the browser skips laying out cards that are off screen */
-body.shell:not(.gfeed) #view .gc2, #view .ticket, #view .tx, #view .alt-list > .pk, #view .pk-grid > .pk { content-visibility: auto; contain-intrinsic-size: auto 240px; }
-#view .tx { contain-intrinsic-size: auto 62px; }
+/* the dock is pinned to the screen on its own layer (iOS Safari drifts fixed bars when the page height shifts) */
+body.shell .nav { position: fixed !important; top: auto !important; bottom: calc(env(safe-area-inset-bottom) + 10px) !important; transform: translate3d(0, 0, 0); -webkit-transform: translate3d(0, 0, 0); will-change: transform; }
 /* taps feel instant */
 button, a, .pxb, .alt-b, .pk-b { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 @media (prefers-reduced-motion: reduce) { body.shell::before { animation: none !important; } }

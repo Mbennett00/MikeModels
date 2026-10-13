@@ -144,10 +144,10 @@ function mbShareBet(id) {
   x.fillStyle = "rgba(255,255,255,.5)"; x.font = F(600, 28, "b"); x.fillText(new Date(b.result_ts || b.ts).toLocaleDateString("en-US", {month: "long", day: "numeric", year: "numeric"}), 90, 1220);
   x.textAlign = "right"; x.fillStyle = "#f2c96d"; x.font = F(700, 30, "b"); x.fillText([S.ready ? `SHARP SCORE ${S.score}` : "", L ? `LVL ${L.lvl}` : ""].filter(Boolean).join("   ·   "), 990, 1220); x.textAlign = "left";
   x.fillStyle = "rgba(255,255,255,.28)"; x.font = F(500, 24, "b"); x.fillText("Paper money. Real reads.", 90, 1270);
-  cv.toBlob(blob => { if (!blob) return; const url = URL.createObjectURL(blob), file = new File([blob], `mikemodels-${b.id}.png`, {type: "image/png"});
+  cv.toBlob(blob => { if (!blob) return; const url = URL.createObjectURL(blob), file = new File([blob], `blitzed-${b.id}.png`, {type: "image/png"});
     const canShare = navigator.canShare && navigator.canShare({files: [file]});
     const d = document.createElement("div"); d.className = "shx";
-    d.innerHTML = `<div class="shx-in"><img src="${url}" alt="Your winning ticket"><div class="shx-b">${canShare ? `<button class="shx-go" data-x="share">Share</button>` : ""}<a class="shx-go ${canShare ? "alt" : ""}" href="${url}" download="mikemodels-${esc(b.id)}.png">Save image</a><button class="shx-x" data-x="close">Close</button></div></div>`;
+    d.innerHTML = `<div class="shx-in"><img src="${url}" alt="Your winning ticket"><div class="shx-b">${canShare ? `<button class="shx-go" data-x="share">Share</button>` : ""}<a class="shx-go ${canShare ? "alt" : ""}" href="${url}" download="blitzed-${esc(b.id)}.png">Save image</a><button class="shx-x" data-x="close">Close</button></div></div>`;
     document.body.appendChild(d); requestAnimationFrame(() => d.classList.add("in")); mbHaptic("success");
     const close = () => { d.classList.remove("in"); setTimeout(() => { d.remove(); URL.revokeObjectURL(url); }, 250); };
     d.onclick = e => { if (e.target === d || e.target.dataset.x === "close") close(); };

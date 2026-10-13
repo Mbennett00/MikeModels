@@ -372,7 +372,8 @@ function mbView() {
   if (MB_BTAB === "settled") return strip + sports + msg + (done.length
     ? `<div class="mbrec"><span><b>${w}–${l}</b> record</span><span><b class="${st.roi >= 0 ? "pos" : "neg"}">${(st.roi >= 0 ? "+" : "") + (100 * st.roi).toFixed(1)}%</b> ROI</span><span><b>${st.bigWin ? mbShort(st.bigWin) : "–"}</b> best win</span></div>${mbByDay(done.slice(0, 50), b => b.result_ts || b.ts, mbTicket)}`
     : `<div class="mbempty"><b>No settled bets yet</b><i>Your wins, losses and cash-outs land here.</i></div>`);
-  return strip + sports + msg + (live.length ? `<div class="mbh"><span class="livedot"></span>Live <em>${live.length}</em><button class="mbh-sw" data-sweat="1">Sweat room ›</button></div>${live.map(mbTicket).join("")}` : "")
+  const share = openAll.length ? `<button class="act-share" data-action-share="1"><span>📤</span><b>Share my action</b><i>Picks and prices only, no stakes</i><em>›</em></button>` : "";
+  return strip + sports + msg + share + (live.length ? `<div class="mbh"><span class="livedot"></span>Live <em>${live.length}</em><button class="mbh-sw" data-sweat="1">Sweat room ›</button></div>${live.map(mbTicket).join("")}` : "")
     + (open.length ? `${live.length ? `<div class="mbh">Upcoming <em>${open.length}</em></div>` : ""}${mbByDay(open, b => b.ts, mbTicket)}` : "")
     + (!openAll.length ? `<div class="mbempty"><b>No open bets</b><i>Tap any price to build a slip. Quick picks on Home are one tap.</i><button class="mbgo" data-go2="games">Browse games</button></div>` : "");
 }

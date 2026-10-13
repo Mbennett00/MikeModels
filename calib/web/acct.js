@@ -216,10 +216,72 @@ function acctAfterRender(render) {
   document.querySelectorAll("[data-cashier]").forEach(b => b.onclick = e => { e.stopPropagation(); mbHaptic(); mbOpenCashier(b.dataset.cashier); });
   document.querySelectorAll("#view [data-tk], #view .ticket[data-tid]").forEach(t => t.onclick = e => { if (e.target.closest("button, a, input, summary, details")) return; mbHaptic(); mbOpenTicket(t.dataset.tk || t.dataset.tid); });
   acctWireCashOut(document.getElementById("view"), render);
+  document.querySelectorAll("[data-action-share]").forEach(b => b.onclick = () => { mbHaptic(); mbShareAction(); });
   // the avatar on the league row opens your account
   const hb2 = document.querySelector(".hb2");
   if (hb2 && !hb2.querySelector(".sh-av")) { const a = document.createElement("button"); a.className = "sh-av"; a.setAttribute("aria-label", "Account");
     hb2.appendChild(a); a.onclick = () => { mbHaptic(); mbOpenAccount(); }; }
   const av = hb2 && hb2.querySelector(".sh-av"); if (av) { av.textContent = acctIni(acctName(s)); av.classList.toggle("pro", !!s.pro); }
   try { acctLiveAlerts(); } catch (e) {}
+}
+
+// ---- 📤 my action: a shareable graphic of your open bets — picks and prices only, no stakes or payouts ----
+async function mbShareAction() {
+  const s = mbLoad(), open = s.bets.filter(b => b.status === "open").sort((a, b) => String((a.legs[0] || {}).start || a.ts).localeCompare(String((b.legs[0] || {}).start || b.ts)));
+  if (!open.length) { mbToast(`<div class="tbig">No open bets</div><div class="tsub">Place a bet and your action shows up here</div>`); return; }
+  try { await Promise.all(["700 40px 'Inter Tight'", "600 28px 'Inter Tight'", "800 30px 'Inter'", "italic 900 40px 'Barlow Condensed'"].map(f => document.fonts.load(f))); } catch (e) {}
+  const W = 1080, P = 72, F = (w, px, fam) => `${w} ${px}px ${fam === "c" ? "'Barlow Condensed'" : fam === "b" ? "'Inter'" : "'Inter Tight'"}, system-ui, sans-serif`;
+  const meas = document.createElement("canvas").getContext("2d");
+  const wrap = (txt, font, max) => { meas.font = font; const words = String(txt).split(" "), out = []; let line = "";
+    for (const w of words) { const t = line ? line + " " + w : w; if (meas.measureText(t).width > max && line) { out.push(line); line = w; } else line = t; } if (line) out.push(line); return out; };
+  const when = l => l && l.start ? new Date(l.start).toLocaleString("en-US", {weekday: "short", hour: "numeric", minute: "2-digit"}) : "";
+  // lay out first, so the canvas is exactly as tall as the slip
+  const blocks = open.map(b => {
+    const par = b.kind === "parlay", head = par ? `${b.legs.length}-leg ${b.sgp ? "same game parlay" : "parlay"}` : b.label;
+    const tag = `${b.sport}${par ? (b.sgp ? " · SGP" : " · PARLAY") : " · SINGLE"}${b.boost ? ` · BOOSTED +${Math.round(100 * b.boost)}%` : ""}${mbIsLive(b) ? " · LIVE" : ""}`;
+    const hl = wrap(head, F(700, 44), W - 2 * P - 220);
+    const legs = par ? b.legs.map(l => ({t: wrap(l.label, F(600, 32), W - 2 * P - 230), s: [l.sub, when(l)].filter(Boolean).join(" · "), o: l.odds ? mbSign(l.odds) : "", res: l.res})) : [];
+    const sub = par ? "" : [(b.legs[0] || {}).sub, when(b.legs[0])].filter(Boolean).join(" · ");
+    const h = 40 + hl.length * 52 + (sub ? 40 : 0) + legs.reduce((a, l) => a + 20 + l.t.length * 40 + (l.s ? 34 : 0), 0) + 44;
+    return {b, tag, hl, legs, sub, h};
+  });
+  const H = 300 + blocks.reduce((a, k) => a + k.h + 20, 0) + 100;
+  const cv = document.createElement("canvas"); cv.width = W; cv.height = H; const x = cv.getContext("2d");
+  const g = x.createLinearGradient(0, 0, W, H); g.addColorStop(0, "#0d0f0b"); g.addColorStop(1, "#050605"); x.fillStyle = g; x.fillRect(0, 0, W, H);
+  const glow = x.createRadialGradient(W, 0, 0, W, 0, 700); glow.addColorStop(0, "rgba(198,255,46,.22)"); glow.addColorStop(1, "rgba(0,0,0,0)"); x.fillStyle = glow; x.fillRect(0, 0, W, H);
+  const bolt = await new Promise(r => { const im = new Image(); im.onload = () => r(im); im.onerror = () => r(null); im.src = "bolt.png"; });
+  if (bolt) x.drawImage(bolt, P, 70, 92, 52);
+  x.fillStyle = "#fff"; x.font = F("italic 900", 46, "c"); x.fillText("BLITZED", P + (bolt ? 108 : 0), 112);
+  x.fillStyle = "#c6ff2e"; x.font = F(800, 22, "b"); x.letterSpacing = "6px"; x.fillText("MY ACTION", P, 186); x.letterSpacing = "0px";
+  x.fillStyle = "rgba(255,255,255,.55)"; x.font = F(600, 26, "b"); x.textAlign = "right";
+  x.fillText(new Date().toLocaleDateString("en-US", {weekday: "long", month: "short", day: "numeric"}), W - P, 112);
+  x.fillText(`${open.length} bet${open.length > 1 ? "s" : ""}`, W - P, 186); x.textAlign = "left";
+  const rr = (X, Y, w, h, r) => { x.beginPath(); x.roundRect ? x.roundRect(X, Y, w, h, r) : x.rect(X, Y, w, h); };
+  let y = 236;
+  for (const k of blocks) {
+    rr(P - 24, y, W - 2 * P + 48, k.h, 28); x.fillStyle = "rgba(255,255,255,.045)"; x.fill(); x.strokeStyle = "rgba(255,255,255,.09)"; x.lineWidth = 2; x.stroke();
+    let cy = y + 48;
+    x.fillStyle = k.tag.includes("LIVE") ? "#ff5d5d" : "rgba(255,255,255,.5)"; x.font = F(800, 19, "b"); x.letterSpacing = "3px"; x.fillText(k.tag, P, cy); x.letterSpacing = "0px";
+    rr(W - P - 170, y + 26, 170, 64, 18); x.fillStyle = "#c6ff2e"; x.fill();
+    x.fillStyle = "#0b1000"; x.font = F(800, 36); x.textAlign = "center"; x.fillText(mbSign(k.b.odds), W - P - 85, y + 70); x.textAlign = "left";
+    cy += 46; x.fillStyle = "#fff"; x.font = F(700, 44); for (const t of k.hl) { x.fillText(t, P, cy); cy += 52; }
+    if (k.sub) { x.fillStyle = "rgba(255,255,255,.5)"; x.font = F(500, 26, "b"); x.fillText(k.sub, P, cy - 8); cy += 40; }
+    for (const l of k.legs) { cy += 20;
+      x.fillStyle = l.res === true ? "#3ee08f" : l.res === false ? "#ff6b6b" : "#c6ff2e"; x.beginPath(); x.arc(P + 10, cy - 11, 7, 0, 7); x.fill();
+      x.fillStyle = "#fff"; x.font = F(600, 32); for (const t of l.t) { x.fillText(t, P + 36, cy); cy += 40; }
+      if (l.o) { x.fillStyle = "rgba(255,255,255,.75)"; x.font = F(700, 30); x.textAlign = "right"; x.fillText(l.o, W - P, cy - 40 * l.t.length); x.textAlign = "left"; }
+      if (l.s) { x.fillStyle = "rgba(255,255,255,.45)"; x.font = F(500, 24, "b"); x.fillText(l.s, P + 36, cy - 6); cy += 34; } }
+    y += k.h + 20;
+  }
+  x.fillStyle = "rgba(255,255,255,.3)"; x.font = F(600, 24, "b"); x.fillText("Tailing? Picks only. Lines may move.", P, H - 70);
+  x.fillStyle = "#c6ff2e"; x.textAlign = "right"; x.fillText("⚡ blitzed", W - P, H - 70); x.textAlign = "left";
+  cv.toBlob(blob => { if (!blob) return; const url = URL.createObjectURL(blob), file = new File([blob], `blitzed-action-${new Date().toISOString().slice(0, 10)}.png`, {type: "image/png"});
+    const canShare = navigator.canShare && navigator.canShare({files: [file]});
+    const d = document.createElement("div"); d.className = "shx act";
+    d.innerHTML = `<div class="shx-in"><img src="${url}" alt="My action"><div class="shx-b">${canShare ? `<button class="shx-go" data-x="share">Share</button>` : ""}<a class="shx-go ${canShare ? "alt" : ""}" href="${url}" download="${file.name}">Save image</a><button class="shx-go alt" data-x="close">Close</button></div></div>`;
+    document.body.appendChild(d); requestAnimationFrame(() => d.classList.add("in")); mbHaptic("success");
+    const close = () => { d.classList.remove("in"); setTimeout(() => { d.remove(); URL.revokeObjectURL(url); }, 250); };
+    d.onclick = e => { if (e.target === d || e.target.dataset.x === "close") close(); };
+    const sb = d.querySelector('[data-x="share"]'); if (sb) sb.onclick = () => navigator.share({files: [file], title: "My action on Blitzed"}).catch(() => {});
+  }, "image/png");
 }
