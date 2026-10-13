@@ -122,3 +122,9 @@ body.shell .missions .pl-tag { background: rgba(198,255,46,.12) !important; colo
 /* the slip sheet sits above everything: the Props lineup bar hides while it's open */
 body:has(#sheet.open) #pkbar, body:has(#scrim.open) #pkbar { display: none !important; }
 body.shell .placebet em { background: rgba(11,16,0,.14) !important; color: var(--brand-ink) !important; font-style: normal; }
+
+/* sheets (bet slip, pass, player cards) are solid: nothing shows through text you need to read */
+body.shell .sheet, body.shell #sheet { --s1: #151714; --s2: #1d201b; --s3: #282c25; --glass: #151714;
+  background: #0e0f0d !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; border-top: 1px solid rgba(255,255,255,.1) !important; box-shadow: 0 -24px 60px rgba(0,0,0,.8) !important; }
+body.shell #sheet .card, body.shell #sheet .pxb, body.shell #sheet .pk-b, body.shell #sheet .pass-row { box-shadow: none !important; }
+#scrim.open { background: rgba(0,0,0,.72) !important; }
