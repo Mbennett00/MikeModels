@@ -1112,13 +1112,13 @@ function pickCard(p, mk) {
 }
 // 🪜 Alt shots: one player, every shots line from 2+ up: DraftKings' milestone price where it's posted, else the model's fair price
 function altCard(p) {
-  const dk = dkLines(p, "sog"), lines = [...new Set([...dk, 1.5, 2.5, 3.5, 4.5, 5.5])].sort((a, b) => a - b)
-    .filter(l => { const pr = propProb(p, "sog", l); return pr >= 0.03 && pr <= 0.97; }).slice(0, 6);
+  const dk = dkLines(p, "sog"), lines = [...new Set([...dk, 0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5])].sort((a, b) => a - b)
+    .filter(l => { const pr = propProb(p, "sog", l); return pr >= 0.02 && pr <= 0.98; });
   if (!lines.length) return "";
   const col = (D.colors || {})[p.team] || "#556070", tl = teamLogoUrl(p.team), lam = p.lam.sog;
   const keys = lines.map(l => { const pr = propProb(p, "sog", l), d = p.dk && p.dk[`sog|${l}`], odds = d || Math.round(fair(pr)), edge = d ? pr - 1 / mbDec(d) : null;
     const i = bet({player: p, market: "sog", line: l, p: pr, dir: "over", label: `${p.name} ${l + 0.5}+ shots`, odds, book: d ? "DraftKings" : null});
-    return `<button class="alt-b ${edge != null && edge >= 0.03 ? "val" : ""} ${d ? "dk" : ""}" data-pick="${i}"><span>${l + 0.5}+</span><b>${am(odds)}</b><i>${Math.round(100 * pr)}%</i></button>`; }).join("");
+    return `<button class="alt-b ${edge != null && edge >= 0.03 ? "val" : ""} ${d ? "dk" : ""} ${Math.abs(l + 0.5 - lam) < 0.5 ? "near" : ""}" data-pick="${i}"><span>${l + 0.5}+ <em>shots</em></span><b>${am(odds)}</b><i>${Math.round(100 * pr)}%</i></button>`; }).join("");
   return `<div class="pk alt" style="--tc:${esc(col)}"><div class="alt-h"><button class="pk-face" data-player="${p.id}"><span class="pk-ini">${esc(initials(p.name))}</span>${p.headshot ? `<img src="${esc(p.headshot)}" alt="" loading="lazy" onerror="this.remove()">` : ""}${tl ? `<img class="pk-tl" src="${esc(tl)}" alt="" onerror="this.remove()">` : ""}</button>
     <div class="alt-id"><b>${esc(p.name)}</b><i>${esc(p.team)} · ${esc(matchupOf(p).split(" · ")[0])}</i></div><div class="alt-proj"><b>${lam.toFixed(1)}</b><span>proj shots</span></div></div>
     <div class="alt-lad">${keys}</div></div>`;

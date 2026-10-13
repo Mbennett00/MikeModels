@@ -86,5 +86,7 @@ function atAfterRender() {
   try { islRender(); } catch (e) {}
   try { const v = document.querySelector("body.tab-games #view"); if (v && !v.querySelector(".spot")) { const h = atPosters(); if (h) { const d = document.createElement("div"); d.innerHTML = h; const anchor = v.querySelector(".pmode, .gmode"); anchor ? anchor.before(d.firstElementChild) : v.prepend(d.firstElementChild); } } atWirePosters(); } catch (e) {}
   try { atNavTransitions(); } catch (e) {}
+  // alt shots: each row opens on the line nearest the projection (or the one on your slip)
+  document.querySelectorAll("#view .alt-lad").forEach(r => { if (r.dataset.cen) return; r.dataset.cen = 1; const t = r.querySelector(".alt-b.insl") || r.querySelector(".alt-b.near"); if (t) r.scrollLeft = Math.max(0, t.offsetLeft - r.clientWidth / 2 + t.offsetWidth / 2); });
   try { atMood(); } catch (e) {}
 }
