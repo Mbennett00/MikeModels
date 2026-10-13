@@ -226,6 +226,34 @@ function acctAfterRender(render) {
 }
 
 // ---- 📤 my action: a shareable graphic of your open bets — picks and prices only, no stakes or payouts ----
+const ACT_IMG = {};
+function actImg(src) {
+  if (!src) return Promise.resolve(null);
+  if (ACT_IMG[src]) return ACT_IMG[src];
+  return ACT_IMG[src] = new Promise(r => { const im = new Image(); im.crossOrigin = "anonymous"; im.onload = () => r(im); im.onerror = () => r(null); im.src = src; setTimeout(() => r(null), 4000); });
+}
+function actArt(l) {   // {img, logo, logos} for a leg, same rules as the app's pick art
+  let a = {img: l.img, logo: l.logo, logos: l.logos, name: l.name || (l.key || {}).name || l.label};
+  if (!a.img && !a.logos && typeof mbArtFor === "function") { try { Object.assign(a, mbArtFor(l) || {}); } catch (e) {} }
+  if (!a.img && !a.logos && !a.logo) { const t = mbTeamsIn(l); if ((l.key || {}).t === "prop") a.logo = t[0]; else if (t.length >= 2) a.logos = t.slice(0, 2); else a.logo = t[0]; }
+  return a;
+}
+async function actDrawArt(x, a, cx, cy, r) {   // a round avatar: headshot with a team badge, or two overlapping logos
+  const circ = (X, Y, R, fill) => { x.beginPath(); x.arc(X, Y, R, 0, 7); x.fillStyle = fill; x.fill(); };
+  const clipDraw = async (src, X, Y, R, cover) => { const im = await actImg(src); if (!im) return false; x.save(); x.beginPath(); x.arc(X, Y, R, 0, 7); x.clip();
+    if (cover) { const s = Math.max(2 * R / im.width, 2 * R / im.height); x.drawImage(im, X - im.width * s / 2, Y - R * 0.95, im.width * s, im.height * s); }
+    else { const s = Math.min(1.5 * R / im.width, 1.5 * R / im.height); x.drawImage(im, X - im.width * s / 2, Y - im.height * s / 2, im.width * s, im.height * s); }
+    x.restore(); return true; };
+  if (a.logos && a.logos.length >= 2) {
+    circ(cx - r * 0.42, cy, r * 0.78, "#1a1c18"); await clipDraw(a.logos[0], cx - r * 0.42, cy, r * 0.78, false);
+    circ(cx + r * 0.42, cy, r * 0.82, "#050605"); circ(cx + r * 0.42, cy, r * 0.78, "#1a1c18"); await clipDraw(a.logos[1], cx + r * 0.42, cy, r * 0.78, false); return;
+  }
+  circ(cx, cy, r, "#1d201b");
+  const ok = a.img ? await clipDraw(a.img, cx, cy, r, true) : a.logo ? await clipDraw(a.logo, cx, cy, r, false) : false;
+  if (!ok) { x.fillStyle = "rgba(255,255,255,.75)"; x.font = `800 ${Math.round(r * 0.7)}px 'Inter Tight', sans-serif`; x.textAlign = "center"; x.textBaseline = "middle";
+    x.fillText(String(a.name || "?").split(" ").filter(Boolean).slice(0, 2).map(w => w[0]).join(""), cx, cy + 2); x.textAlign = "left"; x.textBaseline = "alphabetic"; }
+  if (a.img && a.logo) { circ(cx + r * 0.72, cy + r * 0.72, r * 0.42, "#050605"); circ(cx + r * 0.72, cy + r * 0.72, r * 0.36, "#1d201b"); await clipDraw(a.logo, cx + r * 0.72, cy + r * 0.72, r * 0.36, false); }
+}
 async function mbShareAction() {
   const s = mbLoad(), open = s.bets.filter(b => b.status === "open").sort((a, b) => String((a.legs[0] || {}).start || a.ts).localeCompare(String((b.legs[0] || {}).start || b.ts)));
   if (!open.length) { mbToast(`<div class="tbig">No open bets</div><div class="tsub">Place a bet and your action shows up here</div>`); return; }
@@ -239,18 +267,18 @@ async function mbShareAction() {
   const blocks = open.map(b => {
     const par = b.kind === "parlay", head = par ? `${b.legs.length}-leg ${b.sgp ? "same game parlay" : "parlay"}` : b.label;
     const tag = `${b.sport}${par ? (b.sgp ? " · SGP" : " · PARLAY") : " · SINGLE"}${b.boost ? ` · BOOSTED +${Math.round(100 * b.boost)}%` : ""}${mbIsLive(b) ? " · LIVE" : ""}`;
-    const hl = wrap(head, F(700, 44), W - 2 * P - 220);
-    const legs = par ? b.legs.map(l => ({t: wrap(l.label, F(600, 32), W - 2 * P - 230), s: [l.sub, when(l)].filter(Boolean).join(" · "), o: l.odds ? mbSign(l.odds) : "", res: l.res})) : [];
+    const AV = par ? 0 : 112, hl = wrap(head, F(700, 44), W - 2 * P - 220 - AV);
+    const legs = par ? b.legs.map(l => ({t: wrap(l.label, F(600, 32), W - 2 * P - 300), s: [l.sub, when(l)].filter(Boolean).join(" · "), o: l.odds ? mbSign(l.odds) : "", res: l.res, art: actArt(l)})) : [];
     const sub = par ? "" : [(b.legs[0] || {}).sub, when(b.legs[0])].filter(Boolean).join(" · ");
-    const h = 40 + hl.length * 52 + (sub ? 40 : 0) + legs.reduce((a, l) => a + 20 + l.t.length * 40 + (l.s ? 34 : 0), 0) + 44;
-    return {b, tag, hl, legs, sub, h};
+    const h = Math.max(40 + hl.length * 52 + (sub ? 40 : 0) + 44, par ? 0 : 196) + legs.reduce((a, l) => a + Math.max(28 + l.t.length * 40 + (l.s ? 34 : 0), 84), 0);
+    return {b, tag, hl, legs, sub, h, AV, art: par ? null : actArt(b.legs[0] || {})};
   });
   const H = 300 + blocks.reduce((a, k) => a + k.h + 20, 0) + 100;
   const cv = document.createElement("canvas"); cv.width = W; cv.height = H; const x = cv.getContext("2d");
   const g = x.createLinearGradient(0, 0, W, H); g.addColorStop(0, "#0d0f0b"); g.addColorStop(1, "#050605"); x.fillStyle = g; x.fillRect(0, 0, W, H);
   const glow = x.createRadialGradient(W, 0, 0, W, 0, 700); glow.addColorStop(0, "rgba(198,255,46,.22)"); glow.addColorStop(1, "rgba(0,0,0,0)"); x.fillStyle = glow; x.fillRect(0, 0, W, H);
   const bolt = await new Promise(r => { const im = new Image(); im.onload = () => r(im); im.onerror = () => r(null); im.src = "bolt.png"; });
-  if (bolt) x.drawImage(bolt, P, 70, 92, 52);
+  if (bolt) x.drawImage(bolt, P, 66, 92, 92 * bolt.height / bolt.width);
   x.fillStyle = "#fff"; x.font = F("italic 900", 46, "c"); x.fillText("BLITZED", P + (bolt ? 108 : 0), 112);
   x.fillStyle = "#c6ff2e"; x.font = F(800, 22, "b"); x.letterSpacing = "6px"; x.fillText("MY ACTION", P, 186); x.letterSpacing = "0px";
   x.fillStyle = "rgba(255,255,255,.55)"; x.font = F(600, 26, "b"); x.textAlign = "right";
@@ -264,13 +292,16 @@ async function mbShareAction() {
     x.fillStyle = k.tag.includes("LIVE") ? "#ff5d5d" : "rgba(255,255,255,.5)"; x.font = F(800, 19, "b"); x.letterSpacing = "3px"; x.fillText(k.tag, P, cy); x.letterSpacing = "0px";
     rr(W - P - 170, y + 26, 170, 64, 18); x.fillStyle = "#c6ff2e"; x.fill();
     x.fillStyle = "#0b1000"; x.font = F(800, 36); x.textAlign = "center"; x.fillText(mbSign(k.b.odds), W - P - 85, y + 70); x.textAlign = "left";
-    cy += 46; x.fillStyle = "#fff"; x.font = F(700, 44); for (const t of k.hl) { x.fillText(t, P, cy); cy += 52; }
-    if (k.sub) { x.fillStyle = "rgba(255,255,255,.5)"; x.font = F(500, 26, "b"); x.fillText(k.sub, P, cy - 8); cy += 40; }
-    for (const l of k.legs) { cy += 20;
-      x.fillStyle = l.res === true ? "#3ee08f" : l.res === false ? "#ff6b6b" : "#c6ff2e"; x.beginPath(); x.arc(P + 10, cy - 11, 7, 0, 7); x.fill();
-      x.fillStyle = "#fff"; x.font = F(600, 32); for (const t of l.t) { x.fillText(t, P + 36, cy); cy += 40; }
-      if (l.o) { x.fillStyle = "rgba(255,255,255,.75)"; x.font = F(700, 30); x.textAlign = "right"; x.fillText(l.o, W - P, cy - 40 * l.t.length); x.textAlign = "left"; }
-      if (l.s) { x.fillStyle = "rgba(255,255,255,.45)"; x.font = F(500, 24, "b"); x.fillText(l.s, P + 36, cy - 6); cy += 34; } }
+    cy += 46;
+    if (k.art) await actDrawArt(x, k.art, P + 46, cy + 18, 46);
+    const tx = P + k.AV; x.fillStyle = "#fff"; x.font = F(700, 44); for (const t of k.hl) { x.fillText(t, tx, cy); cy += 52; }
+    if (k.sub) { x.fillStyle = "rgba(255,255,255,.5)"; x.font = F(500, 26, "b"); x.fillText(k.sub, tx, cy - 8); cy += 40; }
+    for (const l of k.legs) { const top = cy; cy += 28;
+      await actDrawArt(x, l.art, P + 30, top + 40, 30);
+      x.fillStyle = l.res === true ? "#3ee08f" : l.res === false ? "#ff6b6b" : "#fff"; x.font = F(600, 32); for (const t of l.t) { x.fillText(t, P + 80, cy + 8); cy += 40; }
+      if (l.o) { x.fillStyle = "rgba(255,255,255,.75)"; x.font = F(700, 30); x.textAlign = "right"; x.fillText(l.o, W - P, top + 44); x.textAlign = "left"; }
+      if (l.s) { x.fillStyle = "rgba(255,255,255,.45)"; x.font = F(500, 24, "b"); x.fillText(l.s, P + 80, cy + 2); cy += 34; }
+      cy = Math.max(cy, top + 84); }
     y += k.h + 20;
   }
   x.fillStyle = "rgba(255,255,255,.3)"; x.font = F(600, 24, "b"); x.fillText("Tailing? Picks only. Lines may move.", P, H - 70);

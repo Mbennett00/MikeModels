@@ -19,3 +19,6 @@ body.shell .nav { position: fixed !important; top: auto !important; bottom: calc
 /* taps feel instant */
 button, a, .pxb, .alt-b, .pk-b { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 @media (prefers-reduced-motion: reduce) { body.shell::before { animation: none !important; } }
+/* brand: the transparent B (no tile) in the header and splash */
+body.shell .hdr .mlogo { border-radius: 0 !important; height: 30px !important; width: auto !important; filter: drop-shadow(0 2px 12px rgba(198,255,46,.28)) !important; margin-right: 2px !important; }
+.splash img { border-radius: 0 !important; box-shadow: none !important; filter: drop-shadow(0 10px 40px rgba(198,255,46,.35)); }
