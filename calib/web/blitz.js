@@ -206,3 +206,16 @@ document.addEventListener("click", e => {
   const i = [...document.querySelectorAll("#sheet .slipi")].indexOf(t.closest(".slipi")), l = slipLoad()[i]; if (!l) return;
   mbHaptic(); bzXray(l, () => mbOpenSlip());
 });
+
+// ⚡ lightning: the screen gets struck when you cash
+function bzStrike() {
+  const o = document.createElement("div"); o.className = "strike";
+  const pts = [[55, -5]]; let x = 55; for (let y = 8; y <= 100; y += 9) { x += (Math.random() - 0.5) * 22; pts.push([Math.max(10, Math.min(90, x)), y]); }
+  const d = pts.map((p, i) => (i ? "L" : "M") + p[0] + " " + p[1]).join(" ");
+  o.innerHTML = `<svg viewBox="0 0 100 100" preserveAspectRatio="none"><path d="${d}" class="bolt-glow"/><path d="${d}" class="bolt-core"/></svg>`;
+  document.body.appendChild(o); document.body.classList.add("shake"); setTimeout(() => document.body.classList.remove("shake"), 500);
+  try { const A = new (window.AudioContext || window.webkitAudioContext)(), n = A.sampleRate * 1.2, buf = A.createBuffer(1, n, A.sampleRate), d0 = buf.getChannelData(0);
+    for (let i = 0; i < n; i++) d0[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 2.5); const s = A.createBufferSource(), f = A.createBiquadFilter(), g = A.createGain();
+    f.type = "lowpass"; f.frequency.value = 900; g.gain.value = mbLoad().sound === false ? 0 : 0.5; s.buffer = buf; s.connect(f).connect(g).connect(A.destination); s.start(); } catch (e) {}
+  setTimeout(() => o.remove(), 1200);
+}

@@ -11,7 +11,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&family=Inter+Tight:wght@500;600;650;700;800&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;1,700;1,800&family=Barlow+Semi+Condensed:wght@600;700;800&family=Inter:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&family=Inter+Tight:wght@500;600;650;700;800&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;1,700;1,800&family=Barlow+Semi+Condensed:wght@600;700;800&family=Inter:wght@500;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root {
   --ice: #bfe0f2; --ice-2: #d7ecf8; --cream: #fffaf0; --navy: #1f3448; --ink: #1f3448; --ink-2: #4d5d6c;
@@ -1110,15 +1110,28 @@ function pickCard(p, mk) {
     <div class="pk-proj pk-${lean}"><i style="--g:${(gap * 100).toFixed(0)}%"></i><span>Model ${lam.toFixed(mk === "goals" ? 2 : 1)} · leans ${lean === "more" ? "More" : "Less"}</span></div>
     <div class="pk-btns"><button class="pk-b pk-dn" data-pick="${u}"><span>Less ↓</span><b>${am(BETS[u].odds)}</b></button><button class="pk-b pk-up ${dk ? "bk" : ""}" data-pick="${o}"><span>More ↑</span><b>${am(BETS[o].odds)}</b></button></div></div>`;
 }
+// 🪜 Alt shots: one player, every shots line from 2+ up: DraftKings' milestone price where it's posted, else the model's fair price
+function altCard(p) {
+  const dk = dkLines(p, "sog"), lines = [...new Set([...dk, 1.5, 2.5, 3.5, 4.5, 5.5])].sort((a, b) => a - b)
+    .filter(l => { const pr = propProb(p, "sog", l); return pr >= 0.03 && pr <= 0.97; }).slice(0, 6);
+  if (!lines.length) return "";
+  const col = (D.colors || {})[p.team] || "#556070", tl = teamLogoUrl(p.team), lam = p.lam.sog;
+  const keys = lines.map(l => { const pr = propProb(p, "sog", l), d = p.dk && p.dk[`sog|${l}`], odds = d || Math.round(fair(pr)), edge = d ? pr - 1 / mbDec(d) : null;
+    const i = bet({player: p, market: "sog", line: l, p: pr, dir: "over", label: `${p.name} ${l + 0.5}+ shots`, odds, book: d ? "DraftKings" : null});
+    return `<button class="alt-b ${edge != null && edge >= 0.03 ? "val" : ""} ${d ? "dk" : ""}" data-pick="${i}"><span>${l + 0.5}+</span><b>${am(odds)}</b><i>${Math.round(100 * pr)}%</i></button>`; }).join("");
+  return `<div class="pk alt" style="--tc:${esc(col)}"><div class="alt-h"><button class="pk-face" data-player="${p.id}"><span class="pk-ini">${esc(initials(p.name))}</span>${p.headshot ? `<img src="${esc(p.headshot)}" alt="" loading="lazy" onerror="this.remove()">` : ""}${tl ? `<img class="pk-tl" src="${esc(tl)}" alt="" onerror="this.remove()">` : ""}</button>
+    <div class="alt-id"><b>${esc(p.name)}</b><i>${esc(p.team)} · ${esc(matchupOf(p).split(" · ")[0])}</i></div><div class="alt-proj"><b>${lam.toFixed(1)}</b><span>proj shots</span></div></div>
+    <div class="alt-lad">${keys}</div></div>`;
+}
 function props() {
   if (!D.players.length) return empty("👤", "No player projections yet", "");
-  const S = PSTATE, mk = S.market;
-  const MK4 = [["sog", "Shots"], ["goals", "Goals"]], mi = Math.max(0, MK4.findIndex(([k]) => k === mk));
-  const mkt0 = `<i class="mkpill" style="--i:${mi}"></i>` + MK4.map(([k, nm]) => `<button class="${mk === k ? "on" : ""}" data-m="${k}">${nm}</button>`).join("");
-  if (mk === "lucky") return `<div class="ptabs props-seg" style="--n:2">${mkt0}</div>` + luckyNHL();
+  const S = PSTATE, mk0 = S.market, mk = mk0 === "alt" ? "sog" : mk0;   // Alt shots lists the shot players with every line
+  const MK4 = [["sog", "Shots"], ["alt", "Alt shots"], ["goals", "Goals"]], mi = Math.max(0, MK4.findIndex(([k]) => k === mk0));
+  const mkt0 = `<i class="mkpill" style="--i:${mi}"></i>` + MK4.map(([k, nm]) => `<button class="${mk0 === k ? "on" : ""}" data-m="${k}">${nm}</button>`).join("");
+  if (mk === "lucky") return `<div class="ptabs props-seg" style="--n:3">${mkt0}</div>` + luckyNHL();
   const openG = new Set(D.games.filter(notStarted).map(g => g.game_id));
   if (S.game !== "all" && !openG.has(Number(S.game)) && !openG.has(S.game)) S.game = "all";
-  if (!openG.size) return `<div class="ptabs props-seg" style="--n:2">${mkt0}</div>` + empty("🔒", "Props are closed", "Every game on this slate has started or finished. Props reopen for the next slate.");
+  if (!openG.size) return `<div class="ptabs props-seg" style="--n:3">${mkt0}</div>` + empty("🔒", "Props are closed", "Every game on this slate has started or finished. Props reopen for the next slate.");
   let list = D.players.filter(p => p.lam[mk] != null && openG.has(p.game_id));
   if (S.q) list = list.filter(p => normName(p.name).includes(normName(S.q)));
   if (S.game !== "all") list = list.filter(p => String(p.game_id) === S.game);
@@ -1133,10 +1146,13 @@ function props() {
     + `<button class="chip ${S.game === "all" ? "on" : ""}" data-g="all">All games</button>`
     + byStatus(D.games).filter(g => openG.has(g.game_id)).map(g => `<button class="chip gchip ${S.game === String(g.game_id) ? "on" : ""}" data-g="${g.game_id}"><img src="${esc(g.away.logo)}" alt="" onerror="this.remove()"><img src="${esc(g.home.logo)}" alt="" onerror="this.remove()">${esc(g.away.abbr)} @ ${esc(g.home.abbr)}</button>`).join("");
   const mode = `<div class="pmode"><button class="${PKMODE === "pick" ? "on" : ""}" data-pmode="pick">Pick'em</button><button class="${PKMODE === "list" ? "on" : ""}" data-pmode="list">List</button></div>`;
-  if (PKMODE === "pick") return `${mode}<div class="ptabs props-seg" style="--n:2">${mkt}</div><div class="strip" style="padding-left:0">${gms}</div>
+  if (mk0 === "alt") return `${mode}<div class="ptabs props-seg" style="--n:3">${mkt}</div><div class="strip" style="padding-left:0">${gms}</div>
+    ${S.search || S.q ? `<input class="search" id="pq" placeholder="Find a player" value="${esc(S.q)}" autocomplete="off">` : ""}
+    ${list.length ? `<div class="alt-list">${list.slice(0, n).map(altCard).join("")}</div>${list.length > n ? `<button class="gmore" data-showmore="1">Show more players</button>` : ""}` : `<div class="note">No players match.</div>`}`;
+  if (PKMODE === "pick") return `${mode}<div class="ptabs props-seg" style="--n:3">${mkt}</div><div class="strip" style="padding-left:0">${gms}</div>
     ${S.search || S.q ? `<input class="search" id="pq" placeholder="Find a player" value="${esc(S.q)}" autocomplete="off">` : ""}
     ${list.length ? `<div class="pk-grid">${list.slice(0, n).map(p => pickCard(p, mk)).join("")}</div>${list.length > n ? `<button class="gmore" data-showmore="1">Show more players</button>` : ""}` : `<div class="note">No players match.</div>`}`;
-  return `${mode}<div class="ptabs props-seg" style="--n:2">${mkt}</div>
+  return `${mode}<div class="ptabs props-seg" style="--n:3">${mkt}</div>
     <div class="strip" style="padding-left:0">${gms}</div>
     ${S.search || S.q ? `<input class="search" id="pq" placeholder="Find a player" value="${esc(S.q)}" autocomplete="off">` : ""}
     ${waiting ? `<div class="pnote"><span class="pdot"></span>DK lines not posted yet for ${waiting === 1 ? "1 game" : waiting + " games"} · fair prices shown</div>` : ""}

@@ -191,7 +191,6 @@ function mbConfirm(placed) {
     <div class="mbx"><button id="okmore">Keep betting</button><button id="okbets">My bets</button></div>`;
   document.getElementById("shx").onclick = document.getElementById("okmore").onclick = () => { closeSheet(); MB_RENDER && MB_RENDER(); };
   document.getElementById("okbets").onclick = () => { closeSheet(); MB_VIEW = "bets"; if (typeof TAB !== "undefined") TAB = "check"; MB_RENDER && MB_RENDER(); window.scrollTo(0, 0); };
-  try { chQuip(pick1(["Let's ride 🤝", "I like it.", "Locked. Now we sweat.", "Bold move. Respect."])); } catch (e) {}
   mbBurst(18, ["🎟️", "✨"]); sh.classList.add("fx-placed"); setTimeout(() => sh.classList.remove("fx-placed"), 1600);
   try { fxConfetti(90); } catch (e) {}
 }
@@ -257,7 +256,7 @@ function mbCelebrate() {
     try { bzStrike(); } catch (e) {}
     mbToast(`<div class="tbig">${big ? "🎰 PARLAY CASHED!" : "💰 CASHED!"}</div><div class="tamt">+${mbMoney(amt)}</div><div class="tsub">${esc(won.map(b => b.label).join(" · "))}</div>`, "win");
     mbBurst(big ? 60 : 36, ["💵", "🎉", "💰", "✨"]);
-  } else if (lost.length) { try { chQuip(pick1(["Brutal. Shake it off.", "That one stings. Next.", "Variance. We go again.", "Refs, man. 😤"]), "sad"); } catch (e) {} } if (!won.length && lost.length) mbToast(lost.some(mbInsured) ? `<div class="tsub">🛡️ Insurance saved you: ${esc(lost.filter(mbInsured).map(b => b.label).join(" · "))} · stake refunded</div>` : `<div class="tsub">❌ ${esc(lost.map(b => b.label).join(" · "))}</div><div class="tsub">On to the next one.</div>`, lost.some(mbInsured) ? "win" : "loss");
+  } else if (lost.length) mbToast(lost.some(mbInsured) ? `<div class="tsub">🛡️ Insurance saved you: ${esc(lost.filter(mbInsured).map(b => b.label).join(" · "))} · stake refunded</div>` : `<div class="tsub">❌ ${esc(lost.map(b => b.label).join(" · "))}</div><div class="tsub">On to the next one.</div>`, lost.some(mbInsured) ? "win" : "loss");
   mbBadgesCheck(mbLoad());
 }
 const BADGES = [
@@ -430,7 +429,7 @@ function mbAfterRender(render) {
   if (typeof fxAfterRender === "function") fxAfterRender(); else { const sp = document.getElementById("splash"); if (sp && !sp.classList.contains("out")) { sp.classList.add("out"); setTimeout(() => sp.remove(), 600); } }
   const t = typeof TAB !== "undefined" ? TAB : "";   // a soft fade-up when the screen changes (not on live refreshes)
   if (t !== MB_LASTTAB) { const v = document.getElementById("view"); if (v) { v.classList.remove("enter"); void v.offsetWidth; v.classList.add("enter"); } MB_LASTTAB = t; }
-  try { acctAfterRender(render); } catch (e) {} try { bzAfterRender(render); } catch (e) {} try { chAfterRender(render); } catch (e) {}   // account, Blitz, the buddy: every screen
+  try { acctAfterRender(render); } catch (e) {} try { bzAfterRender(render); } catch (e) {} try { atAfterRender(render); } catch (e) {}   // account, Blitz, atelier: every screen
 }
 // header turns to frosted glass once the page scrolls
 window.addEventListener("scroll", () => { const h = document.querySelector(".hdr"); if (h) h.classList.toggle("stuck", window.scrollY > 8); }, {passive: true});
