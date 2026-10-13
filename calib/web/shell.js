@@ -54,7 +54,8 @@ function shAfterRender(render) {
     shAfterRender.last = tab + (typeof FX_GMODE !== "undefined" ? FX_GMODE : ""); b.classList.remove("enter"); void b.offsetWidth; b.classList.add("enter");
     clearTimeout(shAfterRender.t); shAfterRender.t = setTimeout(() => b.classList.remove("enter"), 900); }
   try { shHeader(render); } catch (e) {}
-  const h = document.querySelector(".hdr"); if (h) document.documentElement.style.setProperty("--hdrh", h.offsetHeight + "px");   // for the sticky Games switch + feed snapping
+  requestAnimationFrame(() => { const h = document.querySelector(".hdr"); if (!h) return; const v = h.offsetHeight + "px";   // for the sticky Games switch, feed snapping, the island
+    if (shAfterRender.hh !== v) { shAfterRender.hh = v; document.documentElement.style.setProperty("--hdrh", v); } });
   shSlipBtn();
   try { b.classList.toggle("pro", proOn()); proWire(document.getElementById("view"), render); } catch (e) {}
   if (!shAfterRender.onb) { shAfterRender.onb = 1; setTimeout(() => { try { shOnboard(); } catch (e) {} }, 1700); }
@@ -68,3 +69,7 @@ function shPickBar(v, dec) {
   b.innerHTML = `<span class="pb-av">${v.slice(0, 4).map(l => `<span>${mbPic(l)}</span>`).join("")}</span>
     <span class="pb-t"><b>${n} pick${n > 1 ? "s" : ""} · ${pays}</b><i>${v.map(l => esc(l.label)).join(" · ")}</i></span><button>Review</button>`;
 }
+
+// one body class for 'a sheet is open' (cheaper than :has() selectors that re-check the whole page on every change)
+(() => { const sh = document.getElementById("sheet"); if (!sh || !window.MutationObserver) return;
+  new MutationObserver(() => document.body.classList.toggle("sheet-open", sh.classList.contains("open"))).observe(sh, {attributes: true, attributeFilter: ["class"]}); })();

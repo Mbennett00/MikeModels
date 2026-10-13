@@ -22,7 +22,8 @@ function islRender() {
   const hdr = document.querySelector(".hdr"); if (!hdr) return;
   if (!el) { el = document.createElement("button"); el.id = "island"; el.onclick = e => { e.stopPropagation(); mbHaptic(); ISL_OPEN = !ISL_OPEN; islRender(); }; document.body.appendChild(el); }
   const d = islData();
-  if (!d.items.length && !d.open && !d.nsettled) { el.className = "off"; el.innerHTML = ""; return; }
+  if (!d.items.length && !d.open && !d.nsettled) { el.className = "off"; el.innerHTML = ""; document.body.classList.remove("has-island"); return; }
+  document.body.classList.add("has-island");
   const dayTxt = d.nsettled ? `<em class="${d.day >= 0 ? "up" : "dn"}">${d.day >= 0 ? "+" : "−"}${mbShort(Math.abs(d.day))} today</em>` : "";
   let pill;
   if (d.items.length) { const it = d.items[ISL_I % d.items.length];
@@ -37,12 +38,10 @@ function islRender() {
   el.innerHTML = `<span class="is-pill">${pill}</span>${panel}`;
   el.querySelectorAll("[data-tk]").forEach(r => r.onclick = e => { e.stopPropagation(); ISL_OPEN = false; islRender(); mbOpenTicket(r.dataset.tk); });
   const go = el.querySelector("[data-isgo]"); if (go) go.onclick = e => { e.stopPropagation(); ISL_OPEN = false; TAB = "check"; MB_VIEW = "bets"; MB_BTAB = "open"; MB_RENDER && MB_RENDER(); window.scrollTo(0, 0); };
-  el.style.top = (hdr.getBoundingClientRect().bottom + 8) + "px";
 }
 function islCountdown(t) { const m = Math.max(0, Math.round((new Date(t) - Date.now()) / 6e4)); return m >= 60 ? `in ${Math.floor(m / 60)}h ${m % 60}m` : m > 0 ? `in ${m}m` : "now"; }
-setInterval(() => { ISL_I++; try { if (!ISL_OPEN) islRender(); } catch (e) {} }, 5000);
+setInterval(() => { if (document.hidden || ISL_OPEN) return; const el = document.getElementById("island"); if (!el || !el.classList.contains("live")) return; ISL_I++; try { islRender(); } catch (e) {} }, 5000);
 document.addEventListener("click", () => { if (ISL_OPEN) { ISL_OPEN = false; islRender(); } });
-window.addEventListener("scroll", () => { const el = document.getElementById("island"), h = document.querySelector(".hdr"); if (el && h) el.style.top = (h.getBoundingClientRect().bottom + 8) + "px"; }, {passive: true});
 
 // ---- 🎬 spotlight: tonight's games as cinematic posters (top of Games) ----
 function atWinHome(g) { try { if (g.p_home != null) return g.p_home; if (typeof gameProb === "function") return gameProb(g, "moneyline", "home"); } catch (e) {} return null; }
@@ -63,7 +62,7 @@ function atWirePosters() {
   const rail = document.querySelector("#view .spot-rail"); if (!rail) return;
   const par = () => { const r = rail.getBoundingClientRect(); rail.querySelectorAll(".post").forEach(p => { const b = p.getBoundingClientRect(), k = ((b.left + b.width / 2) - (r.left + r.width / 2)) / r.width;
     p.style.setProperty("--k", k.toFixed(3)); }); };
-  rail.addEventListener("scroll", () => requestAnimationFrame(par), {passive: true}); par();
+  let q = 0; rail.addEventListener("scroll", () => { if (q) return; q = requestAnimationFrame(() => { q = 0; par(); }); }, {passive: true}); requestAnimationFrame(par);
   rail.querySelectorAll("[data-post]").forEach(p => p.onclick = () => { mbHaptic(); const id = p.dataset.post;
     const jump = () => { const c = document.querySelector(`#view [data-gid="${CSS.escape(id)}"]`); if (c) c.scrollIntoView({behavior: "smooth", block: "start"}); };
     if (!document.querySelector(`#view [data-gid="${CSS.escape(id)}"]`) && typeof FX_GMODE !== "undefined") { FX_GMODE = "feed"; try { localStorage.setItem("mm_gmode", "feed"); } catch (e) {} MB_RENDER && MB_RENDER(); setTimeout(jump, 120); } else jump(); });
@@ -82,11 +81,18 @@ function atMood() {
   document.body.classList.toggle("mood-up", day > 0.5); document.body.classList.toggle("mood-dn", day < -0.5);
 }
 
+// sideways rails keep their place when the screen redraws (live refreshes, taps)
+const AT_RAILS = ".spot-rail, .alt-lad, .fz, .strip, .gchips", AT_X = {};
+const atRailKey = el => { const host = el.closest("[data-player], .pk, .gc2"); const id = host ? (host.querySelector("[data-player]") || host).getAttribute("data-player") || host.getAttribute("data-gid") || "" : "";
+  const all = [...document.querySelectorAll("#view " + el.className.split(" ")[0].replace(/^/, "."))]; return (typeof TAB !== "undefined" ? TAB : "") + "|" + el.className.split(" ")[0] + "|" + (id || all.indexOf(el)); };
+document.addEventListener("scroll", e => { const el = e.target; if (el && el.nodeType === 1 && el.matches && el.matches(AT_RAILS)) AT_X[atRailKey(el)] = el.scrollLeft; }, {capture: true, passive: true});
+function atRestoreRails() { document.querySelectorAll("#view " + AT_RAILS.split(", ").join(", #view ")).forEach(el => { const x = AT_X[atRailKey(el)]; if (x != null) { el.scrollLeft = x; el.dataset.cen = 1; } }); }
 function atAfterRender() {
   try { islRender(); } catch (e) {}
   try { const v = document.querySelector("body.tab-games #view"); if (v && !v.querySelector(".spot")) { const h = atPosters(); if (h) { const d = document.createElement("div"); d.innerHTML = h; const anchor = v.querySelector(".pmode, .gmode"); anchor ? anchor.before(d.firstElementChild) : v.prepend(d.firstElementChild); } } atWirePosters(); } catch (e) {}
   try { atNavTransitions(); } catch (e) {}
   // alt shots: each row opens on the line nearest the projection (or the one on your slip)
-  document.querySelectorAll("#view .alt-lad").forEach(r => { if (r.dataset.cen) return; r.dataset.cen = 1; const t = r.querySelector(".alt-b.insl") || r.querySelector(".alt-b.near"); if (t) r.scrollLeft = Math.max(0, t.offsetLeft - r.clientWidth / 2 + t.offsetWidth / 2); });
+  document.querySelectorAll("#view .alt-lad").forEach(r => { if (r.dataset.cen || AT_X[atRailKey(r)] != null) return; r.dataset.cen = 1; const t = r.querySelector(".alt-b.insl") || r.querySelector(".alt-b.near"); if (t) r.scrollLeft = Math.max(0, t.offsetLeft - r.clientWidth / 2 + t.offsetWidth / 2); });
   try { atMood(); } catch (e) {}
+  try { atRestoreRails(); } catch (e) {}   // last, after the posters and rows exist
 }

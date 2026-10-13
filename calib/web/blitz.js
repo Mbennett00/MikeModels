@@ -3,7 +3,13 @@
 
 // ---- shared bits ----
 const bzSport = () => (typeof MB_PAGE !== "undefined" ? MB_PAGE : "NHL");
+let BZ_POOL = null;
 function bzPool() {
+  const key = (typeof D !== "undefined" && D) || null, now = Date.now();
+  if (BZ_POOL && BZ_POOL.key === key && now - BZ_POOL.t < 30000) return BZ_POOL.v.filter(l => !mbStarted(l));
+  BZ_POOL = {key, t: now, v: bzPoolCalc()}; return BZ_POOL.v;
+}
+function bzPoolCalc() {
   let legs = [];
   try { if (typeof mbModelPool === "function") legs = mbModelPool(); } catch (e) {}
   if (!legs.length) try { legs = (typeof mbQuickPicks === "function" ? mbQuickPicks() || [] : []).flatMap(q => q.legs || []); } catch (e) {}

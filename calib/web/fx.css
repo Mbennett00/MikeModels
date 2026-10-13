@@ -104,7 +104,7 @@
 .tk-sep { display: inline-block; width: 4px; height: 4px; border-radius: 50%; background: var(--t3); margin: 0 14px; opacity: .6; }
 
 /* 🎞️ Feed: each game becomes a full-screen matchup poster */
-html:has(body.gfeed) { scroll-snap-type: y proximity; }
+html.gfeed { scroll-snap-type: y proximity; }
 body.gfeed .gc2 { min-height: calc(100svh - 230px); display: flex; flex-direction: column; justify-content: center; scroll-snap-align: center; margin-bottom: 18px !important;
   background: radial-gradient(90% 55% at 0% 0%, color-mix(in srgb, var(--ca) 42%, transparent), transparent 70%), radial-gradient(90% 55% at 100% 100%, color-mix(in srgb, var(--ch) 40%, transparent), transparent 70%), #0e1015 !important; }
 body.gfeed .gc2 .vs-top { padding: 26px 14px 16px; }

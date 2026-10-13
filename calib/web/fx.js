@@ -106,7 +106,8 @@ function fxGameMode() {
   return `<div class="pmode gmode">${b("board")}${b("feed")}</div>`;
 }
 function fxWireModes(render) {
-  document.body.classList.toggle("gfeed", typeof TAB !== "undefined" && TAB === "games" && FX_GMODE === "feed");
+  const gf = typeof TAB !== "undefined" && TAB === "games" && FX_GMODE === "feed";
+  document.body.classList.toggle("gfeed", gf); document.documentElement.classList.toggle("gfeed", gf);
   // switching views keeps the game you were looking at on screen, with a quick fade instead of a jump
   document.querySelectorAll("[data-gmode]").forEach(b => b.onclick = () => { if (FX_GMODE === b.dataset.gmode) return;
     const top = [...document.querySelectorAll(".gc2[data-gid]")].find(c => c.getBoundingClientRect().bottom > 160), gid = top && window.scrollY > 200 ? top.dataset.gid : null;
