@@ -399,7 +399,7 @@ function mbRewardsHtml() {
       <div class="hint">Your account is stored in this browser only. On iPhone, the home-screen app and Safari keep separate copies: use Copy / Restore backup to move them.</div></details>`;
 }
 function mbWire(render) {
-  MB_RENDER = render; mbWireCashOut(render); try { acctAfterRender(render); } catch (e) {}
+  MB_RENDER = render; mbWireCashOut(render);
   document.querySelectorAll("[data-mbsp]").forEach(b => b.onclick = () => { MB_SPORT = b.dataset.mbsp; render(); });
   document.querySelectorAll("[data-mbs]").forEach(b => b.onclick = () => { const [id, st] = b.dataset.mbs.split("|"); mbHaptic(st === "won" ? "success" : "");
     mbUpdate(id, x => { x.status = st; x.manual = st !== "open"; x.result_ts = st === "open" ? null : new Date().toISOString(); x.seen = st === "open" ? undefined : false; });
@@ -428,6 +428,7 @@ function mbAfterRender(render) {
   if (typeof fxAfterRender === "function") fxAfterRender(); else { const sp = document.getElementById("splash"); if (sp && !sp.classList.contains("out")) { sp.classList.add("out"); setTimeout(() => sp.remove(), 600); } }
   const t = typeof TAB !== "undefined" ? TAB : "";   // a soft fade-up when the screen changes (not on live refreshes)
   if (t !== MB_LASTTAB) { const v = document.getElementById("view"); if (v) { v.classList.remove("enter"); void v.offsetWidth; v.classList.add("enter"); } MB_LASTTAB = t; }
+  try { acctAfterRender(render); } catch (e) {} try { bzAfterRender(render); } catch (e) {}   // account + Blitz hooks, every screen
 }
 // header turns to frosted glass once the page scrolls
 window.addEventListener("scroll", () => { const h = document.querySelector(".hdr"); if (h) h.classList.toggle("stuck", window.scrollY > 8); }, {passive: true});

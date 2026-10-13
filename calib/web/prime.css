@@ -128,3 +128,7 @@ body.shell .sheet, body.shell #sheet { --s1: #151714; --s2: #1d201b; --s3: #282c
   background: #0e0f0d !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; border-top: 1px solid rgba(255,255,255,.1) !important; box-shadow: 0 -24px 60px rgba(0,0,0,.8) !important; }
 body.shell #sheet .card, body.shell #sheet .pxb, body.shell #sheet .pk-b, body.shell #sheet .pass-row { box-shadow: none !important; }
 #scrim.open { background: rgba(0,0,0,.72) !important; }
+
+/* a closed sheet is gone, not parked just under the fold where it can catch taps */
+#sheet:not(.open) { visibility: hidden; transition: transform .38s cubic-bezier(.2,.9,.2,1), visibility 0s linear .38s !important; }
+#sheet.open { visibility: visible; }
