@@ -132,7 +132,7 @@ function mbHomeHtml() {
     const dec = q.legs.reduce((a, l) => a * mbDec(l.odds), 1), odds = q.legs.length > 1 ? mbAm(dec) : q.legs[0].odds;
     feat.push(card("pick", `data-qp="${i}"`, esc(q.tag || (q.legs.length > 1 ? "Parlay" : "Single")), q.legs.length > 1 ? `${q.legs.length} legs` : "", esc(q.title), "",
       `<div class="fc-legs">${q.legs.slice(0, 3).map(l => `<span><span class="fc-pic">${mbPic(l)}</span><em>${esc(l.label)}</em><i>${mbSign(l.odds)}</i></span>`).join("")}</div>`,
-      `$10 pays <b>${mbMoney(10 * dec)}</b>`, mbSign(odds))); });
+      `${mbMoney(funModelStake(mbLoad())).replace(/\.00$/, "")} pays <b>${mbMoney(funModelStake(mbLoad()) * dec)}</b>`, mbSign(odds))); });
   let G = []; try { G = typeof mbMiniGames === "function" ? mbMiniGames(true) : []; } catch (e) {}
   const lg = t => `<img src="${esc(t.logo || "")}" alt="" onerror="this.outerHTML='<i>${esc(t.abbr)}</i>'">`;
   const games = G.slice(0, 6).map(g => `<div class="gl-r gs-${g.st}">

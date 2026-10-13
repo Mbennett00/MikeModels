@@ -200,17 +200,33 @@ function funTakeTokens(parlay) {
   return out;
 }
 
-// ---- 🤖 you vs the model: the model bets $10 on its top picks each day; tail them in one tap ----
+// ---- 🤖 you vs the model: each day the model bets your usual stake on 3-5 picks drawn at random (weighted by edge) from its menu ----
+function funModelStake(s) {   // the stake you usually bet (median of your last 20 singles), so the race is like for like
+  const st = (s.bets || []).filter(b => b.kind === "single" && b.stake > 0).slice(-20).map(b => b.stake).sort((a, b) => a - b);
+  return st.length ? Math.max(5, Math.round(st[st.length >> 1] / 5) * 5) : (s.unit || 100);
+}
 function funModelDay(s) {
   s.model = s.model || {bets: [], days: {}};
+  if (s.model.v !== 2) { const k = funModelStake(s); for (const b of s.model.bets) b.stake = k; s.model.v = 2; }   // old $10 bets rescaled to your stake
   const day = mbDay(0);
-  if (s.model.days[day] || typeof mbModelPicks !== "function") return false;
-  let picks = []; try { picks = mbModelPicks() || []; } catch (e) { picks = []; }
-  picks = picks.filter(l => !mbStarted(l) && isFinite(l.odds)).slice(0, 3);
-  if (!picks.length) return false;
+  if (s.model.days[day]) return s.model.v === 2;
+  const pool = (typeof mbModelPool === "function" ? (() => { try { return mbModelPool(); } catch (e) { return []; } })() : [])
+    .filter(l => !mbStarted(l) && isFinite(l.odds) && l.odds > -400);
+  if (!pool.length) return false;
+  let seed = funHash(day + "|model") % 2147483646 + 1; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const want = 3 + Math.floor(rnd() * 3), picks = [], games = new Set(), left = pool.slice();
+  while (picks.length < want && left.length) {
+    let t = rnd() * left.reduce((a, l) => a + l.w, 0), i = 0;
+    while (i < left.length - 1 && (t -= left[i].w) > 0) i++;
+    const [l] = left.splice(i, 1);
+    if (games.has(l.gid) && left.some(x => !games.has(x.gid))) continue;   // spread across games
+    games.add(l.gid); picks.push(l);
+  }
+  const stake = funModelStake(s);
   s.model.days[day] = picks.length;
-  for (const l of picks) s.model.bets.push({id: "M" + funHash(day + JSON.stringify(l.key)).toString(36).toUpperCase(), ts: new Date().toISOString(), day, sport: "NHL", kind: "single",
-    label: l.label, odds: l.odds, stake: 10, status: "open", legs: [Object.assign({}, l)]});
+  for (const l of picks) { const leg = Object.assign({}, l); delete leg.w;
+    s.model.bets.push({id: "M" + funHash(day + JSON.stringify(l.key)).toString(36).toUpperCase(), ts: new Date().toISOString(), day, sport: "NHL", kind: "single",
+      label: l.label, odds: l.odds, stake, status: "open", legs: [leg]}); }
   s.model.bets = s.model.bets.slice(-300);
   return true;
 }
@@ -236,7 +252,7 @@ function funVsHtml(s) {
     <div class="vs-row"><div class="vs-side ${lead === "you" ? "lead" : ""}"><span>You</span><b class="${me.pl >= 0 ? "pos" : "neg"}">${(me.pl >= 0 ? "+" : "") + mbMoney(me.pl)}</b><i>${(100 * me.roi).toFixed(1)}% ROI · ${me.n} bets</i></div>
       <div class="vs-mid">${lead === "you" ? "👑" : lead === "model" ? "🤖" : "🤝"}<em>VS</em></div>
       <div class="vs-side r ${lead === "model" ? "lead" : ""}"><span>Model</span><b class="${ms.pl >= 0 ? "pos" : "neg"}">${(ms.pl >= 0 ? "+" : "") + mbMoney(ms.pl)}</b><i>${(100 * ms.roi).toFixed(1)}% ROI · ${ms.n} bets</i></div></div>
-    <div class="vs-cap">${lead === "you" ? "You're beating the model. Keep it up!" : lead === "model" ? "The model's ahead. Tail it, or fade it." : "Dead even."} The model bets $10 on its top 3 picks each day.</div>
+    <div class="vs-cap">${lead === "you" ? "You're beating the model. Keep it up!" : lead === "model" ? "The model's ahead. Tail it, or fade it." : "Dead even."} The model bets your usual ${mbMoney(funModelStake(s)).replace(/\.00$/, "")} on 3–5 random picks from its board each day.</div>
     ${today.length ? `<div class="vs-picks">${today.map(b => { const l = b.legs[0], st = b.status;
       return `<div class="vs-pick ${st}">${mbPic(l)}<div class="slipt"><b>${esc(b.label)}</b><i>${esc(l.sub || "")}</i></div><span class="slipo">${mbSign(b.odds)}</span>
         ${st === "open" && !mbStarted(l) ? `<button class="vs-tail" data-tail="${esc(b.id)}">Tail</button>` : `<span class="vs-st">${{open: "Live", won: "✅", lost: "❌", push: "➖"}[st]}</span>`}</div>`; }).join("")}

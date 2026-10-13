@@ -11,7 +11,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;1,700;1,800&family=Barlow+Semi+Condensed:wght@600;700;800&family=Inter:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;1,700;1,800&family=Barlow+Semi+Condensed:wght@600;700;800&family=Inter:wght@500;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root {
   --ice: #bfe0f2; --ice-2: #d7ecf8; --cream: #fffaf0; --navy: #1f3448; --ink: #1f3448; --ink-2: #4d5d6c;
@@ -799,7 +799,7 @@ function record() {
 // ---------- model likes: the strongest opinions on the slate ----------
 let LIKE = "value";   // falls back to anytime goal when there are no sportsbook prices
 const LIKE_CATS = [["value", "Best value"], ["goals", "Anytime goal"], ["win", "To win"], ["totals", "Totals"], ["sog", "Shots"]];
-function likeRows() {
+function likeRows(cap = 5) {
   const out = [], gname = g => `${g.away.abbr} @ ${g.home.abbr}`;
   if (LIKE === "value") {
     const nm = {moneyline: "win", puckline: "", total: ""};
@@ -809,7 +809,7 @@ function likeRows() {
       const p = gameProb(g, x.m, x.s, x.l);
       out.push({p, edge: x.edge, label: lab, sub: `${gname(g)} · ${x.src === "book" ? BK() : "Mkt"} ${am(x.price)} · edge ${x.edge >= 0 ? "+" : "−"}${Math.abs(100 * x.edge).toFixed(1)}%`,
                 b: {g, market: x.m, sel: x.s, line: x.l, label: `${gname(g)}: ${lab}`, dk: x}}); }
-    return out.sort((a, b) => b.edge - a.edge).slice(0, 5);
+    return out.sort((a, b) => b.edge - a.edge).slice(0, cap);
   } else if (LIKE === "win") {
     for (const g of D.games) { const ph = gameProb(g, "moneyline", "home"), home = ph >= 0.5, t = home ? g.home : g.away;
       out.push({p: home ? ph : 1 - ph, label: `${t.name} to win`, sub: gname(g), b: {g, market: "moneyline", sel: home ? "home" : "away", label: `${t.name} to win`}}); }
@@ -825,7 +825,7 @@ function likeRows() {
       out.push({p: pr, label: p.name, sub: `${p.team} · ${mk === "goals" ? "anytime goal" : `over ${ln} ${PNAME[mk]}`}`, player: p,
                 b: {player: p, market: mk, line: ln, label: lab}}); }
   }
-  return out.sort((x, y) => y.p - x.p).slice(0, 5);
+  return out.sort((x, y) => y.p - x.p).slice(0, cap);
 }
 function likesHtml() {
   if (!D.games.length) return "";
@@ -1375,6 +1375,14 @@ function mbModelPicks() {
   const keep = LIKE; let rows = [];
   try { LIKE = D.games.some(g => (g.dk || []).length) ? "value" : "goals"; rows = likeRows().slice(0, 3); } finally { LIKE = keep; }
   return rows.map(r => { const b = Object.assign({p: r.p}, r.b); return Object.assign(mbLegOf(b), {odds: Math.round(mbDefOdds(b))}, r.b.g ? {label: r.label} : {}); });
+}
+// the model's whole menu for the day (value lines + goal / shot props), each with a weight: the daily model bets are drawn from it at random
+function mbModelPool() {
+  if (!TODAY || D !== TODAY || !D.games.length) return [];
+  const keep = LIKE, rows = [];
+  try { for (const k of ["value", "goals", "sog"]) { LIKE = k; for (const r of likeRows(k === "value" ? 20 : 10)) if (k !== "value" || r.edge > 0) rows.push(Object.assign(r, {w: k === "value" ? 1 + 10 * r.edge : r.p})); } }
+  finally { LIKE = keep; }
+  return rows.map(r => { const b = Object.assign({p: r.p}, r.b); return Object.assign(mbLegOf(b), {odds: Math.round(mbDefOdds(b)), w: r.w}, r.b.g ? {label: r.label} : {}); });
 }
 function mbArtFor(leg) {   // logos / headshot for bets saved without them
   const days = [TODAY, PREV].filter(Boolean), k = leg.key || {}, g = days.flatMap(d => d.games).find(x => String(x.game_id) === String(leg.gid));

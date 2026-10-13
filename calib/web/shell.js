@@ -31,6 +31,7 @@ function shSlipBtn(pop) {
   f.querySelector(".sh-odds").textContent = !n ? "" : n > 1 && slipParlayOk(v) ? mbSign(mbAm(dec)) : n > 1 ? `${n} bets` : mbSign(v[0].odds);
   if (pop) { f.classList.remove("pop"); void f.offsetWidth; f.classList.add("pop"); }
   document.body.classList.toggle("hasslip", n > 0);
+  shPickBar(v, dec);
   return true;
 }
 // app bar: wallet pill (tap → My Bets) and level ring (tap → Rewards)
@@ -51,4 +52,13 @@ function shAfterRender(render) {
   try { shHeader(render); } catch (e) {}
   const h = document.querySelector(".hdr"); if (h) document.documentElement.style.setProperty("--hdrh", h.offsetHeight + "px");   // for the sticky Games switch + feed snapping
   shSlipBtn();
+}
+// PrizePicks-style lineup bar on the Props tab: who's in, what it pays, one tap to the slip
+function shPickBar(v, dec) {
+  let b = document.getElementById("pkbar");
+  if (!b) { b = document.createElement("div"); b.id = "pkbar"; document.body.appendChild(b); b.onclick = () => { mbHaptic(); mbOpenSlip(); }; }
+  const n = v.length; if (!n) { b.innerHTML = ""; return; }
+  const par = n > 1 && slipParlayOk(v), pays = par ? `pays ${dec.toFixed(dec < 10 ? 2 : 1)}x` : n > 1 ? "as singles" : `pays ${mbDec(v[0].odds).toFixed(2)}x`;
+  b.innerHTML = `<span class="pb-av">${v.slice(0, 4).map(l => `<span>${mbPic(l)}</span>`).join("")}</span>
+    <span class="pb-t"><b>${n} pick${n > 1 ? "s" : ""} · ${pays}</b><i>${v.map(l => esc(l.label)).join(" · ")}</i></span><button>Review</button>`;
 }

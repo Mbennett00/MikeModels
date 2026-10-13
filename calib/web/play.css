@@ -1,0 +1,63 @@
+/* ---------- 🎮 PLAY: Sleeper-clean surfaces + PrizePicks pick'em (loaded last) ----------
+   Friendly geometric type in sentence case, flat charcoal cards, lime only where you can tap to bet. */
+:root { --fd: 'Plus Jakarta Sans', 'Inter', sans-serif; --s1: #131512; --s2: #1b1e19; --s3: #252922; --hair: rgba(255,255,255,.07); --hair2: rgba(255,255,255,.12); }
+
+/* type: drop the italic caps shouting */
+body.shell .hdr h1 { font: 800 22px/1.05 var(--fd) !important; text-transform: none !important; letter-spacing: -.02em !important; }
+.hx2 > .hx-h b, body.shell .hx-h b, body.shell .rw-h, body.shell .lk-h { font: 800 19px/1.1 var(--fd) !important; text-transform: none !important; letter-spacing: -.02em !important; font-style: normal !important; }
+body.shell .hx-h b::after, body.shell .rw-h::after { display: none !important; }
+body.shell .s2-t { font: 800 26px/1.05 var(--fd) !important; text-transform: none !important; letter-spacing: -.03em !important; }
+body.shell .fc-t { font-family: var(--fd) !important; font-style: normal !important; text-transform: none !important; letter-spacing: -.02em !important; font-weight: 800 !important; }
+body.shell .bx-tn, body.shell .bx-row .tn, body.shell .vs-nm, body.shell .gl-t strong, body.shell .w-act b { text-transform: none !important; font-family: var(--fd) !important; font-style: normal !important; letter-spacing: -.01em !important; }
+
+/* flat cards: no gradients or glow, just a hairline */
+body.shell .card:not(.gc2), body.shell .gl, body.shell .bx-card { background: var(--s1) !important; border: 1px solid var(--hair) !important; box-shadow: none !important; }
+body.shell .w-card { box-shadow: none !important; }
+body.shell .fc { box-shadow: none !important; }
+
+/* segmented switches: Sleeper style, a lifted grey thumb, lime saved for bets */
+body.shell .pmode { background: var(--s1) !important; border: 1px solid var(--hair) !important; height: 42px; border-radius: 14px !important; }
+body.shell .pmode::before { background: var(--s3) !important; box-shadow: 0 2px 8px rgba(0,0,0,.4) !important; border-radius: 10px !important; }
+body.shell .pmode button { font: 700 13.5px var(--fd) !important; letter-spacing: 0 !important; text-transform: none !important; color: var(--t3) !important; }
+body.shell .pmode button.on { color: #fff !important; }
+body.shell .pmode button.on svg { color: var(--bz) !important; }
+body.shell .props-seg button, body.shell .mbtabs button, body.shell .xseg button { text-transform: none !important; letter-spacing: 0 !important; font-family: var(--fd) !important; }
+body.shell .strip .chip, body.shell .gchips button { font-family: var(--fd) !important; }
+
+/* nav: flat, lime icon when active */
+body.shell #nav button.on svg, body.shell .nav button.on svg { color: var(--bz) !important; }
+body.shell #nav button span, body.shell .nav button span { font-family: var(--fd) !important; font-weight: 700 !important; }
+body.shell .sh-slip .sh-sb { border-radius: 50% !important; }
+
+/* 🎯 PrizePicks-style player cards */
+body.shell .pk { background: var(--s1) !important; border: 1px solid var(--hair) !important; border-radius: 18px !important; padding: 12px 10px 10px !important; }
+body.shell .pk::before { height: 64px; opacity: .22; background: linear-gradient(180deg, var(--tc), transparent) !important; }
+body.shell .pk-face { width: 76px; height: 76px; box-shadow: 0 0 0 3px var(--s1), 0 0 0 5px color-mix(in srgb, var(--tc) 70%, transparent) !important; }
+body.shell .pk-nm { font: 800 14px/1.15 var(--fd) !important; text-transform: none !important; }
+body.shell .pk-line { margin: 8px 0 4px; padding: 8px 0 6px; width: 100%; border-radius: 12px; background: var(--s2); }
+body.shell .pk-line b { font: 800 30px/1 var(--fd) !important; letter-spacing: -.03em !important; }
+body.shell .pk-line span { font: 700 11px var(--fd) !important; color: var(--t2) !important; }
+body.shell .pk-proj { margin: 4px 0 8px !important; }
+body.shell .pk-b { flex-direction: column !important; gap: 1px !important; padding: 8px 0 !important; border-radius: 10px !important; background: var(--s2) !important; border: 1px solid var(--hair2) !important; }
+body.shell .pk-b span { font: 800 13.5px var(--fd) !important; color: var(--t1) !important; text-transform: none !important; letter-spacing: 0 !important; white-space: nowrap; }
+body.shell .pk-b b { font: 600 11px var(--fh) !important; color: var(--t3) !important; }
+body.shell .pk.picked { border-color: var(--bz) !important; box-shadow: 0 0 0 1px var(--bz) !important; }
+
+/* lineup bar above the tab bar on Props (PrizePicks entry) */
+#pkbar { position: fixed; left: 12px; right: 12px; bottom: calc(env(safe-area-inset-bottom, 0px) + 84px); z-index: 30; display: none; align-items: center; gap: 10px; padding: 8px 8px 8px 10px; border-radius: 18px;
+  background: rgba(20,22,19,.92); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); border: 1px solid var(--hair2); box-shadow: 0 16px 40px -12px rgba(0,0,0,.8); max-width: 520px; margin: 0 auto; }
+body.shell.tab-props.hasslip #pkbar { display: flex; animation: pkbin .3s cubic-bezier(.2,1.2,.4,1); }
+@keyframes pkbin { from { transform: translateY(20px); opacity: 0; } }
+#pkbar .pb-av { display: flex; flex: none; } #pkbar .pb-av span { width: 30px; height: 30px; border-radius: 50%; overflow: hidden; border: 2px solid #141613; margin-left: -9px; background: var(--s3); display: flex; }
+#pkbar .pb-av span:first-child { margin-left: 0; } #pkbar .pb-av img { width: 100%; height: 100%; object-fit: cover; }
+#pkbar .pb-t { flex: 1; min-width: 0; display: flex; flex-direction: column; } #pkbar .pb-t b { font: 800 14px var(--fd); color: #fff; } #pkbar .pb-t i { font: 600 11.5px var(--fb); font-style: normal; color: var(--t2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#pkbar button { flex: none; border: 0; border-radius: 12px; padding: 11px 16px; font: 800 14px var(--fd); background: var(--g-brand); color: var(--brand-ink); }
+body.shell.tab-props.hasslip #view { padding-bottom: 80px; }
+
+/* sentence-case names everywhere (Sleeper), the brand wordmarks keep their italic condensed caps */
+body.shell .bx-nm b { font: 800 clamp(15px, 4.3vw, 17px)/1.1 var(--fd) !important; text-transform: none !important; letter-spacing: -.02em !important; }
+body.shell .gl-t b, body.shell .vs-team .gtn b, body.shell .daily b, body.shell .w-act b, body.shell .bx-time { text-transform: none !important; letter-spacing: -.01em !important; font-family: var(--fd) !important; }
+body.shell .vs-team .gtn b { font-size: clamp(15px, 4.4vw, 19px) !important; }
+body.shell .sport a { text-transform: none !important; letter-spacing: -.01em !important; font-family: var(--fd) !important; }
+body.shell .props-seg button { font: 800 14px var(--fd) !important; }
+.splash b, body.shell .hdr .t::before { font-family: 'Barlow Condensed', sans-serif !important; }
