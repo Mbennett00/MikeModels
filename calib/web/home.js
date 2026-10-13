@@ -127,7 +127,7 @@ function mbHomeHtml() {
   if (head) { const {l, A, first, last, what} = head;
     feat.push(card("head", 'data-head="1"', "★ Tonight's headliner", l.p ? `model ${Math.round(100 * l.p)}%` : "", `<small>${esc(first)}</small>${esc(last || first)}`, esc(what), "",
       "Add to slip", mbSign(l.odds), (A.logo ? `<img class="fc-wm" src="${esc(A.logo)}" alt="" onerror="this.remove()">` : "") + (A.img ? `<img class="fc-cut" src="${esc(A.img)}" alt="" onerror="this.remove()">` : ""),
-      `style="--tc:${esc(A.color || "#ff7a45")}"`)); }
+      `style="--tc:${esc(A.color || "#c6ff2e")}"`)); }
   picks.forEach((q, i) => { if (feat.length >= 4 || (q.legs.length === 1 && q.legs[0].label === boostLeg)) return;
     const dec = q.legs.reduce((a, l) => a * mbDec(l.odds), 1), odds = q.legs.length > 1 ? mbAm(dec) : q.legs[0].odds;
     feat.push(card("pick", `data-qp="${i}"`, esc(q.tag || (q.legs.length > 1 ? "Parlay" : "Single")), q.legs.length > 1 ? `${q.legs.length} legs` : "", esc(q.title), "",

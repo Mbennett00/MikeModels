@@ -31,7 +31,7 @@ function mbSharp(bets) {
 }
 function shRing(score, size = 64, sw = 6) {
   const R = size / 2 - sw, C = 2 * Math.PI * R, p = score == null ? 0 : score / 100;
-  return `<svg class="sx-svg" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}"><defs><linearGradient id="sxg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2ef08a"/><stop offset="1" stop-color="#f2c96d"/></linearGradient></defs>
+  return `<svg class="sx-svg" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}"><defs><linearGradient id="sxg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#c6ff2e"/><stop offset="1" stop-color="#f2c96d"/></linearGradient></defs>
     <circle cx="${size / 2}" cy="${size / 2}" r="${R}" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="${sw}"/>
     <circle cx="${size / 2}" cy="${size / 2}" r="${R}" fill="none" stroke="url(#sxg)" stroke-width="${sw}" stroke-linecap="round" stroke-dasharray="${C * p} ${C}" transform="rotate(-90 ${size / 2} ${size / 2})"/></svg>`;
 }
@@ -111,9 +111,9 @@ function mbSpark(bets, w = 320, h = 54) {
   const lo = Math.min(...ys), hi = Math.max(...ys), sp = hi - lo || 1;
   const pts = ys.map((y, i) => [w * i / (ys.length - 1), h - 4 - (h - 8) * (y - lo) / sp]);
   const d = pts.map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1)).join(" "), up = run >= 0;
-  return `<svg class="hx-spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><defs><linearGradient id="hxs" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${up ? "#2ef08a" : "#ff5d5d"}" stop-opacity=".35"/><stop offset="1" stop-color="${up ? "#2ef08a" : "#ff5d5d"}" stop-opacity="0"/></linearGradient></defs>
-    <path d="${d} L ${w} ${h} L 0 ${h} Z" fill="url(#hxs)"/><path d="${d}" fill="none" stroke="${up ? "#2ef08a" : "#ff5d5d"}" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>
-    <circle cx="${pts[pts.length - 1][0]}" cy="${pts[pts.length - 1][1]}" r="3.5" fill="${up ? "#2ef08a" : "#ff5d5d"}"/></svg>`;
+  return `<svg class="hx-spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><defs><linearGradient id="hxs" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${up ? "#c6ff2e" : "#ff5d5d"}" stop-opacity=".35"/><stop offset="1" stop-color="${up ? "#c6ff2e" : "#ff5d5d"}" stop-opacity="0"/></linearGradient></defs>
+    <path d="${d} L ${w} ${h} L 0 ${h} Z" fill="url(#hxs)"/><path d="${d}" fill="none" stroke="${up ? "#c6ff2e" : "#ff5d5d"}" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>
+    <circle cx="${pts[pts.length - 1][0]}" cy="${pts[pts.length - 1][1]}" r="3.5" fill="${up ? "#c6ff2e" : "#ff5d5d"}"/></svg>`;
 }
 
 // ---- 📸 share a win: a poster-quality image of the ticket ----
@@ -123,22 +123,22 @@ function mbShareBet(id) {
   const F = (w, px, fam) => `${w} ${px}px ${fam === "b" ? "'Plus Jakarta Sans'" : "Sora"}, system-ui, sans-serif`;
   const g = x.createLinearGradient(0, 0, 1080, 1350); g.addColorStop(0, "#07120c"); g.addColorStop(.55, "#06080b"); g.addColorStop(1, "#120f06"); x.fillStyle = g; x.fillRect(0, 0, 1080, 1350);
   const glow = (cx, cy, r, c) => { const rg = x.createRadialGradient(cx, cy, 0, cx, cy, r); rg.addColorStop(0, c); rg.addColorStop(1, "rgba(0,0,0,0)"); x.fillStyle = rg; x.fillRect(0, 0, 1080, 1350); };
-  glow(180, 160, 700, "rgba(46,240,138,.28)"); glow(980, 1250, 650, "rgba(242,201,109,.20)");
+  glow(180, 160, 700, "rgba(198,255,46,.28)"); glow(980, 1250, 650, "rgba(242,201,109,.20)");
   x.strokeStyle = "rgba(255,255,255,.04)"; x.lineWidth = 2; for (let i = -1350; i < 1080; i += 60) { x.beginPath(); x.moveTo(i, 0); x.lineTo(i + 1350, 1350); x.stroke(); }
-  x.fillStyle = "rgba(255,255,255,.55)"; x.font = F(700, 30, "b"); x.letterSpacing = "8px"; x.fillText("MIKEMODELS", 90, 130);
+  x.fillStyle = "rgba(255,255,255,.55)"; x.font = F(700, 30, "b"); x.letterSpacing = "8px"; x.fillText("BLITZED", 90, 130);
   x.fillStyle = "rgba(255,255,255,.35)"; x.font = F(600, 26, "b"); x.letterSpacing = "4px"; x.textAlign = "right"; x.fillText(`${b.sport} · ${b.kind === "parlay" ? (b.sgp ? "SAME GAME PARLAY" : `${b.legs.length}-LEG PARLAY`) : "SINGLE"}`, 990, 130); x.textAlign = "left";
   const won = b.status === "cashout" ? (b.cash || 0) - b.stake : mbProfit(b);
-  x.letterSpacing = "14px"; x.font = F(700, 64, "h"); x.fillStyle = "#2ef08a"; x.shadowColor = "rgba(46,240,138,.6)"; x.shadowBlur = 40; x.fillText(b.status === "cashout" ? "CASHED OUT" : "CASHED", 90, 300); x.shadowBlur = 0;
+  x.letterSpacing = "14px"; x.font = F(700, 64, "h"); x.fillStyle = "#c6ff2e"; x.shadowColor = "rgba(198,255,46,.6)"; x.shadowBlur = 40; x.fillText(b.status === "cashout" ? "CASHED OUT" : "CASHED", 90, 300); x.shadowBlur = 0;
   x.letterSpacing = "-4px"; x.font = F(600, 190, "h"); x.fillStyle = "#ffffff"; x.fillText("+" + mbMoney(won), 82, 490);
   x.letterSpacing = "0px"; x.font = F(500, 36, "b"); x.fillStyle = "rgba(255,255,255,.6)"; x.fillText(`${mbMoney(b.stake)} at ${mbSign(b.odds)}${b.boost ? `  ·  boosted +${100 * b.boost}%` : ""}`, 90, 560);
   let y = 680; x.fillStyle = "rgba(255,255,255,.06)"; x.beginPath(); x.roundRect(70, y - 70, 940, Math.min(b.legs.length, 6) * 96 + 60, 36); x.fill();
-  b.legs.slice(0, 6).forEach(l => { x.fillStyle = "#2ef08a"; x.beginPath(); x.arc(130, y - 12, 20, 0, 7); x.fill(); x.strokeStyle = "#06120a"; x.lineWidth = 6; x.beginPath(); x.moveTo(120, y - 12); x.lineTo(128, y - 3); x.lineTo(142, y - 22); x.stroke();
+  b.legs.slice(0, 6).forEach(l => { x.fillStyle = "#c6ff2e"; x.beginPath(); x.arc(130, y - 12, 20, 0, 7); x.fill(); x.strokeStyle = "#06120a"; x.lineWidth = 6; x.beginPath(); x.moveTo(120, y - 12); x.lineTo(128, y - 3); x.lineTo(142, y - 22); x.stroke();
     x.fillStyle = "#fff"; x.font = F(700, 40, "b"); let t = l.label; while (x.measureText(t).width > 640 && t.length > 4) t = t.slice(0, -2); if (t !== l.label) t += "…"; x.fillText(t, 180, y);
     if (l.odds) { x.textAlign = "right"; x.fillStyle = "rgba(255,255,255,.55)"; x.font = F(600, 38, "h"); x.fillText(mbSign(l.odds), 970, y); x.textAlign = "left"; } y += 96; });
   if (b.legs.length > 6) { x.fillStyle = "rgba(255,255,255,.45)"; x.font = F(600, 30, "b"); x.fillText(`+${b.legs.length - 6} more`, 180, y - 20); }
   const sy = Math.max(y + 40, 1000), cols = [["ODDS", mbSign(b.odds)], ["RISK", mbMoney(b.stake)], ["PAYOUT", mbMoney(b.stake + won)]];
   cols.forEach(([k, v], i) => { const cx = 90 + i * 310; x.fillStyle = "rgba(255,255,255,.4)"; x.font = F(700, 24, "b"); x.letterSpacing = "4px"; x.fillText(k, cx, sy);
-    x.letterSpacing = "-1px"; x.fillStyle = i === 2 ? "#2ef08a" : "#fff"; x.font = F(600, 58, "h"); x.fillText(v, cx, sy + 66); x.letterSpacing = "0px"; });
+    x.letterSpacing = "-1px"; x.fillStyle = i === 2 ? "#c6ff2e" : "#fff"; x.font = F(600, 58, "h"); x.fillText(v, cx, sy + 66); x.letterSpacing = "0px"; });
   const S = mbSharp(s.bets), L = typeof mbLevel === "function" ? mbLevel(mbXP(s)) : null;
   x.fillStyle = "rgba(255,255,255,.08)"; x.fillRect(90, 1150, 900, 2);
   x.fillStyle = "rgba(255,255,255,.5)"; x.font = F(600, 28, "b"); x.fillText(new Date(b.result_ts || b.ts).toLocaleDateString("en-US", {month: "long", day: "numeric", year: "numeric"}), 90, 1220);
@@ -151,7 +151,7 @@ function mbShareBet(id) {
     document.body.appendChild(d); requestAnimationFrame(() => d.classList.add("in")); mbHaptic("success");
     const close = () => { d.classList.remove("in"); setTimeout(() => { d.remove(); URL.revokeObjectURL(url); }, 250); };
     d.onclick = e => { if (e.target === d || e.target.dataset.x === "close") close(); };
-    const sb = d.querySelector('[data-x="share"]'); if (sb) sb.onclick = () => navigator.share({files: [file], title: "Cashed on MikeModels"}).catch(() => {});
+    const sb = d.querySelector('[data-x="share"]'); if (sb) sb.onclick = () => navigator.share({files: [file], title: "Cashed on Blitzed"}).catch(() => {});
   }, "image/png");
 }
 
@@ -172,7 +172,7 @@ function mbWireInstall(render) {
     mbHaptic();
     if (MB_INSTALL) { MB_INSTALL.prompt(); MB_INSTALL.userChoice.finally(() => { MB_INSTALL = null; render(); }); return; }
     const ios = /iphone|ipad|ipod/i.test(navigator.userAgent), sh = document.getElementById("sheet");
-    sh.innerHTML = `<div class="grab"></div><button class="iconbtn close" id="shx" aria-label="Close">✕</button><div class="sh-t">Add MikeModels to your home screen</div>
+    sh.innerHTML = `<div class="grab"></div><button class="iconbtn close" id="shx" aria-label="Close">✕</button><div class="sh-t">Add Blitzed to your home screen</div>
       <div class="ix-steps">${ios ? `<div><b>1</b><span>Tap the <em>Share</em> button in Safari's toolbar</span></div><div><b>2</b><span>Scroll and tap <em>Add to Home Screen</em></span></div><div><b>3</b><span>Tap <em>Add</em>. It opens full screen like a real app.</span></div>`
         : `<div><b>1</b><span>Open your browser menu (⋮)</span></div><div><b>2</b><span>Tap <em>Install app</em> or <em>Add to Home screen</em></span></div><div><b>3</b><span>Launch it from your home screen.</span></div>`}</div>`;
     document.getElementById("shx").onclick = () => closeSheet();

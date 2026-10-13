@@ -1,7 +1,7 @@
 // ===== 🎬 production layer: confetti, ticket print, goal flashes, rolling numbers, cinematic splash =====
 
 // ---- confetti (canvas, no library) ----
-function fxConfetti(n = 140, colors = ["#ff7a45", "#ff4d8d", "#34d17b", "#ffffff", "#ffd166"], origin) {
+function fxConfetti(n = 140, colors = ["#c6ff2e", "#8cf000", "#34d17b", "#ffffff", "#ffd166"], origin) {
   if (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   const c = document.createElement("canvas"), dpr = Math.min(2, window.devicePixelRatio || 1), W = innerWidth, H = innerHeight;
   c.className = "fx-confetti"; c.width = W * dpr; c.height = H * dpr; document.body.appendChild(c);
