@@ -1,0 +1,127 @@
+/* =====================================================================
+   🕹️ ARCADE (default look; Obsidian is the other): loud, tactile, fun.
+   Chunky black outlines, hard offset shadows, keys that press down,
+   sticker tags, a dotted charcoal floor and a chunky grotesk.
+   ===================================================================== */
+body.skin-arcade {
+  --fd: 'Bricolage Grotesque', 'Inter Tight', sans-serif; --fh: 'Bricolage Grotesque', 'Inter Tight', sans-serif;
+  --ink: #0b0b0d; --bg: #1f1f24; --s1: #2b2b32; --s2: #35353d; --s3: #42424b; --hair: #0b0b0d; --hair2: #0b0b0d;
+  --pink: #ff5fd2; --blue: #5b8cff; --sun: #ffd23f; --orange: #ff8a3d;
+  --line: 2.5px solid #0b0b0d; --pop: 4px 4px 0 #0b0b0d; --pop-sm: 3px 3px 0 #0b0b0d;
+  --glass: #2b2b32; --edge: none; --lift: var(--pop);
+}
+html:has(body.skin-arcade), body.skin-arcade { background: #1f1f24 !important; }
+body.skin-arcade::before { animation: none !important; inset: 0 !important; background: radial-gradient(rgba(255,255,255,.07) 1.2px, transparent 1.3px) 0 0 / 18px 18px !important; }
+body.skin-arcade::after { display: none !important; }
+
+/* header: a flat slab with a thick bottom rule */
+body.skin-arcade .hdr { background: #1f1f24 !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; border-bottom: var(--line) !important; box-shadow: 0 3px 0 rgba(0,0,0,.35) !important; }
+body.skin-arcade .hdr h1 { font: 800 24px/1 var(--fd) !important; letter-spacing: -.03em !important; }
+body.skin-arcade .hdr .mlogo { border: var(--line); border-radius: 12px !important; box-shadow: var(--pop-sm) !important; filter: none !important; }
+body.skin-arcade .sh-wal { background: var(--sun) !important; color: var(--ink) !important; border: var(--line) !important; box-shadow: var(--pop-sm) !important; border-radius: 14px !important; }
+body.skin-arcade .sh-wal b, body.skin-arcade .sh-wal em { color: var(--ink) !important; } body.skin-arcade .sh-wal .sh-wd { box-shadow: 0 0 0 2px var(--ink) !important; }
+body.skin-arcade .sh-lvl .pring circle.bg { stroke: #0b0b0d !important; }
+body.skin-arcade .sport a { font: 800 15px var(--fd) !important; }
+body.skin-arcade .sport a.on::after { height: 5px !important; border-radius: 3px !important; box-shadow: none !important; border: 2px solid var(--ink); background: var(--bz) !important; }
+body.skin-arcade .sh-av { border: var(--line) !important; background: var(--pink) !important; color: var(--ink) !important; box-shadow: var(--pop-sm); }
+body.skin-arcade.tab-home .tkr { background: var(--ink) !important; border-top: var(--line) !important; }
+body.skin-arcade .tk-tag { background: var(--bz) !important; color: var(--ink) !important; }
+
+/* every surface: outlined slab, hard shadow */
+body.skin-arcade .card, body.skin-arcade .gl, body.skin-arcade .bx-card, body.skin-arcade .pk, body.skin-arcade .w-act, body.skin-arcade .card.gc2, body.skin-arcade .ticket,
+body.skin-arcade .mbstrip > div, body.skin-arcade .tx, body.skin-arcade .wl-card, body.skin-arcade .rw-pass, body.skin-arcade .pro-card, body.skin-arcade .bz-go, body.skin-arcade .bz-wr, body.skin-arcade .chh-b {
+  background: var(--s1) !important; border: var(--line) !important; box-shadow: var(--pop) !important; border-radius: 18px !important; }
+body.skin-arcade .card.gc2 .vs-top { border-bottom: var(--line); }
+body.skin-arcade .w-act { box-shadow: var(--pop-sm) !important; background: var(--s2) !important; border-radius: 14px !important; }
+
+/* the wallet: a big lime block with black ink */
+body.skin-arcade .w-card { background: var(--bz) !important; border: 3px solid var(--ink) !important; box-shadow: 6px 6px 0 var(--ink) !important; border-radius: 24px !important; }
+body.skin-arcade .w-card::before, body.skin-arcade .w-card::after { display: none !important; }
+body.skin-arcade .w-card, body.skin-arcade .w-card * { color: var(--ink) !important; }
+body.skin-arcade .w-card .w-run, body.skin-arcade .w-card .w-pl { background: rgba(11,11,13,.1) !important; border: 2px solid var(--ink) !important; }
+body.skin-arcade .w-card .w-spark path + path, body.skin-arcade .w-card .hx-spark path[fill="none"] { stroke: var(--ink) !important; filter: none !important; }
+body.skin-arcade .w-card .hx-spark stop { stop-color: var(--ink) !important; } body.skin-arcade .w-card .hx-spark circle { fill: var(--ink) !important; }
+body.skin-arcade .w-card .w-act { background: #fff !important; } body.skin-arcade .w-card .w-ai { box-shadow: none !important; border: 2px solid var(--ink); }
+body.skin-arcade .w-card .pring .fg { stroke: var(--ink) !important; } body.skin-arcade .w-card .pring circle.bg { stroke: rgba(11,11,13,.2) !important; }
+
+/* section heads: marker highlight */
+body.skin-arcade .hx-h b, body.skin-arcade .rw-h, body.skin-arcade .lk-h, body.skin-arcade .wl-h b { font: 800 22px/1 var(--fd) !important; letter-spacing: -.035em !important; }
+body.skin-arcade .hx2 > .hx-h b::before { display: none !important; }
+body.skin-arcade .hx2 > .hx-h b { background: linear-gradient(transparent 55%, var(--pink) 55%, var(--pink) 88%, transparent 88%); padding: 0 4px; margin-left: -4px; }
+body.skin-arcade .s2-t { font: 800 34px/1 var(--fd) !important; letter-spacing: -.04em !important; }
+body.skin-arcade .s2-k, body.skin-arcade .dayh, body.skin-arcade .w-k, body.skin-arcade .bx-h { letter-spacing: .12em !important; }
+
+/* featured: colour blocks, sticker tags */
+body.skin-arcade .fc { border: 3px solid var(--ink) !important; box-shadow: 6px 6px 0 var(--ink) !important; border-radius: 22px !important; }
+body.skin-arcade .fc-boost { background: var(--pink) !important; } body.skin-arcade .fc-pick { background: var(--blue) !important; }
+body.skin-arcade .fc::before, body.skin-arcade .fc::after { display: none !important; }
+body.skin-arcade .fc-t, body.skin-arcade .fc-s, body.skin-arcade .fc .fc-legs em, body.skin-arcade .fc .fc-sub { color: var(--ink) !important; }
+body.skin-arcade .fc-tag { background: var(--sun) !important; color: var(--ink) !important; border: 2px solid var(--ink) !important; transform: rotate(-3deg); box-shadow: 2px 2px 0 var(--ink); }
+body.skin-arcade .fc-cp, body.skin-arcade .fc .fc-go { border: 2px solid var(--ink) !important; box-shadow: 3px 3px 0 var(--ink) !important; }
+
+/* keys: price buttons press down */
+body.skin-arcade .pxb { background: var(--s2) !important; border: 2px solid var(--ink) !important; box-shadow: 0 4px 0 var(--ink) !important; border-radius: 12px !important; transform: translateY(-2px); transition: transform .08s, box-shadow .08s !important; }
+body.skin-arcade .pxb:active { transform: translateY(2px) !important; box-shadow: 0 0 0 var(--ink) !important; }
+body.skin-arcade .pxb b { font-weight: 800 !important; color: #fff; }
+body.skin-arcade .pxb.val { background: #2f3a17 !important; border-color: var(--ink) !important; } body.skin-arcade .pxb.val b { color: var(--bz) !important; }
+body.skin-arcade .pxb.insl { background: var(--bz) !important; } body.skin-arcade .pxb.insl * { color: var(--ink) !important; }
+body.skin-arcade .pxb .mv { font-size: 9px; }
+body.skin-arcade .bx-nm b { font: 800 clamp(15px, 4.3vw, 17px)/1.1 var(--fd) !important; }
+
+/* big buttons + chips: lime keys */
+body.skin-arcade .placebet, body.skin-arcade .mbgo, body.skin-arcade .wl-dep, body.skin-arcade .chc-add, body.skin-arcade .chp-f button, body.skin-arcade .onb-go, body.skin-arcade .bz-odds, body.skin-arcade .daily button, body.skin-arcade .cashout {
+  border: 2.5px solid var(--ink) !important; box-shadow: 0 5px 0 var(--ink) !important; border-radius: 16px !important; transition: transform .08s, box-shadow .08s !important; }
+body.skin-arcade .placebet:active, body.skin-arcade .mbgo:active, body.skin-arcade .wl-dep:active, body.skin-arcade .chc-add:active, body.skin-arcade .cashout:active { transform: translateY(4px); box-shadow: 0 1px 0 var(--ink) !important; }
+body.skin-arcade .placebet span, body.skin-arcade .placebet em { color: var(--ink) !important; }
+body.skin-arcade .wl-wd, body.skin-arcade .ac-bal button.alt { border: 2.5px solid var(--ink) !important; box-shadow: 0 5px 0 var(--ink) !important; }
+body.skin-arcade .strip .chip, body.skin-arcade .gchips button, body.skin-arcade .qchips button, body.skin-arcade .cs-chips button, body.skin-arcade .ch-qr button, body.skin-arcade .chh-q button {
+  border: 2px solid var(--ink) !important; box-shadow: var(--pop-sm) !important; background: var(--s2) !important; }
+body.skin-arcade .strip .chip.on, body.skin-arcade .qchips button.on, body.skin-arcade .cs-chips button.on { background: var(--bz) !important; color: var(--ink) !important; }
+
+/* switches */
+body.skin-arcade .pmode, body.skin-arcade .gseg.c { background: var(--ink) !important; border: var(--line) !important; border-radius: 16px !important; box-shadow: var(--pop-sm) !important; }
+body.skin-arcade .pmode::before { background: var(--bz) !important; border-radius: 11px !important; box-shadow: none !important; }
+body.skin-arcade .pmode button.on, body.skin-arcade .pmode button.on svg { color: var(--ink) !important; }
+body.skin-arcade .props-seg, body.skin-arcade .mbtabs { border-bottom: var(--line) !important; }
+
+/* dock: a chunky floating bar, slip is a big pink button */
+body.skin-arcade .nav .in { background: var(--s1) !important; border: 3px solid var(--ink) !important; box-shadow: 0 6px 0 var(--ink) !important; border-radius: 22px !important; }
+body.skin-arcade .nav button.on .ico { color: var(--bz) !important; filter: none !important; }
+body.skin-arcade .nav button[data-k].on::before { background: var(--bz) !important; box-shadow: none !important; width: 18px !important; left: calc(50% - 9px) !important; height: 4px !important; }
+body.skin-arcade .sh-sb { background: var(--pink) !important; color: var(--ink) !important; border: 3px solid var(--ink) !important; box-shadow: 0 5px 0 var(--ink) !important; }
+body.skin-arcade .sh-slip.has .sh-sb { background: var(--bz) !important; box-shadow: 0 5px 0 var(--ink) !important; }
+body.skin-arcade .sh-n { box-shadow: 0 0 0 2.5px var(--ink) !important; background: var(--sun) !important; }
+
+/* player cards */
+body.skin-arcade .pk::before { opacity: .5 !important; height: 70px !important; }
+body.skin-arcade .pk-face { box-shadow: 0 0 0 3px var(--ink), 4px 4px 0 3px var(--ink) !important; }
+body.skin-arcade .pk-line { background: var(--ink) !important; border: 0 !important; }
+body.skin-arcade .pk-b { border: 2px solid var(--ink) !important; box-shadow: 0 4px 0 var(--ink) !important; background: var(--s2) !important; }
+body.skin-arcade .pk-b:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink) !important; }
+body.skin-arcade .pk.picked { box-shadow: 4px 4px 0 var(--bz) !important; border-color: var(--ink) !important; }
+
+/* sheets: solid slab with a fat top edge */
+body.skin-arcade .sheet, body.skin-arcade #sheet { --s1: #2b2b32; --s2: #35353d; background: #232328 !important; border: 3px solid var(--ink) !important; border-bottom: 0 !important; box-shadow: 0 -6px 0 var(--ink) !important; }
+body.skin-arcade #sheet .slipi, body.skin-arcade #sheet .slsum, body.skin-arcade #sheet .cs-rows, body.skin-arcade #sheet .cs-method, body.skin-arcade #sheet .ac-list, body.skin-arcade #sheet .ac-stats div, body.skin-arcade #sheet .ac-bal, body.skin-arcade #sheet .xr-stats div {
+  border: 2px solid var(--ink) !important; box-shadow: var(--pop-sm) !important; }
+body.skin-arcade .rc { border: 3px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); }
+
+/* Blitz: the buddy gets an outline too */
+body.skin-arcade #bzbuddy, body.skin-arcade .chh-face { background: var(--bz) !important; border: 3px solid var(--ink) !important; box-shadow: 0 5px 0 var(--ink) !important; }
+body.skin-arcade #bzbuddy .bzf img, body.skin-arcade .chh-face .bzf img { filter: brightness(0) !important; }
+body.skin-arcade .bzf .e { box-shadow: 0 0 0 2px var(--bz) !important; }
+body.skin-arcade .bb-say { border: 2.5px solid var(--ink); box-shadow: var(--pop-sm); background: #fff; }
+body.skin-arcade .chh-b { border-radius: 6px 18px 18px 18px !important; }
+body.skin-arcade .chm.bot .chb { background: var(--s1); border: 2px solid var(--ink); box-shadow: var(--pop-sm); }
+body.skin-arcade .chm.me .chb { border: 2px solid var(--ink); box-shadow: var(--pop-sm); }
+body.skin-arcade .chc, body.skin-arcade .chp { border: 2.5px solid var(--ink) !important; box-shadow: var(--pop) !important; background: var(--s1) !important; }
+body.skin-arcade #bzchat, body.skin-arcade #blitz { background: #1f1f24 radial-gradient(rgba(255,255,255,.07) 1.2px, transparent 1.3px) 0 0 / 18px 18px !important; }
+body.skin-arcade .bz-card { border: 3px solid var(--ink) !important; box-shadow: 8px 8px 0 var(--ink) !important; }
+body.skin-arcade .bz-go-ic { background: var(--bz) !important; border: 2.5px solid var(--ink); box-shadow: none !important; } body.skin-arcade .bz-go-ic img { filter: brightness(0) !important; animation: none !important; }
+body.skin-arcade .bz-go::after, body.skin-arcade .pro-card::after { display: none !important; }
+body.skin-arcade .holo { transform: none !important; } body.skin-arcade .holo::before { display: none !important; }
+body.skin-arcade .bza { border: 2.5px solid var(--ink) !important; box-shadow: var(--pop) !important; background: #2b2b32 !important; }
+
+/* stamp-in motion instead of soft fades */
+body.skin-arcade.enter #view > *, body.skin-arcade.enter .hx2 > *, body.skin-arcade.enter .pk-grid > * { animation: arcin .45s cubic-bezier(.2,1.6,.4,1) both !important; }
+@keyframes arcin { from { opacity: 0; transform: translateY(18px) scale(.96) rotate(-1deg); } }

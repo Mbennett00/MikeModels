@@ -156,6 +156,7 @@ function mbOpenAccount() {
     <div class="ac-list"><label class="ac-row"><span>🛑</span><b>Daily deposit limit</b>${sel("aclim", lim.dep, [[0, "None"], [100, "$100"], [250, "$250"], [500, "$500"], [1000, "$1,000"]])}</label>
       <label class="ac-row"><span>⏱️</span><b>Session reminder</b>${sel("acsess", lim.sess, [[0, "Off"], [30, "30 min"], [60, "1 hour"], [120, "2 hours"]])}</label>
       <label class="ac-row"><span>✋</span><b>Hold to place bets</b><input type="checkbox" id="achold" ${s.tapPlace ? "" : "checked"}></label>
+      <label class="ac-row"><span>🎨</span><b>Look</b><select id="acskin"><option value="arcade" ${acctSkin(s) === "arcade" ? "selected" : ""}>Arcade</option><option value="obsidian" ${acctSkin(s) === "obsidian" ? "selected" : ""}>Obsidian</option></select></label>
       <label class="ac-row"><span>🔔</span><b>Sounds &amp; alerts</b><input type="checkbox" id="acsnd" ${s.sound !== false ? "checked" : ""}></label></div>
     <div class="ac-foot">Blitzed is a free-to-play sportsbook simulator: balances have no cash value.</div>`;
   document.getElementById("shx").onclick = () => { closeSheet(); MB_RENDER && MB_RENDER(); };
@@ -164,6 +165,7 @@ function mbOpenAccount() {
   document.getElementById("aclim").onchange = e => save(s2 => { s2.lim = Object.assign({}, s2.lim, {dep: Number(e.target.value)}); });
   document.getElementById("acsess").onchange = e => save(s2 => { s2.lim = Object.assign({}, s2.lim, {sess: Number(e.target.value)}); });
   document.getElementById("achold").onchange = e => { save(s2 => { s2.tapPlace = !e.target.checked; }); window.MB_TAP_PLACE = !e.target.checked; };
+  document.getElementById("acskin").onchange = e => { save(s2 => { s2.skin = e.target.value; }); acctSkin(); };
   document.getElementById("acsnd").onchange = e => save(s2 => { s2.sound = e.target.checked; });
   sh.querySelectorAll("[data-cashier]").forEach(b => b.onclick = () => { mbHaptic(); mbOpenCashier(b.dataset.cashier); });
   sh.querySelectorAll("[data-acgo]").forEach(b => b.onclick = () => { mbHaptic(); closeSheet(); const k = b.dataset.acgo;
@@ -211,8 +213,10 @@ setInterval(() => { try { const m = (mbLoad().lim || {}).sess; if (!m) return; c
   if (mins >= m * (ACCT_NAG + 1)) { ACCT_NAG++; mbAlert(`⏱️ You've been on Blitzed for ${Math.round(mins)} min`, "Take a breather? Your bets keep running while you're away.", ""); } } catch (e) {} }, 60000);
 
 // ---- wiring (every render) ----
+function acctSkin(s = mbLoad()) { const k = s.skin || "arcade"; document.body.classList.toggle("skin-arcade", k === "arcade"); return k; }
+acctSkin();
 function acctAfterRender(render) {
-  const s = mbLoad(); if (s.tapPlace != null) window.MB_TAP_PLACE = !!s.tapPlace;
+  const s = mbLoad(); if (s.tapPlace != null) window.MB_TAP_PLACE = !!s.tapPlace; acctSkin(s);
   document.querySelectorAll("[data-cashier]").forEach(b => b.onclick = e => { e.stopPropagation(); mbHaptic(); mbOpenCashier(b.dataset.cashier); });
   document.querySelectorAll("#view [data-tk], #view .ticket[data-tid]").forEach(t => t.onclick = e => { if (e.target.closest("button, a, input, summary, details")) return; mbHaptic(); mbOpenTicket(t.dataset.tk || t.dataset.tid); });
   acctWireCashOut(document.getElementById("view"), render);
