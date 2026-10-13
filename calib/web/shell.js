@@ -48,7 +48,11 @@ function shAfterRender(render) {
   shImgAlts();
   const b = document.body;
   [...b.classList].filter(c => c.startsWith("tab-")).forEach(c => b.classList.remove(c));
-  b.classList.add("tab-" + (typeof TAB !== "undefined" ? TAB : "home"));
+  const tab = typeof TAB !== "undefined" ? TAB : "home";
+  b.classList.add("tab-" + tab);
+  if (shAfterRender.last !== tab + (typeof FX_GMODE !== "undefined" ? FX_GMODE : "")) {   // cards rise in on a tab change, not on every tap
+    shAfterRender.last = tab + (typeof FX_GMODE !== "undefined" ? FX_GMODE : ""); b.classList.remove("enter"); void b.offsetWidth; b.classList.add("enter");
+    clearTimeout(shAfterRender.t); shAfterRender.t = setTimeout(() => b.classList.remove("enter"), 900); }
   try { shHeader(render); } catch (e) {}
   const h = document.querySelector(".hdr"); if (h) document.documentElement.style.setProperty("--hdrh", h.offsetHeight + "px");   // for the sticky Games switch + feed snapping
   shSlipBtn();

@@ -1,0 +1,120 @@
+/* =====================================================================
+   ⚡ BLITZED · OBSIDIAN (loaded last): the premium skin.
+   Obsidian black under a slow aurora, frosted-glass surfaces with a lit top
+   edge, a floating tab dock, Inter Tight for display + numbers, and lime used
+   like jewellery: thin rules, dots, and the one button that matters.
+   ===================================================================== */
+:root {
+  --fd: 'Inter Tight', 'Inter', sans-serif; --fh: 'Inter Tight', 'Inter', sans-serif; --fb: 'Inter', sans-serif;
+  --bg: #040504; --s1: rgba(255,255,255,.035); --s2: rgba(255,255,255,.06); --s3: rgba(255,255,255,.1);
+  --hair: rgba(255,255,255,.07); --hair2: rgba(255,255,255,.11); --t1: #f4f6f1; --t2: #a9ada4; --t3: #6c7068;
+  --glass: linear-gradient(180deg, rgba(255,255,255,.055), rgba(255,255,255,.018));
+  --edge: inset 0 1px 0 rgba(255,255,255,.07);
+  --lift: 0 24px 48px -28px rgba(0,0,0,.9);
+  --ease-out: cubic-bezier(.16,1,.3,1);
+}
+
+/* scenery: obsidian, a slow aurora and a whisper of grain */
+html, body.shell { background: #040504 !important; }
+body.shell::before { content: ""; position: fixed; inset: -20vmax; z-index: -2; pointer-events: none;
+  background: radial-gradient(38vmax 30vmax at 85% 8%, rgba(198,255,46,.13), transparent 70%),
+              radial-gradient(40vmax 34vmax at 6% 38%, rgba(20,184,140,.09), transparent 70%),
+              radial-gradient(36vmax 30vmax at 70% 92%, rgba(120,90,255,.07), transparent 70%);
+  animation: aurora 26s ease-in-out infinite alternate; }
+@keyframes aurora { 50% { transform: translate3d(-3vmax, 2vmax, 0) scale(1.06); } 100% { transform: translate3d(2vmax, -2vmax, 0) scale(.97); } }
+body.shell::after { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none; opacity: .05; mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"); }
+
+/* app bar: clear glass */
+body.shell .hdr { background: linear-gradient(180deg, rgba(4,5,4,.86), rgba(4,5,4,.72)) !important; -webkit-backdrop-filter: saturate(180%) blur(24px); backdrop-filter: saturate(180%) blur(24px); border-bottom: 1px solid rgba(255,255,255,.05) !important; }
+body.shell .hdr h1 { font: 700 21px/1.05 var(--fd) !important; letter-spacing: -.035em !important; }
+body.shell .hdr .t::before { font-size: 9.5px !important; letter-spacing: .32em !important; opacity: .95; }
+body.shell .sh-wal { background: var(--glass) !important; border: 1px solid var(--hair2) !important; box-shadow: var(--edge) !important; border-radius: 999px !important; padding: 0 14px 0 12px !important; }
+body.shell .sh-wal b { font: 700 15.5px var(--fh) !important; letter-spacing: -.02em !important; }
+body.shell .sport a { font: 600 14px var(--fd) !important; letter-spacing: -.01em !important; }
+body.shell .sport a.on::after { height: 2px !important; left: 14px !important; right: 14px !important; box-shadow: 0 0 14px rgba(198,255,46,.8) !important; }
+body.shell.tab-home .tkr { background: rgba(255,255,255,.02) !important; border-top: 1px solid rgba(255,255,255,.04) !important; }
+body.shell .tk-tag { background: transparent !important; color: var(--bz) !important; clip-path: none !important; letter-spacing: .24em !important; border-right: 1px solid var(--hair); }
+
+/* surfaces: frosted glass with a lit top edge */
+body.shell .card:not(.gc2), body.shell .gl, body.shell .bx-card, body.shell .pk, body.shell .w-act {
+  background: var(--glass) !important; border: 1px solid var(--hair) !important; box-shadow: var(--edge), var(--lift) !important; border-radius: 22px !important; }
+body.shell .card.gc2 { border: 1px solid var(--hair) !important; box-shadow: var(--edge), var(--lift) !important; border-radius: 26px !important; }
+body.shell .w-act { border-radius: 16px !important; box-shadow: var(--edge) !important; }
+
+/* the wallet: a black metal card */
+body.shell .w-card { border-radius: 28px !important; border: 1px solid rgba(255,255,255,.09) !important;
+  background: radial-gradient(70% 60% at 100% 100%, rgba(198,255,46,.2), transparent 65%),
+              linear-gradient(115deg, transparent 30%, rgba(255,255,255,.045) 45%, transparent 60%),
+              linear-gradient(160deg, #161815, #0a0b0a 60%, #060706) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.1), 0 30px 60px -30px rgba(0,0,0,1), 0 0 0 1px rgba(0,0,0,.6) !important; }
+body.shell .w-card::after { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; border-radius: inherit;
+  background: linear-gradient(105deg, transparent 40%, rgba(255,255,255,.08) 50%, transparent 60%); background-size: 250% 100%; animation: sheen 7s var(--ease-out) infinite; }
+@keyframes sheen { 0%, 70% { background-position: 130% 0; } 100% { background-position: -130% 0; } }
+body.shell .w-bal, body.shell .hx-bal { font-family: var(--fh) !important; font-weight: 700 !important; letter-spacing: -.05em !important; }
+body.shell .w-k { letter-spacing: .26em !important; font-size: 10px !important; color: var(--t3) !important; }
+
+/* section heads: overline rule + quiet title */
+body.shell .hx-h b, body.shell .rw-h, body.shell .lk-h { font: 700 18px/1.1 var(--fd) !important; letter-spacing: -.03em !important; }
+body.shell .hx2 > .hx-h { margin: 28px 2px 12px !important; }
+body.shell .hx2 > .hx-h b { display: inline-flex; align-items: center; gap: 10px; }
+body.shell .hx2 > .hx-h b::before { content: "" !important; display: inline-block !important; width: 3px; height: 16px; border-radius: 2px; background: var(--g-brand); box-shadow: 0 0 10px rgba(198,255,46,.6); }
+body.shell .s2-t { font: 700 30px/1 var(--fd) !important; letter-spacing: -.045em !important; }
+body.shell .s2-k, body.shell .s2-over { letter-spacing: .24em !important; }
+
+/* featured: glass with a deep corner glow */
+body.shell .fc { border-radius: 26px !important; border: 1px solid var(--hair2) !important; box-shadow: var(--edge), var(--lift) !important; }
+body.shell .fc-boost { background: radial-gradient(70% 80% at 100% 100%, rgba(198,255,46,.22), transparent 62%), linear-gradient(165deg, #121411, #070807) !important; }
+body.shell .fc-pick { background: radial-gradient(70% 80% at 100% 100%, rgba(255,255,255,.07), transparent 62%), linear-gradient(165deg, #121411, #070807) !important; }
+body.shell .fc-t { font-weight: 700 !important; letter-spacing: -.04em !important; }
+body.shell .fc-tag { background: rgba(198,255,46,.1) !important; color: var(--bz) !important; border: 1px solid rgba(198,255,46,.3); border-radius: 999px !important; letter-spacing: .16em !important; }
+
+/* prices: glass chips, lime hairline for value, solid lime when in the slip */
+body.shell .pxb { background: rgba(255,255,255,.045) !important; border: 1px solid rgba(255,255,255,.06) !important; box-shadow: var(--edge) !important; border-radius: 14px !important; transition: transform .15s var(--ease-out), background .2s; }
+body.shell .pxb:active { transform: scale(.95); }
+body.shell .pxb b { font-family: var(--fh) !important; font-weight: 650 !important; letter-spacing: -.02em !important; }
+body.shell .pxb.val { background: rgba(198,255,46,.06) !important; border-color: rgba(198,255,46,.32) !important; }
+body.shell .pxb.val b { color: var(--bz) !important; }
+body.shell .pxb.val::before { background: var(--bz) !important; box-shadow: 0 0 8px var(--bz) !important; }
+body.shell .pxb.insl { background: var(--g-brand) !important; border-color: transparent !important; box-shadow: 0 8px 20px -8px rgba(198,255,46,.7) !important; }
+body.shell .pxb.insl b, body.shell .pxb.insl .pt { color: var(--brand-ink) !important; }
+body.shell .bx-nm b { font: 650 clamp(15px, 4.3vw, 17px)/1.1 var(--fd) !important; letter-spacing: -.025em !important; }
+body.shell .bx-h { letter-spacing: .18em !important; font-size: 9.5px !important; }
+
+/* switches: a frosted thumb */
+body.shell .pmode { background: rgba(255,255,255,.03) !important; border: 1px solid var(--hair) !important; border-radius: 999px !important; }
+body.shell .pmode::before { border-radius: 999px !important; background: linear-gradient(180deg, rgba(255,255,255,.14), rgba(255,255,255,.07)) !important; box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 4px 14px rgba(0,0,0,.5) !important; }
+body.shell .pmode button { font: 600 13.5px var(--fd) !important; }
+
+/* floating glass dock */
+body.shell .nav { bottom: calc(env(safe-area-inset-bottom) + 10px) !important; left: 12px !important; right: 12px !important; }
+body.shell .nav .in { height: 66px !important; padding: 0 6px !important; border-radius: 26px !important; border: 1px solid rgba(255,255,255,.09) !important; max-width: 520px !important; margin: 0 auto !important;
+  background: linear-gradient(180deg, rgba(28,30,27,.78), rgba(14,15,13,.86)) !important; box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 20px 40px -10px rgba(0,0,0,.85) !important; }
+body.shell .nav button { height: 66px !important; font: 600 10px var(--fb) !important; }
+body.shell .nav button[data-k].on::before { top: auto !important; bottom: 7px !important; left: calc(50% - 3px) !important; right: auto !important; width: 6px !important; height: 3px !important; border-radius: 3px !important; box-shadow: 0 0 8px var(--bz); }
+body.shell .sh-sb { width: 54px !important; height: 54px !important; margin-top: -26px !important; border-radius: 50% !important; background: linear-gradient(180deg, #24271f, #121410) !important; border: 1px solid rgba(255,255,255,.12) !important;
+  box-shadow: 0 0 0 5px #070806, 0 14px 30px -8px rgba(0,0,0,.9), inset 0 1px 0 rgba(255,255,255,.12) !important; }
+body.shell .sh-slip.has .sh-sb { background: var(--g-brand) !important; color: var(--brand-ink) !important; box-shadow: 0 0 0 5px #070806, 0 0 30px -4px rgba(198,255,46,.7) !important; }
+body.shell .sh-sl { display: none; }
+body.shell #pkbar { bottom: calc(env(safe-area-inset-bottom) + 88px) !important; border-radius: 22px !important; background: linear-gradient(180deg, rgba(28,30,27,.85), rgba(14,15,13,.92)) !important; box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 20px 40px -10px rgba(0,0,0,.85) !important; }
+body.shell .wrap { padding-bottom: calc(110px + env(safe-area-inset-bottom)) !important; }
+
+/* player cards */
+body.shell .pk::before { opacity: .3 !important; height: 80px !important; }
+body.shell .pk-line { background: rgba(0,0,0,.28) !important; border: 1px solid rgba(255,255,255,.05); }
+body.shell .pk-line b { font-weight: 700 !important; letter-spacing: -.05em !important; }
+body.shell .pk-b { background: rgba(255,255,255,.05) !important; border-color: rgba(255,255,255,.08) !important; box-shadow: var(--edge); }
+
+/* calm, expensive motion: cards rise in only when you change tabs */
+body.shell.enter #view > *, body.shell.enter .hx2 > *, body.shell.enter .pk-grid > * { animation: rise .6s var(--ease-out) both; }
+body.shell.enter #view > *:nth-child(2), body.shell.enter .hx2 > *:nth-child(2), body.shell.enter .pk-grid > *:nth-child(2) { animation-delay: .05s; }
+body.shell.enter #view > *:nth-child(3), body.shell.enter .hx2 > *:nth-child(3), body.shell.enter .pk-grid > *:nth-child(3) { animation-delay: .1s; }
+body.shell.enter #view > *:nth-child(4), body.shell.enter .hx2 > *:nth-child(4), body.shell.enter .pk-grid > *:nth-child(4) { animation-delay: .15s; }
+body.shell.enter #view > *:nth-child(n+5), body.shell.enter .hx2 > *:nth-child(n+5), body.shell.enter .pk-grid > *:nth-child(n+5) { animation-delay: .2s; }
+@keyframes rise { from { opacity: 0; transform: translateY(14px); } }
+@media (prefers-reduced-motion: reduce) { body.shell::before, body.shell .w-card::after, body.shell.enter * { animation: none !important; } }
+
+/* splash */
+.splash { background: radial-gradient(50% 32% at 50% 44%, rgba(198,255,46,.16), transparent 70%), #040504 !important; }
+.splash b { letter-spacing: .04em !important; }
+body.shell .missions .pl-tag { background: rgba(198,255,46,.12) !important; color: var(--bz) !important; border: 1px solid rgba(198,255,46,.3) !important; font: 700 12px var(--fh) !important; padding: 2px 8px !important; border-radius: 999px !important; vertical-align: middle; }
