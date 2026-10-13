@@ -378,7 +378,7 @@ function mbRewardsHtml() {
   const toks = [["boost25", "🚀", "+25% profit boost", "Boosts one bet's profit"], ["boost50", "🚀", "+50% profit boost", "Boosts one bet's profit"], ["ins", "🛡️", "Parlay insurance", "Stake back if a 3+ leg parlay misses by one"]];
   return `<section class="rw-pass" data-pass="1">${passRing(L, 88)}<div class="rw-pt"><span>Season Pass</span><b>${L.rank[2]} ${L.rank[1]}</b>
       <div class="rw-bar"><i style="width:${Math.round(100 * L.pct)}%"></i></div><em>${L.lvl < PASS_MAX ? `${L.need - L.into} XP to level ${L.lvl + 1} · ${passRewardText(nr)}` : "Max level · Hall of Fame"}</em></div><span class="rw-chev">›</span></section>
-    ${typeof mbSharpCard === "function" ? mbSharpCard() : ""}${funRebuyHtml(s, W)}${mbDailyHtml(s)}${funMissionsHtml(s)}
+    ${typeof proCardHtml === "function" ? proCardHtml(s) : ""}${typeof mbSharpCard === "function" ? mbSharpCard() : ""}${funRebuyHtml(s, W)}${mbDailyHtml(s)}${funMissionsHtml(s)}
     <div class="rw-h">Your rewards</div>
     <div class="rw-toks">${toks.map(([k, e, n, d]) => `<div class="rw-tok ${T[k] ? "" : "none"}"><em>${e}</em><div><b>${n}</b><i>${d}</i></div><span>×${T[k] || 0}</span></div>`).join("")}</div>
     ${funVsHtml(s)}

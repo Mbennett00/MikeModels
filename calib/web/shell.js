@@ -56,6 +56,8 @@ function shAfterRender(render) {
   try { shHeader(render); } catch (e) {}
   const h = document.querySelector(".hdr"); if (h) document.documentElement.style.setProperty("--hdrh", h.offsetHeight + "px");   // for the sticky Games switch + feed snapping
   shSlipBtn();
+  try { b.classList.toggle("pro", proOn()); proWire(document.getElementById("view"), render); } catch (e) {}
+  if (!shAfterRender.onb) { shAfterRender.onb = 1; setTimeout(() => { try { shOnboard(); } catch (e) {} }, 1700); }
 }
 // PrizePicks-style lineup bar on the Props tab: who's in, what it pays, one tap to the slip
 function shPickBar(v, dec) {

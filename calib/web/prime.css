@@ -118,3 +118,7 @@ body.shell.enter #view > *:nth-child(n+5), body.shell.enter .hx2 > *:nth-child(n
 .splash { background: radial-gradient(50% 32% at 50% 44%, rgba(198,255,46,.16), transparent 70%), #040504 !important; }
 .splash b { letter-spacing: .04em !important; }
 body.shell .missions .pl-tag { background: rgba(198,255,46,.12) !important; color: var(--bz) !important; border: 1px solid rgba(198,255,46,.3) !important; font: 700 12px var(--fh) !important; padding: 2px 8px !important; border-radius: 999px !important; vertical-align: middle; }
+
+/* the slip sheet sits above everything: the Props lineup bar hides while it's open */
+body:has(#sheet.open) #pkbar, body:has(#scrim.open) #pkbar { display: none !important; }
+body.shell .placebet em { background: rgba(11,16,0,.14) !important; color: var(--brand-ink) !important; font-style: normal; }

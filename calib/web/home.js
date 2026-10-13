@@ -34,7 +34,7 @@ function passCheck() {   // pays every level reached since the last check (first
   if (s.lvlSeen == null) { s.lvlSeen = L.lvl; mbSave(s); return; }
   if (L.lvl <= s.lvlSeen) return;
   const got = [];
-  for (let l = s.lvlSeen + 1; l <= L.lvl; l++) { const r = passReward(l); passGrant(s, r); got.push([l, r]); }
+  for (let l = s.lvlSeen + 1; l <= L.lvl; l++) { const r = passReward(l); passGrant(s, r); got.push([l, r]); if (s.pro) { const p = proReward(l); passGrant(s, p); got.push([l, p]); } }
   s.lvlSeen = L.lvl; mbSave(s);
   const big = got.find(([, r]) => r.big), cash = got.reduce((a, [, r]) => a + (r.cash || 0), 0);
   if (big) setTimeout(() => funBigWin(cash, `LEVEL ${L.lvl} · ${L.rank[2]} ${L.rank[1].toUpperCase()}`, got.map(([, r]) => passRewardText(r)).join(" · ")), 600);
@@ -47,12 +47,14 @@ function passRing(L, size = 54) {
 function mbOpenPass() {
   const s = mbLoad(), L = mbLevel(mbXP(s)), sh = document.getElementById("sheet");
   const rows = Array.from({length: PASS_MAX}, (_, i) => i + 1).map(l => { const r = passReward(l), st = l <= L.lvl ? "got" : l === L.lvl + 1 ? "next" : "";
-    return `<div class="pass-row ${st} ${r.big ? "big" : ""}" ${st === "next" ? 'id="passnext"' : ""}><span class="pr-l">${l}</span><span class="pr-r">${passRewardText(r)}</span><span class="pr-s">${st === "got" ? "✓" : st === "next" ? `${L.need - L.into} XP` : r.big ? rankOf(l)[0] === l ? rankOf(l)[2] : "⭐" : "🔒"}</span></div>`; }).join("");
+    return `<div class="pass-row ${st} ${r.big ? "big" : ""}" ${st === "next" ? 'id="passnext"' : ""}><span class="pr-l">${l}</span><span class="pr-r">${passRewardText(r)}</span><span class="pr-pro ${s.pro ? "" : "lock"}">${s.pro ? "" : "🔒 "}${passRewardText(proReward(l))}</span><span class="pr-s">${st === "got" ? "✓" : st === "next" ? `${L.need - L.into} XP` : r.big ? rankOf(l)[0] === l ? rankOf(l)[2] : "⭐" : "🔒"}</span></div>`; }).join("");
   sh.innerHTML = `<div class="grab"></div><button class="iconbtn close" id="shx" aria-label="Close">✕</button>
     <div class="pass-top">${passRing(L, 84)}<div><div class="sh-t">Season Pass</div><div class="pass-rank">${L.rank[2]} ${L.rank[1]}</div>
       <div class="pass-xp">${L.lvl < PASS_MAX ? `${L.into} / ${L.need} XP to level ${L.lvl + 1}` : "Max level. Legend."}</div></div></div>
     <div class="pass-how"><span>+10 XP a bet</span><span>+25 a win</span><span>+15 a spin</span><span>missions</span></div>
+    ${proCardHtml(s)}<div class="pass-pro-h"><span>Free</span><b>⚡ Pro</b></div>
     <div class="pass-list">${rows}</div>`;
+  proWire(sh, () => mbOpenPass());
   document.getElementById("shx").onclick = () => closeSheet();
   document.getElementById("scrim").classList.add("open"); sh.classList.add("open");
   setTimeout(() => { const n = document.getElementById("passnext"); if (n) n.scrollIntoView({block: "center"}); }, 60);
