@@ -24,7 +24,7 @@ function stkNewRun(render) {
   const s = mbLoad(); if (!stkBroke(s) || s.rebuy === mbDay(0)) return;
   const W = mbWallet(s);
   s.busts = (s.busts || 0) + 1; s.rebuy = mbDay(0);
-  s.bonus = (s.bonus || 0) + (1000 - W.available);
+  s.bonus = (s.bonus || 0) + (1000 - W.available); if (typeof mbTx === "function") mbTx(s, "reset", 1000 - W.available, "New run · bankroll back to $1,000");
   s.run = {n: s.busts + 1, start: new Date().toISOString(), peak: 1000};
   (s.runs = s.runs || []).push({n: s.busts, peak: (s.run && s.run.peak) || 0, end: new Date().toISOString()});
   mbSave(s); document.querySelectorAll(".stk-bust").forEach(x => x.remove());

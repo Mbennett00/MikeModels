@@ -352,7 +352,7 @@ label.f { display: block; font-size: 13px; font-weight: 800; color: var(--ink-2)
 </style>
 </head>
 <body class="nhl">
-<div class="splash" id="splash"><img src="logo-nhl.png" alt=""><b>BLITZ<span>ED</span></b><em>Paper money · real reads</em><i></i></div>
+<div class="splash" id="splash"><img src="logo-nhl.png" alt=""><b>BLITZ<span>ED</span></b><em>Bet smarter</em><i></i></div>
 <div class="wrap">
   <div class="hdr"><div class="hb1"><img class="mlogo" src="logo-nhl.png" alt="Blitzed"><div class="t"><h1 id="title">Loading…</h1><div class="sub" id="sub">Warming up the Zamboni</div></div></div>
     <div class="hb2"><div class="sport"><a class="on" href="index.html"><img src="https://a.espncdn.com/i/teamlogos/leagues/500-dark/nhl.png" alt="" onerror="this.remove()">NHL</a><a href="nfl.html"><img src="https://a.espncdn.com/i/teamlogos/leagues/500-dark/nfl.png" alt="" onerror="this.remove()">NFL</a></div>
@@ -649,14 +649,14 @@ function tile(g, label, market, sel, line) {
   const i = bet({g, market, sel, line, label, p, dk});
   return `<button class="tile ${cls} ${val ? "val" : ""}" data-bet="${i}"><span class="l">${ic ? ic + " " : ""}${esc(label)}</span>
     <span class="v"><span class="c">${pct(p)}</span><span class="b">${betAt(p - thr(market))}</span></span>
-    ${dk ? `<span class="dk">${dk.src === "book" ? BK() : "Mkt"} ${am(dk.price)}${dk.edge != null ? ` · <b class="${dk.edge >= 0 ? "pos" : "neg"}">${dk.edge >= 0 ? "+" : "−"}${Math.abs(100 * dk.edge).toFixed(1)}%</b>` : ""}${val ? ` <i class="valtag">VALUE</i>` : ""}</span>` : ""}</button>`;
+    ${dk ? `<span class="dk">${dk.src === "book" ? BK() : "Mkt"} ${am(dk.price)}${dk.op != null && Math.round(dk.op) !== Math.round(dk.price) ? ` <s>${am(dk.op)}</s>` : ""}${dk.edge != null ? ` · <b class="${dk.edge >= 0 ? "pos" : "neg"}">${dk.edge >= 0 ? "+" : "−"}${Math.abs(100 * dk.edge).toFixed(1)}%</b>` : ""}${val ? ` <i class="valtag">VALUE</i>` : ""}</span>` : ""}</button>`;
 }
 // one sportsbook price button: the line on top, the price below (book price when there is one, else the model's fair price)
 function pbtn(g, label, market, sel, line, top) {
   const p = gameProb(g, market, sel, line), [cls] = RES(settle(g, market, sel, line));
   const dk = dkFor(g, market, sel, line), val = dk && dk.edge != null && dk.edge >= thr(market);
   const price = dk && dk.price ? dk.price : fair(p), i = bet({g, market, sel, line, label, p, dk});
-  return `<button class="pxb ${cls} ${val ? "val" : ""}" data-bet="${i}">${top ? `<span class="pt">${esc(top)}</span>` : ""}<b>${am(price)}</b>${val ? `<i class="pe">+${(100 * dk.edge).toFixed(1)}%</i>` : `<i class="pm">${pct(p)}</i>`}</button>`;
+  return `<button class="pxb ${cls} ${val ? "val" : ""}" data-bet="${i}">${top ? `<span class="pt">${esc(top)}</span>` : ""}<b>${am(price)}</b>${val ? `<i class="pe">+${(100 * dk.edge).toFixed(1)}%</i>` : `<i class="pm">${pct(p)}</i>`}${dk && dk.price ? mbMove(dk.price, dk.op) : ""}</button>`;
 }
 function gameCard(g) {
   const a = g.away, h = g.home, ph = gameProb(g, "moneyline", "home"), L = LIVE[g.game_id] || {}, on = L.state === "in" || L.state === "post";

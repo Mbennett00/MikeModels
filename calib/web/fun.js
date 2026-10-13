@@ -75,7 +75,7 @@ const WHEEL = [
 const TOKENS = {boost25: ["🚀", "+25% profit boost"], boost50: ["🚀", "+50% profit boost"], ins: ["🛡️", "Parlay insurance"]};
 const funMult = streak => 1 + 0.1 * Math.min(Math.max(streak - 1, 0), 7);
 function funGive(s, prize, mult = 1) {   // applies a wheel / mission / level-up prize to the state; returns its text
-  if (prize.cash) { const amt = Math.round(prize.cash * mult * 100) / 100; s.bonus = (s.bonus || 0) + amt; return "+" + mbMoney(amt); }
+  if (prize.cash) { const amt = Math.round(prize.cash * mult * 100) / 100; s.bonus = (s.bonus || 0) + amt; if (typeof mbTx === "function") mbTx(s, "reward", amt, "Daily spin"); return "+" + mbMoney(amt); }
   if (prize.tok) { s.tokens = s.tokens || {}; s.tokens[prize.tok] = (s.tokens[prize.tok] || 0) + 1; return TOKENS[prize.tok][0] + " " + TOKENS[prize.tok][1]; }
   return "";
 }

@@ -493,6 +493,16 @@ def _publish_web(site, state, plays, meta):
         # keep the previous slate so the page can show last night's settled games
         last, prev = os.path.join(site, "web_data.json"), os.path.join(site, "web_prev.json")
         old = js("web_data.json")
+        try:   # opening prices: carry the first published price of each game line forward
+            from calib.openline import carry
+            with open(os.path.join(out, "data.json")) as f:
+                cur = json.load(f)
+            n = carry(cur.get("games") or [], (old or {}).get("games"))
+            with open(os.path.join(out, "data.json"), "w") as f:
+                json.dump(cur, f, separators=(",", ":"), default=str, allow_nan=False)
+            print(f"opening lines: {n} game lines have moved since they opened")
+        except Exception as e:
+            print(f"opening lines skipped: {e}")
         if old and old.get("meta", {}).get("date") != meta.get("date") and old.get("games"):
             shutil.copy(last, prev)
         shutil.copy(os.path.join(out, "data.json"), last)

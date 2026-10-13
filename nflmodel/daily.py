@@ -870,6 +870,13 @@ def _result(g):
 def write(site: str, out: dict):
     web = os.path.join(site, "web")
     os.makedirs(web, exist_ok=True)
+    try:   # opening prices: carry the first published price of each game line forward
+        from calib.openline import carry
+        prev = os.path.join(site, "nfl.json")
+        old = json.load(open(prev)) if os.path.exists(prev) else None
+        carry(out.get("games") or [], (old or {}).get("games"), field="bets", line_key="line")
+    except Exception as e:
+        print(f"opening lines skipped: {e}")
     txt = json.dumps(out, separators=(",", ":"), default=str)
     for d in (site, web):
         with open(os.path.join(d, "nfl.json"), "w") as f:

@@ -305,7 +305,7 @@ label.f { display: block; font-size: 13px; font-weight: 800; color: var(--ink-2)
 </style>
 </head>
 <body class="nfl">
-<div class="splash" id="splash"><img src="logo-nfl.png" alt=""><b>BLITZ<span>ED</span></b><em>Paper money · real reads</em><i></i></div>
+<div class="splash" id="splash"><img src="logo-nfl.png" alt=""><b>BLITZ<span>ED</span></b><em>Bet smarter</em><i></i></div>
 <div class="wrap">
   <div class="hdr"><div class="hb1"><img class="mlogo" src="logo-nfl.png" alt="Blitzed"><div class="t"><h1 id="title">Loading…</h1><div class="sub" id="sub">Lining the field</div></div></div>
     <div class="hb2"><div class="sport"><a href="index.html"><img src="https://a.espncdn.com/i/teamlogos/leagues/500-dark/nhl.png" alt="" onerror="this.remove()">NHL</a><a class="on" href="nfl.html"><img src="https://a.espncdn.com/i/teamlogos/leagues/500-dark/nfl.png" alt="" onerror="this.remove()">NFL</a></div>
@@ -453,7 +453,7 @@ function pbtnN(g, b, top) {
   if (!b) return `<span class="pxb off">–</span>`;
   const cls = settle(g, b), val = b.edge != null && b.edge >= LIKE_EDGE, dk = dkLive(g, b);
   const price = dk || b.price || fair(b.p), i = bet({g, b, p: b.p, label: label(g, b)});
-  return `<button class="pxb ${cls} ${val ? "val" : ""} ${dk ? "bk" : ""}" data-bet="${i}">${top ? `<span class="pt">${esc(top)}</span>` : ""}<b>${am(price)}</b>${val ? `<i class="pe">+${(100 * b.edge).toFixed(1)}%</i>` : `<i class="pm">${pct(b.p)}</i>`}</button>`;
+  return `<button class="pxb ${cls} ${val ? "val" : ""} ${dk ? "bk" : ""}" data-bet="${i}">${top ? `<span class="pt">${esc(top)}</span>` : ""}<b>${am(price)}</b>${val ? `<i class="pe">+${(100 * b.edge).toFixed(1)}%</i>` : `<i class="pm">${pct(b.p)}</i>`}${b.op != null && (dk || b.price) ? mbMove(price, b.op) : ""}</button>`;
 }
 function gameCard(g) {
   if (g.model_margin == null) g.model_margin = g.margin;

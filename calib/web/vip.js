@@ -11,9 +11,9 @@ function proBackpay(lvl) { const r = {cash: 0, n: 0}; for (let l = 1; l <= lvl; 
 function proUnlock(after) {
   const s = mbLoad(), W = mbWallet(s), L = mbLevel(mbXP(s));
   if (s.pro) return;
-  if (W.available < PRO_COST) { mbToast(`<div class="tbig">Not enough balance</div><div class="tsub">Pro costs ${mbShort(PRO_COST)} paper money</div>`); return; }
-  s.bonus = (s.bonus || 0) - PRO_COST; s.pro = {ts: new Date().toISOString(), lvl: L.lvl};
-  let cash = 0; for (let l = 1; l <= L.lvl; l++) { const r = proReward(l); passGrant(s, r); cash += r.cash || 0; }
+  if (W.available < PRO_COST) { mbToast(`<div class="tbig">Not enough balance</div><div class="tsub">Pro costs ${mbShort(PRO_COST)}. Deposit to top up.</div>`); return; }
+  s.bonus = (s.bonus || 0) - PRO_COST; if (typeof mbTx === "function") mbTx(s, "pro", -PRO_COST, "Season unlock"); s.pro = {ts: new Date().toISOString(), lvl: L.lvl};
+  let cash = 0; for (let l = 1; l <= L.lvl; l++) { const r = proReward(l); passGrant(s, r, `Pro track · level ${l}`); cash += r.cash || 0; }
   mbSave(s);
   try { funBigWin(cash, "⚡ BLITZED PRO", `Gold track unlocked · ${L.lvl} level${L.lvl > 1 ? "s" : ""} of Pro prizes paid`); } catch (e) { mbToast(`<div class="tbig">⚡ Blitzed Pro</div><div class="tsub">+${mbShort(cash)} back</div>`, "win"); }
   document.body.classList.add("pro");

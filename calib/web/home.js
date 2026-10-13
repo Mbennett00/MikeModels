@@ -23,8 +23,8 @@ function passRewardText(r) {
   if (r.tok === "ins" || r.ins) out.push("🛡️ insurance");
   return out.join(" · ");
 }
-function passGrant(s, r) {
-  if (r.cash) s.bonus = (s.bonus || 0) + r.cash;
+function passGrant(s, r, note) {
+  if (r.cash) { s.bonus = (s.bonus || 0) + r.cash; if (typeof mbTx === "function") mbTx(s, "reward", r.cash, note || "Season Pass reward"); }
   s.tokens = s.tokens || {};
   if (r.tok) s.tokens[r.tok] = (s.tokens[r.tok] || 0) + 1;
   if (r.ins) s.tokens.ins = (s.tokens.ins || 0) + 1;
@@ -34,7 +34,7 @@ function passCheck() {   // pays every level reached since the last check (first
   if (s.lvlSeen == null) { s.lvlSeen = L.lvl; mbSave(s); return; }
   if (L.lvl <= s.lvlSeen) return;
   const got = [];
-  for (let l = s.lvlSeen + 1; l <= L.lvl; l++) { const r = passReward(l); passGrant(s, r); got.push([l, r]); if (s.pro) { const p = proReward(l); passGrant(s, p); got.push([l, p]); } }
+  for (let l = s.lvlSeen + 1; l <= L.lvl; l++) { const r = passReward(l); passGrant(s, r, `Season Pass · level ${l}`); got.push([l, r]); if (s.pro) { const p = proReward(l); passGrant(s, p, `Pro track · level ${l}`); got.push([l, p]); } }
   s.lvlSeen = L.lvl; mbSave(s);
   const big = got.find(([, r]) => r.big), cash = got.reduce((a, [, r]) => a + (r.cash || 0), 0);
   if (big) setTimeout(() => funBigWin(cash, `LEVEL ${L.lvl} · ${L.rank[2]} ${L.rank[1].toUpperCase()}`, got.map(([, r]) => passRewardText(r)).join(" · ")), 600);
@@ -105,7 +105,7 @@ function mbHomeHtml() {
   const run = (() => { try { return stkTrack(); } catch (e) { return null; } })();
   const act = (attr, icon, top, sub, cls = "") => `<button class="w-act ${cls}" ${attr}><span class="w-ai">${icon}</span><b>${top}</b><i>${sub}</i></button>`;
   const wallet = `<section class="w-card">
-      <div class="w-top"><span class="w-k">${hi}, Mike</span>${run ? `<span class="w-run">Run #${run.run.n} · ${run.off >= 0.01 ? `<em class="dn">${Math.round(100 * run.off)}% off peak</em>` : `<em class="up">at peak</em>`}</span>` : ""}</div>
+      <div class="w-top"><span class="w-k">${hi}, ${esc(typeof acctName === "function" ? acctName(s) : "Mike")}</span>${run ? `<span class="w-run">Run #${run.run.n} · ${run.off >= 0.01 ? `<em class="dn">${Math.round(100 * run.off)}% off peak</em>` : `<em class="up">at peak</em>`}</span>` : ""}</div>
       <div class="w-bal">${mbMoney(W.available).replace(/(\.\d\d)$/, "<small>$1</small>")}</div>
       <div class="w-sub"><span class="w-pl ${W.pl >= 0 ? "up" : "dn"}">${W.pl >= 0 ? "▲" : "▼"} ${mbMoney(Math.abs(W.pl)).replace("−", "")}</span><span>all-time</span>${W.risk > 0 ? `<span class="w-ip">${mbMoney(W.risk)} in play</span>` : ""}</div>
       <div class="w-spark">${typeof mbSpark === "function" ? mbSpark(s.bets, 360, 70) : ""}</div>
