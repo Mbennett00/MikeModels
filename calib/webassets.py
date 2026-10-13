@@ -5,8 +5,8 @@ HERE = os.path.join(os.path.dirname(__file__), "web")
 
 
 def inline(html: str) -> str:
-    css = "\n".join(open(os.path.join(HERE, n)).read() for n in ("health.css", "theme.css", "premium.css", "luxe.css", "pro.css", "fx.css", "fit.css", "shell.css", "proj.css"))
-    js = "\n".join(open(os.path.join(HERE, n)).read() for n in ("health.js", "proj.js"))
+    css = "\n".join(open(os.path.join(HERE, n)).read() for n in ("health.css", "bets.css", "theme.css", "fun.css", "premium.css", "luxe.css", "pro.css", "stakes.css", "fx.css", "fit.css", "shell.css"))
+    js = "\n".join(open(os.path.join(HERE, n)).read() for n in ("health.js", "bets.js", "fun.js", "home.js", "sharp.js", "stakes.js", "fx.js", "shell.js"))
     return html.replace("/*CALIB_CSS*/", css).replace("/*CALIB_JS*/", js)
 
 
@@ -21,7 +21,7 @@ self.addEventListener("fetch", e => {
     .catch(() => caches.match(r).then(m => m || caches.match("./index.html"))));
 });
 """
-MANIFEST = dict(name="MikeModels", short_name="MikeModels", description="NHL & NFL model projections: win chances, scores and player outlooks",
+MANIFEST = dict(name="MikeModels Sportsbook", short_name="MikeModels", description="Paper-money NHL & NFL sportsbook powered by the model",
                 start_url="./index.html", scope="./", display="standalone", orientation="portrait",
                 background_color="#050608", theme_color="#050608",
                 icons=[dict(src="icon-192.png", sizes="192x192", type="image/png", purpose="any"),
