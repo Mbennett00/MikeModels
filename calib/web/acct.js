@@ -230,7 +230,12 @@ const ACT_IMG = {};
 function actImg(src) {
   if (!src) return Promise.resolve(null);
   if (ACT_IMG[src]) return ACT_IMG[src];
-  return ACT_IMG[src] = new Promise(r => { const im = new Image(); im.crossOrigin = "anonymous"; im.onload = () => r(im); im.onerror = () => r(null); im.src = src; setTimeout(() => r(null), 4000); });
+  const load = u => new Promise(r => { const im = new Image(); im.crossOrigin = "anonymous"; let done = false;
+    const fin = v => { if (!done) { done = true; r(v); } }; im.onload = () => fin(im.naturalWidth ? im : null); im.onerror = () => fin(null); setTimeout(() => fin(null), 5000); im.src = u; });
+  // NHL headshots don't allow canvas use; the relay serves the same public image with CORS headers
+  const relay = u => load(`https://wsrv.nl/?url=${encodeURIComponent(u.replace(/^https?:\/\//, ""))}&w=240&output=png`);
+  const alt = typeof MB_IMG_ALT !== "undefined" ? MB_IMG_ALT[src] : null;   // this season's mug missing -> the player's latest one
+  return ACT_IMG[src] = load(src).then(im => im || relay(src)).then(im => im || (alt ? load(alt).then(i2 => i2 || relay(alt)) : null));
 }
 function actArt(l) {   // {img, logo, logos} for a leg, same rules as the app's pick art
   let a = {img: l.img, logo: l.logo, logos: l.logos, name: l.name || (l.key || {}).name || l.label};
@@ -245,67 +250,77 @@ async function actDrawArt(x, a, cx, cy, r) {   // a round avatar: headshot with 
     else { const s = Math.min(1.5 * R / im.width, 1.5 * R / im.height); x.drawImage(im, X - im.width * s / 2, Y - im.height * s / 2, im.width * s, im.height * s); }
     x.restore(); return true; };
   if (a.logos && a.logos.length >= 2) {
-    circ(cx - r * 0.42, cy, r * 0.78, "#1a1c18"); await clipDraw(a.logos[0], cx - r * 0.42, cy, r * 0.78, false);
-    circ(cx + r * 0.42, cy, r * 0.82, "#050605"); circ(cx + r * 0.42, cy, r * 0.78, "#1a1c18"); await clipDraw(a.logos[1], cx + r * 0.42, cy, r * 0.78, false); return;
+    const o = r * 0.5, q = r * 0.62;   // two logos side by side with a slight overlap, the second ringed so both read
+    circ(cx - o, cy, q, "#1a1c18"); await clipDraw(a.logos[0], cx - o, cy, q, false);
+    circ(cx + o, cy, q + 4, "#121411"); circ(cx + o, cy, q, "#1a1c18"); await clipDraw(a.logos[1], cx + o, cy, q, false); return;
   }
   circ(cx, cy, r, "#1d201b");
   const ok = a.img ? await clipDraw(a.img, cx, cy, r, true) : a.logo ? await clipDraw(a.logo, cx, cy, r, false) : false;
-  if (!ok) { x.fillStyle = "rgba(255,255,255,.75)"; x.font = `800 ${Math.round(r * 0.7)}px 'Inter Tight', sans-serif`; x.textAlign = "center"; x.textBaseline = "middle";
-    x.fillText(String(a.name || "?").split(" ").filter(Boolean).slice(0, 2).map(w => w[0]).join(""), cx, cy + 2); x.textAlign = "left"; x.textBaseline = "alphabetic"; }
+  if (!ok) { x.fillStyle = "rgba(255,255,255,.75)"; x.font = `800 ${Math.round(r * 0.7)}px 'Inter Tight', sans-serif`; x.textAlign = "center"; const tb = x.textBaseline; x.textBaseline = "middle";
+    x.fillText(String(a.name || "?").split(" ").filter(Boolean).slice(0, 2).map(w => w[0]).join(""), cx, cy + 2); x.textAlign = "left"; x.textBaseline = tb; }
   if (a.img && a.logo) { circ(cx + r * 0.72, cy + r * 0.72, r * 0.42, "#050605"); circ(cx + r * 0.72, cy + r * 0.72, r * 0.36, "#1d201b"); await clipDraw(a.logo, cx + r * 0.72, cy + r * 0.72, r * 0.36, false); }
 }
 async function mbShareAction() {
   const s = mbLoad(), open = s.bets.filter(b => b.status === "open").sort((a, b) => String((a.legs[0] || {}).start || a.ts).localeCompare(String((b.legs[0] || {}).start || b.ts)));
   if (!open.length) { mbToast(`<div class="tbig">No open bets</div><div class="tsub">Place a bet and your action shows up here</div>`); return; }
-  try { await Promise.all(["700 40px 'Inter Tight'", "600 28px 'Inter Tight'", "800 30px 'Inter'", "italic 900 40px 'Barlow Condensed'"].map(f => document.fonts.load(f))); } catch (e) {}
-  const W = 1080, P = 72, F = (w, px, fam) => `${w} ${px}px ${fam === "c" ? "'Barlow Condensed'" : fam === "b" ? "'Inter'" : "'Inter Tight'"}, system-ui, sans-serif`;
+  mbToast(`<div class="tsub">Building your action card…</div>`);
+  try { await Promise.all(["700 40px 'Inter Tight'", "600 28px 'Inter Tight'", "800 30px 'Inter'", "500 24px 'Inter'", "italic 900 40px 'Barlow Condensed'"].map(f => document.fonts.load(f))); } catch (e) {}
+  const W = 1080, P = 64, CP = 36, F = (w, px, fam) => `${w} ${px}px ${fam === "c" ? "'Barlow Condensed'" : fam === "b" ? "'Inter'" : "'Inter Tight'"}, system-ui, sans-serif`;
   const meas = document.createElement("canvas").getContext("2d");
   const wrap = (txt, font, max) => { meas.font = font; const words = String(txt).split(" "), out = []; let line = "";
-    for (const w of words) { const t = line ? line + " " + w : w; if (meas.measureText(t).width > max && line) { out.push(line); line = w; } else line = t; } if (line) out.push(line); return out; };
+    for (const w of words) { const t = line ? line + " " + w : w; if (meas.measureText(t).width > max && line) { out.push(line); line = w; } else line = t; } if (line) out.push(line); return out.slice(0, 2); };
   const when = l => l && l.start ? new Date(l.start).toLocaleString("en-US", {weekday: "short", hour: "numeric", minute: "2-digit"}) : "";
-  // lay out first, so the canvas is exactly as tall as the slip
+  // geometry: card = header row + one row per pick; every row is avatar | text | price, all centred on the row's midline
+  const X0 = P, X1 = W - P, AV = 76, TX = X0 + CP + AV + 24, PRICE_W = 150;
   const blocks = open.map(b => {
-    const par = b.kind === "parlay", head = par ? `${b.legs.length}-leg ${b.sgp ? "same game parlay" : "parlay"}` : b.label;
-    const tag = `${b.sport}${par ? (b.sgp ? " · SGP" : " · PARLAY") : " · SINGLE"}${b.boost ? ` · BOOSTED +${Math.round(100 * b.boost)}%` : ""}${mbIsLive(b) ? " · LIVE" : ""}`;
-    const AV = par ? 0 : 112, hl = wrap(head, F(700, 44), W - 2 * P - 220 - AV);
-    const legs = par ? b.legs.map(l => ({t: wrap(l.label, F(600, 32), W - 2 * P - 300), s: [l.sub, when(l)].filter(Boolean).join(" · "), o: l.odds ? mbSign(l.odds) : "", res: l.res, art: actArt(l)})) : [];
-    const sub = par ? "" : [(b.legs[0] || {}).sub, when(b.legs[0])].filter(Boolean).join(" · ");
-    const h = Math.max(40 + hl.length * 52 + (sub ? 40 : 0) + 44, par ? 0 : 196) + legs.reduce((a, l) => a + Math.max(28 + l.t.length * 40 + (l.s ? 34 : 0), 84), 0);
-    return {b, tag, hl, legs, sub, h, AV, art: par ? null : actArt(b.legs[0] || {})};
+    const par = b.kind === "parlay";
+    const tag = `${b.sport} · ${par ? (b.sgp ? "SAME GAME PARLAY" : `${b.legs.length}-LEG PARLAY`) : "SINGLE"}${b.boost ? ` · +${Math.round(100 * b.boost)}% BOOST` : ""}${mbIsLive(b) ? " · LIVE" : ""}`;
+    const rows = b.legs.map(l => { const big = !par, font = F(big ? 700 : 600, big ? 40 : 32), lh = big ? 48 : 40;
+      const t = wrap(l.label, font, X1 - CP - TX - (par ? PRICE_W : 20)), sub = [l.sub, when(l)].filter(Boolean).join(" · ");
+      const th = t.length * lh + (sub ? 34 : 0), h = Math.max(AV + 28, th + 32);
+      return {t, sub, font, lh, th, h, o: par && l.odds ? mbSign(l.odds) : "", res: l.res, art: actArt(l)}; });
+    const h = 96 + rows.reduce((a, r) => a + r.h, 0) + 16;
+    return {b, tag, rows, h, par};
   });
-  const H = 300 + blocks.reduce((a, k) => a + k.h + 20, 0) + 100;
+  const H = 250 + blocks.reduce((a, k) => a + k.h + 22, 0) + 96;
   const cv = document.createElement("canvas"); cv.width = W; cv.height = H; const x = cv.getContext("2d");
   const g = x.createLinearGradient(0, 0, W, H); g.addColorStop(0, "#0d0f0b"); g.addColorStop(1, "#050605"); x.fillStyle = g; x.fillRect(0, 0, W, H);
-  const glow = x.createRadialGradient(W, 0, 0, W, 0, 700); glow.addColorStop(0, "rgba(198,255,46,.22)"); glow.addColorStop(1, "rgba(0,0,0,0)"); x.fillStyle = glow; x.fillRect(0, 0, W, H);
-  const bolt = await new Promise(r => { const im = new Image(); im.onload = () => r(im); im.onerror = () => r(null); im.src = "bolt.png"; });
-  if (bolt) x.drawImage(bolt, P, 66, 92, 92 * bolt.height / bolt.width);
-  x.fillStyle = "#fff"; x.font = F("italic 900", 46, "c"); x.fillText("BLITZED", P + (bolt ? 108 : 0), 112);
-  x.fillStyle = "#c6ff2e"; x.font = F(800, 22, "b"); x.letterSpacing = "6px"; x.fillText("MY ACTION", P, 186); x.letterSpacing = "0px";
-  x.fillStyle = "rgba(255,255,255,.55)"; x.font = F(600, 26, "b"); x.textAlign = "right";
-  x.fillText(new Date().toLocaleDateString("en-US", {weekday: "long", month: "short", day: "numeric"}), W - P, 112);
-  x.fillText(`${open.length} bet${open.length > 1 ? "s" : ""}`, W - P, 186); x.textAlign = "left";
+  const glow = x.createRadialGradient(W, 0, 0, W, 0, 700); glow.addColorStop(0, "rgba(198,255,46,.2)"); glow.addColorStop(1, "rgba(0,0,0,0)"); x.fillStyle = glow; x.fillRect(0, 0, W, H);
+  // header: B mark + wordmark on one baseline, date and count opposite
+  const mark = await new Promise(r => { const im = new Image(); im.onload = () => r(im); im.onerror = () => r(null); im.src = "bmark.png"; });
+  const mh = 54, mw = mark ? mh * mark.width / mark.height : 0;
+  if (mark) x.drawImage(mark, X0, 70, mw, mh);
+  x.textBaseline = "middle"; x.fillStyle = "#fff"; x.font = F("italic 900", 50, "c"); x.fillText("BLITZED", X0 + mw + (mark ? 18 : 0), 99);
+  x.fillStyle = "rgba(255,255,255,.55)"; x.font = F(600, 26, "b"); x.textAlign = "right"; x.fillText(new Date().toLocaleDateString("en-US", {weekday: "long", month: "short", day: "numeric"}), X1, 99);
+  x.textAlign = "left"; x.fillStyle = "#c6ff2e"; x.font = F(800, 22, "b"); x.letterSpacing = "6px"; x.fillText("MY ACTION", X0, 180); x.letterSpacing = "0px";
+  x.fillStyle = "rgba(255,255,255,.55)"; x.font = F(600, 26, "b"); x.textAlign = "right"; x.fillText(`${open.length} bet${open.length > 1 ? "s" : ""}`, X1, 180); x.textAlign = "left";
   const rr = (X, Y, w, h, r) => { x.beginPath(); x.roundRect ? x.roundRect(X, Y, w, h, r) : x.rect(X, Y, w, h); };
-  let y = 236;
+  let y = 220;
   for (const k of blocks) {
-    rr(P - 24, y, W - 2 * P + 48, k.h, 28); x.fillStyle = "rgba(255,255,255,.045)"; x.fill(); x.strokeStyle = "rgba(255,255,255,.09)"; x.lineWidth = 2; x.stroke();
-    let cy = y + 48;
-    x.fillStyle = k.tag.includes("LIVE") ? "#ff5d5d" : "rgba(255,255,255,.5)"; x.font = F(800, 19, "b"); x.letterSpacing = "3px"; x.fillText(k.tag, P, cy); x.letterSpacing = "0px";
-    rr(W - P - 170, y + 26, 170, 64, 18); x.fillStyle = "#c6ff2e"; x.fill();
-    x.fillStyle = "#0b1000"; x.font = F(800, 36); x.textAlign = "center"; x.fillText(mbSign(k.b.odds), W - P - 85, y + 70); x.textAlign = "left";
-    cy += 46;
-    if (k.art) await actDrawArt(x, k.art, P + 46, cy + 18, 46);
-    const tx = P + k.AV; x.fillStyle = "#fff"; x.font = F(700, 44); for (const t of k.hl) { x.fillText(t, tx, cy); cy += 52; }
-    if (k.sub) { x.fillStyle = "rgba(255,255,255,.5)"; x.font = F(500, 26, "b"); x.fillText(k.sub, tx, cy - 8); cy += 40; }
-    for (const l of k.legs) { const top = cy; cy += 28;
-      await actDrawArt(x, l.art, P + 30, top + 40, 30);
-      x.fillStyle = l.res === true ? "#3ee08f" : l.res === false ? "#ff6b6b" : "#fff"; x.font = F(600, 32); for (const t of l.t) { x.fillText(t, P + 80, cy + 8); cy += 40; }
-      if (l.o) { x.fillStyle = "rgba(255,255,255,.75)"; x.font = F(700, 30); x.textAlign = "right"; x.fillText(l.o, W - P, top + 44); x.textAlign = "left"; }
-      if (l.s) { x.fillStyle = "rgba(255,255,255,.45)"; x.font = F(500, 24, "b"); x.fillText(l.s, P + 80, cy + 2); cy += 34; }
-      cy = Math.max(cy, top + 84); }
-    y += k.h + 20;
+    rr(X0, y, X1 - X0, k.h, 30); x.fillStyle = "rgba(255,255,255,.045)"; x.fill(); x.strokeStyle = "rgba(255,255,255,.09)"; x.lineWidth = 2; x.stroke();
+    // header row: tag on the left, the bet's price in a lime pill on the right, sharing one midline
+    const hm = y + 48;
+    x.fillStyle = k.tag.includes("LIVE") ? "#ff5d5d" : "rgba(255,255,255,.5)"; x.font = F(800, 19, "b"); x.letterSpacing = "3px"; x.fillText(k.tag, X0 + CP, hm); x.letterSpacing = "0px";
+    x.font = F(800, 34); const pw = Math.max(PRICE_W, x.measureText(mbSign(k.b.odds)).width + 44);
+    rr(X1 - CP - pw, hm - 30, pw, 60, 18); x.fillStyle = "#c6ff2e"; x.fill();
+    x.fillStyle = "#0b1000"; x.textAlign = "center"; x.fillText(mbSign(k.b.odds), X1 - CP - pw / 2, hm + 1); x.textAlign = "left";
+    let ry = y + 96;
+    k.rows.forEach((r, i) => {
+      if (i) { x.strokeStyle = "rgba(255,255,255,.07)"; x.lineWidth = 2; x.beginPath(); x.moveTo(TX, ry); x.lineTo(X1 - CP, ry); x.stroke(); }
+      r.mid = ry + r.h / 2; ry += r.h; });
+    for (const r of k.rows) {
+      await actDrawArt(x, r.art, X0 + CP + AV / 2, r.mid, AV / 2);
+      let ty = r.mid - r.th / 2 + r.lh / 2;
+      x.fillStyle = r.res === true ? "#3ee08f" : r.res === false ? "#ff6b6b" : "#fff"; x.font = r.font;
+      for (const t of r.t) { x.fillText(t, TX, ty); ty += r.lh; }
+      if (r.sub) { x.fillStyle = "rgba(255,255,255,.48)"; x.font = F(500, 24, "b"); x.fillText(r.sub, TX, ty - r.lh / 2 + 17); }
+      if (r.o) { x.fillStyle = "rgba(255,255,255,.8)"; x.font = F(700, 30); x.textAlign = "right"; x.fillText(r.o, X1 - CP, r.mid); x.textAlign = "left"; }
+    }
+    y += k.h + 22;
   }
-  x.fillStyle = "rgba(255,255,255,.3)"; x.font = F(600, 24, "b"); x.fillText("Tailing? Picks only. Lines may move.", P, H - 70);
-  x.fillStyle = "#c6ff2e"; x.textAlign = "right"; x.fillText("⚡ blitzed", W - P, H - 70); x.textAlign = "left";
+  x.fillStyle = "rgba(255,255,255,.3)"; x.font = F(600, 24, "b"); x.fillText("Picks only. Lines may move.", X0, H - 56);
+  x.fillStyle = "#c6ff2e"; x.font = F("italic 900", 30, "c"); x.textAlign = "right"; x.fillText("BLITZED", X1, H - 56);
+  if (mark) { const w2 = 28 * mark.width / mark.height, tw = x.measureText("BLITZED").width; x.drawImage(mark, X1 - tw - 12 - w2, H - 70, w2, 28); } x.textAlign = "left"; x.textBaseline = "alphabetic";
   cv.toBlob(blob => { if (!blob) return; const url = URL.createObjectURL(blob), file = new File([blob], `blitzed-action-${new Date().toISOString().slice(0, 10)}.png`, {type: "image/png"});
     const canShare = navigator.canShare && navigator.canShare({files: [file]});
     const d = document.createElement("div"); d.className = "shx act";
