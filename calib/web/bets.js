@@ -1,4 +1,4 @@
-// ---------- 🧾 PAPER SPORTSBOOK (shared by the NHL and NFL pages) ----------
+// ---------- 🧾 PAPER SPORTSBOOK (the NHL page) ----------
 // Everything lives in this browser (localStorage; both sports share the origin, so one wallet and one slip).
 // A bet: {id, ts, sport, kind: "single"|"parlay", label, odds (American), stake, legs: [{label, sub, gid, start, key, p, odds}],
 //         status: "open"|"won"|"lost"|"push", result_ts, manual, seen}

@@ -21,12 +21,12 @@ self.addEventListener("fetch", e => {
     .catch(() => caches.match(r).then(m => m || caches.match("./index.html"))));
 });
 """
-MANIFEST = dict(name="Blitzed", short_name="Blitzed", description="Blitzed: paper-money NHL & NFL sportsbook powered by the model",
+MANIFEST = dict(name="Blitzed", short_name="Blitzed", description="Blitzed: a model-powered NHL sportsbook",
                 start_url="./index.html", scope="./", display="standalone", orientation="portrait",
                 background_color="#070806", theme_color="#070806",
                 icons=[dict(src="icon-192.png", sizes="192x192", type="image/png", purpose="any"),
                        dict(src="icon-512.png", sizes="512x512", type="image/png", purpose="any")],
-                shortcuts=[dict(name="Hockey", url="./index.html"), dict(name="Football", url="./nfl.html")])
+                shortcuts=[dict(name="Tonight", url="./index.html")])
 
 
 def write_pwa(out_dir: str):

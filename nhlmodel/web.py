@@ -198,8 +198,8 @@ def _write(out_dir: str, data: dict):
     for name in os.listdir(os.path.join(HERE, "web_assets")):   # home-screen icons
         shutil.copy(os.path.join(HERE, "web_assets", name), os.path.join(out_dir, name))
     open(os.path.join(out_dir, ".nojekyll"), "w").close()
-    try:   # the NFL page lives next to this one (🏒 / 🏈 switch); keep it when only the NHL side rebuilds
-        from nflmodel.daily import install_page
-        install_page(out_dir)
-    except Exception:
-        pass
+    for old in ("nfl.html", "nfl.json"):   # the NFL page was removed: don't keep publishing old copies
+        try:
+            os.remove(os.path.join(out_dir, old))
+        except OSError:
+            pass

@@ -362,11 +362,11 @@ def cmd_slate(a):
         if window:
             pulls = {str(now_et.date()): tried + [window]}      # one attempt per window, even if empty
             json.dump(pulls, open(pf, "w"))
-            # one sportsbook's game lines only (Caesars by default): one call, 3 credits
-            print(f"odds pull ({window})")
-            # every US book for the same 3 credits: edges are measured against the market consensus
-            # (median no-vig across books); the page shows the Caesars price whenever Caesars is listed
-            odds = odds_api.fetch(sched, lineups, "bet", regions="us", game_only=True)
+            # game lines from every book in ODDS_REGIONS (us,us2 = ~20 US books, 6 credits a pull): edges are measured
+            # against the market consensus (median no-vig across books); the page shows Caesars' price when listed
+            regions = os.environ.get("ODDS_REGIONS", "us")
+            print(f"odds pull ({window}, regions {regions})")
+            odds = odds_api.fetch(sched, lineups, "bet", regions=regions, game_only=True)
             if len(odds) and window == "evening":
                 # closing line for games that have not started and start within ~2.5 hours
                 now = pd.Timestamp.now(tz="UTC")

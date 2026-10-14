@@ -17,7 +17,7 @@ on:
         description: "What to run"
         type: choice
         default: slate
-        options: [slate, slate-odds, morning, update, grade, backtest, close, tune, dfo-probe, xg-compare, nfl-odds, recalibrate]
+        options: [slate, slate-odds, morning, update, grade, backtest, close, tune, dfo-probe, xg-compare, recalibrate]
   workflow_call:                # used by recalibrate.yml (the page's RECALIBRATE MODEL button)
     inputs:
       task:
@@ -39,9 +39,11 @@ jobs:
       web: ${{ steps.web.outputs.web }}
     env:
       GH_TOKEN: ${{ github.token }}
-      # One sportsbook's game lines from the-odds-api.com, pulled by the first run after 10:30am and between 5:45-8pm ET
-      # (3 credits each); other runs reuse the latest prices. "0" = no feed, "1" = full feed incl. props.
-      ODDS_ENABLED: "lean"   # game lines, 2 pulls a day (~180 credits / month)
+      # Game lines from every book in ODDS_REGIONS (the-odds-api.com), pulled by the first run after 10:30am and between
+      # 5:45-8pm ET; other runs reuse the latest prices. The page measures edges against the consensus (median no-vig).
+      # Cost per pull = 3 markets x regions: us,us2 = 6 credits, 2 pulls a day = ~360 credits / month (NHL only).
+      ODDS_ENABLED: "lean"
+      ODDS_REGIONS: "us,us2"   # ~20 US books (DraftKings, FanDuel, BetMGM, Caesars, ESPN BET, Fanatics, Hard Rock, Fliff...)
       ODDS_BOOK: williamhill_us     # Caesars (The Odds API key); e.g. draftkings, fanduel, betmgm
       ODDS_BOOK_NAME: Caesars
       ODDS_BOOK_SHORT: CZR
@@ -62,8 +64,7 @@ jobs:
             push*) t=slate ;;
             *) t="${{ inputs.task }}" ;;
           esac
-          if [ "$t" = "slate-odds" ]; then t=slate; echo "ODDS_PULL=1" >> "$GITHUB_ENV"; fi   # manual pull (3 credits)
-          if [ "$t" = "nfl-odds" ]; then t=slate; echo "NFL_ODDS=1" >> "$GITHUB_ENV"; echo "NFL_ODDS_PULL=1" >> "$GITHUB_ENV"; fi   # manual paid NFL odds pull (off by default)
+          if [ "$t" = "slate-odds" ]; then t=slate; echo "ODDS_PULL=1" >> "$GITHUB_ENV"; fi   # manual pull (6 credits)
           echo "task=$t" >> "$GITHUB_OUTPUT"
           # odds pulls go by the clock (see daily.lean_pull_window), since scheduled runs can start late
           echo "Task: $t"
@@ -77,22 +78,17 @@ jobs:
           python -m nhlmodel.daily grade
           python -m nhlmodel.daily backtest
           # weekly self-calibration (Mondays): applies a new version only if it beats the current one walk-forward
-          if [ "$(TZ=America/New_York date +%u)" = "1" ]; then python -m calib recalibrate --sport all || true; fi
+          if [ "$(TZ=America/New_York date +%u)" = "1" ]; then python -m calib recalibrate --sport nhl || true; fi
           python -m nhlmodel.daily slate
       - name: Run ${{ steps.pick.outputs.task }}
         if: steps.pick.outputs.task != 'morning' && steps.pick.outputs.task != 'recalibrate'
         run: python -m nhlmodel.daily ${{ steps.pick.outputs.task }}
-      - name: Recalibrate (NHL + NFL) and republish
+      - name: Recalibrate and republish
         if: steps.pick.outputs.task == 'recalibrate'
         run: |
           python -m nhlmodel.daily grade || true
-          python -m calib recalibrate --sport all
+          python -m calib recalibrate --sport nhl
           python -m nhlmodel.daily slate
-      - name: NFL (nflverse refresh, ratings, this week's prices; one odds pull a day)
-        # every run: cheap (current-season play-by-play only), and an NFL failure never blocks the NHL page
-        if: always() && steps.pull.outcome == 'success'
-        continue-on-error: true
-        run: python -m nflmodel.daily
       - name: Upload state
         # also after a failure, so checkpointed games from a long first load are kept
         if: always() && steps.pull.outcome == 'success'
