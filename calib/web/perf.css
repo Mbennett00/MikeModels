@@ -1,5 +1,4 @@
 /* ---------- ⚙️ PERF (loaded last): same look, far less work per frame ---------- */
-#island { top: calc(var(--hdrh, 100px) + 8px); }
 /* no continuous repaints: sheens and the travelling rim are still, the aurora drifts on the compositor */
 body.shell .w-card::after, body.shell .bz-go::after, .pro-card::after { animation: none !important; display: none !important; }
 body.shell .w-card::before, body.shell .wl-card::before, body.shell .bz-go::before { animation: none !important; --ang: 210deg; }

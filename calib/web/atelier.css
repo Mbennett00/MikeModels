@@ -1,32 +1,4 @@
-/* ---------- 💎 ATELIER: island, spotlight posters, transitions, light edges, alt shots ---------- */
-/* 🏝️ the island */
-#island { position: fixed; z-index: 29; left: 50%; transform: translateX(-50%); max-width: calc(100vw - 32px); padding: 0; border: 0; background: none; color: var(--t1); text-align: left; transition: top .2s; }
-#island.off { display: none; }
-.is-pill { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 6px 0 12px; border-radius: 999px; background: #000; border: 1px solid rgba(255,255,255,.1);
-  box-shadow: 0 10px 30px -8px rgba(0,0,0,.9), inset 0 1px 0 rgba(255,255,255,.06); white-space: nowrap; animation: isin .5s cubic-bezier(.2,1.3,.4,1); }
-@keyframes isin { from { transform: scale(.6); opacity: 0; } }
-#island:not(.live) .is-pill { padding-right: 14px; }
-.is-live { display: inline-flex; align-items: center; gap: 5px; font: 800 10px var(--fb); letter-spacing: .12em; color: #ff5757; }
-.is-live i { width: 7px; height: 7px; border-radius: 50%; background: #ff4d4d; animation: shpulse 1.4s infinite; }
-.is-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--bz); box-shadow: 0 0 8px var(--bz); } .is-dot.dn { background: #ff6b6b; box-shadow: 0 0 8px #ff6b6b; }
-.is-t { max-width: 46vw; overflow: hidden; text-overflow: ellipsis; font: 700 13px var(--fd); letter-spacing: -.01em; }
-.is-s { font: 600 12px var(--fh); color: var(--t2); font-variant-numeric: tabular-nums; }
-.is-pill em { font: 700 12px var(--fh); font-style: normal; } .is-pill em.up { color: #3ee08f; } .is-pill em.dn { color: #ff7a7a; }
-.is-p { position: relative; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: conic-gradient(var(--bz) calc(var(--p) * 1%), rgba(255,255,255,.12) 0); }
-.is-p::before { content: ""; position: absolute; inset: 3px; border-radius: 50%; background: #000; } .is-p b { position: relative; font: 800 9.5px var(--fh); }
-#island.open .is-pill { border-radius: 20px 20px 0 0; border-bottom-color: transparent; }
-.is-panel { width: min(400px, calc(100vw - 32px)); padding: 6px 10px 10px; background: #000; border: 1px solid rgba(255,255,255,.1); border-top: 0; border-radius: 0 0 22px 22px; box-shadow: 0 30px 60px -20px rgba(0,0,0,1); animation: ispanel .35s cubic-bezier(.16,1,.3,1); transform-origin: top; }
-@keyframes ispanel { from { transform: scaleY(.6); opacity: 0; } }
-#island.open { left: 16px; right: 16px; transform: none; display: flex; flex-direction: column; align-items: center; } #island.open .is-pill { width: min(400px, calc(100vw - 32px)); }
-.is-row { display: grid; grid-template-columns: auto minmax(0, 1fr) 54px auto; gap: 10px; align-items: center; padding: 9px 2px; border-top: 1px solid rgba(255,255,255,.06); }
-.is-row:first-child { border-top: 0; } .is-rt { min-width: 0; display: flex; flex-direction: column; } .is-rt b { font: 700 13px var(--fd); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .is-rt i { font: 500 11.5px var(--fb); font-style: normal; color: var(--t3); }
-.is-bar { height: 5px; border-radius: 3px; background: rgba(255,255,255,.1); overflow: hidden; } .is-bar i { display: block; height: 100%; background: var(--g-brand); }
-.is-pc { font: 800 12px var(--fh); min-width: 32px; text-align: right; }
-.is-empty { padding: 12px 4px; font: 500 13px var(--fb); color: var(--t2); text-align: center; }
-.is-foot { display: flex; justify-content: flex-end; padding-top: 6px; } .is-foot button { border: 0; background: rgba(255,255,255,.07); color: var(--t1); border-radius: 999px; padding: 7px 12px; font: 700 12px var(--fd); }
-body.sheet-open #island, body.bz-on #island { display: none; }
-body.shell .wrap { padding-top: 0; } body.has-island #view { padding-top: 44px; }
-
+/* ---------- 💎 ATELIER: spotlight posters, transitions, light edges, alt shots ---------- */
 /* 🎬 spotlight posters */
 .spot { margin: 2px -12px 16px; }
 .spot-h { display: flex; align-items: baseline; gap: 8px; padding: 0 16px 10px; } .spot-h b { font: 700 18px var(--fd); letter-spacing: -.03em; } .spot-h i { font: 600 11px var(--fb); font-style: normal; color: var(--t3); letter-spacing: .1em; text-transform: uppercase; }

@@ -54,7 +54,7 @@ function shAfterRender(render) {
     shAfterRender.last = tab + (typeof FX_GMODE !== "undefined" ? FX_GMODE : ""); b.classList.remove("enter"); void b.offsetWidth; b.classList.add("enter");
     clearTimeout(shAfterRender.t); shAfterRender.t = setTimeout(() => b.classList.remove("enter"), 900); }
   try { shHeader(render); } catch (e) {}
-  requestAnimationFrame(() => { const h = document.querySelector(".hdr"); if (!h) return; const v = h.offsetHeight + "px";   // for the sticky Games switch, feed snapping, the island
+  requestAnimationFrame(() => { const h = document.querySelector(".hdr"); if (!h) return; const v = h.offsetHeight + "px";   // for the sticky Games switch, feed snapping
     if (shAfterRender.hh !== v) { shAfterRender.hh = v; document.documentElement.style.setProperty("--hdrh", v); } });
   shSlipBtn();
   try { b.classList.toggle("pro", proOn()); proWire(document.getElementById("view"), render); } catch (e) {}

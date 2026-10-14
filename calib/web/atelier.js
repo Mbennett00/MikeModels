@@ -1,47 +1,6 @@
 // ---------- 💎 ATELIER: the premium layer for Obsidian ----------
-// Live island (your bets, Dynamic-Island style), cinematic matchup posters on Games, smooth tab transitions,
+// Cinematic matchup posters on Games, smooth tab transitions,
 // and an aurora that leans green or red with today's results.
-
-// ---- 🏝️ live island: a pill under the header that knows what you're sweating ----
-let ISL_OPEN = false, ISL_I = 0;
-function islData() {
-  const s = mbLoad(), open = s.bets.filter(b => b.status === "open"), live = open.filter(mbIsLive), items = [];
-  for (const b of live) {
-    const l = b.legs.find(x => x.res == null) || b.legs[0]; let L = null; try { L = typeof mbLiveLeg === "function" ? mbLiveLeg(l) : null; } catch (e) {}
-    const k = (l && l.key) || {}, P = (() => { try { return mbWinProb(b); } catch (e) { return null; } })();
-    const stat = L && k.t === "prop" && L.cur != null ? `${L.cur}/${Math.floor(k.l) + 1} ${L.unit}` : L && L.state !== "pre" ? `${L.awayAbbr} ${L.away}–${L.home} ${L.homeAbbr}` : "";
-    items.push({b, l, P, stat, detail: L && L.detail});
-  }
-  const night = typeof rcNight === "function" ? rcNight : (t => new Date(t).toDateString()), today = night(Date.now()), settled = s.bets.filter(b => b.status !== "open" && night(b.result_ts || b.ts) === today);
-  const day = settled.reduce((a, b) => a + mbProfit(b), 0);
-  const next = open.flatMap(b => b.legs.map(l => l.start)).filter(t => t && new Date(t) > new Date()).sort()[0];
-  return {items, open: open.length, day, nsettled: settled.length, next};
-}
-function islRender() {
-  let el = document.getElementById("island");
-  const hdr = document.querySelector(".hdr"); if (!hdr) return;
-  if (!el) { el = document.createElement("button"); el.id = "island"; el.onclick = e => { e.stopPropagation(); mbHaptic(); ISL_OPEN = !ISL_OPEN; islRender(); }; document.body.appendChild(el); }
-  const d = islData();
-  if (!d.items.length && !d.open && !d.nsettled) { el.className = "off"; el.innerHTML = ""; document.body.classList.remove("has-island"); return; }
-  document.body.classList.add("has-island");
-  const dayTxt = d.nsettled ? `<em class="${d.day >= 0 ? "up" : "dn"}">${typeof rcFmt === "function" ? rcFmt(d.day) : (d.day >= 0 ? "+" : "−") + mbShort(Math.abs(d.day))} tonight</em>` : "";
-  let pill;
-  if (d.items.length) { const it = d.items[ISL_I % d.items.length];
-    pill = `<span class="is-live"><i></i>LIVE</span><span class="is-t">${esc(it.l ? it.l.label : it.b.label)}</span>${it.stat ? `<span class="is-s">${esc(it.stat)}</span>` : ""}${it.P != null ? `<span class="is-p" style="--p:${Math.round(100 * it.P)}"><b>${Math.round(100 * it.P)}</b></span>` : ""}`; }
-  else if (d.open) pill = `<span class="is-dot"></span><span class="is-t">${d.open} open bet${d.open > 1 ? "s" : ""}</span>${d.next ? `<span class="is-s" data-cd="${esc(d.next)}">${islCountdown(d.next)}</span>` : ""}${dayTxt}`;
-  else pill = `<span class="is-dot ${d.day >= 0 ? "up" : "dn"}"></span><span class="is-t">${d.nsettled} settled tonight</span>${dayTxt}`;
-  const panel = ISL_OPEN ? `<div class="is-panel">${d.items.length ? d.items.map(it => `<div class="is-row" data-tk="${esc(it.b.id)}">${mbPic(it.l || {})}<span class="is-rt"><b>${esc(it.b.kind === "parlay" ? `${it.b.legs.length}-leg parlay` : it.b.label)}</b><i>${esc(it.stat || "")}${it.detail ? ` · ${esc(it.detail)}` : ""}</i></span>
-      ${it.P != null ? `<span class="is-bar"><i style="width:${Math.round(100 * it.P)}%"></i></span><span class="is-pc">${Math.round(100 * it.P)}%</span>` : ""}</div>`).join("")
-      : `<div class="is-empty">${d.open ? `Nothing live yet. ${d.next ? `First puck drop ${islCountdown(d.next)}.` : ""}` : "No bets running."}</div>`}
-    <div class="is-foot"><button data-isgo="1">My bets ›</button></div></div>` : "";
-  el.className = (d.items.length ? "live " : "") + (ISL_OPEN ? "open" : "");
-  el.innerHTML = `<span class="is-pill">${pill}</span>${panel}`;
-  el.querySelectorAll("[data-tk]").forEach(r => r.onclick = e => { e.stopPropagation(); ISL_OPEN = false; islRender(); mbOpenTicket(r.dataset.tk); });
-  const go = el.querySelector("[data-isgo]"); if (go) go.onclick = e => { e.stopPropagation(); ISL_OPEN = false; TAB = "check"; MB_VIEW = "bets"; MB_BTAB = "open"; MB_RENDER && MB_RENDER(); window.scrollTo(0, 0); };
-}
-function islCountdown(t) { const m = Math.max(0, Math.round((new Date(t) - Date.now()) / 6e4)); return m >= 60 ? `in ${Math.floor(m / 60)}h ${m % 60}m` : m > 0 ? `in ${m}m` : "now"; }
-setInterval(() => { if (document.hidden || ISL_OPEN) return; const el = document.getElementById("island"); if (!el || !el.classList.contains("live")) return; ISL_I++; try { islRender(); } catch (e) {} }, 5000);
-document.addEventListener("click", () => { if (ISL_OPEN) { ISL_OPEN = false; islRender(); } });
 
 // ---- 🎬 spotlight: tonight's games as cinematic posters (top of Games) ----
 function atWinHome(g) { try { if (g.p_home != null) return g.p_home; if (typeof gameProb === "function") return gameProb(g, "moneyline", "home"); } catch (e) {} return null; }
@@ -89,7 +48,6 @@ const atRailKey = el => { const host = el.closest("[data-player], .pk, .gc2"); c
 document.addEventListener("scroll", e => { const el = e.target; if (el && el.nodeType === 1 && el.matches && el.matches(AT_RAILS)) AT_X[atRailKey(el)] = el.scrollLeft; }, {capture: true, passive: true});
 function atRestoreRails() { document.querySelectorAll("#view " + AT_RAILS.split(", ").join(", #view ")).forEach(el => { const x = AT_X[atRailKey(el)]; if (x != null) { el.scrollLeft = x; el.dataset.cen = 1; } }); }
 function atAfterRender() {
-  try { islRender(); } catch (e) {}
   try { const v = document.querySelector("body.tab-games #view"); if (v && !v.querySelector(".spot")) { const h = atPosters(); if (h) { const d = document.createElement("div"); d.innerHTML = h; const anchor = v.querySelector(".pmode, .gmode"); anchor ? anchor.before(d.firstElementChild) : v.prepend(d.firstElementChild); } } atWirePosters(); } catch (e) {}
   try { atNavTransitions(); } catch (e) {}
   // alt shots: each row opens on the line nearest the projection (or the one on your slip)
