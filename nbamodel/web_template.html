@@ -429,6 +429,30 @@ function marginHtml(g) {
   return `<div class="xmk-sec">Final margin (home − away)</div><div class="nb-dist">${xs.map((m, i) => `<div class="${m > 0 ? "h" : m < 0 ? "a" : ""}" style="--h:${(100 * pm[i] / top).toFixed(0)}%"><i></i><span>${m % 9 === 0 ? (m > 0 ? "+" + m : m) : ""}</span></div>`).join("")}</div>
     <div class="hint">${esc(g.home.abbr)} wins ${pct(g.p_home)} · within 5 points ${pct(closeGame(g))} · projected ${g.pts_away.toFixed(0)}–${g.pts_home.toFixed(0)}, total ${g.total.toFixed(1)} (±${g.sd_total.toFixed(0)}).</div>`;
 }
+// court view: each side's projected starting five on a half court, spotted by position
+const CT = {};   // game_id -> "home" | "away"
+const CSPOT = [[50, 70], [13, 47], [87, 47], [22, 17], [66, 15]];   // PG top of the key, wings, short corner, post (% of the court)
+const posRank = p => { const s = String(p.pos || "").toUpperCase(); return s === "PG" ? 0 : s === "G" ? 0.5 : s === "SG" ? 1 : /G-F|SF/.test(s) ? 2 : s === "F" ? 2.5 : /F-C|PF/.test(s) ? 3 : s === "C" ? 4 : 2.5; };
+const COURT = `<svg class="nb-lines" viewBox="0 0 500 470" preserveAspectRatio="none" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2.5">
+  <rect x="170" y="0" width="160" height="190" class="lane"/><circle cx="250" cy="190" r="60"/><path d="M220 40h60"/><circle cx="250" cy="52.5" r="7.5"/>
+  <path d="M210 52.5a40 40 0 0 0 80 0"/><path d="M30 0v142a237.5 237.5 0 0 0 440 0V0"/><path d="M190 470a60 60 0 0 1 120 0"/></g></svg>`;
+function courtHtml(g) {
+  const side = CT[g.game_id] || (CT[g.game_id] = "home"), t = g[side];
+  const seg = `<div class="rk-hd"><div class="seg2">${["away", "home"].map(k => `<button class="chip ${side === k ? "on" : ""}" data-ct="${esc(g.game_id)}|${k}">${esc(g[k].abbr)}</button>`).join("")}</div>
+    <span class="nb-ctot">${(side === "home" ? g.pts_home : g.pts_away).toFixed(0)} pts projected</span></div>`;
+  const P = (D.players || []).filter(p => String(p.game_id) === String(g.game_id) && p.team === t.abbr && !/^out/i.test(p.status || "")).sort((x, y) => y.min - x.min);
+  if (!P.length) return seg + `<div class="hint">No player projections for ${esc(t.abbr)} yet.</div>`;
+  const five = P.slice(0, 5).sort((x, y) => posRank(x) - posRank(y) || y.ast - x.ast), bench = P.slice(5, 10);
+  const last = n => { const w = n.split(" "); return /^(Jr\.?|Sr\.?|II|III|IV)$/.test(w[w.length - 1]) && w.length > 2 ? w[w.length - 2] : w[w.length - 1]; };
+  const dots = five.map((p, i) => `<button class="nb-cp${p.status ? " q" : ""}" style="left:${CSPOT[i][0]}%;top:${CSPOT[i][1]}%" data-player="${esc(p.id)}">
+      <span class="nb-ch"><img src="${esc(p.headshot)}" alt="" loading="lazy" onerror="this.remove()"><i>${esc(String(p.pos || "").split("-")[0])}</i>${p.status ? `<em>${esc(ST(p.status))}</em>` : ""}</span>
+      <b>${esc(last(p.name))}</b><span>${p.pts.toFixed(1)} pts</span><small>${p.reb.toFixed(1)} reb · ${p.ast.toFixed(1)} ast</small></button>`).join("");
+  const outs = (D.injuries || []).filter(o => o.team === t.abbr && /^(out|doubt)/i.test(o.status || ""));
+  return seg + `<div class="nb-court" style="--tc:${esc(t.color || "#556")}">${t.logo ? `<img class="nb-clogo" src="${esc(t.logo)}" alt="" onerror="this.remove()">` : ""}${COURT}${dots}</div>
+    ${bench.length ? `<div class="xmk-sec">Bench</div><div class="nb-bench">${bench.map(p => `<button data-player="${esc(p.id)}"><b>${esc(last(p.name))}</b><span>${p.min.toFixed(0)} min · ${p.pts.toFixed(1)} pts</span></button>`).join("")}</div>` : ""}
+    ${outs.length ? `<div class="hint">🚑 Not playing: ${outs.map(o => `${esc(o.name)} <b class="neg">${esc(ST(o.status))}</b>`).join(", ")}.</div>` : ""}
+    <div class="hint">Projected starting five: the five players with the most projected minutes${g.pre ? " (preseason rotations are guesses)" : ""}. Gold ring = questionable. Tap anyone for their chances.</div>`;
+}
 function powerTable() {
   const rows = Object.entries(D.teams || {}).sort((x, y) => y[1].net - x[1].net);
   return `<div class="card nb-pow">${rows.map(([ab, t], i) => `<div class="nb-pr"><span class="nb-rk">${i + 1}</span><b>${esc(ab)}</b><span class="nb-v ${t.net >= 0 ? "pos" : "neg"}">${sgn(t.net)}</span>
@@ -470,7 +494,7 @@ PJA = {
   top: () => (D.players || []).slice().sort((x, y) => y.pts - x.pts).slice(0, 8).map(p => ({p: nPlayer(p), mk: "pts"})),
   panels: gm => { const g = D.games.find(x => String(x.game_id) === String(gm.id)), P = (D.players || []).filter(p => String(p.game_id) === String(g.game_id)).map(nPlayer);
     const top = mk => P.slice().sort((x, y) => y.vals[mk].v - x.vals[mk].v).slice(0, 5);
-    return [{k: "matchup", label: "Matchup", html: () => matchupHtml(g)},
+    return [{k: "matchup", label: "Matchup", html: () => matchupHtml(g)}, {k: "court", label: "Court", html: () => courtHtml(g)},
       {k: "players", label: "Players", html: () => `<div class="xmk-sec">Points</div><div class="pj-mini">${top("pts").map(p => pjPlayerRow(p, "pts")).join("")}</div>
         <div class="xmk-sec">Rebounds</div><div class="pj-mini">${top("reb").map(p => pjPlayerRow(p, "reb")).join("")}</div>
         <div class="xmk-sec">Assists</div><div class="pj-mini">${top("ast").map(p => pjPlayerRow(p, "ast")).join("")}</div>`},
@@ -487,6 +511,7 @@ PJA = {
     const w = fin.filter(g => { const s = scoreOf(g); return (s.home > s.away) === (g.p_home >= 0.5); }).length;
     return `<button class="card pj-rec" data-go="model"><span class="pj-rr"><b>${w}/${fin.length}</b><i>favourites won</i></span><span><b>Model check</b><i>Power ratings and every update</i></span><span class="chev">›</span></button>`; },
   modelHtml,
+  after: render => document.querySelectorAll("#view [data-ct]").forEach(b => b.onclick = e => { e.stopPropagation(); const [id, k] = b.dataset.ct.split("|"); CT[id] = k; render(); }),
   modelWire: render => {
     document.querySelectorAll("[data-info]").forEach(b => b.onclick = () => D && openInfo());
     document.querySelectorAll("[data-uf]").forEach(b => b.onclick = () => { UF = b.dataset.uf; render(); }); },

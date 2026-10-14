@@ -110,3 +110,23 @@ body.pj .hb2 .sub { flex: 1 1 auto !important; min-width: 0 !important; overflow
 .nb-pr { display: grid; grid-template-columns: 26px 54px 64px 1fr; align-items: center; gap: 8px; padding: 8px 0; border-top: 1px solid var(--hair); }
 .nb-pr:first-child { border-top: 0; } .nb-rk { font: 700 12px var(--fh); color: var(--t3); } .nb-pr b { font: 700 14.5px var(--fd); }
 .nb-v { font: 800 15px var(--fh); } .nb-v.pos { color: #3ee08f; } .nb-v.neg { color: #ff7a7a; } .nb-s { font: 500 12px var(--fb); color: var(--t3); text-align: right; }
+
+/* NBA court view */
+.nb-ctot { align-self: center; font: 700 12.5px var(--fb); color: var(--t3); }
+.nb-court { position: relative; width: 100%; aspect-ratio: 500 / 470; border-radius: 16px; overflow: hidden; border: 1px solid rgba(255,255,255,.12); isolation: isolate;
+  background: radial-gradient(120% 70% at 50% 0%, rgba(255,214,160,.16), transparent 70%), repeating-linear-gradient(90deg, rgba(0,0,0,.14) 0 1px, transparent 1px 26px), linear-gradient(180deg, #5a3a20, #3b2614 60%, #2a1b0f); }
+.nb-lines { position: absolute; inset: 0; width: 100%; height: 100%; color: rgba(255,255,255,.55); z-index: 0; }
+.nb-lines .lane { fill: color-mix(in srgb, var(--tc) 45%, transparent); }
+.nb-clogo { position: absolute; left: 50%; bottom: -6%; width: 30%; transform: translateX(-50%); opacity: .2; z-index: 0; pointer-events: none; }
+.nb-cp { position: absolute; z-index: 1; transform: translate(-50%, -32%); display: flex; flex-direction: column; align-items: center; width: 84px; padding: 0; border: 0; background: transparent; color: #fff; line-height: 1.15; }
+.nb-ch { position: relative; width: 46px; height: 46px; border-radius: 50%; overflow: hidden; background: color-mix(in srgb, var(--tc) 70%, #000); border: 2.5px solid var(--tc); box-shadow: 0 0 0 2px rgba(0,0,0,.45), 0 6px 14px rgba(0,0,0,.5); }
+.nb-ch img { position: absolute; left: 50%; bottom: 0; width: 140%; transform: translateX(-50%); }
+.nb-ch i { position: absolute; left: 0; right: 0; bottom: 0; font: 800 8.5px var(--fb); font-style: normal; text-align: center; background: rgba(0,0,0,.6); letter-spacing: .04em; }
+.nb-ch em { position: absolute; top: 0; left: 0; right: 0; font: 800 8.5px var(--fb); font-style: normal; text-align: center; background: #e8c46a; color: #111; }
+.nb-cp.q .nb-ch { border-color: #e8c46a; }
+.nb-cp b { margin-top: 3px; font: 800 11.5px var(--fb); max-width: 84px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-shadow: 0 1px 3px rgba(0,0,0,.9); }
+.nb-cp span { font: 800 12px var(--fh); color: var(--acc, #c6ff2e); text-shadow: 0 1px 3px rgba(0,0,0,.9); }
+.nb-cp small { font: 600 9.5px var(--fb); color: rgba(255,255,255,.8); text-shadow: 0 1px 3px rgba(0,0,0,.9); white-space: nowrap; }
+.nb-bench { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 6px; }
+.nb-bench button { display: flex; flex-direction: column; align-items: flex-start; padding: 8px 10px; border-radius: 12px; border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.04); color: inherit; text-align: left; }
+.nb-bench b { font: 800 13px var(--fb); } .nb-bench span { font: 600 11.5px var(--fb); color: var(--t3); }

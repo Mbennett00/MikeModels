@@ -71,8 +71,8 @@ body.nfl { background: radial-gradient(120% 60% at 50% -10%, rgba(47,224,110,.18
 .lg-n, .wi { background: #2a313c; color: #fff; }
 .g-A { background: rgba(47,224,110,.22) !important; } .g-B { background: rgba(160,220,90,.18) !important; } .g-C { background: rgba(246,192,69,.18) !important; }
 .g-D, .g-F { background: rgba(255,95,85,.2) !important; }
-.fg, .grades b { color: #fff; border-color: rgba(255,255,255,.25); }
-.ph3, .av, .pc, .pc-top, .pc-badge, .pc-line, .code, .lu, .field2, .rink, .fc { border-color: rgba(255,255,255,.12) !important; box-shadow: 0 4px 14px rgba(0,0,0,.35); }
+.fm-g, .grades b { color: #fff; border-color: rgba(255,255,255,.25); }
+.ph3, .av, .pc, .pc-top, .pc-badge, .pc-line, .code, .lu, .field2, .rink, .fm-c { border-color: rgba(255,255,255,.12) !important; box-shadow: 0 4px 14px rgba(0,0,0,.35); }
 .ph3 { border-width: 1px; }
 .code { background: var(--surf); color: #fff; }
 .mh-btn, .mh-seg button { background: var(--surf); color: #fff; border: 1px solid var(--line); box-shadow: none; }
