@@ -90,7 +90,10 @@ def test_lean_pull_window_goes_by_clock_and_pulls_once():
     assert lean_pull_window(t("18:20"), empty, "williamhill_us") == "evening"
     assert lean_pull_window(t("21:00"), empty, "williamhill_us") is None            # too late: games started
     done = pd.DataFrame(dict(book=["williamhill_us"], fetched_at=[t("11:02").tz_convert("UTC").isoformat()]))
-    assert lean_pull_window(t("15:30"), done, "williamhill_us") is None             # morning already pulled
+    assert lean_pull_window(t("14:30"), done, "williamhill_us") is None             # morning already pulled
+    assert lean_pull_window(t("15:30"), done, "williamhill_us") == "afternoon"      # the mid-day refresh
+    pm = pd.DataFrame(dict(book=["x"], fetched_at=[t("15:40").tz_convert("UTC").isoformat()]))
+    assert lean_pull_window(t("17:20"), pm, "williamhill_us") is None               # afternoon already pulled
     assert lean_pull_window(t("18:00"), done, "williamhill_us") == "evening"
     assert lean_pull_window(t("02:00"), done, "williamhill_us", force=True) == "manual"
     assert lean_pull_window(t("13:40"), empty, "williamhill_us", tried=["morning"]) is None   # empty pull: no retry

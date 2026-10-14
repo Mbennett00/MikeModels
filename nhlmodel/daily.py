@@ -365,6 +365,8 @@ def cmd_slate(a):
             # game lines from every book in ODDS_REGIONS (us,us2 = ~20 US books, 6 credits a pull): edges are measured
             # against the market consensus (median no-vig across books); the page shows Caesars' price when listed
             regions = os.environ.get("ODDS_REGIONS", "us")
+            if window == "afternoon":   # the mid-day refresh uses the main US books only (3 credits) to stay on budget
+                regions = os.environ.get("ODDS_REGIONS_MID", regions)
             print(f"odds pull ({window}, regions {regions})")
             odds = odds_api.fetch(sched, lineups, "bet", regions=regions, game_only=True)
             if len(odds) and window == "evening":
@@ -513,21 +515,22 @@ def _publish_web(site, state, plays, meta):
 
 
 def lean_pull_window(now_et: pd.Timestamp, hist: pd.DataFrame, book: str, force: bool = False, tried=()):
-    """Which pull this run should make: 'morning', 'evening', 'manual' or None.
+    """Which pull this run should make: 'morning', 'afternoon', 'evening', 'manual' or None.
 
     Scheduled GitHub runs can start hours late, so pulls go by the clock rather than the cron slot:
-    the first run after 10:30 ET pulls morning lines, the first run between 17:45 and 20:00 ET pulls
-    pre-game lines; each window pulls once a day (checked against odds_history)."""
+    the first run between 10:30 and 15:00 ET pulls morning lines, the first between 15:00 and 17:45 pulls the
+    afternoon lines (after morning skates / goalie news), the first between 17:45 and 20:00 pulls pre-game lines;
+    each window pulls once a day (checked against odds_history)."""
     if force:
         return "manual"
     t = now_et.hour + now_et.minute / 60
-    win = "morning" if 10.5 <= t < 17.75 else "evening" if 17.75 <= t < 20.0 else None
+    win = "morning" if 10.5 <= t < 15.0 else "afternoon" if 15.0 <= t < 17.75 else "evening" if 17.75 <= t < 20.0 else None
     if win is None or win in tried:
         return None
     if len(hist) and "fetched_at" in hist:
         f = pd.to_datetime(hist.fetched_at, utc=True, errors="coerce").dt.tz_convert(ET)
         mine = f[f.dt.normalize() == now_et.normalize()]
-        start = now_et.normalize() + pd.Timedelta(hours=10.5 if win == "morning" else 17.75)
+        start = now_et.normalize() + pd.Timedelta(hours={"morning": 10.5, "afternoon": 15.0}.get(win, 17.75))
         if (mine >= start).any():
             return None
     return win

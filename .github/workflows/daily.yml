@@ -39,11 +39,15 @@ jobs:
       web: ${{ steps.web.outputs.web }}
     env:
       GH_TOKEN: ${{ github.token }}
-      # Game lines from every book in ODDS_REGIONS (the-odds-api.com), pulled by the first run after 10:30am and between
-      # 5:45-8pm ET; other runs reuse the latest prices. The page measures edges against the consensus (median no-vig).
-      # Cost per pull = 3 markets x regions: us,us2 = 6 credits, 2 pulls a day = ~360 credits / month (NHL only).
+      # Game lines from the-odds-api.com, three pulls a day by the clock (other runs reuse the latest prices); the page
+      # measures edges against the consensus (median no-vig across books). Cost per pull = 3 markets x regions:
+      #   ~11am  morning    ODDS_REGIONS      us,us2  6 credits  (~20 books)
+      #   ~3:30  afternoon  ODDS_REGIONS_MID  us      3 credits  (after morning skates / goalie news)
+      #   ~6:40  pre-game   ODDS_REGIONS      us,us2  6 credits  (+ closing line)
+      # = 15 credits a day, ~450 credits / month (NHL only).
       ODDS_ENABLED: "lean"
       ODDS_REGIONS: "us,us2"   # ~20 US books (DraftKings, FanDuel, BetMGM, Caesars, ESPN BET, Fanatics, Hard Rock, Fliff...)
+      ODDS_REGIONS_MID: "us"
       ODDS_BOOK: williamhill_us     # Caesars (The Odds API key); e.g. draftkings, fanduel, betmgm
       ODDS_BOOK_NAME: Caesars
       ODDS_BOOK_SHORT: CZR
