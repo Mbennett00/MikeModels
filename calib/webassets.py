@@ -5,8 +5,8 @@ HERE = os.path.join(os.path.dirname(__file__), "web")
 
 
 def inline(html: str) -> str:
-    css = "\n".join(open(os.path.join(HERE, n)).read() for n in ("health.css", "bets.css", "theme.css", "fun.css", "premium.css", "luxe.css", "pro.css", "stakes.css", "fx.css", "fit.css", "shell.css", "play.css", "prime.css", "vip.css", "acct.css", "blitz.css", "atelier.css", "recap.css", "perf.css"))
-    js = "\n".join(open(os.path.join(HERE, n)).read() for n in ("health.js", "bets.js", "fun.js", "home.js", "sharp.js", "stakes.js", "fx.js", "shell.js", "vip.js", "acct.js", "blitz.js", "atelier.js", "recap.js"))
+    css = "\n".join(open(os.path.join(HERE, n)).read() for n in ("health.css", "theme.css", "premium.css", "luxe.css", "pro.css", "fx.css", "fit.css", "shell.css", "play.css", "prime.css", "proj.css", "perf.css"))
+    js = "\n".join(open(os.path.join(HERE, n)).read() for n in ("health.js", "proj.js"))
     return html.replace("/*CALIB_CSS*/", css).replace("/*CALIB_JS*/", js)
 
 
@@ -21,12 +21,12 @@ self.addEventListener("fetch", e => {
     .catch(() => caches.match(r).then(m => m || caches.match("./index.html"))));
 });
 """
-MANIFEST = dict(name="Blitzed", short_name="Blitzed", description="Blitzed: a model-powered NHL sportsbook",
+MANIFEST = dict(name="Blitzed", short_name="Blitzed", description="Blitzed: NHL, NFL and NBA model projections",
                 start_url="./index.html", scope="./", display="standalone", orientation="portrait",
                 background_color="#070806", theme_color="#070806",
                 icons=[dict(src="icon-192.png", sizes="192x192", type="image/png", purpose="any"),
                        dict(src="icon-512.png", sizes="512x512", type="image/png", purpose="any")],
-                shortcuts=[dict(name="Tonight", url="./index.html")])
+                shortcuts=[dict(name="NHL", url="./index.html"), dict(name="NFL", url="./nfl.html"), dict(name="NBA", url="./nba.html")])
 
 
 def write_pwa(out_dir: str):
