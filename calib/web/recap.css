@@ -1,0 +1,30 @@
+/* ---------- 📊 nightly recap ---------- */
+.rc-card { margin: 12px 0; padding: 16px; border-radius: 24px; background: linear-gradient(180deg, rgba(255,255,255,.055), rgba(255,255,255,.018)); border: 1px solid var(--hair); box-shadow: inset 0 1px 0 rgba(255,255,255,.07); }
+.rc-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.rc-k { font: 700 10.5px var(--fb); letter-spacing: .2em; text-transform: uppercase; color: var(--t3); }
+.rc-rec { font: 800 38px/1 var(--fh); letter-spacing: -.04em; color: #fff; margin-top: 4px; font-variant-numeric: tabular-nums; }
+.rc-net { display: flex; flex-direction: column; align-items: flex-end; padding: 8px 12px; border-radius: 16px; border: 1px solid var(--hair2); background: rgba(255,255,255,.04); color: var(--t1); }
+.rc-net b { font: 800 26px var(--fh); letter-spacing: -.03em; font-variant-numeric: tabular-nums; } .rc-net i { font: 600 11.5px var(--fb); font-style: normal; color: var(--t3); }
+.rc-net.up { border-color: rgba(62,224,143,.35); background: rgba(62,224,143,.07); } .rc-net.up b { color: #3ee08f; }
+.rc-net.dn { border-color: rgba(255,107,107,.35); background: rgba(255,107,107,.07); } .rc-net.dn b { color: #ff7a7a; }
+.rc-open { display: flex; align-items: center; gap: 8px; margin-top: 10px; font: 600 12.5px var(--fb); color: var(--t2); }
+.rc-bars { display: flex; align-items: flex-end; gap: 6px; height: 70px; margin: 14px 0 4px; }
+.rc-bar { flex: 1; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 4px; }
+.rc-bar i { width: 100%; max-width: 30px; height: var(--h); border-radius: 6px 6px 3px 3px; background: #3ee08f; opacity: .9; } .rc-bar.dn i { background: #ff6b6b; }
+.rc-bar span { font: 600 9.5px var(--fb); color: var(--t3); }
+.rc-sum { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 12px; }
+.rc-sum div { display: flex; flex-direction: column; padding: 9px 10px; border-radius: 14px; background: rgba(255,255,255,.035); border: 1px solid var(--hair); }
+.rc-sum span { font: 600 10px var(--fb); letter-spacing: .1em; text-transform: uppercase; color: var(--t3); } .rc-sum b { font: 800 17px var(--fh); margin-top: 3px; } .rc-sum em { font: 700 12px var(--fh); font-style: normal; color: var(--t3); }
+.rc-sum em.pos, .rc-sum b.pos { color: #3ee08f; } .rc-sum em.neg, .rc-sum b.neg { color: #ff7a7a; }
+.rc-acts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+.rc-acts button { height: 40px; border-radius: 12px; border: 1px solid var(--hair2); background: rgba(255,255,255,.05); color: var(--t1); font: 700 13px var(--fd); }
+.rc-acts button[data-rcshare] { background: var(--g-brand); color: var(--brand-ink); border-color: transparent; }
+.rc-unit { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 10px 0 14px; } .rc-unit > span { font: 600 12px var(--fb); color: var(--t3); }
+.rc-unit .gseg { flex: 1; min-width: 160px; margin: 0 !important; } .rc-unit label { font: 600 13px var(--fb); color: var(--t2); display: flex; align-items: center; gap: 4px; }
+.rc-unit input { width: 70px; height: 36px; border-radius: 10px; padding: 0 8px !important; font: 700 14px var(--fh) !important; }
+.rc-night { margin-bottom: 14px; } .rc-nh { display: grid; grid-template-columns: 1fr auto auto; gap: 12px; align-items: baseline; padding: 6px 2px 8px; border-bottom: 1px solid var(--hair); margin-bottom: 6px; }
+.rc-nh b { font: 700 15px var(--fd); } .rc-nh span { font: 800 15px var(--fh); color: var(--t2); } .rc-nh em { font: 800 15px var(--fh); font-style: normal; } .rc-nh em.pos { color: #3ee08f; } .rc-nh em.neg { color: #ff7a7a; }
+.rc-b { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px 2px; cursor: pointer; }
+.rc-r { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font: 800 12px var(--fh); color: #050605; background: #3ee08f; } .rc-b.l .rc-r { background: #ff6b6b; } .rc-b.p .rc-r { background: #8a8f86; }
+.rc-bt { min-width: 0; display: flex; flex-direction: column; } .rc-bt b { font: 600 13.5px var(--fd); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .rc-bt i { font: 500 11.5px var(--fb); font-style: normal; color: var(--t3); }
+.rc-b em { font: 800 14px var(--fh); font-style: normal; } .rc-b em.pos { color: #3ee08f; } .rc-b em.neg { color: #ff7a7a; }

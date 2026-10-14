@@ -430,7 +430,7 @@ function mbAfterRender(render) {
   if (typeof fxAfterRender === "function") fxAfterRender(); else { const sp = document.getElementById("splash"); if (sp && !sp.classList.contains("out")) { sp.classList.add("out"); setTimeout(() => sp.remove(), 600); } }
   const t = typeof TAB !== "undefined" ? TAB : "";   // a soft fade-up when the screen changes (not on live refreshes)
   if (t !== MB_LASTTAB) { const v = document.getElementById("view"); if (v) { v.classList.remove("enter"); void v.offsetWidth; v.classList.add("enter"); } MB_LASTTAB = t; }
-  try { acctAfterRender(render); } catch (e) {} try { bzAfterRender(render); } catch (e) {} try { atAfterRender(render); } catch (e) {}   // account, Blitz, atelier: every screen
+  try { acctAfterRender(render); } catch (e) {} try { bzAfterRender(render); } catch (e) {} try { atAfterRender(render); } catch (e) {} try { rcAfterRender(render); } catch (e) {}   // account, Blitz, atelier, recap: every screen
 }
 // header turns to frosted glass once the page scrolls
 window.addEventListener("scroll", () => { const h = document.querySelector(".hdr"); if (h) h.classList.toggle("stuck", window.scrollY > 8); }, {passive: true});

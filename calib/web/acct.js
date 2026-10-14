@@ -156,6 +156,8 @@ function mbOpenAccount() {
     <div class="ac-list"><label class="ac-row"><span>🛑</span><b>Daily deposit limit</b>${sel("aclim", lim.dep, [[0, "None"], [100, "$100"], [250, "$250"], [500, "$500"], [1000, "$1,000"]])}</label>
       <label class="ac-row"><span>⏱️</span><b>Session reminder</b>${sel("acsess", lim.sess, [[0, "Off"], [30, "30 min"], [60, "1 hour"], [120, "2 hours"]])}</label>
       <label class="ac-row"><span>✋</span><b>Hold to place bets</b><input type="checkbox" id="achold" ${s.tapPlace ? "" : "checked"}></label>
+      <label class="ac-row"><span>📏</span><b>Unit size (1u)</b>${sel("acunit", typeof rcUnit === "function" ? rcUnit(s) : 100, [[10, "$10"], [25, "$25"], [50, "$50"], [100, "$100"], [250, "$250"], [500, "$500"], [1000, "$1,000"]])}</label>
+      <label class="ac-row"><span>🔁</span><b>Show results in units</b><input type="checkbox" id="acshowu" ${s.showUnits ? "checked" : ""}></label>
       <label class="ac-row"><span>🔔</span><b>Sounds &amp; alerts</b><input type="checkbox" id="acsnd" ${s.sound !== false ? "checked" : ""}></label></div>
     <div class="ac-foot">Blitzed is a free-to-play sportsbook simulator: balances have no cash value.</div>`;
   document.getElementById("shx").onclick = () => { closeSheet(); MB_RENDER && MB_RENDER(); };
@@ -164,6 +166,8 @@ function mbOpenAccount() {
   document.getElementById("aclim").onchange = e => save(s2 => { s2.lim = Object.assign({}, s2.lim, {dep: Number(e.target.value)}); });
   document.getElementById("acsess").onchange = e => save(s2 => { s2.lim = Object.assign({}, s2.lim, {sess: Number(e.target.value)}); });
   document.getElementById("achold").onchange = e => { save(s2 => { s2.tapPlace = !e.target.checked; }); window.MB_TAP_PLACE = !e.target.checked; };
+  document.getElementById("acunit").onchange = e => save(s2 => { s2.unitSize = Number(e.target.value); });
+  document.getElementById("acshowu").onchange = e => save(s2 => { s2.showUnits = e.target.checked; });
   document.getElementById("acsnd").onchange = e => save(s2 => { s2.sound = e.target.checked; });
   sh.querySelectorAll("[data-cashier]").forEach(b => b.onclick = () => { mbHaptic(); mbOpenCashier(b.dataset.cashier); });
   sh.querySelectorAll("[data-acgo]").forEach(b => b.onclick = () => { mbHaptic(); closeSheet(); const k = b.dataset.acgo;

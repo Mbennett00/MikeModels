@@ -1238,7 +1238,8 @@ function mbLiveLeg(leg) {
 function render() {
   try { mbAutoSettle("NFL", mbGrade); } catch (e) {}
   BETS = []; header(); strip(); nav();
-  $("#view").innerHTML = {home: mbHomeHtml, games, props, teams, check, updates, rewards: mbRewardsHtml}[TAB]();
+  { const v = {home: mbHomeHtml, games, props, teams, check, updates, rewards: mbRewardsHtml}[TAB]();   // an identical redraw leaves the screen alone (no image flash)
+    if (v !== window.MB_VIEW_HTML || $("#view").dataset.tab !== TAB) { window.MB_VIEW_HTML = v; $("#view").dataset.tab = TAB; $("#view").innerHTML = v; } }
   if (TAB === "home") mbWireHome(render);
   if (TAB === "rewards") mbWire(render);
   document.querySelectorAll("[data-info]").forEach(b => b.onclick = () => D && openInfo());

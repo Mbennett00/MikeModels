@@ -12,7 +12,7 @@ function islData() {
     const stat = L && k.t === "prop" && L.cur != null ? `${L.cur}/${Math.floor(k.l) + 1} ${L.unit}` : L && L.state !== "pre" ? `${L.awayAbbr} ${L.away}–${L.home} ${L.homeAbbr}` : "";
     items.push({b, l, P, stat, detail: L && L.detail});
   }
-  const today = new Date().toDateString(), settled = s.bets.filter(b => b.status !== "open" && new Date(b.result_ts || b.ts).toDateString() === today);
+  const night = typeof rcNight === "function" ? rcNight : (t => new Date(t).toDateString()), today = night(Date.now()), settled = s.bets.filter(b => b.status !== "open" && night(b.result_ts || b.ts) === today);
   const day = settled.reduce((a, b) => a + mbProfit(b), 0);
   const next = open.flatMap(b => b.legs.map(l => l.start)).filter(t => t && new Date(t) > new Date()).sort()[0];
   return {items, open: open.length, day, nsettled: settled.length, next};
@@ -24,12 +24,12 @@ function islRender() {
   const d = islData();
   if (!d.items.length && !d.open && !d.nsettled) { el.className = "off"; el.innerHTML = ""; document.body.classList.remove("has-island"); return; }
   document.body.classList.add("has-island");
-  const dayTxt = d.nsettled ? `<em class="${d.day >= 0 ? "up" : "dn"}">${d.day >= 0 ? "+" : "−"}${mbShort(Math.abs(d.day))} today</em>` : "";
+  const dayTxt = d.nsettled ? `<em class="${d.day >= 0 ? "up" : "dn"}">${typeof rcFmt === "function" ? rcFmt(d.day) : (d.day >= 0 ? "+" : "−") + mbShort(Math.abs(d.day))} tonight</em>` : "";
   let pill;
   if (d.items.length) { const it = d.items[ISL_I % d.items.length];
     pill = `<span class="is-live"><i></i>LIVE</span><span class="is-t">${esc(it.l ? it.l.label : it.b.label)}</span>${it.stat ? `<span class="is-s">${esc(it.stat)}</span>` : ""}${it.P != null ? `<span class="is-p" style="--p:${Math.round(100 * it.P)}"><b>${Math.round(100 * it.P)}</b></span>` : ""}`; }
   else if (d.open) pill = `<span class="is-dot"></span><span class="is-t">${d.open} open bet${d.open > 1 ? "s" : ""}</span>${d.next ? `<span class="is-s" data-cd="${esc(d.next)}">${islCountdown(d.next)}</span>` : ""}${dayTxt}`;
-  else pill = `<span class="is-dot ${d.day >= 0 ? "up" : "dn"}"></span><span class="is-t">${d.nsettled} settled today</span>${dayTxt}`;
+  else pill = `<span class="is-dot ${d.day >= 0 ? "up" : "dn"}"></span><span class="is-t">${d.nsettled} settled tonight</span>${dayTxt}`;
   const panel = ISL_OPEN ? `<div class="is-panel">${d.items.length ? d.items.map(it => `<div class="is-row" data-tk="${esc(it.b.id)}">${mbPic(it.l || {})}<span class="is-rt"><b>${esc(it.b.kind === "parlay" ? `${it.b.legs.length}-leg parlay` : it.b.label)}</b><i>${esc(it.stat || "")}${it.detail ? ` · ${esc(it.detail)}` : ""}</i></span>
       ${it.P != null ? `<span class="is-bar"><i style="width:${Math.round(100 * it.P)}%"></i></span><span class="is-pc">${Math.round(100 * it.P)}%</span>` : ""}</div>`).join("")
       : `<div class="is-empty">${d.open ? `Nothing live yet. ${d.next ? `First puck drop ${islCountdown(d.next)}.` : ""}` : "No bets running."}</div>`}
@@ -69,6 +69,7 @@ function atWirePosters() {
 }
 
 // ---- 🌗 smooth tab changes (View Transitions where the browser has them) ----
+if (document.startViewTransition) document.documentElement.classList.add("has-vt");
 function atNavTransitions() {
   if (!document.startViewTransition) return;
   document.querySelectorAll("#nav [data-k]").forEach(b => { if (b.dataset.vt) return; b.dataset.vt = 1; const orig = b.onclick;

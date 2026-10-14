@@ -22,3 +22,7 @@ button, a, .pxb, .alt-b, .pk-b { touch-action: manipulation; -webkit-tap-highlig
 /* brand: the transparent B (no tile) in the header and splash */
 body.shell .hdr .mlogo { border-radius: 0 !important; height: 30px !important; width: auto !important; filter: drop-shadow(0 2px 12px rgba(198,255,46,.28)) !important; margin-right: 2px !important; }
 .splash img { border-radius: 0 !important; box-shadow: none !important; filter: drop-shadow(0 10px 40px rgba(198,255,46,.35)); }
+/* one entrance per screen change, not four stacked ones: the View Transition cross-fade, or a single quick fade */
+#view.vin > *, #view.enter > *, body.shell.enter #view > *, body.shell.enter .hx2 > *, body.shell.enter .pk-grid > * { animation: none !important; }
+html:not(.has-vt) body.shell.enter #view { animation: vfade .2s ease-out both; }
+@keyframes vfade { from { opacity: 0; } }

@@ -1421,7 +1421,7 @@ function render() {
   try { mbAutoSettle("NHL", mbGrade); } catch (e) {}
   header(); strip(); nav();
   const v = {home: mbHomeHtml, games, props, check, updates, rewards: mbRewardsHtml}[TAB]();
-  $("#view").innerHTML = v;
+  if (v !== window.MB_VIEW_HTML || $("#view").dataset.tab !== TAB) { window.MB_VIEW_HTML = v; $("#view").dataset.tab = TAB; $("#view").innerHTML = v; }   // an identical redraw leaves the screen alone (no image flash)
   if (TAB === "home") mbWireHome(render);
   if (TAB === "rewards") mbWire(render);
   document.querySelectorAll("[data-info]").forEach(b => b.onclick = () => D && openInfo());
