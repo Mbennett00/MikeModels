@@ -52,7 +52,9 @@ def refresh_games(games: pd.DataFrame, today: dt.date, log=print) -> pd.DataFram
 
 def refresh_box(box: pd.DataFrame, games: pd.DataFrame, log=print) -> pd.DataFrame:
     have = set(box.game_id) if len(box) else set()
-    need = games[(games.state == "post") & games.season_type.isin([2, 3]) & ~games.game_id.isin(have)].game_id.tolist()[-MAX_BOX_PER_RUN:]
+    cur = int(games.season.max()) if len(games) else 0
+    keep = games.season_type.isin([2, 3]) | ((games.season_type == 1) & (games.season == cur))   # this season's preseason box scores too
+    need = games[(games.state == "post") & keep & ~games.game_id.isin(have)].game_id.tolist()[-MAX_BOX_PER_RUN:]
     rows = []
     for gid in need:
         rows += data.box(gid)
@@ -64,8 +66,9 @@ def refresh_box(box: pd.DataFrame, games: pd.DataFrame, log=print) -> pd.DataFra
 
 
 def next_slate(games: pd.DataFrame, today: dt.date) -> tuple[pd.DataFrame, bool]:
-    """Today's regular-season / playoff games, else the next night with games within two weeks (upcoming)."""
-    g = games[games.season_type.isin([2, 3])].copy()
+    """Today's games (preseason included), else the next night with games within two weeks (upcoming)."""
+    cur = int(games.season.max()) if len(games) else 0
+    g = games[games.season_type.isin([2, 3]) | ((games.season_type == 1) & (games.season == cur))].copy()
     g["d"] = pd.to_datetime(g.date).dt.date
     tonight = g[g.d == today]
     if len(tonight):
@@ -89,17 +92,19 @@ def build(games: pd.DataFrame, box: pd.DataFrame, roster: pd.DataFrame | None, i
     sl, upcoming = next_slate(games, today)
     slate = []
     for _, r in sl.iterrows():
-        pr = model.project_game(R, r.home, r.away, bool(r.neutral), bool(r.b2b_home), bool(r.b2b_away))
+        pre = int(r.season_type) == 1
+        pr = model.project_game(R, r.home, r.away, bool(r.neutral), bool(r.b2b_home), bool(r.b2b_away), preseason=pre)
         res = dict(home=int(r.home_score), away=int(r.away_score)) if r.state == "post" and pd.notna(r.home_score) else None
-        slate.append(dict(game_id=r.game_id, start_utc=r.start_utc, state=r.state, detail=r.detail, neutral=bool(r.neutral),
+        slate.append(dict(game_id=r.game_id, start_utc=r.start_utc, state=r.state, detail=r.detail, neutral=bool(r.neutral), pre=pre,
                           home=_team_obj(r, "home", r.b2b_home), away=_team_obj(r, "away", r.b2b_away),
-                          sd_margin=round(R["sd_margin"], 2), sd_total=round(R["sd_total"], 2), result=res, **pr))
+                          sd_margin=round(R["sd_margin"] * (model.PRE_SD if pre else 1), 2), sd_total=round(R["sd_total"] * (model.PRE_SD if pre else 1), 2), result=res, **pr))
     flat = [dict(game_id=s["game_id"], home=s["home"]["abbr"], away=s["away"]["abbr"], pts_home=s["pts_home"], pts_away=s["pts_away"]) for s in slate]
     players = model.player_projections(box, games, roster, inj, flat)
     teams = model.team_table(R)
-    finished = games[(games.state == "post") & games.season_type.isin([2, 3])]
+    finished = games[(games.state == "post") & (games.season_type.isin([2, 3]) | ((games.season_type == 1) & (games.season == R["season"])))]
     # what changed since the last run: rating movers, injuries to projected regulars, the refit itself
-    items = [dict(kind="data", icon="📥", text=f"Ratings refit on {R['games_fit']} games ({R['games_this_season']} this season) through {finished.date.max()}")]
+    items = [dict(kind="data", icon="📥", text=f"Ratings refit on {R['games_fit']} games ({R['games_this_season']} this season"
+                  f"{', ' + str(R['games_preseason']) + ' preseason at ' + str(int(100 * model.PRESEASON)) + '% weight' if R['games_preseason'] else ''}) through {finished.date.max()}")]
     old = (prev_meta or {}).get("ratings") or {}
     movers = sorted(((t, v["net"] - old[t]["net"]) for t, v in teams.items() if t in old), key=lambda x: -abs(x[1]))[:3]
     for t, dlt in movers:
@@ -115,8 +120,10 @@ def build(games: pd.DataFrame, box: pd.DataFrame, roster: pd.DataFrame | None, i
     inj_list = [] if inj is None or inj.empty else inj[["name", "team", "status", "detail"]].to_dict("records")
     return dict(
         meta=dict(sport="NBA", date=str(sl.date.iloc[0]) if len(sl) else str(today), generated_at=now, upcoming=upcoming,
+                  preseason=bool(len(sl)) and bool((sl.season_type == 1).all()),
                   data_through=str(finished.date.max()) if len(finished) else None, season=R["season"],
-                  model=dict(games_fit=R["games_fit"], games_this_season=R["games_this_season"], hca=round(R["hca"], 2),
+                  model=dict(games_fit=R["games_fit"], games_this_season=R["games_this_season"], games_preseason=R["games_preseason"],
+                             preseason_weight=model.PRESEASON, hca=round(R["hca"], 2),
                              league_pts=round(R["mu"], 1), sd_margin=round(R["sd_margin"], 2), sd_total=round(R["sd_total"], 2),
                              b2b_own=round(R["b2b_own"], 2), b2b_opp=round(R["b2b_opp"], 2), half_life=model.HALF_LIFE, carry=model.CARRY)),
         games=slate, players=players, teams=teams, injuries=inj_list, updates=updates, ratings=teams)

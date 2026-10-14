@@ -115,3 +115,49 @@ def test_build_writes_an_upcoming_slate():
     assert gm["home"]["logo"].endswith("/500-dark/h.png") and 0 < gm["p_home"] < 1
     sl, up = next_slate(games, dt.date(2026, 3, 1))
     assert not up and len(sl) == 7
+
+
+def _preseason(g, n=10, season=2027, date="2026-10-10", flip=True):
+    """n finished preseason games where the usual favourite gets blown out (to check they only nudge the ratings)."""
+    p = g.head(n).copy()
+    p["game_id"] = [f"p{i}" for i in range(n)]
+    p["date"], p["season"], p["season_type"] = date, season, 1
+    if flip:
+        p["home_score"], p["away_score"] = p["away_score"] + 30, p["home_score"]
+    return p
+
+
+def test_preseason_counts_but_only_a_little():
+    g, _, _ = synth_season()
+    base = model.fit_ratings(model.add_rest(g), pd.Timestamp("2026-10-12"))
+    both = model.fit_ratings(model.add_rest(pd.concat([g, _preseason(g)], ignore_index=True)), pd.Timestamp("2026-10-12"))
+    assert both["games_preseason"] == 10 and base["games_preseason"] == 0
+    moved = max(abs((both["off"][t] + both["dfn"][t]) - (base["off"][t] + base["dfn"][t])) for t in TEAMS)
+    assert 0.05 < moved < 6          # it learns something, but ten blowouts don't rewrite the ratings
+    old = _preseason(g, season=2025, date="2024-10-10")   # an older season's preseason is ignored
+    assert model.fit_ratings(model.add_rest(pd.concat([g, old], ignore_index=True)), pd.Timestamp("2026-04-01"))["games_preseason"] == 0
+
+
+def test_preseason_slate_and_new_players():
+    g, _, _ = synth_season(n_days=40)
+    pre_fut = g.tail(5).copy()
+    pre_fut["game_id"] = [f"q{i}" for i in range(5)]
+    pre_fut["date"], pre_fut["state"], pre_fut["season_type"], pre_fut["season"] = "2026-10-15", "pre", 1, 2027
+    pre_fut[["home_score", "away_score"]] = np.nan
+    pre_done = _preseason(g, n=4, date="2026-10-08", flip=False)
+    games = pd.concat([g, pre_done, pre_fut], ignore_index=True)
+    sl, up = next_slate(games, dt.date(2026, 10, 15))
+    assert not up and len(sl) == 5 and (sl.season_type == 1).all()
+    # a rookie who has only played preseason gets a projection; a veteran's minutes aren't dragged down by short preseason nights
+    t = pre_fut.iloc[0].home
+    gid = pre_done.game_id.iloc[0]
+    rows = [dict(game_id=gid, team=t, player_id="rook", name="Rookie", pos="G", starter=False, min=22, pts=11, reb=3, ast=2, fg3=1)]
+    for gid2 in g[(g.home == t) | (g.away == t)].game_id.tail(10):
+        rows.append(dict(game_id=gid2, team=t, player_id="vet", name="Vet", pos="F", starter=True, min=34, pts=20, reb=7, ast=4, fg3=2))
+    rows.append(dict(game_id=gid, team=t, player_id="vet", name="Vet", pos="F", starter=True, min=16, pts=8, reb=3, ast=2, fg3=1))
+    P = model.player_projections(pd.DataFrame(rows), games, None, None, [dict(game_id="q0", home=t, away=pre_fut.iloc[0].away, pts_home=112.0, pts_away=108.0)])
+    by = {p["id"]: p for p in P}
+    assert "rook" in by and by["rook"]["gp"] == 0 and by["rook"]["gp_pre"] == 1
+    assert by["vet"]["min"] > by["rook"]["min"]
+    out = build(games, pd.DataFrame(), None, None, dt.date(2026, 10, 15))
+    assert out["meta"]["preseason"] and all(gm["pre"] for gm in out["games"])

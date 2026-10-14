@@ -383,6 +383,7 @@ function strip() {
   let h = ""; const st = D.games.map(g => (scoreOf(g) || {}).state), nl = st.filter(x => x === "in").length, nf = st.filter(x => x === "post").length;
   if (TAB === "games") { if (nl) h += `<span class="chip" style="background:var(--red-soft)">🔴 ${nl} live</span>`; if (nf) h += `<span class="chip">🏁 ${nf} final</span>`; }
   if (D.meta.upcoming && TAB === "home") h += `<span class="chip">📅 Next games: ${esc(new Date(String(D.meta.date) + "T12:00:00").toLocaleDateString("en-US", {weekday: "short", month: "short", day: "numeric"}))}</span>`;
+  if (D.meta.preseason && (TAB === "home" || TAB === "games")) h += `<span class="chip">🏀 Preseason: the model is learning (${(D.meta.model || {}).games_preseason || 0} games so far)</span>`;
   $("#strip").innerHTML = h; $("#strip").style.display = h ? "" : "none";
 }
 // ---------- adapter pieces ----------
@@ -393,7 +394,7 @@ function nGame(g) {
     a: Object.assign({}, g.away, {sub: sub(g.away)}), h: Object.assign({}, g.home, {sub: sub(g.home)}),
     sa: Math.round(g.pts_away), sh: Math.round(g.pts_home), total: g.total, totalTxt: `${g.total.toFixed(1)} pts`,
     score: st === "pre" ? null : {a: s.away ?? 0, h: s.home ?? 0},
-    note: g.home.b2b || g.away.b2b ? `🔋 ${[g.away, g.home].filter(t => t.b2b).map(t => t.abbr).join(" & ")} on a back-to-back` : (g.neutral ? "Neutral site" : ""),
+    note: g.pre ? "Preseason · rotations vary" : g.home.b2b || g.away.b2b ? `🔋 ${[g.away, g.home].filter(t => t.b2b).map(t => t.abbr).join(" & ")} on a back-to-back` : (g.neutral ? "Neutral site" : ""),
     stats: [["Total", `${g.total.toFixed(1)} pts`], ["Line", modelLine(g)], ["Within 5", pct(closeGame(g))], ["Margin", `±${g.sd_margin.toFixed(0)}`]]};
   if (st === "final") v.hit = (s.home > s.away) === (g.p_home >= 0.5);
   return v;
@@ -404,7 +405,7 @@ function nPlayer(p) {
   const live = k => B ? (k === "pra" ? B.pts + B.reb + B.ast : B[k]) : null, pra = p.pts + p.reb + p.ast;
   const val = (k, v, txt) => ({v, txt, chance: pStat(p, k, NMK[k].L), chanceLab: NMK[k].lab, live: live(k)});
   return {id: p.id, gid: p.game_id, name: p.name, team: p.team, pos: p.pos, img: p.headshot, logo: t.logo, color: t.color,
-    meta: `${p.team} · ${p.pos || "–"}${g ? ` · ${g.home.abbr === p.team ? "vs" : "@"} ${p.opp}` : ""} · ${p.min.toFixed(0)} min${p.status ? " · " + ST(p.status) : ""}`,
+    meta: `${p.team} · ${p.pos || "–"}${g ? ` · ${g.home.abbr === p.team ? "vs" : "@"} ${p.opp}` : ""} · ${p.min.toFixed(0)} min${!p.gp && p.gp_pre ? " · from preseason" : ""}${p.status ? " · " + ST(p.status) : ""}`,
     vals: {pts: val("pts", p.pts, p.pts.toFixed(1)), reb: val("reb", p.reb, p.reb.toFixed(1)), ast: val("ast", p.ast, p.ast.toFixed(1)),
            fg3: val("fg3", p.fg3, p.fg3.toFixed(1)), pra: val("pra", pra, pra.toFixed(1))}};
 }
@@ -441,8 +442,9 @@ function modelHtml() {
   const now = `<div class="card"><div class="lk-h">The model right now</div><div class="kv" style="margin-top:8px">
       <div><span>Results through</span><b>${esc(m.data_through || "–")}</b></div><div><span>Games fit</span><b>${M.games_fit ?? "–"} <span style="font-size:12px;color:var(--t3)">${M.games_this_season ?? 0} this season</span></b></div>
       <div><span>League scoring</span><b>${(M.league_pts ?? 0).toFixed(1)} pts/team</b></div><div><span>Home court</span><b>+${(M.hca ?? 0).toFixed(1)} pts</b></div>
-      <div><span>Margin spread</span><b>±${(M.sd_margin ?? 0).toFixed(1)}</b></div><div><span>Back-to-back</span><b>${(M.b2b_own ?? 0).toFixed(1)} pts</b></div></div>
-    <div class="hint">Refits every run on all finished games: team offence and defence, home court and back-to-backs, with recent games weighted most (a game's weight halves every ${M.half_life ?? 60} game days; last season counts ${Math.round(100 * (M.carry ?? 0.7))}% until this season's games take over).</div></div>`;
+      <div><span>Margin spread</span><b>±${(M.sd_margin ?? 0).toFixed(1)}</b></div><div><span>Back-to-back</span><b>${(M.b2b_own ?? 0).toFixed(1)} pts</b></div>
+      <div><span>Preseason learned</span><b>${M.games_preseason ?? 0} games <span style="font-size:12px;color:var(--t3)">at ${Math.round(100 * (M.preseason_weight ?? 0.25))}% weight</span></b></div></div>
+    <div class="hint">Refits every run on all finished games: team offence and defence, home court and back-to-backs, with recent games weighted most (a game's weight halves every ${M.half_life ?? 60} game days; last season counts ${Math.round(100 * (M.carry ?? 0.7))}% until this season's games take over). Preseason games count ${Math.round(100 * (M.preseason_weight ?? 0.25))}%: starters rest and rotations are tryouts, so they nudge the ratings and give rookies and new arrivals their first numbers without rewriting last season.</div></div>`;
   const runs = D.updates || [], chips = `<div class="strip" style="padding-left:0">${Object.keys(UPD).map(k => `<button class="chip ${UF === k ? "on" : ""}" data-uf="${k}">${UPD[k]}</button>`).join("")}</div>`;
   const list = runs.map(r => { const it = r.items.filter(i => UF === "all" || i.kind === UF); if (!it.length) return "";
     return `<div class="card upd"><div class="ut">${esc(fmtT(r.time))}</div>${it.map(i => `<div class="ui"><span>${i.icon}</span><span>${esc(i.text)}</span></div>`).join("")}</div>`; }).join("");
@@ -461,7 +463,7 @@ PJA = {
             {k: "ast", label: "Assists", unit: "proj ast", note: "Projected assists · bar = chance of 6+"},
             {k: "fg3", label: "Threes", unit: "proj 3PM", note: "Projected threes made · bar = chance of 2+"},
             {k: "pra", label: "PRA", unit: "proj PRA", note: "Points + rebounds + assists · bar = chance of 30+"}],
-  kicker: () => `NBA · ${D.meta.upcoming ? "Next slate" : "Tonight"}`,
+  kicker: () => `NBA · ${D.meta.preseason ? "Preseason" : D.meta.upcoming ? "Next slate" : "Tonight"}`,
   header, strip,
   games: () => D.games.slice().sort((x, y) => new Date(x.start_utc) - new Date(y.start_utc)).map(nGame),
   players: () => (D.players || []).map(nPlayer),
