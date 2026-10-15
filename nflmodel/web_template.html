@@ -378,6 +378,14 @@ PJA = {
     return out; },
   ctx: gid => { const g = D.games.find(x => String(x.game_id) === String(gid)); if (!g) return null;
     return {sport: "NFL", game: `${g.away.abbr} @ ${g.home.abbr}`, start: g.start_utc, open: nflOpen(g), ev: {date: bkEvDate(g.start_utc), home: g.home.abbr, away: g.away.abbr}}; },
+  price: (gid, kind, side, line) => { const g = D.games.find(x => String(x.game_id) === String(gid)); if (!g || !g.mpmf || !g.tpmf) return null; return prob(g, kind, side, line); },
+  info: gid => { const g = D.games.find(x => String(x.game_id) === String(gid)); if (!g) return [];
+    const T = D.teams || {}, out = [];
+    if ((T[g.away.abbr] || {}).record) out.push(`${g.away.abbr} ${T[g.away.abbr].record}`);
+    if ((T[g.home.abbr] || {}).record) out.push(`${g.home.abbr} ${T[g.home.abbr].record}`);
+    if (g.stadium) out.push(`🏟️ ${g.stadium}`);
+    if (g.weather && g.weather.icon) out.push(`${g.weather.icon} ${g.weather.expo !== "outdoor" ? "Indoors" : g.weather.temp != null ? Math.round(g.weather.temp) + "°" + (g.weather.wind >= 12 ? " · windy" : "") : "Outdoors"}`);
+    return out; },
   lines: gid => { const g = D.games.find(x => String(x.game_id) === String(gid)), C = PJA.ctx(gid); if (!g || !C || !C.open || !g.mpmf || !g.tpmf) return null;
     const S = (kind, side, line, p, pick, mkt) => bkSel(Object.assign({kind, side, line, p, pick, mkt, gid: String(g.game_id)}, C));
     const lh = g.margin >= 0 ? -bkHalf(g.margin) : bkHalf(-g.margin), T = bkHalf(g.total);

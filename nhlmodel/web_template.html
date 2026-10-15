@@ -432,6 +432,8 @@ PJA = {
     return out; },
   ctx: gid => { const g = (TODAY || D).games.find(x => String(x.game_id) === String(gid)) || D.games.find(x => String(x.game_id) === String(gid)); if (!g) return null;
     return {sport: "NHL", game: `${g.away.abbr} @ ${g.home.abbr}`, start: g.start_utc, open: D === TODAY && notStarted(g), ev: {date: bkEvDate(g.start_utc), home: g.home.abbr, away: g.away.abbr}}; },
+  price: (gid, kind, side, line) => { const g = D.games.find(x => String(x.game_id) === String(gid)); if (!g || !g.reg) return null;
+    return kind === "spread" ? gameProb(g, "puckline", side, line) : gameProb(g, "total", side, line); },
   lines: gid => { const g = D.games.find(x => String(x.game_id) === String(gid)), C = PJA.ctx(gid); if (!g || !C || !C.open || !g.reg) return null;
     const S = (kind, side, line, p, pick, mkt) => bkSel(Object.assign({kind, side, line, p, pick, mkt, gid: String(g.game_id)}, C));
     const ph = gameProb(g, "moneyline", "home"), lh = ph >= 0.5 ? -1.5 : 1.5;

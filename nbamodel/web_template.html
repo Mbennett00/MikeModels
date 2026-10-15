@@ -222,6 +222,10 @@ PJA = {
   ctx: gid => { const g = D.games.find(x => String(x.game_id) === String(gid)); if (!g) return null;
     return {sport: "NBA", espnIds: true, game: `${g.away.abbr} @ ${g.home.abbr}`, start: g.start_utc, open: !scoreOf(g) && new Date(g.start_utc) > Date.now(),
       ev: {date: bkEvDate(g.start_utc), home: g.home.abbr, away: g.away.abbr, id: String(g.game_id)}}; },
+  price: (gid, kind, side, line) => { const g = D.games.find(x => String(x.game_id) === String(gid)); if (!g) return null;
+    if (kind === "spread") return side === "home" ? phi((g.margin + line) / g.sd_margin) : phi((line - g.margin) / g.sd_margin);
+    const po = 1 - phi((line - g.total) / g.sd_total); return side === "over" ? po : 1 - po; },
+  info: gid => { const g = D.games.find(x => String(x.game_id) === String(gid)); return g && g.pre ? ["Preseason"] : []; },
   lines: gid => { const g = D.games.find(x => String(x.game_id) === String(gid)), C = PJA.ctx(gid); if (!g || !C || !C.open) return null;
     const S = (kind, side, line, p, pick, mkt) => bkSel(Object.assign({kind, side, line, p, pick, mkt, gid: String(g.game_id)}, C));
     const lh = g.margin >= 0 ? -bkHalf(g.margin) : bkHalf(-g.margin), T = bkHalf(g.total), ph = phi((g.margin + lh) / g.sd_margin), po = 1 - phi((T - g.total) / g.sd_total);
