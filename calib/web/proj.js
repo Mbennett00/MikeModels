@@ -70,6 +70,14 @@ function pjMeter(p, cls = "") { return `<span class="pj-meter ${cls}"><i style="
 function pjStatus(g) {
   return g.state === "live" ? `<b class="st-live">Live</b><span>${esc(g.detail || "")}</span>` : g.state === "final" ? `<b class="st-fin">Final</b>` : `<span class="st-time">${esc(g.time || "")}</span>`;
 }
+// game lines with their artwork: each side carries its team's logo and colour, totals carry both logos
+function pjLines(g) {
+  const M = PJA.lines ? PJA.lines(g.id) : null; if (!M) return null;
+  const side = (x, t) => { if (x) Object.assign(x, {logo: t.logo, color: t.color}); };
+  for (const k of ["spread", "ml"]) { side((M[k] || [])[0], g.a); side((M[k] || [])[1], g.h); }
+  for (const x of M.total || []) if (x) x.logos = [g.a.logo, g.h.logo];
+  return M;
+}
 const pjCtx = gid => PJA.ctx ? PJA.ctx(gid) : null;
 // a player's bettable lines for one stat: [{sel, top}] nearest even money first, then shown low to high
 function pjProps(p, stat, max = 3) {
@@ -77,7 +85,7 @@ function pjProps(p, stat, max = 3) {
   const L = PJA.playerLines(p.id).filter(x => x[2] && x[2].stat === stat && x[1] != null && x[1] >= 0.1 && x[1] <= 0.88);   // no lottery tickets, no −3000 locks
   return L.sort((x, y) => Math.abs(x[1] - 0.5) - Math.abs(y[1] - 0.5)).slice(0, max).sort((x, y) => x[2].n - y[2].n).map(([l, c, spec]) => ({
     top: (stat === "td" || stat === "goals") && spec.n === 1 ? "Anytime" : `${Math.ceil(spec.n)}+`,
-    sel: bkSel({sport: C.sport, gid: p.gid, kind: "prop", side: "yes", line: spec.n, p: c, pick: `${p.name} ${l}`, mkt: (PJA.markets.find(m => m.k === stat) || {}).label || "Player prop",
+    sel: bkSel({img: p.img, logo: p.logo, color: p.color, sport: C.sport, gid: p.gid, kind: "prop", side: "yes", line: spec.n, p: c, pick: `${p.name} ${l}`, mkt: (PJA.markets.find(m => m.k === stat) || {}).label || "Player prop",
       game: C.game, start: C.start, open: C.open, ev: C.ev, pl: {name: p.name, id: String(p.id), espn: !!C.espnIds, team: p.team, stat, n: spec.n}})}));
 }
 function pjAv(p, cls = "") {
@@ -94,7 +102,7 @@ function pjPropRow(p, stat) {
 const pjPlayerRow = (p, mk) => pjPropRow(p, mk);   // pages still call this name
 function pjMarkets(g) {
   if (g.state !== "pre" || !PJA.lines) return "";
-  const M = PJA.lines(g.id); if (!M) return "";
+  const M = pjLines(g); if (!M) return "";
   const row = (t, i) => `<span class="mk-t">${pjLogo(t)}<b>${esc(t.abbr)}</b></span>
     ${bkBtn((M.spread || [])[i], (M.spread || [])[i] ? pjSp((M.spread || [])[i].line) : "")}
     ${bkBtn((M.total || [])[i], (M.total || [])[i] ? `${i ? "U" : "O"} ${(M.total || [])[i].line}` : "")}
@@ -110,24 +118,26 @@ function pjGamePanels(g) {
   return out;
 }
 function pjGameCard(g) {
-  const team = (t, side) => { const sc = g.score ? g.score[side] : null, other = g.score ? g.score[side === "h" ? "a" : "h"] : null;
-    return `<div class="gc-t"><span class="gc-lg">${pjLogo(t)}</span><span class="gc-nm"><b>${esc(t.name)}</b><i>${t.sub || ""}</i></span>
-      ${g.state === "pre" ? "" : `<strong class="gc-sc ${g.state === "final" && sc < other ? "lose" : ""}">${sc ?? 0}</strong>`}</div>`; };
-  const open = PJ.open.has(String(g.id)), P = open ? pjGamePanels(g) : [];
+  const open = PJ.open.has(String(g.id)), P = open ? pjGamePanels(g) : [], pre = g.state === "pre";
   let body = "";
   if (open && P.length) { const k = PJ.panel[g.id] && P.some(x => x.k === PJ.panel[g.id]) ? PJ.panel[g.id] : P[0].k;
     body = `<div class="xpanel"><div class="strip xtabs">${P.map(x => `<button class="chip ${x.k === k ? "on" : ""}" data-pv="${esc(g.id)}|${x.k}">${x.label}</button>`).join("")}</div>
       <div class="xbody">${P.find(x => x.k === k).html()}</div></div>`; }
+  const side = (t, k) => { const sc = g.score ? g.score[k] : null, other = g.score ? g.score[k === "h" ? "a" : "h"] : null;
+    return `<div class="mc-s ${k} ${g.state === "final" && sc < other ? "lose" : ""}"><span class="mc-lg">${pjLogo(t)}</span><b>${esc(t.name)}</b><i>${t.sub || (k === "h" ? "Home" : "Away")}</i></div>`; };
+  const mid = pre ? `<div class="mc-mid"><span class="mc-vs">VS</span>${pjCountdown(g)}</div>`
+    : `<div class="mc-mid sc"><b>${g.score ? g.score.a : 0}<i>–</i>${g.score ? g.score.h : 0}</b><span>${g.state === "live" ? `<b class="st-live">Live</b> ${esc(g.detail || "")}` : "Final"}</span></div>`;
   const mk = pjMarkets(g);
-  return `<article class="gc ${g.state === "live" ? "islive" : ""}" data-gid="${esc(g.id)}">
-      <div class="gc-top"><span class="gc-st">${pjStatus(g)}</span>${g.note ? `<span class="gc-note">${g.note}</span>` : ""}</div>
-      ${team(g.a, "a")}${team(g.h, "h")}
-      ${mk || (g.state === "pre" ? "" : `<div class="gc-lock">${g.state === "live" ? "Lines are closed while the game is on" : "Final"}</div>`)}
+  return `<article class="gc mc ${g.state === "live" ? "islive" : ""}" data-gid="${esc(g.id)}" style="--ca:${esc(g.a.color || "#345")};--ch:${esc(g.h.color || "#543")}">
+      <div class="mc-hero">${g.a.logo ? `<img class="mc-wm a" src="${esc(g.a.logo)}" alt="" onerror="this.remove()">` : ""}${g.h.logo ? `<img class="mc-wm h" src="${esc(g.h.logo)}" alt="" onerror="this.remove()">` : ""}
+        <div class="mc-top"><span class="mc-lgu">${esc(PJA.sport)}</span><span class="mc-time">${pre ? esc(g.time || "") : ""}</span>${g.note ? `<span class="mc-note">${g.note}</span>` : ""}</div>
+        <div class="mc-row">${side(g.a, "a")}${mid}${side(g.h, "h")}</div></div>
+      ${mk || (pre ? "" : `<div class="gc-lock">${g.state === "live" ? "Lines are closed while the game is on" : "Final · bets graded"}</div>`)}
     ${body}<button class="more" data-more="${esc(g.id)}">${open ? "Hide" : "Player props" + (PJA.panels && PJA.panels(g).some(x => ["rink", "field", "court"].includes(x.k)) ? " · lineup" : "")}<span class="chev ${open ? "up" : ""}">›</span></button></article>`;
 }
 // Home: a game row with both moneylines
 function pjGameRow(g) {
-  const M = g.state === "pre" && PJA.lines ? PJA.lines(g.id) : null;
+  const M = g.state === "pre" ? pjLines(g) : null;
   const side = (t, i, sc, other) => `<div class="gr-t">${pjLogo(t)}<b>${esc(t.name)}</b>${M ? bkBtn(M.ml[i]) : g.state === "pre" ? "" : `<strong class="${g.state === "final" && sc < other ? "lose" : ""}">${sc ?? 0}</strong>`}</div>`;
   return `<div class="gr" data-gogame="${esc(g.id)}"><div class="gr-st">${pjStatus(g)}<span class="chev">›</span></div>
     ${side(g.a, 0, g.score && g.score.a, g.score && g.score.h)}${side(g.h, 1, g.score && g.score.h, g.score && g.score.a)}</div>`;
@@ -139,13 +149,13 @@ const pjEmpty = (t, s) => `<div class="empty"><div class="t">${esc(t)}</div><div
 const pjOpenGames = () => PJA.games().filter(g => g.state === "pre" && PJA.lines && PJA.lines(g.id));
 function pjCountdown(g) {
   const C = pjCtx(g.id), t = C && C.start ? new Date(C.start) - Date.now() : null;
-  if (t == null || t <= 0) return esc(g.time || "");
+  if (t == null || t <= 0) return `<b class="cd soft">${esc(g.time || "")}</b>`;
   const h = Math.floor(t / 36e5), m = Math.floor(t % 36e5 / 6e4);
-  return h >= 24 ? esc(g.time || "") : `<b class="cd">${h ? h + "h " : ""}${m}m</b>`;
+  return h >= 24 ? `<b class="cd soft">${esc(String(g.time || "").split(" ")[0])}</b>` : `<b class="cd">${h ? h + "h " : ""}${m}m</b>`;
 }
 // featured games: big matchup cards in team colours, moneylines and the total right on the card
 function pjFeatured(G) {
-  return `<div class="fgs">${G.slice(0, 6).map(g => { const M = PJA.lines(g.id), T = (M.total || [])[0];
+  return `<div class="fgs">${G.slice(0, 6).map(g => { const M = pjLines(g), T = (M.total || [])[0];
     const tm = t => `<div class="fg-tm"><span class="fg-lg">${pjLogo(t)}</span><b>${esc(t.name)}</b></div>`;
     return `<article class="fg" style="--ca:${esc(g.a.color || "#345")};--ch:${esc(g.h.color || "#543")}">
       <div class="fg-top"><span class="fg-lg2">${esc(PJA.sport)}</span><span class="fg-cd">${g.time ? `<i>${esc(g.time)}</i>` : ""}${pjCountdown(g)}</span></div>
@@ -161,9 +171,9 @@ function pjBoosts(G) {
   const top = (PJA.top ? PJA.top() : []).map(({p, mk}) => pjProps(p, mk, 1)[0]).filter(Boolean);
   if (top[0]) boost(top[0].sel, "Most popular prop");
   const close = G.slice().sort((x, y) => Math.abs(x.ph - 0.5) - Math.abs(y.ph - 0.5))[0];
-  if (close) { const M = PJA.lines(close.id); boost(close.ph < 0.5 ? M.ml[1] : M.ml[0], "Coin-flip game"); }
+  if (close) { const M = pjLines(close); boost(close.ph < 0.5 ? M.ml[1] : M.ml[0], "Coin-flip game"); }
   const hi = G.slice().sort((x, y) => (y.total || 0) - (x.total || 0))[0];
-  if (hi) { const M = PJA.lines(hi.id); boost((M.total || [])[0], "Highest-scoring matchup"); }
+  if (hi) { const M = pjLines(hi); boost((M.total || [])[0], "Highest-scoring matchup"); }
   if (top[1]) boost(top[1].sel, "Fan favourite");
   return out;
 }
@@ -174,7 +184,7 @@ function pjBoostsHtml(B) {
 // parlays of the day: one tap fills the slip
 const PJ_POD = {};
 function pjParlays(G) {
-  const fav = G.map(g => { const M = PJA.lines(g.id), s = g.ph >= 0.5 ? M.ml[1] : M.ml[0]; return s; }).filter(s => s && s.p >= 0.55 && s.p <= 0.75).sort((x, y) => y.p - x.p).slice(0, 3);
+  const fav = G.map(g => { const M = pjLines(g), s = g.ph >= 0.5 ? M.ml[1] : M.ml[0]; return s; }).filter(s => s && s.p >= 0.55 && s.p <= 0.75).sort((x, y) => y.p - x.p).slice(0, 3);
   const props = [], seen = new Set();
   for (const {p, mk} of (PJA.top ? PJA.top() : [])) { const x = pjProps(p, mk, 1)[0]; if (x && !seen.has(String(p.gid)) && x.sel.p >= 0.4) { seen.add(String(p.gid)); props.push(x.sel); } if (props.length >= 3) break; }
   const cards = [];

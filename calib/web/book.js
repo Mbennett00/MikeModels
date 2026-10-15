@@ -4,7 +4,7 @@
 // A selection (built by bkSel):
 //   {key, sport, gid, kind: ml|spread|total|prop, side: home|away|over|under|yes, line, p, pick, mkt, game, start,
 //    ev: {date: "YYYYMMDD", home, away, id}, pl: {name, id, team, stat, n}}
-const BK = {key: "bz.book.v1", hold: 0.045, start: 1000, drop: 100, reload: 1000, legs: 8};
+const BK = {key: "bz.book.v1", hold: 0.045, start: 10000, drop: 1000, reload: 10000, legs: 8};
 const BK_REG = {};   // key -> the latest selection drawn on screen (prices refresh with the model)
 const bkDay = (t = Date.now()) => new Date(t).toLocaleDateString("en-CA", {timeZone: "America/New_York"});
 const bkImp = p => Math.min(0.97, Math.max(0.03, p) * (1 + BK.hold));
@@ -16,8 +16,10 @@ const bkN = n => Math.round(n).toLocaleString("en-US");
 const BK_COIN = '<svg class="bk-c" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9.6 16.9V7.3h3.5a2.75 2.75 0 0 1 0 5.5H9.6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
 function bkLoad() {
-  try { const s = JSON.parse(localStorage.getItem(BK.key)); if (s && typeof s.coins === "number" && Array.isArray(s.bets)) return Object.assign({slip: [], mode: "single", pstake: 0, drop: "", reload: "", view: "open"}, s); } catch (e) {}
-  return {coins: BK.start, bets: [], slip: [], mode: "single", pstake: 0, drop: "", reload: "", view: "open"};
+  try { const s = JSON.parse(localStorage.getItem(BK.key)); if (s && typeof s.coins === "number" && Array.isArray(s.bets)) {
+    if (!s.k10) { s.k10 = 1; s.coins += 9000; s.k10new = 1; }   // the bankroll went from 1,000 to 10,000: top up wallets made before that
+    return Object.assign({slip: [], mode: "single", pstake: 0, drop: "", reload: "", view: "open"}, s); } } catch (e) {}
+  return {coins: BK.start, bets: [], slip: [], mode: "single", pstake: 0, drop: "", reload: "", view: "open", k10: 1};
 }
 let BKS = bkLoad();
 function bkSave() { try { localStorage.setItem(BK.key, JSON.stringify(BKS)); } catch (e) {} }
@@ -30,6 +32,12 @@ function bkSel(o) {
   s.dec = s.boost && o.dec ? o.dec : bkDec(s.p);
   BK_REG[s.key] = s;
   return s;
+}
+function bkArt(s, cls = "") {
+  const im = (src, c = "") => src ? `<img class="${c}" src="${esc(src)}" alt="" loading="lazy" onerror="this.remove()">` : "";
+  if (s.img) return `<span class="bk-art pl ${cls}" style="--tc:${esc(s.color || "#345")}"><span>${esc(String(s.pl ? s.pl.name : s.pick).split(" ").map(w => w[0]).slice(0, 2).join(""))}</span>${im(s.img, "hs")}${im(s.logo, "lg")}</span>`;
+  if (s.logos) return `<span class="bk-art duo ${cls}">${im(s.logos[0])}${im(s.logos[1])}</span>`;
+  return `<span class="bk-art ${cls}" style="--tc:${esc(s.color || "#345")}">${s.logo ? im(s.logo) : `<b>${esc(String(s.pick).slice(0, 3))}</b>`}</span>`;
 }
 const bkIn = key => BKS.slip.some(x => x.key === key);
 // a price button: line on top (spread / total), odds below
@@ -68,9 +76,9 @@ function bkSlipHtml() {
   const L = BKS.slip, P = bkCanParlay() && BKS.mode === "parlay";
   if (!L.length) return `<div class="sh-t">Bet slip</div><div class="bk-empty">Tap any price to add it here.</div>`;
   const leg = x => { const s = BK_REG[x.key] || x, lock = !s.open;
-    return `<div class="bk-leg ${lock ? "lock" : ""}"><button class="bk-x" data-bkx="${esc(x.key)}" aria-label="Remove">✕</button>
-      <div class="bk-lt"><b>${esc(s.pick)}</b><i>${esc(s.mkt)} · ${esc(s.game)}</i>${lock ? `<em>Started · remove to place</em>` : ""}</div>
-      <span class="bk-od">${bkAm(s.dec)}</span>
+    return `<div class="bk-leg ${lock ? "lock" : ""} ${s.boost ? "boost" : ""}">${bkArt(s)}
+      <div class="bk-lt"><b>${esc(s.pick)}</b><i>${s.boost ? "⚡ " : ""}${esc(s.mkt)} · ${esc(s.game)}</i>${lock ? `<em>Started · remove to place</em>` : ""}</div>
+      <span class="bk-od">${bkAm(s.dec)}</span><button class="bk-x" data-bkx="${esc(x.key)}" aria-label="Remove">✕</button>
       ${P ? "" : `<label class="bk-st"><input inputmode="numeric" pattern="[0-9]*" data-bks="${esc(x.key)}" value="${x.stake || ""}" placeholder="0"><span id="bkw-${esc(x.key)}">${x.stake ? "wins " + bkN(x.stake * (s.dec - 1)) : ""}</span></label>`}</div>`; };
   return `<div class="bk-sh"><div class="sh-t">Bet slip</div><span class="bk-bal">${BK_COIN}${bkN(BKS.coins)}</span></div>
     ${L.length >= 2 ? `<div class="seg" style="--n:2"><button class="${P ? "" : "on"}" data-bkm="single">Singles</button><button class="${P ? "on" : ""} ${bkCanParlay() ? "" : "dis"}" data-bkm="parlay">Parlay</button></div>
@@ -78,9 +86,10 @@ function bkSlipHtml() {
     <div class="bk-legs">${L.map(leg).join("")}</div>
     ${P ? `<div class="bk-par"><span>Parlay odds</span><b>${bkAm(bkParlayDec())}</b></div>
       <label class="bk-st big"><input inputmode="numeric" pattern="[0-9]*" data-bks="parlay" value="${BKS.pstake || ""}" placeholder="Stake"><span></span></label>` : ""}
-    <div class="bk-q">${[25, 50, 100, 250].map(v => `<button data-bkq="${v}">${v}</button>`).join("")}<button data-bkq="max">Max</button></div>
+    <div class="bk-q">${[100, 250, 500, 1000].map(v => `<button data-bkq="${v}">${bkN(v)}</button>`).join("")}<button data-bkq="max">Max</button></div>
     <div class="bk-foot"><div><span>Stake</span><b id="bk-ts">0</b></div><div><span>To win</span><b id="bk-tw">0</b></div></div>
-    <button class="bk-place" id="bk-place">Place bet</button><button class="bk-clear" data-bkclear="1">Clear slip</button>
+    <div class="bk-slide" id="bk-place" role="button" aria-label="Slide to place"><span class="bk-sf"></span><span class="bk-stx" id="bk-stx">Enter a stake</span><span class="bk-th">${BK_COIN}</span></div>
+    <button class="bk-clear" data-bkclear="1">Clear slip</button>
     <div class="bk-fine">Play coins only. No deposits, no cash value.</div>`;
 }
 function bkTotals() {
@@ -93,8 +102,8 @@ function bkSlipRefresh() {
   ts.textContent = bkN(t.stake); tw.textContent = bkN(t.win);
   const P = bkCanParlay() && BKS.mode === "parlay", lock = BKS.slip.some(x => !(BK_REG[x.key] || x).open);
   const n = P ? 1 : BKS.slip.filter(x => x.stake > 0).length;
-  b.disabled = !t.stake || t.stake > BKS.coins || lock;
-  b.textContent = t.stake > BKS.coins ? "Not enough coins" : lock ? "Remove started games" : !t.stake ? "Enter a stake" : P ? `Place parlay · win ${bkN(t.win)}` : `Place ${n > 1 ? n + " bets" : "bet"} · win ${bkN(t.win)}`;
+  b.classList.toggle("dis", !t.stake || t.stake > BKS.coins || lock);
+  document.getElementById("bk-stx").textContent = t.stake > BKS.coins ? "Not enough coins" : lock ? "Remove started games" : !t.stake ? "Enter a stake" : `Slide to bet · win ${bkN(t.win)}`;
   for (const x of BKS.slip) { const w = document.getElementById("bkw-" + x.key); if (w) w.textContent = x.stake ? "wins " + bkN(x.stake * ((BK_REG[x.key] || x).dec - 1)) : ""; }
 }
 function bkOpenSlip() {
@@ -112,8 +121,19 @@ function bkOpenSlip() {
     if (P) BKS.pstake = v; else BKS.slip.forEach(x => x.stake = v);
     bkSave(); re(); });
   sh.querySelector("[data-bkclear]").onclick = () => { BKS.slip = []; BKS.pstake = 0; bkSave(); bkPaint(); closeSheet(); };
-  document.getElementById("bk-place").onclick = bkPlace;
+  bkSlider(document.getElementById("bk-place"));
   bkSlipRefresh();
+}
+// slide to place: drag the coin to the end of the track
+function bkSlider(el) {
+  const th = el.querySelector(".bk-th"), fill = el.querySelector(".bk-sf"); let x0 = null, x = 0;
+  const max = () => el.clientWidth - th.offsetWidth - 8;
+  const set = v => { x = v; th.style.transform = `translateX(${v}px)`; fill.style.width = `${v + th.offsetWidth / 2 + 4}px`; };
+  const back = () => { el.classList.add("snap"); set(0); setTimeout(() => el.classList.remove("snap"), 260); };
+  th.onpointerdown = e => { if (el.classList.contains("dis")) { el.classList.remove("nope"); void el.offsetWidth; el.classList.add("nope"); return; } x0 = e.clientX - x; th.setPointerCapture(e.pointerId); el.classList.add("drag"); };
+  th.onpointermove = e => { if (x0 == null) return; set(Math.max(0, Math.min(max(), e.clientX - x0))); };
+  th.onpointerup = th.onpointercancel = () => { if (x0 == null) return; x0 = null; el.classList.remove("drag");
+    if (x >= max() * 0.88) { set(max()); el.classList.add("done"); setTimeout(bkPlace, 180); } else back(); };
 }
 function bkPlace() {
   const P = bkCanParlay() && BKS.mode === "parlay", t = bkTotals(), now = Date.now();
@@ -136,7 +156,7 @@ function bkPlace() {
 // ---------- daily drop streak, levels, missions ----------
 const bkYday = () => bkDay(Date.now() - 864e5);
 const bkStreakNow = () => BKS.drop === bkDay() || BKS.drop === bkYday() ? (BKS.streak || 1) : 0;
-const bkDropAmt = () => BK.drop + 25 * Math.min(6, BKS.drop === bkYday() ? (BKS.streak || 1) : 0);   // 100 on day 1, up to 250 on a 7-day streak
+const bkDropAmt = () => BK.drop + 250 * Math.min(6, BKS.drop === bkYday() ? (BKS.streak || 1) : 0);   // 1,000 on day 1, up to 2,500 on a 7-day streak
 function bkClaim() {
   if (BKS.drop === bkDay()) return; const amt = bkDropAmt();
   BKS.streak = BKS.drop === bkYday() ? (BKS.streak || 1) + 1 : 1; BKS.drop = bkDay(); BKS.coins += amt;
@@ -148,10 +168,10 @@ function bkLevel() {   // XP = every coin you've ever put in play
   return {n, xp, name: BK_LV.filter(x => n >= x[0]).pop()[1], prog: (xp - lo) / (hi - lo), need: hi - xp};
 }
 const BK_MIS = [
-  {id: "three", ic: "🎯", t: "Place 3 bets", r: 50, f: T => [Math.min(3, T.length), 3]},
-  {id: "prop", ic: "🙋", t: "Bet a player prop", r: 25, f: T => [T.some(b => b.legs.some(l => l.kind === "prop")) ? 1 : 0, 1]},
-  {id: "parlay", ic: "🧩", t: "Place a 3-leg parlay", r: 75, f: T => [T.some(b => b.legs.length >= 3) ? 1 : 0, 1]},
-  {id: "multi", ic: "🌐", t: "Bet two different leagues", r: 50, f: T => [Math.min(2, new Set(T.flatMap(b => b.legs.map(l => l.sport))).size), 2]},
+  {id: "three", ic: "🎯", t: "Place 3 bets", r: 500, f: T => [Math.min(3, T.length), 3]},
+  {id: "prop", ic: "🙋", t: "Bet a player prop", r: 250, f: T => [T.some(b => b.legs.some(l => l.kind === "prop")) ? 1 : 0, 1]},
+  {id: "parlay", ic: "🧩", t: "Place a 3-leg parlay", r: 750, f: T => [T.some(b => b.legs.length >= 3) ? 1 : 0, 1]},
+  {id: "multi", ic: "🌐", t: "Bet two different leagues", r: 500, f: T => [Math.min(2, new Set(T.flatMap(b => b.legs.map(l => l.sport))).size), 2]},
 ];
 function bkMissions() {
   const day = bkDay(), T = BKS.bets.filter(b => bkDay(b.at) === day), got = (BKS.mis && BKS.mis.day === day) ? BKS.mis.got : [];
@@ -176,7 +196,7 @@ function bkWalletHtml(big) {
     <div class="wl-xpl"><span>${bkN(L.xp)} XP</span><span>${bkN(L.need)} to Lv ${L.n + 1}</span></div>
     <div class="wl-row"><span class="wl-ch">🔥 <b>${st}</b> day${st === 1 ? "" : "s"}</span><span class="wl-ch">🎟️ <b>${s.open}</b> open</span>
       <span class="wl-ch ${s.today > 0 ? "up" : s.today < 0 ? "dn" : ""}">📈 <b>${s.today > 0 ? "+" : s.today < 0 ? "−" : ""}${bkN(Math.abs(s.today))}</b> today</span></div>
-    ${BKS.drop !== bkDay() ? `<button class="bk-drop" data-bkdrop="1">${BK_COIN}<span><b>Daily drop${st ? ` · day ${st + 1}` : ""}</b><i>Free coins every day · streaks pay more</i></span><em>+${bkDropAmt()}</em></button>` : ""}
+    ${BKS.drop !== bkDay() ? `<button class="bk-drop" data-bkdrop="1">${BK_COIN}<span><b>Daily drop${st ? ` · day ${st + 1}` : ""}</b><i>Free coins every day · streaks pay more</i></span><em>+${bkN(bkDropAmt())}</em></button>` : ""}
     ${bkBroke() ? `<button class="bk-drop" data-bkreload="1">${BK_COIN}<span><b>Out of coins</b><i>Reload to ${bkN(BK.reload)} (once a day)</i></span><em>Reload</em></button>` : ""}</section>`;
 }
 function bkAddParlay(legs) {
@@ -184,7 +204,7 @@ function bkAddParlay(legs) {
   BKS.slip = legs.map(s => Object.assign({stake: 0}, s)); BKS.mode = "parlay"; BKS.pstake = 0; bkSave(); bkPaint(); bkOpenSlip();
 }
 const bkBroke = () => BKS.coins < 10 && !BKS.bets.some(b => b.st === "open") && BKS.reload !== bkDay();
-function bkReload() { if (!bkBroke()) return; BKS.reload = bkDay(); BKS.coins = BK.reload; bkSave(); bkPaint(); bkToast("Wallet reloaded · 1,000 coins", "ok"); }
+function bkReload() { if (!bkBroke()) return; BKS.reload = bkDay(); BKS.coins = BK.reload; bkSave(); bkPaint(); bkToast("Wallet reloaded · 10,000 coins", "ok"); }
 function bkStats() {
   const S = BKS.bets.filter(b => b.st !== "open"), today = bkDay();
   const o = {w: 0, l: 0, p: 0, staked: 0, ret: 0, today: 0, open: 0, risk: 0};
@@ -213,7 +233,7 @@ function bkTicket(b) {
   const R = r => r === "win" ? "✓" : r === "loss" ? "✕" : r === "push" ? "–" : r === "void" ? "void" : "";
   const when = new Date(b.at).toLocaleString("en-US", {month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/New_York"});
   return `<div class="bk-tk ${tag[0]}"><div class="bk-tkh"><span class="bk-tag">${tag[1]}</span><span>${b.legs.length > 1 ? b.legs.length + "-leg parlay" : esc(b.legs[0].sport)}</span><span class="bk-when">${esc(when)}</span></div>
-    ${b.legs.map(l => `<div class="bk-tl ${l.r || ""}"><span class="bk-r">${R(l.r)}</span><div><b>${esc(l.pick)}</b><i>${esc(l.mkt)} · ${esc(l.game)}</i></div><span class="bk-od">${bkAm(l.dec)}</span></div>`).join("")}
+    ${b.legs.map(l => `<div class="bk-tl ${l.r || ""}">${bkArt(l, "sm")}<div><b>${esc(l.pick)}</b><i>${esc(l.mkt)} · ${esc(l.game)}</i></div><span class="bk-od">${bkAm(l.dec)}</span><span class="bk-r">${R(l.r)}</span></div>`).join("")}
     <div class="bk-tkf"><span>Stake <b>${bkN(b.stake)}</b></span><span>${b.st === "open" ? `To win <b>${bkN(b.stake * (b.dec - 1))}</b>` : b.st === "won" ? `Paid <b class="up">+${bkN(b.pay - b.stake)}</b>` : b.st === "push" ? `Returned <b>${bkN(b.pay)}</b>` : `<b class="dn">−${bkN(b.stake)}</b>`}</span></div></div>`;
 }
 function bkScreen() {
@@ -222,7 +242,7 @@ function bkScreen() {
   const sg = v => v > 0 ? "+" + bkN(v) : v < 0 ? "−" + bkN(-v) : "0";
   const hero = bkWalletHtml(true) + `<div class="bk-hs card"><div><i>All time</i><b class="${s.profit > 0 ? "up" : s.profit < 0 ? "dn" : ""}">${sg(s.profit)}</b></div>
       <div><i>Record</i><b>${s.w}-${s.l}${s.p ? "-" + s.p : ""}</b></div><div><i>In play</i><b>${bkN(s.risk)}</b></div><div><i>ROI</i><b class="${(s.roi || 0) > 0 ? "up" : (s.roi || 0) < 0 ? "dn" : ""}">${s.roi == null ? "–" : (s.roi >= 0 ? "+" : "−") + Math.abs(100 * s.roi).toFixed(1) + "%"}</b></div></div>
-    <div class="hd"><b>Daily missions</b><span class="hd-s">Resets at midnight ET</span></div>${bkMissionsHtml()}`;
+    <div class="hd"><b>Daily missions</b><span class="hd-s">Resets daily</span></div>${bkMissionsHtml()}`;
   const edge = `<div class="hd"><b>Tickets</b></div>`;
   const seg = `<div class="seg" style="--n:2"><button class="${V === "open" ? "on" : ""}" data-bkv="open">Open${s.open ? ` · ${s.open}` : ""}</button><button class="${V === "settled" ? "on" : ""}" data-bkv="settled">Settled</button></div>`;
   const list = L.length ? L.slice(0, 60).map(bkTicket).join("") : `<div class="bk-empty">${V === "open" ? "No open bets. Tap any price on a game card or player to start a slip." : "Nothing settled yet."}</div>`;
@@ -326,4 +346,5 @@ async function bkSettle() {
     }
   } finally { bkBusy = false; }
 }
+if (BKS.k10new) { delete BKS.k10new; bkSave(); setTimeout(() => bkToast("Bankroll upgraded · +9,000 coins", "ok"), 1200); }
 setTimeout(bkSettle, 1500); setInterval(bkSettle, 120e3);
