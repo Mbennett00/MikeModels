@@ -151,6 +151,10 @@ RULES = {   # keyword in the market name -> the page's stat (first match wins, s
 
 def prop_kind(league: str, name: str):
     n = (name or "").lower()
+    if any(w in n for w in ("1st", "2nd", "3rd", "half", "quarter", "period", "first ", "last ")):
+        return None                                   # partial-game and first/last scorer markets aren't on the page
+    if league == "NFL" and "2 or more touchdowns" in n:
+        return "td", 1.5
     if "anytime" in n:
         if league == "NFL" and ("touchdown" in n or " td" in n):
             return "td", True
@@ -201,6 +205,7 @@ def espn_props(league: str, log=print) -> dict:
                             names[str(a["id"])] = nm(a.get("fullName") or a.get("displayName"))
             except Exception:
                 continue
+    items = []
     for ev in evs:
         eid, page = ev.get("id"), 1
         while page:
@@ -208,26 +213,50 @@ def espn_props(league: str, log=print) -> dict:
                 pb = _get(CORE.format(sport, lg) + f"/events/{eid}/competitions/{eid}/odds/100/propBets", params={"limit": 1000, "page": page})
             except Exception as e:
                 log(f"odds: {league} props event {eid} failed ({e})"); break
-            for it in pb.get("items", []):
-                tn = ((it.get("type") or {}).get("name") or "").strip()
-                seen[tn] = seen.get(tn, 0) + 1
-                k = prop_kind(league, tn)
-                m = re.search(r"/athletes/(\d+)", (it.get("athlete") or {}).get("$ref", ""))
-                price = _am(((it.get("odds") or {}).get("american") or {}).get("value"))
-                if not k or not m or price is None or m.group(1) not in names:
-                    continue
-                stat, anytime = k
-                if anytime:
-                    line = 0.5
-                else:
-                    tgt = ((it.get("current") or {}).get("target") or {}).get("value")
-                    if tgt is None:
-                        continue
-                    line = float(tgt) - 0.5
-                out.setdefault(names[m.group(1)], {})[f"{stat}|{line:g}"] = price
+            items += pb.get("items", [])
             page = page + 1 if page < int(pb.get("pageCount") or 1) else 0
+    refs = {}
+    for it in items:
+        ref = (it.get("athlete") or {}).get("$ref", ""); m = re.search(r"/athletes/(\d+)", ref)
+        if m and m.group(1) not in names and prop_kind(league, ((it.get("type") or {}).get("name") or "")):
+            refs[m.group(1)] = ref
+    if refs:
+        from concurrent.futures import ThreadPoolExecutor
+        def one(kv):
+            try:
+                a = _get(kv[1].replace("http://", "https://"))
+                return kv[0], a.get("fullName") or a.get("displayName")
+            except Exception:
+                return kv[0], None
+        with ThreadPoolExecutor(12) as ex:
+            for aid, full in ex.map(one, list(refs.items())[:900]):
+                if full:
+                    names[aid] = nm(full)
+    miss = {"name": 0, "price": 0}
+    for it in items:
+        tn = ((it.get("type") or {}).get("name") or "").strip()
+        seen[tn] = seen.get(tn, 0) + 1
+        k = prop_kind(league, tn)
+        m = re.search(r"/athletes/(\d+)", (it.get("athlete") or {}).get("$ref", ""))
+        if not k or not m:
+            continue
+        price = _am(((it.get("odds") or {}).get("american") or {}).get("value"))
+        if m.group(1) not in names or price is None:
+            miss["name" if m.group(1) not in names else "price"] += 1
+            continue
+        stat, how = k
+        if isinstance(how, float):
+            line = how                                  # "2 or more touchdowns" = over 1.5
+        elif how:
+            line = 0.5                                  # anytime scorer
+        else:
+            tgt = ((it.get("current") or {}).get("target") or {}).get("value")
+            if tgt is None:
+                continue
+            line = float(tgt) - 0.5                     # milestone "N+" = over N - 0.5
+        out.setdefault(names[m.group(1)], {})[f"{stat}|{line:g}"] = price
     top = ", ".join(f"{k} ({v})" for k, v in sorted(seen.items(), key=lambda kv: -kv[1])[:14])
-    log(f"odds: {league} DraftKings props for {len(out)} players from {len(evs)} games · markets seen: {top or 'none'}")
+    log(f"odds: {league} DraftKings props for {len(out)} players ({len(names)} names, {len(refs)} looked up, dropped {miss['name']} unnamed / {miss['price']} unpriced) from {len(evs)} games · markets seen: {top or 'none'}")
     return out
 
 

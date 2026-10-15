@@ -109,7 +109,7 @@ jobs:
         continue-on-error: true
         run: |
           python -m calib.odds 2>&1 | tee odds.log
-          echo "::notice title=Odds::$(grep '^odds:' odds.log | tail -n 5 | tr '\n' ' ')"
+          grep '^odds:' odds.log | while read -r l; do echo "::notice title=Odds::$l"; done
       - name: Upload state
         # also after a failure, so checkpointed games from a long first load are kept
         if: always() && steps.pull.outcome == 'success'
