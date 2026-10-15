@@ -47,3 +47,24 @@ def test_recent_pull_is_not_repeated(tmp_path, monkeypatch):
     prev = {"pulled": {"NBA": dt.datetime.now(dt.timezone.utc).isoformat()}, "lines": {"NBA": {"games": []}}}
     out = odds.pull_lines(prev, str(web), "KEY", log=lambda *_: None)
     assert out["lines"] == prev["lines"]
+
+
+def test_prop_markets_map_to_page_stats():
+    k = odds.prop_kind
+    assert k("NBA", "Points Milestones") == ("pts", False)
+    assert k("NBA", "Points + Rebounds + Assists Milestones") == ("pra", False)
+    assert k("NBA", "Rebounds + Assists Milestones") is None          # no such stat on the page
+    assert k("NBA", "Total Points") is None                           # two-way over/under: skipped
+    assert k("NFL", "Anytime Touchdown Scorer") == ("td", True)
+    assert k("NFL", "Rushing + Receiving Yards Milestones") is None
+    assert k("NHL", "Anytime Goalscorer") == ("goals", True)
+    assert k("NHL", "Shots on Goal Milestones") == ("sog", False)
+
+
+def test_market_games_attach_to_page_ids(tmp_path):
+    (tmp_path / "data.json").write_text(json.dumps({"games": [
+        {"game_id": 2026020022, "start_utc": "2026-10-20T23:00:00Z", "home": {"abbr": "BOS", "name": "Bruins"}, "away": {"abbr": "BUF", "name": "Sabres"}}]}))
+    lines = {"NHL": {"games": [{"home": "Boston Bruins", "away": "Buffalo Sabres", "t": "2026-10-20T23:10:00Z"},
+                               {"home": "Boston Bruins", "away": "Buffalo Sabres", "t": "2026-11-20T23:10:00Z"}]}}
+    odds.attach_gids(lines, str(tmp_path), log=lambda *_: None)
+    assert lines["NHL"]["games"][0]["gid"] == "2026020022" and "gid" not in lines["NHL"]["games"][1]   # a month later is another game

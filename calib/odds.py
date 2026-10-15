@@ -7,8 +7,8 @@ costs 3 credits. The consensus is the most common line across books, priced at t
 Budget: a league is pulled only when it has games coming up and its last pull is old enough (NHL / NBA twice a day,
 NFL once), and never once the month's usage would pass ODDS_MONTH_CAP (480 of 500 by default). Usage is read for
 free from /v4/sports before any paid call, so the cap holds whatever else uses the key.
-Props: ESPN's core odds feed carries DraftKings' prop prices for free (no key). NHL milestones and anytime goals are
-used (nhlmodel.espn_props); NFL and NBA props keep the pages' own prices for now.
+Props: ESPN's core odds feed carries DraftKings' prop prices for free (no key): milestones and anytime scorers for
+all three leagues. The pages show props at DraftKings' lines and prices only.
 Writes state/site/odds.json (kept with the state) and state/site/web/odds.json. Never raises: a failed pull keeps
 the last good prices, and the pages fall back to their own when a game has none.
 """
@@ -135,19 +135,135 @@ def pull_lines(prev: dict, web: str, key: str, log=print) -> dict:
 
 
 # ---------- props: DraftKings via ESPN (free) ----------
+# ESPN's core odds feed (provider 100 = DraftKings) lists each player's prop bets. Only one-sided markets are used,
+# so a price always belongs to "this player gets N or more": milestones ("20+ points": target 20 -> over 19.5) and
+# anytime scorers (over 0.5). Two-way over/unders are skipped. Keys match the pages: "stat|line".
+ESPN = {"NHL": ("hockey", "nhl"), "NBA": ("basketball", "nba"), "NFL": ("football", "nfl")}
+SITE = "https://site.api.espn.com/apis/site/v2/sports/{}/{}"
+CORE = "https://sports.core.api.espn.com/v2/sports/{}/leagues/{}"
+RULES = {   # keyword in the market name -> the page's stat (first match wins, so combos come first)
+    "NBA": [("points + rebounds + assists", "pra"), ("pts + reb + ast", "pra"), ("points, rebounds", "pra"), ("rebounds + assists", None),
+            ("+", None), ("three", "fg3"), ("3-point", "fg3"), ("3pt", "fg3"), ("rebound", "reb"), ("assist", "ast"), ("point", "pts")],
+    "NFL": [("+", None), ("passing yards", "pass_yds"), ("rushing yards", "rush_yds"), ("receiving yards", "rec_yds"), ("reception", "rec")],
+    "NHL": [("+", None), ("shots", "sog"), ("assist", "assists"), ("point", "points")],
+}
+
+
+def prop_kind(league: str, name: str):
+    n = (name or "").lower()
+    if "anytime" in n:
+        if league == "NFL" and ("touchdown" in n or " td" in n):
+            return "td", True
+        if league == "NHL" and "goal" in n:
+            return "goals", True
+        return None
+    if "milestone" not in n:
+        return None
+    for kw, stat in RULES[league]:
+        if kw in n:
+            return (stat, False) if stat else None
+    return None
+
+
+def _am(v):
+    t = str(v or "").strip().upper()
+    if t in ("EVEN", "EV"):
+        return 100
+    try:
+        x = int(float(t.replace("+", "")))
+    except ValueError:
+        return None
+    return x if abs(x) >= 100 else None
+
+
+def _get(url, **kw):
+    return requests.get(url, headers=UA, timeout=25, **kw).json()
+
+
+def espn_props(league: str, log=print) -> dict:
+    """{player key: {"stat|line": american}} for the league's upcoming games; {} when ESPN is unavailable."""
+    sport, lg = ESPN[league]
+    try:
+        evs = [e for e in _get(SITE.format(sport, lg) + "/scoreboard").get("events", []) if ((e.get("status") or {}).get("type") or {}).get("state") == "pre"]
+    except Exception as e:
+        log(f"odds: {league} props scoreboard failed ({e})"); return {}
+    names, teams, out, seen = {}, set(), {}, {}
+    for ev in evs:
+        for c in ((ev.get("competitions") or [{}])[0]).get("competitors", []):
+            tid = (c.get("team") or {}).get("id")
+            if not tid or tid in teams:
+                continue
+            teams.add(tid)
+            try:
+                for grp in _get(SITE.format(sport, lg) + f"/teams/{tid}/roster").get("athletes", []):
+                    for a in (grp.get("items", []) if isinstance(grp, dict) and "items" in grp else [grp]):
+                        if a.get("id") and (a.get("fullName") or a.get("displayName")):
+                            names[str(a["id"])] = nm(a.get("fullName") or a.get("displayName"))
+            except Exception:
+                continue
+    for ev in evs:
+        eid, page = ev.get("id"), 1
+        while page:
+            try:
+                pb = _get(CORE.format(sport, lg) + f"/events/{eid}/competitions/{eid}/odds/100/propBets", params={"limit": 1000, "page": page})
+            except Exception as e:
+                log(f"odds: {league} props event {eid} failed ({e})"); break
+            for it in pb.get("items", []):
+                tn = ((it.get("type") or {}).get("name") or "").strip()
+                seen[tn] = seen.get(tn, 0) + 1
+                k = prop_kind(league, tn)
+                m = re.search(r"/athletes/(\d+)", (it.get("athlete") or {}).get("$ref", ""))
+                price = _am(((it.get("odds") or {}).get("american") or {}).get("value"))
+                if not k or not m or price is None or m.group(1) not in names:
+                    continue
+                stat, anytime = k
+                if anytime:
+                    line = 0.5
+                else:
+                    tgt = ((it.get("current") or {}).get("target") or {}).get("value")
+                    if tgt is None:
+                        continue
+                    line = float(tgt) - 0.5
+                out.setdefault(names[m.group(1)], {})[f"{stat}|{line:g}"] = price
+            page = page + 1 if page < int(pb.get("pageCount") or 1) else 0
+    top = ", ".join(f"{k} ({v})" for k, v in sorted(seen.items(), key=lambda kv: -kv[1])[:14])
+    log(f"odds: {league} DraftKings props for {len(out)} players from {len(evs)} games · markets seen: {top or 'none'}")
+    return out
+
+
 def pull_props(prev: dict, web: str, log=print) -> dict:
     props = dict(prev.get("props") or {})
-    if upcoming(web, "NHL"):
-        try:
-            from nhlmodel import espn_props
-            d = json.load(open(os.path.join(web, PAGE["NHL"])))
-            got = espn_props.fetch((d.get("meta") or {}).get("date") or dt.date.today().isoformat(), log=log)
-            if got.get("players"):
-                props["NHL"] = {"book": "DraftKings", "fetched_at": got["fetched_at"],
-                                "players": {nm(k): v for k, v in got["players"].items()}}
-        except Exception as e:
-            log(f"odds: NHL props failed ({e})")
+    for lg in ESPN:
+        if not upcoming(web, lg):
+            continue
+        got = espn_props(lg, log)
+        if got:
+            props[lg] = {"book": "DraftKings", "fetched_at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), "players": got}
     return props
+
+
+def attach_gids(lines: dict, web: str, log=print):
+    """Tie each consensus game to the page's game id (team names + start time), and say how many matched."""
+    for lg, blob in (lines or {}).items():
+        try:
+            G = json.load(open(os.path.join(web, PAGE[lg]))).get("games") or []
+        except (OSError, ValueError):
+            continue
+        def keys(t):
+            return {nm(t.get("name")), nm(f"{t.get('city') or ''} {t.get('name') or ''}"), nm(t.get("abbr"))} - {""}
+        hit = 0
+        for x in blob.get("games") or []:
+            fh, fa = nm(x.get("home")), nm(x.get("away"))
+            tx = dt.datetime.fromisoformat(str(x.get("t")).replace("Z", "+00:00")) if x.get("t") else None
+            for g in G:
+                kh, ka = keys(g.get("home") or {}), keys(g.get("away") or {})
+                if any(fh.endswith(k) for k in kh) and any(fa.endswith(k) for k in ka):
+                    tg = g.get("start_utc")
+                    if tx and tg and abs(dt.datetime.fromisoformat(str(tg).replace("Z", "+00:00")) - tx) > dt.timedelta(hours=18):
+                        continue
+                    x["gid"] = str(g.get("game_id")); hit += 1; break
+        open_games = sum(1 for g in G if g.get("state") not in ("post", "in"))
+        log(f"odds: {lg} market lines matched to {hit} page games ({open_games} on the page)")
 
 
 def run(state: str = "state", log=print):
@@ -160,6 +276,7 @@ def run(state: str = "state", log=print):
         prev = {}
     out = pull_lines(prev, web, os.environ.get("ODDS_API_KEY", ""), log)
     out["props"] = pull_props(prev, web, log)
+    attach_gids(out.get("lines"), web, log)
     out["cap"] = CAP
     out["generated_at"] = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
     txt = json.dumps(out, separators=(",", ":"))

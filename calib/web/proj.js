@@ -78,7 +78,7 @@ const pjNoVig = (a, b) => { const x = 1 / pjDec(a), y = 1 / pjDec(b); return x /
 function pjMarket(g) {
   const L = ((PJ_ODDS.lines || {})[PJA.sport] || {}).games || [], C = pjCtx(g.id), t = C && C.start ? new Date(C.start) : null;
   const is = (full, team) => { const a = bkNm(full), b = bkNm(team.name); return !!b && (a.endsWith(b) || a === bkNm(team.abbr)); };
-  return L.find(x => is(x.home, g.h) && is(x.away, g.a) && (!t || !x.t || Math.abs(new Date(x.t) - t) < 36e5 * 18)) || null;
+  return L.find(x => x.gid && x.gid === String(g.id)) || L.find(x => !x.gid && is(x.home, g.h) && is(x.away, g.a) && (!t || !x.t || Math.abs(new Date(x.t) - t) < 36e5 * 18)) || null;
 }
 // game lines with their artwork: each side carries its team's logo and colour, totals carry both logos
 function pjLines(g) {
@@ -100,17 +100,27 @@ function pjLines(g) {
 }
 const pjCtx = gid => PJA.ctx ? PJA.ctx(gid) : null;
 // a player's bettable lines for one stat: [{sel, top}] nearest even money first, then shown low to high
+const PJ_PLAB = {goals: "goals", sog: "shots", points: "points", assists: "assists", td: "TDs", pass_yds: "pass yds", rush_yds: "rush yds", rec_yds: "rec yds", rec: "catches",
+  pts: "points", reb: "rebounds", ast: "assists", fg3: "threes", pra: "PRA"};
+const pjPropLab = (stat, n) => stat === "goals" && n === 1 ? "Scores a goal" : stat === "td" && n === 1 ? "Anytime TD" : `${n}+ ${PJ_PLAB[stat] || stat}`;
+const pjMktProps = () => { const P = ((PJ_ODDS.props || {})[PJA.sport] || {}).players; return P && Object.keys(P).length ? P : null; };
+// a player's bettable lines for one stat: [{sel, top}], nearest even money first, then shown low to high.
+// When the league has DraftKings prices, a player is offered exactly DraftKings' lines at DraftKings' prices (no
+// made-up ladders); the page's own ladder is only the fallback when the feed is down.
 function pjProps(p, stat, max = 3) {
-  const C = pjCtx(p.gid); if (!C || !PJA.playerLines) return [];
-  const L = PJA.playerLines(p.id).filter(x => x[2] && x[2].stat === stat && x[1] != null && x[1] >= 0.1 && x[1] <= 0.88);   // no lottery tickets, no −3000 locks
-  return L.sort((x, y) => Math.abs(x[1] - 0.5) - Math.abs(y[1] - 0.5)).slice(0, max).sort((x, y) => x[2].n - y[2].n).map(([l, c, spec]) => ({
+  const C = pjCtx(p.gid); if (!C) return [];
+  const MP = pjMktProps();
+  let L;
+  if (MP) L = Object.entries(MP[bkNm(p.name)] || {}).filter(([k]) => k.split("|")[0] === stat)
+    .map(([k, a]) => { const n = +k.split("|")[1] + 0.5; return [pjPropLab(stat, n), 1 / pjDec(a), {stat, n}, a]; });
+  else if (PJA.playerLines) L = PJA.playerLines(p.id).filter(x => x[2] && x[2].stat === stat);
+  else return [];
+  L = L.filter(x => x[1] != null && x[1] >= 0.1 && x[1] <= 0.9);   // no lottery tickets, no −1000 locks
+  return L.sort((x, y) => Math.abs(x[1] - 0.5) - Math.abs(y[1] - 0.5)).slice(0, max).sort((x, y) => x[2].n - y[2].n).map(([l, c, spec, a]) => ({
     top: (stat === "td" || stat === "goals") && spec.n === 1 ? "Anytime" : `${Math.ceil(spec.n)}+`,
-    sel: bkSel({dec: pjPropDec(p, stat, spec.n), img: p.img, logo: p.logo, color: p.color, sport: C.sport, gid: p.gid, kind: "prop", side: "yes", line: spec.n, p: c, pick: `${p.name} ${l}`, mkt: (PJA.markets.find(m => m.k === stat) || {}).label || "Player prop",
+    sel: bkSel({dec: a ? Math.round(pjDec(a) * 1e4) / 1e4 : undefined, src: a ? "dk" : undefined, img: p.img, logo: p.logo, color: p.color, sport: C.sport, gid: p.gid, kind: "prop", side: "yes", line: spec.n,
+      p: c, pick: `${p.name} ${l}`, mkt: (PJA.markets.find(m => m.k === stat) || {}).label || "Player prop",
       game: C.game, start: C.start, open: C.open, ev: C.ev, pl: {name: p.name, id: String(p.id), espn: !!C.espnIds, team: p.team, stat, n: spec.n}})}));
-}
-function pjPropDec(p, stat, n) {   // DraftKings (via ESPN) quotes "N+" as over N - 0.5
-  const P = ((PJ_ODDS.props || {})[PJA.sport] || {}).players || {}, a = (P[bkNm(p.name)] || {})[`${stat}|${n - 0.5}`];
-  return a ? Math.round(pjDec(a) * 1e4) / 1e4 : undefined;
 }
 function pjAv(p, cls = "") {
   return `<span class="pav ${cls}" style="--tc:${esc(p.color || "#556")}"><span>${esc(pjIni(p.name))}</span>${p.img ? `<img src="${esc(p.img)}" alt="" loading="lazy" onload="this.previousElementSibling.style.visibility='hidden'" onerror="this.remove()">` : ""}</span>`;
@@ -139,8 +149,13 @@ function pjAlt(g) {
   const M = pjLines(g), C = pjCtx(g.id); if (!M || !PJA.price || !C) return "";
   const nhl = PJA.sport === "NHL", lh = (M.spread || [])[1] ? M.spread[1].line : 0, T = (M.total || [])[0] ? M.total[0].line : null;
   const main = [...(M.spread || []), ...(M.total || [])].filter(Boolean);
+  const lgt = q => Math.log(q / (1 - q)), sgm = x => 1 / (1 + Math.exp(-x)), clip = q => Math.min(0.995, Math.max(0.005, q));
+  const shift = (sel, kind, side) => { if (!sel || sel.src !== "mkt") return 0; const m = PJA.price(g.id, kind, side, sel.line); return m == null ? 0 : lgt(clip(sel.p)) - lgt(clip(m)); };
+  const dS = shift((M.spread || [])[1], "spread", "home"), dT = shift((M.total || [])[0], "total", "over");
+  const fair = (kind, side, line) => { if (kind === "spread") { const h = PJA.price(g.id, "spread", "home", side === "home" ? line : -line); if (h == null) return null; const q = sgm(lgt(clip(h)) + dS); return side === "home" ? q : 1 - q; }
+    const o = PJA.price(g.id, "total", "over", line); if (o == null) return null; const q = sgm(lgt(clip(o)) + dT); return side === "over" ? q : 1 - q; };
   const S = (kind, side, line, t) => { const same = main.find(x => x.kind === kind && x.side === side && x.line === line); if (same) return same;
-    const p = PJA.price(g.id, kind, side, line); if (p == null || p < 0.1 || p > 0.9) return null;
+    const p = fair(kind, side, line); if (p == null || p < 0.1 || p > 0.9) return null;
     const x = bkSel(Object.assign({}, C, {gid: String(g.id), kind, side, line, p, mkt: kind === "spread" ? (nhl ? "Alt puck line" : "Alt spread") : "Alt total",
       pick: kind === "spread" ? `${t.abbr} ${pjSp(line)}` : `${side === "over" ? "Over" : "Under"} ${line}`}));
     if (kind === "spread") Object.assign(x, {logo: t.logo, color: t.color}); else x.logos = [g.a.logo, g.h.logo];
