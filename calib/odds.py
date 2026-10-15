@@ -145,7 +145,7 @@ RULES = {   # keyword in the market name -> the page's stat (first match wins, s
     "NBA": [("points + rebounds + assists", "pra"), ("pts + reb + ast", "pra"), ("points, rebounds", "pra"), ("rebounds + assists", None),
             ("+", None), ("three", "fg3"), ("3-point", "fg3"), ("3pt", "fg3"), ("rebound", "reb"), ("assist", "ast"), ("point", "pts")],
     "NFL": [("+", None), ("passing yards", "pass_yds"), ("rushing yards", "rush_yds"), ("receiving yards", "rec_yds"), ("reception", "rec")],
-    "NHL": [("+", None), ("shots", "sog"), ("assist", "assists"), ("point", "points")],
+    "NHL": [("+", None), ("shots", "sog"), ("assist", "assists"), ("point", "points"), ("goal", "goals")],
 }
 
 
@@ -178,6 +178,37 @@ def _am(v):
     except ValueError:
         return None
     return x if abs(x) >= 100 else None
+
+
+def _price(it: dict):
+    """The item's American price wherever ESPN put it: an "american" value (dict or string) or a "decimal" one,
+    searched through odds / current / the item itself."""
+    def amer(v):
+        if isinstance(v, dict):
+            for k in ("value", "alternateDisplayValue", "displayValue"):
+                a = _am(v.get(k))
+                if a is not None:
+                    return a
+            return None
+        return _am(v)
+    def dec(v):
+        try:
+            d = float(v.get("value") if isinstance(v, dict) else v)
+        except (TypeError, ValueError):
+            return None
+        return None if d <= 1 else (round((d - 1) * 100) if d >= 2 else round(-100 / (d - 1)))
+    stack = [it.get("odds"), it.get("current"), {k: v for k, v in it.items() if k not in ("athlete", "type", "links", "odds", "current")}]
+    while stack:
+        x = stack.pop(0)
+        if isinstance(x, list):
+            stack += x
+        elif isinstance(x, dict):
+            if "american" in x and amer(x["american"]) is not None:
+                return amer(x["american"])
+            if "decimal" in x and dec(x["decimal"]) is not None:
+                return dec(x["decimal"])
+            stack += [v for k, v in x.items() if isinstance(v, (dict, list))]
+    return None
 
 
 def _get(url, **kw):
@@ -240,7 +271,9 @@ def espn_props(league: str, log=print) -> dict:
         m = re.search(r"/athletes/(\d+)", (it.get("athlete") or {}).get("$ref", ""))
         if not k or not m:
             continue
-        price = _am(((it.get("odds") or {}).get("american") or {}).get("value"))
+        price = _price(it)
+        if price is None and not miss.get("sample"):
+            miss["sample"] = json.dumps({k: v for k, v in it.items() if k not in ("athlete", "links", "$ref")})[:600]
         if m.group(1) not in names or price is None:
             miss["name" if m.group(1) not in names else "price"] += 1
             continue
@@ -257,6 +290,8 @@ def espn_props(league: str, log=print) -> dict:
         out.setdefault(names[m.group(1)], {})[f"{stat}|{line:g}"] = price
     top = ", ".join(f"{k} ({v})" for k, v in sorted(seen.items(), key=lambda kv: -kv[1])[:14])
     log(f"odds: {league} DraftKings props for {len(out)} players ({len(names)} names, {len(refs)} looked up, dropped {miss['name']} unnamed / {miss['price']} unpriced) from {len(evs)} games · markets seen: {top or 'none'}")
+    if miss.get("sample") and not out:
+        log(f"odds: {league} unpriced prop sample: {miss['sample']}")
     return out
 
 
