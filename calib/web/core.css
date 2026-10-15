@@ -783,3 +783,5 @@ body::after { content: ""; position: fixed; inset: auto -20vw -20vh; height: 50v
 .mc-av { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 64px; flex: none; }
 .mc-av > span:last-child { max-width: 68px; font: italic 800 11px var(--fd); text-transform: uppercase; color: rgba(255,255,255,.85); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mc-st { align-items: flex-end; max-width: 168px; gap: 4px; }
+.mk-src { display: flex; flex-direction: column; font-size: 10px; font-weight: 600; color: var(--t3); line-height: 1.2; }
+.mk-src b { font: italic 800 11px var(--fd); letter-spacing: .06em; text-transform: uppercase; color: var(--acc); }

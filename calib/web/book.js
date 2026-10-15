@@ -29,7 +29,7 @@ function bkSel(o) {
   const s = Object.assign({}, o);
   s.key = [s.sport, s.gid, s.kind, s.side, s.line ?? "", s.pl ? s.pl.id + ":" + s.pl.stat : "", s.boost ? "B" : ""].join("|");
   s.open = s.open !== false && (!s.start || new Date(s.start) > Date.now());
-  s.dec = s.boost && o.dec ? o.dec : bkDec(s.p);
+  s.dec = o.dec || bkDec(s.p);   // a market price (or a boost) comes in as dec; otherwise price the chance
   BK_REG[s.key] = s;
   return s;
 }

@@ -39,9 +39,10 @@ jobs:
       web: ${{ steps.web.outputs.web }}
     env:
       GH_TOKEN: ${{ github.token }}
-      # The site is projections only (NHL, NFL, NBA): no sportsbook odds are pulled, zero Odds API credits.
-      # ODDS_ENABLED "lean" = consensus game lines (see nhlmodel/daily.py), "1" = full feed, if prices are ever wanted again.
+      # Pikt's market odds come from calib/odds.py (consensus game lines, about 450 credits a month, hard stop at
+      # ODDS_MONTH_CAP). The old per-model odds paths stay off (ODDS_ENABLED "0") so nothing else spends credits.
       ODDS_ENABLED: "0"
+      ODDS_MONTH_CAP: "480"
       ODDS_REGIONS: "us,us2"
       ODDS_REGIONS_MID: "us"
       NFL_TD_ODDS: "0"       # no anytime-TD price pulls
@@ -103,6 +104,12 @@ jobs:
         run: |
           python -m nbamodel.daily 2>&1 | tee nba.log
           echo "::notice title=NBA run::$(grep '^nba:' nba.log | tail -n 4 | tr '\n' ' ')"
+      - name: Odds (consensus game lines from The Odds API, DraftKings props from ESPN)
+        if: always() && steps.pull.outcome == 'success'
+        continue-on-error: true
+        run: |
+          python -m calib.odds 2>&1 | tee odds.log
+          echo "::notice title=Odds::$(grep '^odds:' odds.log | tail -n 5 | tr '\n' ' ')"
       - name: Upload state
         # also after a failure, so checkpointed games from a long first load are kept
         if: always() && steps.pull.outcome == 'success'

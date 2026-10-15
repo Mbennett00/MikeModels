@@ -70,9 +70,29 @@ function pjMeter(p, cls = "") { return `<span class="pj-meter ${cls}"><i style="
 function pjStatus(g) {
   return g.state === "live" ? `<b class="st-live">Live</b><span>${esc(g.detail || "")}</span>` : g.state === "final" ? `<b class="st-fin">Final</b>` : `<span class="st-time">${esc(g.time || "")}</span>`;
 }
+// market odds (calib/odds.py): consensus game lines across US books, DraftKings props; the page's own prices fill the gaps
+let PJ_ODDS = {};
+fetch("odds.json?v=" + Date.now()).then(r => r.json()).then(d => { PJ_ODDS = d || {}; if (PJA) pjRender(); }).catch(() => {});
+const pjDec = a => a > 0 ? 1 + a / 100 : 1 + 100 / -a;
+const pjNoVig = (a, b) => { const x = 1 / pjDec(a), y = 1 / pjDec(b); return x / (x + y); };
+function pjMarket(g) {
+  const L = ((PJ_ODDS.lines || {})[PJA.sport] || {}).games || [], C = pjCtx(g.id), t = C && C.start ? new Date(C.start) : null;
+  const is = (full, team) => { const a = bkNm(full), b = bkNm(team.name); return !!b && (a.endsWith(b) || a === bkNm(team.abbr)); };
+  return L.find(x => is(x.home, g.h) && is(x.away, g.a) && (!t || !x.t || Math.abs(new Date(x.t) - t) < 36e5 * 18)) || null;
+}
 // game lines with their artwork: each side carries its team's logo and colour, totals carry both logos
 function pjLines(g) {
   const M = PJA.lines ? PJA.lines(g.id) : null; if (!M) return null;
+  const X = pjMarket(g);
+  if (X) {   // swap in the market: its line and its price
+    const R = (base, line, price, p, pick) => base && price != null ? bkSel(Object.assign({}, base, {line, p, dec: Math.round(pjDec(price) * 1e4) / 1e4, pick, src: "mkt"})) : base;
+    if (X.ml && M.ml) M.ml = [R(M.ml[0], null, X.ml.away, pjNoVig(X.ml.away, X.ml.home), `${g.a.abbr} to win`), R(M.ml[1], null, X.ml.home, pjNoVig(X.ml.home, X.ml.away), `${g.h.abbr} to win`)];
+    if (X.spread && M.spread) { const h = X.spread.home, ph = pjNoVig(X.spread.home_price, X.spread.away_price);
+      M.spread = [R(M.spread[0], -h, X.spread.away_price, 1 - ph, `${g.a.abbr} ${pjSp(-h)}`), R(M.spread[1], h, X.spread.home_price, ph, `${g.h.abbr} ${pjSp(h)}`)]; }
+    if (X.total && M.total) { const l = X.total.line, po = pjNoVig(X.total.over, X.total.under);
+      M.total = [R(M.total[0], l, X.total.over, po, `Over ${l}`), R(M.total[1], l, X.total.under, 1 - po, `Under ${l}`)]; }
+    M.books = X.books;
+  }
   const side = (x, t) => { if (x) Object.assign(x, {logo: t.logo, color: t.color}); };
   for (const k of ["spread", "ml"]) { side((M[k] || [])[0], g.a); side((M[k] || [])[1], g.h); }
   for (const x of M.total || []) if (x) x.logos = [g.a.logo, g.h.logo];
@@ -85,8 +105,12 @@ function pjProps(p, stat, max = 3) {
   const L = PJA.playerLines(p.id).filter(x => x[2] && x[2].stat === stat && x[1] != null && x[1] >= 0.1 && x[1] <= 0.88);   // no lottery tickets, no −3000 locks
   return L.sort((x, y) => Math.abs(x[1] - 0.5) - Math.abs(y[1] - 0.5)).slice(0, max).sort((x, y) => x[2].n - y[2].n).map(([l, c, spec]) => ({
     top: (stat === "td" || stat === "goals") && spec.n === 1 ? "Anytime" : `${Math.ceil(spec.n)}+`,
-    sel: bkSel({img: p.img, logo: p.logo, color: p.color, sport: C.sport, gid: p.gid, kind: "prop", side: "yes", line: spec.n, p: c, pick: `${p.name} ${l}`, mkt: (PJA.markets.find(m => m.k === stat) || {}).label || "Player prop",
+    sel: bkSel({dec: pjPropDec(p, stat, spec.n), img: p.img, logo: p.logo, color: p.color, sport: C.sport, gid: p.gid, kind: "prop", side: "yes", line: spec.n, p: c, pick: `${p.name} ${l}`, mkt: (PJA.markets.find(m => m.k === stat) || {}).label || "Player prop",
       game: C.game, start: C.start, open: C.open, ev: C.ev, pl: {name: p.name, id: String(p.id), espn: !!C.espnIds, team: p.team, stat, n: spec.n}})}));
+}
+function pjPropDec(p, stat, n) {   // DraftKings (via ESPN) quotes "N+" as over N - 0.5
+  const P = ((PJ_ODDS.props || {})[PJA.sport] || {}).players || {}, a = (P[bkNm(p.name)] || {})[`${stat}|${n - 0.5}`];
+  return a ? Math.round(pjDec(a) * 1e4) / 1e4 : undefined;
 }
 function pjAv(p, cls = "") {
   return `<span class="pav ${cls}" style="--tc:${esc(p.color || "#556")}"><span>${esc(pjIni(p.name))}</span>${p.img ? `<img src="${esc(p.img)}" alt="" loading="lazy" onload="this.previousElementSibling.style.visibility='hidden'" onerror="this.remove()">` : ""}</span>`;
@@ -107,14 +131,16 @@ function pjMarkets(g) {
     ${bkBtn((M.spread || [])[i], (M.spread || [])[i] ? pjSp((M.spread || [])[i].line) : "")}
     ${bkBtn((M.total || [])[i], (M.total || [])[i] ? `${i ? "U" : "O"} ${(M.total || [])[i].line}` : "")}
     ${bkBtn((M.ml || [])[i])}`;
-  return `<div class="mk"><span></span><i>${esc(M.spreadLab || "Spread")}</i><i>Total</i><i>Money</i>${row(g.a, 0)}${row(g.h, 1)}</div>`;
+  return `<div class="mk"><span class="mk-src">${M.books ? `<b>Market</b>${M.books} books` : "<b>Pikt</b>lines"}</span><i>${esc(M.spreadLab || "Spread")}</i><i>Total</i><i>Money</i>${row(g.a, 0)}${row(g.h, 1)}</div>`;
 }
 // the game card: teams (score once it starts), the three main lines, then props and the lineup view
 // alternate lines: a ladder around the main spread and total, priced by the page
 function pjAlt(g) {
   const M = pjLines(g), C = pjCtx(g.id); if (!M || !PJA.price || !C) return "";
   const nhl = PJA.sport === "NHL", lh = (M.spread || [])[1] ? M.spread[1].line : 0, T = (M.total || [])[0] ? M.total[0].line : null;
-  const S = (kind, side, line, t) => { const p = PJA.price(g.id, kind, side, line); if (p == null || p < 0.1 || p > 0.9) return null;
+  const main = [...(M.spread || []), ...(M.total || [])].filter(Boolean);
+  const S = (kind, side, line, t) => { const same = main.find(x => x.kind === kind && x.side === side && x.line === line); if (same) return same;
+    const p = PJA.price(g.id, kind, side, line); if (p == null || p < 0.1 || p > 0.9) return null;
     const x = bkSel(Object.assign({}, C, {gid: String(g.id), kind, side, line, p, mkt: kind === "spread" ? (nhl ? "Alt puck line" : "Alt spread") : "Alt total",
       pick: kind === "spread" ? `${t.abbr} ${pjSp(line)}` : `${side === "over" ? "Over" : "Under"} ${line}`}));
     if (kind === "spread") Object.assign(x, {logo: t.logo, color: t.color}); else x.logos = [g.a.logo, g.h.logo];
