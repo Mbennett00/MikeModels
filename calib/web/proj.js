@@ -360,3 +360,11 @@ function pjRender() {
 }
 window.addEventListener("scroll", () => { const h = document.querySelector(".hdr"); if (h) h.classList.toggle("stuck", window.scrollY > 8); }, {passive: true});
 setInterval(() => { if (TAB === "home" && !document.getElementById("sheet").classList.contains("open")) pjRender(); }, 60e3);   // countdowns
+// My bets: live status for a leg in this page's league
+function pjLegStatus(l) {
+  if (!PJA || l.sport !== PJA.sport) return null;
+  const g = PJA.games().find(x => String(x.id) === String(l.gid)); if (!g) return null;
+  if (g.state === "live" && g.score) return `<span class="lg-live">Live ${esc(g.detail || "")} · ${esc(g.a.abbr)} ${g.score.a}–${g.score.h} ${esc(g.h.abbr)}</span>`;
+  if (g.state === "final" && g.score) return `<span class="lg-fin">Final ${esc(g.a.abbr)} ${g.score.a}–${g.score.h} ${esc(g.h.abbr)}</span>`;
+  return g.time ? `<span class="lg-pre">${esc(g.time)}</span>` : null;
+}

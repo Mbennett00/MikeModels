@@ -785,3 +785,29 @@ body::after { content: ""; position: fixed; inset: auto -20vw -20vh; height: 50v
 .mc-st { align-items: flex-end; max-width: 168px; gap: 4px; }
 .mk-src { display: flex; flex-direction: column; font-size: 10px; font-weight: 600; color: var(--t3); line-height: 1.2; }
 .mk-src b { font: italic 800 11px var(--fd); letter-spacing: .06em; text-transform: uppercase; color: var(--acc); }
+
+/* =================== My bets =================== */
+.mb-strip { display: flex; align-items: center; gap: 14px; margin-top: 14px; padding: 14px 16px; border-radius: 22px; border: 1px solid transparent;
+  background: radial-gradient(80% 140% at 0% 0%, rgba(20,245,160,.16), transparent 60%), linear-gradient(170deg, #0d1a14, #070d0b) padding-box, var(--edge) border-box; }
+.mb-bal { display: flex; align-items: center; gap: 7px; color: var(--acc); flex: none; }
+.mb-bal .bk-c { width: 24px; height: 24px; } .mb-bal b { font: italic 800 30px/1 var(--fd); color: var(--t1); }
+.mb-st { flex: 1; min-width: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; text-align: right; }
+.mb-st span { display: flex; flex-direction: column; min-width: 0; } .mb-st i { font-style: normal; font-size: 9.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--t3); }
+.mb-st b { font: italic 800 15px var(--fd); white-space: nowrap; }
+.mb-seg { margin-top: 12px; } .mb-seg em { font-style: normal; display: inline-grid; place-items: center; min-width: 20px; height: 18px; padding: 0 5px; margin-left: 4px; border-radius: 9px; background: var(--s3); color: var(--t2); font-size: 11px; font-weight: 800; }
+.mb-seg button.on em { background: var(--grad); color: var(--acc-ink); }
+.mb-day { display: flex; justify-content: space-between; align-items: baseline; margin: 18px 2px 8px; }
+.mb-day b { font: italic 800 15px var(--fd); text-transform: uppercase; letter-spacing: .03em; } .mb-day span { font-size: 12.5px; color: var(--t3); font-weight: 600; } .mb-day em { font-style: normal; font-weight: 800; }
+.mb-empty { margin-top: 14px; padding: 28px 18px; border-radius: 22px; text-align: center; border: 1px dashed var(--line2); display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.mb-empty b { font: italic 800 19px var(--fd); text-transform: uppercase; } .mb-empty span { font-size: 13px; color: var(--t3); }
+.mb-empty div { display: flex; gap: 8px; margin-top: 10px; } .mb-empty button { height: 40px; padding: 0 18px; border-radius: 13px; background: var(--grad); color: var(--acc-ink); font: italic 800 14px var(--fd); text-transform: uppercase; }
+.mb-empty button + button { background: var(--s3); color: var(--t1); }
+.bk-list { margin-top: 0; }
+.bk-tkh { gap: 10px; } .bk-tt { flex: 1; min-width: 0; font: italic 800 15px var(--fd); color: var(--t1); text-transform: uppercase; letter-spacing: .02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bk-tko { font: italic 800 16px var(--fd); color: var(--acc); }
+.bk-tl i { white-space: normal; } .lg-pre { color: var(--t2); } .lg-live { color: var(--live); font-weight: 700; } .lg-fin { color: var(--t2); font-weight: 700; }
+.bk-prog { position: relative; height: 22px; margin: 4px 0 6px; border-radius: 11px; background: var(--s2); overflow: hidden; }
+.bk-prog i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--grad); opacity: .35; } .bk-prog span { position: relative; display: block; text-align: center; font-size: 11px; font-weight: 700; line-height: 22px; color: var(--t1); }
+.bk-tkf { align-items: center; } .bk-tkf i { font-style: normal; color: var(--t3); } .bk-tkf b { font: italic 800 16px var(--fd); }
+.bk-tk.live { background: linear-gradient(170deg, rgba(22,14,16,.96), rgba(7,13,11,.96)) padding-box, linear-gradient(160deg, rgba(255,77,94,.5), rgba(140,255,215,.05) 50%) border-box; }
+.bk-tkf .bk-when { margin-left: 0; font-size: 11.5px; } .mb-st b { font-size: 17px; }

@@ -23,11 +23,16 @@ import statistics
 import unicodedata
 
 import requests
+from zoneinfo import ZoneInfo
+
+ET = ZoneInfo("America/New_York")
 
 API = "https://api.the-odds-api.com/v4"
-LEAGUES = {"NHL": ("icehockey_nhl", 10), "NBA": ("basketball_nba", 10), "NFL": ("americanfootball_nfl", 22)}   # key, hours between pulls
+LEAGUES = {"NHL": ("icehockey_nhl", 20), "NBA": ("basketball_nba", 20), "NFL": ("americanfootball_nfl", 44)}   # key, hours between pulls
+WINDOW = (13, 20)   # paid pulls only in the afternoon (ET), once lines have settled; NFL props too
 PAGE = {"NHL": "data.json", "NBA": "nba.json", "NFL": "nfl.json"}
-COST = 3   # h2h + spreads + totals, one region
+COST = 3   # h2h + spreads + totals, one region (budget: NHL + NBA lines daily ~180, NFL lines every 2 days ~45,
+           # NFL props ~3 a game ~200: about 430 a month, never past CAP)
 CAP = int(os.environ.get("ODDS_MONTH_CAP", "480"))
 UA = {"User-Agent": "Mozilla/5.0 (Pikt odds)"}
 
@@ -107,6 +112,10 @@ def pull_lines(prev: dict, web: str, key: str, log=print) -> dict:
     if not key:
         log("odds: no ODDS_API_KEY; keeping the last prices"); return {"lines": lines, "pulled": pulled, "used": prev.get("used")}
     now = dt.datetime.now(dt.timezone.utc)
+    hr = dt.datetime.now(ET).hour
+    if not (WINDOW[0] <= hr < WINDOW[1]) and not os.environ.get("ODDS_PULL"):
+        log(f"odds: outside the {WINDOW[0]}:00-{WINDOW[1]}:00 ET pull window; keeping the last lines")
+        return {"lines": lines, "pulled": pulled, "used": prev.get("used")}
     due = [lg for lg, (_, hrs) in LEAGUES.items() if upcoming(web, lg)
            and (lg not in pulled or now - dt.datetime.fromisoformat(pulled[lg]) >= dt.timedelta(hours=hrs - 0.5))]
     used = prev.get("used")
@@ -308,6 +317,58 @@ def pull_props(prev: dict, web: str, log=print) -> dict:
     return props
 
 
+# ---------- NFL props: DraftKings via The Odds API ----------
+# ESPN lists DraftKings' NFL prop markets without prices, so football props come from The Odds API instead:
+# DraftKings only (bookmakers=draftkings -> 1 credit per market per game), three markets, each game pulled once when
+# it's about two days out. Over sides only, so each price is "N or more" like everywhere else on the page.
+NFL_PROPS = {"player_anytime_td": "td", "player_reception_yds": "rec_yds", "player_rush_yds": "rush_yds"}
+
+
+def pull_nfl_props(prev: dict, key: str, used, log=print):
+    st = dict(prev.get("nflp") or {}); ev_store = dict(st.get("events") or {})
+    now = dt.datetime.now(dt.timezone.utc)
+    ev_store = {k: v for k, v in ev_store.items() if dt.datetime.fromisoformat(v["t"].replace("Z", "+00:00")) > now - dt.timedelta(hours=4)}
+    in_window = WINDOW[0] <= dt.datetime.now(ET).hour < WINDOW[1] or os.environ.get("ODDS_PULL")
+    if key and in_window:
+        try:
+            evs = requests.get(f"{API}/sports/americanfootball_nfl/events", params={"apiKey": key}, timeout=20).json()   # free
+        except Exception as e:
+            evs = []; log(f"odds: NFL events list failed ({e})")
+        todo = [e for e in evs if isinstance(e, dict) and e.get("id") not in ev_store
+                and now < dt.datetime.fromisoformat(e["commence_time"].replace("Z", "+00:00")) < now + dt.timedelta(hours=54)]
+        if todo and used is None:
+            used = usage(key)
+        cost = len(NFL_PROPS)
+        for e in todo:
+            if used is None or used + cost > CAP:
+                log(f"odds: NFL props for {e.get('away_team')} @ {e.get('home_team')} skipped ({used} credits used, cap {CAP})"); continue
+            try:
+                r = requests.get(f"{API}/sports/americanfootball_nfl/events/{e['id']}/odds", timeout=30,
+                                 params={"apiKey": key, "bookmakers": "draftkings", "markets": ",".join(NFL_PROPS), "oddsFormat": "american"})
+                r.raise_for_status(); d = r.json(); used = int(r.headers.get("x-requests-used", used + cost))
+            except Exception as ex:
+                log(f"odds: NFL props {e.get('id')} failed ({ex})"); continue
+            players = {}
+            for bk in d.get("bookmakers") or []:
+                for m in bk.get("markets") or []:
+                    stat = NFL_PROPS.get(m.get("key"))
+                    for o in m.get("outcomes") or []:
+                        if not stat or o.get("name") not in ("Over", "Yes") or o.get("price") is None or not o.get("description"):
+                            continue
+                        line = 0.5 if stat == "td" else o.get("point")
+                        if line is None:
+                            continue
+                        players.setdefault(nm(o["description"]), {})[f"{stat}|{float(line):g}"] = int(o["price"])
+            ev_store[e["id"]] = {"t": e["commence_time"], "game": f"{e.get('away_team')} @ {e.get('home_team')}", "players": players}
+            log(f"odds: NFL props {e.get('away_team')} @ {e.get('home_team')}: {len(players)} players ({used} credits used)")
+    merged = {}
+    for v in ev_store.values():
+        if dt.datetime.fromisoformat(v["t"].replace("Z", "+00:00")) > now:
+            for k, q in v["players"].items():
+                merged.setdefault(k, {}).update(q)
+    return {"events": ev_store}, merged, used
+
+
 def attach_gids(lines: dict, web: str, log=print):
     """Tie each consensus game to the page's game id (team names + start time), and say how many matched."""
     for lg, blob in (lines or {}).items():
@@ -342,6 +403,12 @@ def run(state: str = "state", log=print):
         prev = {}
     out = pull_lines(prev, web, os.environ.get("ODDS_API_KEY", ""), log)
     out["props"] = pull_props(prev, web, log)
+    out["nflp"], nflp, out["used"] = pull_nfl_props(prev, os.environ.get("ODDS_API_KEY", ""), out.get("used"), log)
+    if nflp:
+        props_nfl = (out["props"].get("NFL") or {}).get("players") or {}
+        for k, q in nflp.items():
+            props_nfl.setdefault(k, {}).update(q)
+        out["props"]["NFL"] = {"book": "DraftKings", "fetched_at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), "players": props_nfl}
     attach_gids(out.get("lines"), web, log)
     out["cap"] = CAP
     out["generated_at"] = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")

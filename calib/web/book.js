@@ -228,25 +228,55 @@ function bkToast(msg, kind = "") {
 }
 
 // ---------- Bets tab ----------
+// a leg's live line: the page knows its own league's games (score, clock); other leagues show the start time
+function bkLegStatus(l) {
+  if (l.r) return "";
+  const live = typeof pjLegStatus === "function" ? pjLegStatus(l) : null; if (live) return live;
+  if (!l.start) return "";
+  const d = new Date(l.start), now = Date.now();
+  if (d > now) return `<span class="lg-pre">${esc(d.toLocaleString("en-US", {weekday: "short", hour: "numeric", minute: "2-digit", timeZone: "America/New_York"}))}</span>`;
+  return `<span class="lg-live">In progress</span>`;
+}
 function bkTicket(b) {
-  const tag = b.st === "open" ? (b.legs.some(l => l.start && new Date(l.start) <= Date.now()) ? ["live", "Live"] : ["open", "Open"]) : b.st === "won" ? ["won", "Won"] : b.st === "lost" ? ["lost", "Lost"] : ["push", "Push"];
-  const R = r => r === "win" ? "✓" : r === "loss" ? "✕" : r === "push" ? "–" : r === "void" ? "void" : "";
+  const started = b.legs.some(l => l.start && new Date(l.start) <= Date.now());
+  const tag = b.st === "open" ? (started ? ["live", "Live"] : ["open", "Open"]) : b.st === "won" ? ["won", "Won"] : b.st === "lost" ? ["lost", "Lost"] : ["push", "Push"];
+  const R = r => r === "win" ? "✓" : r === "loss" ? "✕" : r === "push" ? "–" : r === "void" ? "↺" : "";
   const when = new Date(b.at).toLocaleString("en-US", {month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/New_York"});
-  return `<div class="bk-tk ${tag[0]}"><div class="bk-tkh"><span class="bk-tag">${tag[1]}</span><span>${b.legs.length > 1 ? b.legs.length + "-leg parlay" : esc(b.legs[0].sport)}</span><span class="bk-when">${esc(when)}</span></div>
-    ${b.legs.map(l => `<div class="bk-tl ${l.r || ""}">${bkArt(l, "sm")}<div><b>${esc(l.pick)}</b><i>${esc(l.mkt)} · ${esc(l.game)}</i></div><span class="bk-od">${bkAm(l.dec)}</span><span class="bk-r">${R(l.r)}</span></div>`).join("")}
-    <div class="bk-tkf"><span>Stake <b>${bkN(b.stake)}</b></span><span>${b.st === "open" ? `To win <b>${bkN(b.stake * (b.dec - 1))}</b>` : b.st === "won" ? `Paid <b class="up">+${bkN(b.pay - b.stake)}</b>` : b.st === "push" ? `Returned <b>${bkN(b.pay)}</b>` : `<b class="dn">−${bkN(b.stake)}</b>`}</span></div></div>`;
+  const done = b.legs.filter(l => l.r === "win" || l.r === "push" || l.r === "void").length;
+  const title = b.legs.length > 1 ? `${b.legs.length}-leg parlay` : esc(b.legs[0].mkt);
+  const win = b.stake * (b.dec - 1);
+  return `<div class="bk-tk ${tag[0]}"><div class="bk-tkh"><span class="bk-tag">${tag[1]}</span><b class="bk-tt">${title}</b><span class="bk-tko">${bkAm(b.dec)}</span></div>
+    ${b.legs.map(l => `<div class="bk-tl ${l.r || ""}">${bkArt(l, "sm")}<div><b>${esc(l.pick)}</b><i>${esc(l.game)}${bkLegStatus(l) ? " · " + bkLegStatus(l) : ""}</i></div>${b.legs.length > 1 ? `<span class="bk-od">${bkAm(l.dec)}</span>` : ""}<span class="bk-r">${R(l.r)}</span></div>`).join("")}
+    ${b.st === "open" && b.legs.length > 1 && done ? `<div class="bk-prog"><i style="width:${Math.round(100 * done / b.legs.length)}%"></i><span>${done} of ${b.legs.length} legs in</span></div>` : ""}
+    <div class="bk-tkf"><span class="bk-when">${esc(when)}</span><span>${bkN(b.stake)} ${b.st === "open" ? `<i>to win</i> <b class="up">${bkN(win)}</b>` : b.st === "won" ? `<i>paid</i> <b class="up">+${bkN(b.pay - b.stake)}</b>` : b.st === "push" ? `<i>returned</i> <b>${bkN(b.pay)}</b>` : `<i>lost</i> <b class="dn">−${bkN(b.stake)}</b>`}</span></div></div>`;
 }
 function bkScreen() {
   const s = bkStats(), V = BKS.view === "settled" ? "settled" : "open";
-  const L = BKS.bets.filter(b => V === "open" ? b.st === "open" : b.st !== "open");
+  const open = BKS.bets.filter(b => b.st === "open"), settled = BKS.bets.filter(b => b.st !== "open");
   const sg = v => v > 0 ? "+" + bkN(v) : v < 0 ? "−" + bkN(-v) : "0";
-  const hero = bkWalletHtml(true) + `<div class="bk-hs card"><div><i>All time</i><b class="${s.profit > 0 ? "up" : s.profit < 0 ? "dn" : ""}">${sg(s.profit)}</b></div>
-      <div><i>Record</i><b>${s.w}-${s.l}${s.p ? "-" + s.p : ""}</b></div><div><i>In play</i><b>${bkN(s.risk)}</b></div><div><i>ROI</i><b class="${(s.roi || 0) > 0 ? "up" : (s.roi || 0) < 0 ? "dn" : ""}">${s.roi == null ? "–" : (s.roi >= 0 ? "+" : "−") + Math.abs(100 * s.roi).toFixed(1) + "%"}</b></div></div>
-    <div class="hd"><b>Daily missions</b><span class="hd-s">Resets daily</span></div>${bkMissionsHtml()}`;
-  const edge = `<div class="hd"><b>Tickets</b></div>`;
-  const seg = `<div class="seg" style="--n:2"><button class="${V === "open" ? "on" : ""}" data-bkv="open">Open${s.open ? ` · ${s.open}` : ""}</button><button class="${V === "settled" ? "on" : ""}" data-bkv="settled">Settled</button></div>`;
-  const list = L.length ? L.slice(0, 60).map(bkTicket).join("") : `<div class="bk-empty">${V === "open" ? "No open bets. Tap any price on a game card or player to start a slip." : "Nothing settled yet."}</div>`;
-  return hero + edge + seg + `<div class="bk-list">${list}</div><div class="bk-fine">Play coins only: no deposits, no cash value, nothing to withdraw. Bets grade automatically from ESPN finals.</div>`;
+  const strip = `<section class="mb-strip"><button class="mb-bal" data-bkv="open">${BK_COIN}<b>${bkN(BKS.coins)}</b></button>
+      <div class="mb-st"><span><i>Today</i><b class="${s.today > 0 ? "up" : s.today < 0 ? "dn" : ""}">${sg(s.today)}</b></span><span><i>Record</i><b>${s.w}-${s.l}${s.p ? "-" + s.p : ""}</b></span><span><i>ROI</i><b class="${(s.roi || 0) > 0 ? "up" : (s.roi || 0) < 0 ? "dn" : ""}">${s.roi == null ? "–" : (s.roi >= 0 ? "+" : "−") + Math.abs(100 * s.roi).toFixed(0) + "%"}</b></span></div></section>`;
+  const seg = `<div class="seg mb-seg" style="--n:2"><button class="${V === "open" ? "on" : ""}" data-bkv="open">Open${open.length ? ` <em>${open.length}</em>` : ""}</button><button class="${V === "settled" ? "on" : ""}" data-bkv="settled">Settled${settled.length ? ` <em>${settled.length}</em>` : ""}</button></div>`;
+  let list;
+  if (V === "open") {
+    const live = open.filter(b => b.legs.some(l => l.start && new Date(l.start) <= Date.now())), up = open.filter(b => !live.includes(b));
+    list = open.length ? (live.length ? `<div class="mb-day"><b>Live now</b><span>${live.length}</span></div>${live.map(bkTicket).join("")}` : "")
+        + (up.length ? `<div class="mb-day"><b>Upcoming</b><span>${bkN(up.reduce((x, b) => x + b.stake, 0))} in play</span></div>${up.map(bkTicket).join("")}` : "")
+      : `<div class="mb-empty"><b>No open bets</b><span>Tap any price on a game or player to build a slip.</span><div><button data-go="games">Games</button><button data-go="players">Props</button></div></div>`;
+  } else {
+    const days = {};
+    for (const b of settled.slice(0, 80)) (days[bkDay(b.done || b.at)] = days[bkDay(b.done || b.at)] || []).push(b);
+    const lab = d => d === bkDay() ? "Today" : d === bkYday() ? "Yesterday" : new Date(d + "T12:00:00").toLocaleDateString("en-US", {weekday: "short", month: "short", day: "numeric"});
+    list = settled.length ? Object.entries(days).map(([d, B]) => { const net = B.reduce((x, b) => x + b.pay - b.stake, 0), w = B.filter(b => b.st === "won").length;
+        return `<div class="mb-day"><b>${lab(d)}</b><span>${w}-${B.filter(b => b.st === "lost").length} · <em class="${net > 0 ? "up" : net < 0 ? "dn" : ""}">${sg(net)}</em></span></div>${B.map(bkTicket).join("")}`; }).join("")
+      : `<div class="mb-empty"><b>Nothing settled yet</b><span>Bets grade automatically from ESPN finals.</span></div>`;
+  }
+  const L = bkLevel(), st = bkStreakNow();
+  const rewards = `<div class="hd"><b>Rewards</b><span class="hd-s">Lv ${L.n} ${esc(L.name)} · 🔥 ${st} day${st === 1 ? "" : "s"}</span></div>
+    ${BKS.drop !== bkDay() ? `<button class="bk-drop" data-bkdrop="1">${BK_COIN}<span><b>Daily drop${st ? ` · day ${st + 1}` : ""}</b><i>Free coins every day · streaks pay more</i></span><em>+${bkN(bkDropAmt())}</em></button>` : ""}
+    ${bkBroke() ? `<button class="bk-drop" data-bkreload="1">${BK_COIN}<span><b>Out of coins</b><i>Reload to ${bkN(BK.reload)} (once a day)</i></span><em>Reload</em></button>` : ""}
+    ${bkMissionsHtml()}`;
+  return strip + seg + `<div class="bk-list">${list}</div>` + rewards + `<div class="bk-fine">Play coins only: no deposits, no cash value, nothing to withdraw.</div>`;
 }
 function bkWire(root = document) {
   root.querySelectorAll("[data-bk]").forEach(b => b.onclick = e => { e.stopPropagation(); bkToggle(b.dataset.bk); });
