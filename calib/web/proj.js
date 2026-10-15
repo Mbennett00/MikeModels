@@ -105,16 +105,14 @@ const PJ_PLAB = {goals: "goals", sog: "shots", points: "points", assists: "assis
 const pjPropLab = (stat, n) => stat === "goals" && n === 1 ? "Scores a goal" : stat === "td" && n === 1 ? "Anytime TD" : `${n}+ ${PJ_PLAB[stat] || stat}`;
 const pjMktProps = () => { const P = ((PJ_ODDS.props || {})[PJA.sport] || {}).players; return P && Object.keys(P).length ? P : null; };
 // a player's bettable lines for one stat: [{sel, top}], nearest even money first, then shown low to high.
-// When the league has DraftKings prices, a player is offered exactly DraftKings' lines at DraftKings' prices (no
-// made-up ladders); the page's own ladder is only the fallback when the feed is down.
+// A player is offered exactly DraftKings' lines at DraftKings' prices; with no DraftKings props for the league, none.
 function pjProps(p, stat, max = 3) {
   const C = pjCtx(p.gid); if (!C) return [];
   const MP = pjMktProps();
   let L;
   if (MP) L = Object.entries(MP[bkNm(p.name)] || {}).filter(([k]) => k.split("|")[0] === stat)
     .map(([k, a]) => { const n = +k.split("|")[1] + 0.5; return [pjPropLab(stat, n), 1 / pjDec(a), {stat, n}, a]; });
-  else if (PJA.playerLines) L = PJA.playerLines(p.id).filter(x => x[2] && x[2].stat === stat);
-  else return [];
+  else return [];   // no made-up props: a league's props open when DraftKings posts them
   L = L.filter(x => x[1] != null && x[1] >= 0.1 && x[1] <= 0.9);   // no lottery tickets, no −1000 locks
   return L.sort((x, y) => Math.abs(x[1] - 0.5) - Math.abs(y[1] - 0.5)).slice(0, max).sort((x, y) => x[2].n - y[2].n).map(([l, c, spec, a]) => ({
     top: (stat === "td" || stat === "goals") && spec.n === 1 ? "Anytime" : `${Math.ceil(spec.n)}+`,
@@ -318,7 +316,7 @@ function pjPlayers() {
   const tabs = `<div class="strip pj-mk">${PJA.markets.map(x => `<button class="chip ${x.k === m.k ? "on" : ""}" data-pjmk="${x.k}">${x.label}</button>`).join("")}</div>`;
   const chips = `<div class="strip pj-strip"><button class="chip ${PJ.q ? "on" : ""}" data-pjsearch="1" aria-label="Search">${pjIc("search")}</button><button class="chip ${PJ.game === "all" ? "on" : ""}" data-pjg="all">All games</button>${G.filter(g => g.state === "pre").map(g => `<button class="chip ${PJ.game === String(g.id) ? "on" : ""}" data-pjg="${esc(g.id)}">${pjLogo(g.a)}${pjLogo(g.h)}${esc(g.a.abbr)} @ ${esc(g.h.abbr)}</button>`).join("")}</div>
     ${PJ.searching || PJ.q ? `<input class="search" id="pjq" placeholder="Search a player or team" value="${esc(PJ.q)}" autocomplete="off">` : ""}`;
-  return tabs + chips + `<div class="list prs">${rows.join("") || `<div class="bk-empty">No ${esc(m.label.toLowerCase())} props open right now.</div>`}</div>
+  return tabs + chips + `<div class="list prs">${rows.join("") || `<div class="bk-empty">${pjMktProps() ? `No ${esc(m.label.toLowerCase())} props posted right now.` : "Player props open when DraftKings posts them, usually a day or two before the game."}</div>`}</div>
     ${rows.length >= PJ.n ? `<button class="gmore" data-pjmore="1">Show more</button>` : ""}`;
 }
 function pjOpenPlayer(id) {

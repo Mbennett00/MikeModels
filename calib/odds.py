@@ -155,6 +155,8 @@ def prop_kind(league: str, name: str):
         return None                                   # partial-game and first/last scorer markets aren't on the page
     if league == "NFL" and "2 or more touchdowns" in n:
         return "td", 1.5
+    if league == "NHL" and "score 2+ goals" in n:
+        return "goals", 1.5
     if "anytime" in n:
         if league == "NFL" and ("touchdown" in n or " td" in n):
             return "td", True

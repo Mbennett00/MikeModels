@@ -68,3 +68,8 @@ def test_market_games_attach_to_page_ids(tmp_path):
                                {"home": "Boston Bruins", "away": "Buffalo Sabres", "t": "2026-11-20T23:10:00Z"}]}}
     odds.attach_gids(lines, str(tmp_path), log=lambda *_: None)
     assert lines["NHL"]["games"][0]["gid"] == "2026020022" and "gid" not in lines["NHL"]["games"][1]   # a month later is another game
+
+
+def test_nhl_two_goal_market():
+    assert odds.prop_kind("NHL", "To Score 2+ Goals") == ("goals", 1.5)
+    assert odds.prop_kind("NHL", "First Goalscorer") is None
