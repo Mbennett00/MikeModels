@@ -378,6 +378,8 @@ PJA = {
     return out; },
   ctx: gid => { const g = D.games.find(x => String(x.game_id) === String(gid)); if (!g) return null;
     return {sport: "NFL", game: `${g.away.abbr} @ ${g.home.abbr}`, start: g.start_utc, open: nflOpen(g), ev: {date: bkEvDate(g.start_utc), home: g.home.abbr, away: g.away.abbr}}; },
+  star: p => { const v = k => (p.vals[k] || {}).v || 0; if (/^(out|ir|doubt)/i.test(String(p.meta).split(" · ").pop())) return {s: 0};
+    return {s: v("pass_yds") / 25 + v("rush_yds") / 10 + v("rec_yds") / 10 + 6 * v("td"), mk: v("pass_yds") ? "pass_yds" : "td"}; },   // fantasy-style: QBs and lead backs first
   price: (gid, kind, side, line) => { const g = D.games.find(x => String(x.game_id) === String(gid)); if (!g || !g.mpmf || !g.tpmf) return null; return prob(g, kind, side, line); },
   info: gid => { const g = D.games.find(x => String(x.game_id) === String(gid)); if (!g) return [];
     const T = D.teams || {}, out = [];

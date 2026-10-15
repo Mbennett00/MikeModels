@@ -128,14 +128,22 @@ function pjAlt(g) {
       ${sp.map(([a, h]) => `<div class="alt-r">${cell(a, a ? pjSp(a.line) : "")}${cell(h, h ? pjSp(h.line) : "")}</div>`).join("")}
       ${to.length ? `<div class="sec">Alt total</div><div class="alt-h"><span>Over</span><span>Under</span></div>${to.map(([o, u]) => `<div class="alt-r">${cell(o, o ? "O " + o.line : "")}${cell(u, u ? "U " + u.line : "")}</div>`).join("")}` : ""}</div>`;
 }
-// each team's headline player on the card, with a price
-function pjStars(g) {
-  if (g.state !== "pre") return "";
-  const mk = (PJA.top && (PJA.top()[0] || {}).mk) || PJA.markets[0].k, P = PJA.players().filter(p => String(p.gid) === String(g.id));
-  const best = t => P.filter(p => p.team === t.abbr).sort((x, y) => ((y.vals[mk] || {}).v || 0) - ((x.vals[mk] || {}).v || 0)).map(p => [p, pjProps(p, mk, 1)[0]]).find(x => x[1]);
-  const S = [best(g.a), best(g.h)].filter(Boolean); if (!S.length) return "";
-  const m = PJA.markets.find(x => x.k === mk) || {};
-  return `<div class="mc-stars">${S.map(([p, x]) => `<div class="mc-star" style="--tc:${esc(p.color || "#556")}"><button class="mc-who" data-player="${esc(p.id)}">${pjAv(p)}<span><b>${esc(p.name)}</b><i>${esc(p.team)} · ${esc(x.top === "Anytime" ? "Anytime " + (mk === "td" ? "TD" : "goal") : x.top + " " + (m.label || "").toLowerCase())}</i></span></button>${bkBtn(x.sel)}</div>`).join("")}</div>`;
+// each team's star (the page decides who: top producer, not just the likeliest scorer), with one price
+function pjStar(g, t) {
+  if (g.state !== "pre") return null;
+  const P = PJA.players().filter(p => String(p.gid) === String(g.id) && p.team === t.abbr);
+  const R = P.map(p => { const r = PJA.star ? PJA.star(p) : {s: (p.vals[PJA.markets[0].k] || {}).v || 0, mk: PJA.markets[0].k}; return Object.assign({p}, r); })
+    .filter(r => r.s > 0).sort((x, y) => y.s - x.s);
+  for (const r of R) { const x = pjProps(r.p, r.mk, 1)[0] || PJA.markets.map(m => pjProps(r.p, m.k, 1)[0]).find(Boolean); if (x) return {p: r.p, x}; }
+  return null;
+}
+const PJ_UNIT = {goals: "goals", sog: "shots", points: "pts", assists: "ast", td: "TDs", pass_yds: "pass yds", rush_yds: "rush yds", rec_yds: "rec yds", rec: "rec", pts: "pts", reb: "reb", ast: "ast", fg3: "3PM", pra: "PRA"};
+function pjStarChip(g, t) {
+  const S = pjStar(g, t); if (!S) return "";
+  const {p, x} = S, st = x.sel.pl.stat;
+  const lab = x.top === "Anytime" ? (st === "td" ? "TD" : "goal") : `${x.top} ${PJ_UNIT[st] || st}`;
+  const last = p.name.split(" ").filter(w => !/^(jr\.?|sr\.?|ii|iii|iv)$/i.test(w)).slice(-1)[0];
+  return `<div class="mc-st"><button class="mc-av" data-player="${esc(p.id)}" style="--tc:${esc(p.color || "#556")}">${pjAv(p)}<span>${esc(last)}</span></button>${bkBtn(x.sel, lab)}</div>`;
 }
 function pjGamePanels(g) {
   const P = PJA.players().filter(p => String(p.gid) === String(g.id)), out = [];
@@ -153,7 +161,7 @@ function pjGameCard(g) {
     body = `<div class="xpanel"><div class="strip xtabs">${P.map(x => `<button class="chip ${x.k === k ? "on" : ""}" data-pv="${esc(g.id)}|${x.k}">${x.label}</button>`).join("")}</div>
       <div class="xbody">${P.find(x => x.k === k).html()}</div></div>`; }
   const side = (t, k) => { const sc = g.score ? g.score[k] : null, other = g.score ? g.score[k === "h" ? "a" : "h"] : null;
-    return `<div class="mc-s ${k} ${g.state === "final" && sc < other ? "lose" : ""}"><span class="mc-lg">${pjLogo(t)}</span><b>${esc(t.name)}</b><i>${t.sub || (k === "h" ? "Home" : "Away")}</i></div>`; };
+    return `<div class="mc-s ${k} ${g.state === "final" && sc < other ? "lose" : ""}"><span class="mc-lg">${pjLogo(t)}</span><b>${esc(t.name)}</b><i>${t.sub || (k === "h" ? "Home" : "Away")}</i>${pjStarChip(g, t)}</div>`; };
   const mid = pre ? `<div class="mc-mid"><span class="mc-vs">VS</span>${pjCountdown(g)}</div>`
     : `<div class="mc-mid sc"><b>${g.score ? g.score.a : 0}<i>–</i>${g.score ? g.score.h : 0}</b><span>${g.state === "live" ? `<b class="st-live">Live</b> ${esc(g.detail || "")}` : "Final"}</span></div>`;
   const mk = pjMarkets(g), info = PJA.info ? PJA.info(g.id) : [];
@@ -162,13 +170,13 @@ function pjGameCard(g) {
         <div class="mc-top"><span class="mc-lgu">${esc(PJA.sport)}</span><span class="mc-time">${pre ? esc(g.time || "") : ""}</span>${g.note ? `<span class="mc-note">${g.note}</span>` : ""}</div>
         <div class="mc-row">${side(g.a, "a")}${mid}${side(g.h, "h")}</div>
         ${info.length ? `<div class="mc-info">${info.map(x => `<span>${esc(x)}</span>`).join("")}</div>` : ""}</div>
-      ${pjStars(g)}${mk || (pre ? "" : `<div class="gc-lock">${g.state === "live" ? "Lines are closed while the game is on" : "Final · bets graded"}</div>`)}
+      ${mk || (pre ? "" : `<div class="gc-lock">${g.state === "live" ? "Lines are closed while the game is on" : "Final · bets graded"}</div>`)}
     ${body}<button class="more" data-more="${esc(g.id)}">${open ? "Hide" : (pre ? "Alt lines · " : "") + "Player props" + (PJA.panels && PJA.panels(g).some(x => ["rink", "field", "court"].includes(x.k)) ? " · lineup" : "")}<span class="chev ${open ? "up" : ""}">›</span></button></article>`;
 }
 // Home: a game row with both moneylines
 function pjGameRow(g) {
   const M = g.state === "pre" ? pjLines(g) : null;
-  const side = (t, i, sc, other) => `<div class="gr-t">${pjLogo(t)}<b>${esc(t.name)}</b>${M ? bkBtn(M.ml[i]) : g.state === "pre" ? "" : `<strong class="${g.state === "final" && sc < other ? "lose" : ""}">${sc ?? 0}</strong>`}</div>`;
+  const side = (t, i, sc, other) => `<div class="gr-t" style="--tm:${esc(t.color || "transparent")}">${pjLogo(t)}<b>${esc(t.name)}</b>${M ? bkBtn(M.ml[i]) : g.state === "pre" ? "" : `<strong class="${g.state === "final" && sc < other ? "lose" : ""}">${sc ?? 0}</strong>`}</div>`;
   return `<div class="gr" data-gogame="${esc(g.id)}"><div class="gr-st">${pjStatus(g)}<span class="chev">›</span></div>
     ${side(g.a, 0, g.score && g.score.a, g.score && g.score.h)}${side(g.h, 1, g.score && g.score.h, g.score && g.score.a)}</div>`;
 }

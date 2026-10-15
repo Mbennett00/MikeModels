@@ -746,3 +746,40 @@ body::after { content: ""; position: fixed; inset: auto -20vw -20vh; height: 50v
 .alt-l { font: italic 800 14px var(--fd); color: var(--t2); } .alt-r .bk-px { height: 44px; }
 .alt .sec { margin: 10px 2px 2px; } .alt .sec:first-child { margin-top: 2px; }
 .mc-star .bk-px { width: 76px; height: 42px; } .mc-who .pav { width: 38px; height: 38px; } .mc-who b { font-size: 15px; } .mc-who i { font-size: 11.5px; }
+
+/* =================== cleanup: stars in the hero, dock, colour =================== */
+.mc-stars { display: none; }
+.mc-st { display: flex; align-items: center; gap: 6px; width: 100%; max-width: 156px; margin-top: 10px; }
+.mc-av { flex: none; } .mc-av .pav { width: 34px; height: 34px; box-shadow: 0 0 0 2px rgba(0,0,0,.5), 0 0 0 3.5px color-mix(in srgb, var(--tc) 85%, transparent); }
+.mc-st .bk-px { flex: 1; min-width: 0; height: 42px; background: rgba(3,7,6,.62); border-color: rgba(255,255,255,.12); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+.mc-st .bk-px i { max-width: 100%; padding: 0 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 10.5px; color: rgba(255,255,255,.7); }
+.mc-st .bk-px b { font-size: 15px; }
+.mc-st .bk-px.on { background: var(--grad); } .mc-st .bk-px.on i { color: rgba(0,23,14,.65); }
+.mc-row { align-items: start; } .mc-mid { align-self: center; margin-top: -24px; }
+.mc-info { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; justify-content: flex-start; margin: 12px -14px 0; padding: 0 14px; }
+.mc-info::-webkit-scrollbar { display: none; } .mc-info span:first-child { margin-left: auto; } .mc-info span:last-child { margin-right: auto; }
+
+/* dock: icons only, the active tab opens into a gradient capsule with its name */
+.nav .in { display: flex; align-items: center; justify-content: space-between; height: 64px; padding: 0 8px; border-radius: 32px;
+  background: linear-gradient(rgba(6,12,10,.9), rgba(6,12,10,.9)) padding-box, linear-gradient(100deg, rgba(184,255,74,.45), rgba(20,245,160,.2) 35%, rgba(140,255,215,.06) 60%, rgba(0,226,196,.4)) border-box;
+  box-shadow: 0 18px 40px rgba(0,0,0,.6), 0 0 40px rgba(20,245,160,.08); }
+.nav button { flex: 1 1 0; height: 48px; flex-direction: row; gap: 7px; border-radius: 24px; color: var(--t3); transition: flex-grow .3s cubic-bezier(.3,1.2,.5,1), background .2s, color .2s; }
+.nav button span { display: none; font: italic 800 14px var(--fd); letter-spacing: .02em; text-transform: uppercase; white-space: nowrap; }
+.nav button .ico { width: 23px; height: 23px; }
+.nav button.on { flex-grow: 2.2; background: var(--grad); color: var(--acc-ink); box-shadow: 0 8px 24px rgba(20,245,160,.35), inset 0 1px 0 rgba(255,255,255,.4); }
+.nav button.on .ico { color: var(--acc-ink); filter: none; } .nav button.on span { display: inline; }
+.nav button.on::after { display: none; }
+.nav button em { top: 6px; left: auto; right: calc(50% - 20px); background: #ff4d5e; color: #fff; box-shadow: 0 0 0 2px #060c0a; }
+.nav button.on em { right: 8px; background: var(--acc-ink); color: var(--acc); }
+.nav button:not(.on):active { background: rgba(255,255,255,.05); }
+
+/* colour: team accents on rows and props, gradient on the active league */
+.gr { position: relative; }
+.gr-t { position: relative; }
+.gr-t::before { content: ""; position: absolute; left: -14px; top: 6px; bottom: 6px; width: 3px; border-radius: 0 3px 3px 0; background: var(--tm, transparent); }
+.pr { background: linear-gradient(90deg, color-mix(in srgb, var(--tc) 14%, transparent), transparent 55%); }
+.sport a.on { color: var(--t1); } .sport a.on::after { content: ""; display: block; width: 6px; height: 6px; border-radius: 50%; background: var(--grad); margin-left: 2px; box-shadow: 0 0 8px var(--acc); }
+.hm-tile, .tp { box-shadow: 0 14px 30px rgba(0,0,0,.3); }
+.mc-av { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 64px; flex: none; }
+.mc-av > span:last-child { max-width: 68px; font: italic 800 11px var(--fd); text-transform: uppercase; color: rgba(255,255,255,.85); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mc-st { align-items: flex-end; max-width: 168px; gap: 4px; }
