@@ -95,7 +95,7 @@ function strip() {
   let h = ""; const st = D.games.map(g => (scoreOf(g) || {}).state), nl = st.filter(x => x === "in").length, nf = st.filter(x => x === "post").length;
   if (TAB === "games") { if (nl) h += `<span class="chip" style="background:var(--red-soft)">🔴 ${nl} live</span>`; if (nf) h += `<span class="chip">🏁 ${nf} final</span>`; }
   if (D.meta.upcoming && TAB === "home") h += `<span class="chip">📅 Next games: ${esc(new Date(String(D.meta.date) + "T12:00:00").toLocaleDateString("en-US", {weekday: "short", month: "short", day: "numeric"}))}</span>`;
-  if (D.meta.preseason && (TAB === "home" || TAB === "games")) h += `<span class="chip">🏀 Preseason: the model is learning (${(D.meta.model || {}).games_preseason || 0} games so far)</span>`;
+  if (D.meta.preseason && (TAB === "home" || TAB === "games")) h += `<span class="chip">🏀 Preseason</span>`;
   $("#strip").innerHTML = h; $("#strip").style.display = h ? "" : "none";
 }
 // ---------- adapter pieces ----------

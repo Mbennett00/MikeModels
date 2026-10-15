@@ -1,19 +1,20 @@
 // ---------- BLITZED (shared by the NHL, NFL and NBA pages) ----------
-// Model projections plus a play-coin book priced by the model (calib/web/book.js).
+// A play-coin sportsbook: game lines and player props (calib/web/book.js). Prices are set in the page from each
+// league's pricing engine; nothing on screen is a projection.
 // Each page sets PJA (its adapter) and calls pjRender():
 //   PJA.games()      -> [{id, state: pre|live|final, time, detail, a, h, ph, lph, sa, sh, score: {a, h}, stats: [[label, value]], note}]
 //                       team = {abbr, name, color, logo, sub}
 //   PJA.players()    -> [{id, gid, name, team, pos, img, logo, color, meta, vals: {mk: {v, txt, chance, chanceLab, live}}}]
-//   PJA.markets      -> [{k, label, unit, note}]     (Players tab, in order)
-//   PJA.panels(g)    -> [{k, label, html()}]          (a game card's details)
+//   PJA.markets      -> [{k, label}]                  (Props tab, in order; k is the prop's stat)
+//   PJA.panels(g)    -> [{k, label, html()}]          (only the lineup view (rink / field / court) is kept)
 //   PJA.playerLines(id) -> [[label, chance, {stat, n}]]  (player sheet; the third item makes the line bettable)
 //   PJA.ctx(gid)     -> {sport, game, start, open, ev: {date, home, away, id}}   (what a bet needs to be graded)
 //   PJA.lines(gid)   -> {spreadLab, spread: [a, h], total: [over, under], ml: [a, h]} of bkSel selections
-//   PJA.top(), PJA.kicker(), PJA.modelHtml(), PJA.modelWire(render), PJA.record(), PJA.after(render)
+//   PJA.top(), PJA.kicker(), PJA.after(render)
 document.body.classList.add("pj");
 let PJA = null;
 const PJ = {mk: null, q: "", game: "all", open: new Set(), panel: {}, n: 40};
-const PJ_TABS = [["home", "Home"], ["games", "Games"], ["players", "Players"], ["bets", "Bets"], ["model", "Model"]];
+const PJ_TABS = [["home", "Home"], ["games", "Games"], ["players", "Props"], ["bets", "My bets"]];
 const PJ_IC = {
   home: '<path d="M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5.5h-5V20H5a1 1 0 0 1-1-1z"/>',
   games: '<rect x="3.5" y="5" width="17" height="14" rx="3"/><path d="M12 5v14M3.5 12h17"/>',
@@ -69,55 +70,67 @@ function pjMeter(p, cls = "") { return `<span class="pj-meter ${cls}"><i style="
 function pjStatus(g) {
   return g.state === "live" ? `<b class="st-live">Live</b><span>${esc(g.detail || "")}</span>` : g.state === "final" ? `<b class="st-fin">Final</b>` : `<span class="st-time">${esc(g.time || "")}</span>`;
 }
-// compact row (Home lists): logos, names, win chance or score
-function pjGameRow(g) {
-  const side = (t, p, sc, other) => `<span class="gl-t">${pjLogo(t)}<b>${esc(t.name)}</b>${g.state === "pre" ? `<em>${pjPct(p)}</em>` : `<strong class="${g.state === "final" && sc < other ? "lose" : ""}">${sc ?? 0}</strong>`}</span>`;
-  const right = g.state === "pre" ? `<span class="gl-p"><b>${esc(g.sa)}–${esc(g.sh)}</b><i>proj</i></span>`
-    : g.lph != null ? `<span class="gl-p live"><b>${pjPct(g.state === "live" ? (g.lph >= 0.5 ? g.lph : 1 - g.lph) : null)}</b><i>${esc((g.lph >= 0.5 ? g.h : g.a).abbr)} live</i></span>`
-    : g.state === "final" ? `<span class="gl-p ${g.hit ? "hit" : g.hit === false ? "miss" : ""}"><b>${g.hit ? "✓" : g.hit === false ? "✕" : ""}</b><i>model</i></span>` : "";
-  return `<button class="gl-r gs-${g.state}" data-gogame="${esc(g.id)}"><span class="gl-m"><span class="gl-st">${pjStatus(g)}</span>
-    ${side(g.a, 1 - g.ph, g.score && g.score.a, g.score && g.score.h)}${side(g.h, g.ph, g.score && g.score.h, g.score && g.score.a)}</span>${right}</button>`;
+const pjCtx = gid => PJA.ctx ? PJA.ctx(gid) : null;
+// a player's bettable lines for one stat: [{sel, top}] nearest even money first, then shown low to high
+function pjProps(p, stat, max = 3) {
+  const C = pjCtx(p.gid); if (!C || !PJA.playerLines) return [];
+  const L = PJA.playerLines(p.id).filter(x => x[2] && x[2].stat === stat && x[1] != null && x[1] >= 0.08 && x[1] <= 0.92);   // no lottery tickets, no −3000 locks
+  return L.sort((x, y) => Math.abs(x[1] - 0.5) - Math.abs(y[1] - 0.5)).slice(0, max).sort((x, y) => x[2].n - y[2].n).map(([l, c, spec]) => ({
+    top: (stat === "td" || stat === "goals") && spec.n === 1 ? "Anytime" : `${Math.ceil(spec.n)}+`,
+    sel: bkSel({sport: C.sport, gid: p.gid, kind: "prop", side: "yes", line: spec.n, p: c, pick: `${p.name} ${l}`, mkt: (PJA.markets.find(m => m.k === stat) || {}).label || "Player prop",
+      game: C.game, start: C.start, open: C.open, ev: C.ev, pl: {name: p.name, id: String(p.id), espn: !!C.espnIds, team: p.team, stat, n: spec.n}})}));
 }
-// the market grid on a game card: spread / total / moneyline, priced from the model
+function pjAv(p, cls = "") {
+  return `<span class="pav ${cls}" style="--tc:${esc(p.color || "#556")}"><span>${esc(pjIni(p.name))}</span>${p.img ? `<img src="${esc(p.img)}" alt="" loading="lazy" onload="this.previousElementSibling.style.visibility='hidden'" onerror="this.remove()">` : ""}</span>`;
+}
+const pjMeta = p => { const g = PJA.games().find(x => String(x.id) === String(p.gid)); if (!g) return `${p.team} · ${p.pos || ""}`;
+  const home = g.h.abbr === p.team; return `${p.team}${p.pos ? " · " + p.pos : ""} · ${home ? "vs" : "@"} ${home ? g.a.abbr : g.h.abbr}`; };
+// a prop row: who, then up to three ladder prices
+function pjPropRow(p, stat) {
+  const L = pjProps(p, stat); if (!L.length) return "";
+  return `<div class="pr" style="--tc:${esc(p.color || "#556")}"><button class="pr-who" data-player="${esc(p.id)}">${pjAv(p)}<span><b>${esc(p.name)}</b><i>${esc(pjMeta(p))}</i></span></button>
+    <div class="pr-px" style="--n:${L.length}">${L.map(x => bkBtn(x.sel, x.top)).join("")}</div></div>`;
+}
+const pjPlayerRow = (p, mk) => pjPropRow(p, mk);   // pages still call this name
 function pjMarkets(g) {
   if (g.state !== "pre" || !PJA.lines) return "";
   const M = PJA.lines(g.id); if (!M) return "";
-  const sp = (M.spread || [])[0], tot = (M.total || [])[0];
   const row = (t, i) => `<span class="mk-t">${pjLogo(t)}<b>${esc(t.abbr)}</b></span>
     ${bkBtn((M.spread || [])[i], (M.spread || [])[i] ? pjSp((M.spread || [])[i].line) : "")}
     ${bkBtn((M.total || [])[i], (M.total || [])[i] ? `${i ? "U" : "O"} ${(M.total || [])[i].line}` : "")}
     ${bkBtn((M.ml || [])[i])}`;
   return `<div class="mk"><span></span><i>${esc(M.spreadLab || "Spread")}</i><i>Total</i><i>Money</i>${row(g.a, 0)}${row(g.h, 1)}</div>`;
 }
-// the game card: teams, win chance, projected score, prices; details open below
+// the game card: teams (score once it starts), the three main lines, then props and the lineup view
+function pjGamePanels(g) {
+  const P = PJA.players().filter(p => String(p.gid) === String(g.id)), out = [];
+  for (const m of PJA.markets) { const rows = P.slice().sort((x, y) => ((y.vals[m.k] || {}).v || 0) - ((x.vals[m.k] || {}).v || 0)).slice(0, 6).map(p => pjPropRow(p, m.k)).join("");
+    if (rows) out.push({k: "p_" + m.k, label: m.label, html: () => `<div class="prs">${rows}</div>`}); }
+  for (const x of (PJA.panels ? PJA.panels(g) : []).filter(x => ["rink", "field", "court"].includes(x.k))) out.push({k: x.k, label: "Lineup", html: x.html});
+  return out;
+}
 function pjGameCard(g) {
-  const p = g.state === "live" && g.lph != null ? g.lph : g.ph;
-  const team = (t, side) => { const mine = side === "h" ? p : 1 - p, sc = g.score ? g.score[side] : null, other = g.score ? g.score[side === "h" ? "a" : "h"] : null;
-    return `<div class="gc-t ${mine >= 0.5 ? "fav" : ""}" style="--tc:${esc(t.color || "#556")}"><span class="gc-lg">${pjLogo(t)}</span>
-      <span class="gc-nm"><b>${esc(t.name)}</b><i>${t.sub || ""}</i></span>
-      ${g.state === "pre" ? `<span class="gc-ps">${esc(side === "h" ? g.sh : g.sa)}<i>proj</i></span>` : `<strong class="gc-sc ${g.state === "final" && sc < other ? "lose" : ""}">${sc ?? 0}</strong>`}
-      <span class="gc-wp"><b>${pjPct(mine)}</b><i>${g.state === "live" && g.lph != null ? "live" : g.state === "final" ? "model" : "win"}</i></span></div>`; };
-  const pa = Math.round(100 * (1 - p)), open = PJ.open.has(String(g.id));
+  const team = (t, side) => { const sc = g.score ? g.score[side] : null, other = g.score ? g.score[side === "h" ? "a" : "h"] : null;
+    return `<div class="gc-t"><span class="gc-lg">${pjLogo(t)}</span><span class="gc-nm"><b>${esc(t.name)}</b><i>${t.sub || ""}</i></span>
+      ${g.state === "pre" ? "" : `<strong class="gc-sc ${g.state === "final" && sc < other ? "lose" : ""}">${sc ?? 0}</strong>`}</div>`; };
+  const open = PJ.open.has(String(g.id)), P = open ? pjGamePanels(g) : [];
   let body = "";
-  if (open) { const P = PJA.panels(g), k = PJ.panel[g.id] && P.some(x => x.k === PJ.panel[g.id]) ? PJ.panel[g.id] : (P[0] || {}).k;
-    body = `<div class="xpanel"><div class="seg" style="--n:${P.length}">${P.map(x => `<button class="${x.k === k ? "on" : ""}" data-pv="${esc(g.id)}|${x.k}">${x.label}</button>`).join("")}</div>
-      <div class="xbody">${(P.find(x => x.k === k) || {html: () => ""}).html()}</div></div>`; }
+  if (open && P.length) { const k = PJ.panel[g.id] && P.some(x => x.k === PJ.panel[g.id]) ? PJ.panel[g.id] : P[0].k;
+    body = `<div class="xpanel"><div class="strip xtabs">${P.map(x => `<button class="chip ${x.k === k ? "on" : ""}" data-pv="${esc(g.id)}|${x.k}">${x.label}</button>`).join("")}</div>
+      <div class="xbody">${P.find(x => x.k === k).html()}</div></div>`; }
+  const mk = pjMarkets(g);
   return `<article class="gc ${g.state === "live" ? "islive" : ""}" data-gid="${esc(g.id)}">
       <div class="gc-top"><span class="gc-st">${pjStatus(g)}</span>${g.note ? `<span class="gc-note">${g.note}</span>` : ""}</div>
       ${team(g.a, "a")}${team(g.h, "h")}
-      <div class="gc-tug"><i style="width:${pa}%;background:${esc(g.a.color || "#556")}"></i><i style="width:${100 - pa}%;background:${esc(g.h.color || "#556")}"></i></div>
-      ${g.stats && g.stats.length ? `<div class="gc-stats">${g.stats.map(([l, v]) => `<div><i>${l}</i><b>${v}</b></div>`).join("")}</div>` : ""}
-      ${pjMarkets(g)}
-    ${body}<button class="more" data-more="${esc(g.id)}">${open ? "Hide details" : "Matchup · players · details"}<span class="chev ${open ? "up" : ""}">›</span></button></article>`;
+      ${mk || (g.state === "pre" ? "" : `<div class="gc-lock">${g.state === "live" ? "Lines are closed while the game is on" : "Final"}</div>`)}
+    ${body}<button class="more" data-more="${esc(g.id)}">${open ? "Hide" : "Player props" + (PJA.panels && PJA.panels(g).some(x => ["rink", "field", "court"].includes(x.k)) ? " · lineup" : "")}<span class="chev ${open ? "up" : ""}">›</span></button></article>`;
 }
-function pjAv(p, cls = "") {
-  return `<span class="pav ${cls}" style="--tc:${esc(p.color || "#556")}"><span>${esc(pjIni(p.name))}</span>${p.img ? `<img src="${esc(p.img)}" alt="" loading="lazy" onload="this.previousElementSibling.style.visibility='hidden'" onerror="this.remove()">` : ""}</span>`;
-}
-function pjPlayerRow(p, mk) {
-  const m = PJA.markets.find(x => x.k === mk) || PJA.markets[0], v = p.vals[mk] || {};
-  return `<button class="pj-pr" data-player="${esc(p.id)}" style="--tc:${esc(p.color || "#556")}">${pjAv(p)}
-    <span class="pj-pi"><b>${esc(p.name)}</b><i>${esc(p.meta || "")}</i>${v.chance != null ? `<span class="pj-pc">${pjMeter(v.chance)}<em>${v.txt === pjPct(v.chance) ? "" : `${pjPct(v.chance)} ${esc(v.chanceLab || "")}`}</em></span>` : ""}</span>
-    <span class="pj-pv"><b>${esc(v.txt ?? "–")}</b><i>${esc(m.unit)}</i>${v.live != null ? `<em class="pj-live">${esc(v.live)} now</em>` : ""}</span></button>`;
+// Home: a game row with both moneylines
+function pjGameRow(g) {
+  const M = g.state === "pre" && PJA.lines ? PJA.lines(g.id) : null;
+  const side = (t, i, sc, other) => `<div class="gr-t">${pjLogo(t)}<b>${esc(t.name)}</b>${M ? bkBtn(M.ml[i]) : g.state === "pre" ? "" : `<strong class="${g.state === "final" && sc < other ? "lose" : ""}">${sc ?? 0}</strong>`}</div>`;
+  return `<div class="gr" data-gogame="${esc(g.id)}"><div class="gr-st">${pjStatus(g)}<span class="chev">›</span></div>
+    ${side(g.a, 0, g.score && g.score.a, g.score && g.score.h)}${side(g.h, 1, g.score && g.score.h, g.score && g.score.a)}</div>`;
 }
 const pjEmpty = (t, s) => `<div class="empty"><div class="t">${esc(t)}</div><div class="note">${esc(s)}</div></div>`;
 
@@ -126,27 +139,19 @@ function pjHome() {
   const G = PJA.games(), s = bkStats();
   const book = `<button class="hm-book" data-go="bets"><span class="hm-bal">${BK_COIN}<b>${bkN(BKS.coins)}</b></span>
       <span class="hm-bs"><i>${s.open ? `${s.open} open · ${bkN(s.risk)} in play` : "No open bets"}</i>${BKS.drop !== bkDay() ? `<em>Daily drop ready</em>` : s.today ? `<em class="${s.today > 0 ? "up" : "dn"}">${s.today > 0 ? "+" : "−"}${bkN(Math.abs(s.today))} today</em>` : ""}</span><span class="chev">›</span></button>`;
-  if (!G.length) return book + pjEmpty("No games on the board", "Projections and prices appear once the next slate is set.");
-  const pre = G.filter(g => g.state === "pre"), live = G.filter(g => g.state === "live");
-  const fav = [...pre].sort((x, y) => Math.max(y.ph, 1 - y.ph) - Math.max(x.ph, 1 - x.ph))[0];
-  const close = [...pre].sort((x, y) => Math.abs(x.ph - 0.5) - Math.abs(y.ph - 0.5))[0];
-  const hi = [...pre].sort((x, y) => (y.total || 0) - (x.total || 0))[0];
-  const tile = (k, g, v, sub) => g ? `<button class="hm-tile" data-gogame="${esc(g.id)}"><i>${k}</i><b>${v}</b><span>${sub}</span></button>` : "";
-  const hero = `<section class="hm-hero"><div class="hm-k">${esc(PJA.kicker())}${live.length ? `<em>● ${live.length} live</em>` : ""}</div>
-      <div class="hm-n">${G.length}<small>game${G.length > 1 ? "s" : ""}</small></div>
-      ${pre.length ? `<div class="hm-tiles">${tile("Biggest favourite", fav, fav ? `${esc((fav.ph >= 0.5 ? fav.h : fav.a).abbr)} ${pjPct(Math.max(fav.ph, 1 - fav.ph))}` : "", fav ? `vs ${esc((fav.ph >= 0.5 ? fav.a : fav.h).abbr)}` : "")}
-        ${tile("Coin flip", close, close ? `${esc(close.a.abbr)}–${esc(close.h.abbr)}` : "", close ? `${pjPct(1 - close.ph)} / ${pjPct(close.ph)}` : "")}
-        ${tile(PJA.totalLabel || "Highest total", hi, hi ? esc(hi.totalTxt || "") : "", hi ? `${esc(hi.a.abbr)} @ ${esc(hi.h.abbr)}` : "")}</div>` : ""}</section>`;
-  const top = (PJA.top ? PJA.top() : []).slice(0, 8);
-  const cards = top.map(({p, mk}) => { const m = PJA.markets.find(x => x.k === mk), v = p.vals[mk] || {};
-    return `<button class="tp" data-player="${esc(p.id)}" style="--tc:${esc(p.color || "#556")}">${p.logo ? `<img class="tp-wm" src="${esc(p.logo)}" alt="" onerror="this.remove()">` : ""}${p.img ? `<img class="tp-cut" src="${esc(p.img)}" alt="" onerror="this.remove()">` : ""}
-      <span class="tp-tag">${esc(m.label)}</span><b class="tp-n"><small>${esc(p.name.split(" ")[0])}</small>${esc(p.name.split(" ").slice(1).join(" ") || p.name)}</b><i class="tp-m">${esc(p.meta || "")}</i>
-      <span class="tp-v"><b>${esc(v.txt ?? "–")}</b><i>${esc(v.chance != null && v.txt !== pjPct(v.chance) ? `${pjPct(v.chance)} ${v.chanceLab || ""}` : m.unit)}</i></span></button>`; }).join("");
-  return book + hero
+  if (!G.length) return book + pjEmpty("No games on the board", "Lines open once the next slate is set.");
+  const live = G.filter(g => g.state === "live"), pre = G.filter(g => g.state === "pre");
+  const top = (PJA.top ? PJA.top() : []).map(({p, mk}) => { const x = pjProps(p, mk, 1)[0]; return x ? {p, mk, x} : null; }).filter(Boolean).slice(0, 8);
+  const cards = top.map(({p, mk, x}) => { const m = PJA.markets.find(y => y.k === mk);
+    return `<div class="tp" style="--tc:${esc(p.color || "#556")}">${p.logo ? `<img class="tp-wm" src="${esc(p.logo)}" alt="" onerror="this.remove()">` : ""}${p.img ? `<img class="tp-cut" src="${esc(p.img)}" alt="" onerror="this.remove()">` : ""}
+      <button class="tp-hit" data-player="${esc(p.id)}" aria-label="${esc(p.name)}"></button>
+      <span class="tp-tag">${esc(m.label)}</span><b class="tp-n"><small>${esc(p.name.split(" ")[0])}</small>${esc(p.name.split(" ").slice(1).join(" ") || p.name)}</b><i class="tp-m">${esc(pjMeta(p))}</i>
+      <span class="tp-v">${bkBtn(x.sel, x.top === "Anytime" ? (mk === "td" ? "Anytime TD" : "Anytime goal") : `${x.top} ${m.label.toLowerCase()}`)}</span></div>`; }).join("");
+  return book
+    + `<div class="hm-k">${esc(PJA.kicker())}${live.length ? `<em>● ${live.length} live</em>` : ""}</div>`
+    + (cards ? `<div class="hd"><b>Popular props</b><button data-go="players">All props ›</button></div><div class="tps">${cards}</div>` : "")
     + (live.length ? `<div class="hd"><b>Live now</b><button data-go="games">All games ›</button></div><div class="gl">${live.map(pjGameRow).join("")}</div>` : "")
-    + (cards ? `<div class="hd"><b>${esc(PJA.topLabel || "Top projections")}</b><button data-go="players">All players ›</button></div><div class="tps">${cards}</div>` : "")
-    + `<div class="hd"><b>${esc(PJA.gamesLabel || "Tonight's games")}</b><button data-go="games">Prices ›</button></div><div class="gl">${G.filter(g => g.state !== "live").map(pjGameRow).join("")}</div>`
-    + (PJA.record ? PJA.record() : "");
+    + `<div class="hd"><b>${pre.length ? "Moneylines" : "Games"}</b><button data-go="games">All lines ›</button></div><div class="gl">${G.filter(g => g.state !== "live").map(pjGameRow).join("")}</div>`;
 }
 function pjGames() {
   const G = PJA.games();
@@ -155,41 +160,34 @@ function pjGames() {
 }
 function pjPlayers() {
   const all = PJA.players();
-  if (!all.length) return pjEmpty("No player projections yet", "They appear once lineups are in.");
   if (!PJ.mk || !PJA.markets.some(m => m.k === PJ.mk)) PJ.mk = PJA.markets[0].k;
   const m = PJA.markets.find(x => x.k === PJ.mk), q = PJ.q.trim().toLowerCase(), G = PJA.games();
-  let L = all.filter(p => p.vals[m.k] && p.vals[m.k].v != null && (PJ.game === "all" || String(p.gid) === PJ.game)
-    && (!q || p.name.toLowerCase().includes(q) || String(p.team).toLowerCase() === q));
-  L.sort((x, y) => y.vals[m.k].v - x.vals[m.k].v);
-  const tabs = `<div class="seg pj-mk" style="--n:${PJA.markets.length}">${PJA.markets.map(x => `<button class="${x.k === m.k ? "on" : ""}" data-pjmk="${x.k}">${x.label}</button>`).join("")}</div>`;
-  const chips = `<div class="strip pj-strip"><button class="chip ${PJ.q ? "on" : ""}" data-pjsearch="1" aria-label="Search">${pjIc("search")}</button><button class="chip ${PJ.game === "all" ? "on" : ""}" data-pjg="all">All games</button>${G.map(g => `<button class="chip ${PJ.game === String(g.id) ? "on" : ""}" data-pjg="${esc(g.id)}">${pjLogo(g.a)}${pjLogo(g.h)}${esc(g.a.abbr)} @ ${esc(g.h.abbr)}</button>`).join("")}</div>
+  const L = all.filter(p => (PJ.game === "all" || String(p.gid) === PJ.game) && (!q || p.name.toLowerCase().includes(q) || String(p.team).toLowerCase() === q))
+    .sort((x, y) => ((y.vals[m.k] || {}).v || 0) - ((x.vals[m.k] || {}).v || 0));
+  const rows = []; for (const p of L) { if (rows.length >= PJ.n) break; const r = pjPropRow(p, m.k); if (r) rows.push(r); }
+  const tabs = `<div class="strip pj-mk">${PJA.markets.map(x => `<button class="chip ${x.k === m.k ? "on" : ""}" data-pjmk="${x.k}">${x.label}</button>`).join("")}</div>`;
+  const chips = `<div class="strip pj-strip"><button class="chip ${PJ.q ? "on" : ""}" data-pjsearch="1" aria-label="Search">${pjIc("search")}</button><button class="chip ${PJ.game === "all" ? "on" : ""}" data-pjg="all">All games</button>${G.filter(g => g.state === "pre").map(g => `<button class="chip ${PJ.game === String(g.id) ? "on" : ""}" data-pjg="${esc(g.id)}">${pjLogo(g.a)}${pjLogo(g.h)}${esc(g.a.abbr)} @ ${esc(g.h.abbr)}</button>`).join("")}</div>
     ${PJ.searching || PJ.q ? `<input class="search" id="pjq" placeholder="Search a player or team" value="${esc(PJ.q)}" autocomplete="off">` : ""}`;
-  return tabs + chips + `<div class="pj-note2">${esc(m.note || "")} · tap a player for prices</div><div class="list">${L.slice(0, PJ.n).map(p => pjPlayerRow(p, m.k)).join("") || `<div class="note">No players match.</div>`}</div>
-    ${L.length > PJ.n ? `<button class="gmore" data-pjmore="1">Show more (${L.length - PJ.n})</button>` : ""}`;
+  return tabs + chips + `<div class="list prs">${rows.join("") || `<div class="bk-empty">No ${esc(m.label.toLowerCase())} props open right now.</div>`}</div>
+    ${rows.length >= PJ.n ? `<button class="gmore" data-pjmore="1">Show more</button>` : ""}`;
 }
 function pjOpenPlayer(id) {
   const p = PJA.players().find(x => String(x.id) === String(id)); if (!p) return;
-  const tiles = PJA.markets.filter(m => p.vals[m.k] && p.vals[m.k].v != null).map(m => { const v = p.vals[m.k];
-    return `<div class="ps-tile"><b>${esc(v.txt)}</b><span>${esc(m.label)}</span>${v.live != null ? `<em class="pj-live">${esc(v.live)} now</em>` : ""}</div>`; }).join("");
-  const lines = PJA.playerLines ? PJA.playerLines(p.id) : [], C = PJA.ctx ? PJA.ctx(p.gid) : null;
-  const priced = ([l, c, spec]) => { if (!spec || !C || c == null || c < 0.02 || c > 0.985) return "";
-    return bkBtn(bkSel({sport: C.sport, gid: p.gid, kind: "prop", side: "yes", line: spec.n, p: c, pick: `${p.name} ${l}`, mkt: "Player prop", game: C.game, start: C.start, open: C.open, ev: C.ev,
-      pl: {name: p.name, id: String(p.id), espn: !!C.espnIds, team: p.team, stat: spec.stat, n: spec.n}})); };
+  const groups = PJA.markets.map(m => { const L = pjProps(p, m.k, 6); return L.length ? `<div class="sec">${esc(m.label)}</div><div class="ps-px">${L.map(x => bkBtn(x.sel, x.top)).join("")}</div>` : ""; }).join("");
   pjSheet(`<div class="ps-h" style="--tc:${esc(p.color || "#556")}">${pjAv(p, "big")}
-      <div><div class="sh-t">${esc(p.name)}</div><div class="sh-s">${esc(p.meta || "")}</div></div>${p.logo ? `<img class="ps-lg" src="${esc(p.logo)}" alt="" onerror="this.remove()">` : ""}</div>
-    <div class="ps-tiles">${tiles}</div>
-    ${lines.length ? `<div class="sec">Lines${C && C.open ? " · tap a price to bet" : ""}</div><div class="ps-lines">${lines.map(x => `<div class="ps-ln"><span>${esc(x[0])}</span>${pjMeter(x[1])}<b>${pjPct(x[1])}</b>${priced(x)}</div>`).join("")}</div>` : ""}
-    <div class="hint">${esc(PJA.sheetNote || "")}</div>`);
+      <div><div class="sh-t">${esc(p.name)}</div><div class="sh-s">${esc(pjMeta(p))}</div></div>${p.logo ? `<img class="ps-lg" src="${esc(p.logo)}" alt="" onerror="this.remove()">` : ""}</div>
+    ${groups || `<div class="bk-empty">No props open for ${esc(p.name)} right now.</div>`}`);
 }
 function pjRender() {
   if (!PJA) return;
+  if (!PJ_TABS.some(t => t[0] === TAB)) TAB = "home";
   try { PJA.header && PJA.header(); PJA.strip && PJA.strip(); } catch (e) {}
-  if (TAB === "bets") { const s = document.getElementById("strip"); if (s) s.style.display = "none"; }
+  if (TAB === "bets" || TAB === "players") { const s = document.getElementById("strip"); if (s) s.style.display = "none"; }
   pjNav();
   const b = document.body;
   [...b.classList].filter(c => c.startsWith("tab-")).forEach(c => b.classList.remove(c)); b.classList.add("tab-" + TAB);
   const v = document.getElementById("view");
-  const html = ({home: pjHome, games: pjGames, players: pjPlayers, bets: bkScreen, model: () => PJA.modelHtml()}[TAB] || pjHome)();
+  const html = ({home: pjHome, games: pjGames, players: pjPlayers, bets: bkScreen}[TAB] || pjHome)();
   if (html !== window.PJ_HTML || v.dataset.tab !== TAB) { window.PJ_HTML = html; v.dataset.tab = TAB; v.innerHTML = html; }   // identical redraws leave the screen alone
   v.querySelectorAll("[data-go]").forEach(x => x.onclick = () => pjGo(x.dataset.go));
   v.querySelectorAll("[data-gogame]").forEach(x => x.onclick = () => { PJ.open.add(String(x.dataset.gogame)); TAB = "games"; pjRender();
@@ -204,7 +202,6 @@ function pjRender() {
   const q = document.getElementById("pjq");
   if (q) q.oninput = () => { PJ.q = q.value; const pos = q.selectionStart; pjRender(); const n = document.getElementById("pjq"); if (n) { n.focus(); n.setSelectionRange(pos, pos); } };
   bkWire(v);
-  if (TAB === "model" && PJA.modelWire) PJA.modelWire(pjRender);
   if (PJA.after) PJA.after(pjRender);
   const c = document.getElementById("coin"); if (c) { const h = bkPill(); if (c.dataset.h !== h) { c.dataset.h = h; c.innerHTML = h; } }
   bkBar();

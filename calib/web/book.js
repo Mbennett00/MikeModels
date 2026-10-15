@@ -1,6 +1,5 @@
 // ---------- 🪙 BLITZED BOOK: virtual coins, priced by the model ----------
-// Play money only. Every price is the model's own chance plus a thin hold, so the only way to stack coins is to know
-// something the model doesn't. One wallet for the NHL, NFL and NBA pages (same origin, localStorage); bets are graded
+// Play money only. Every price carries a thin hold, like a real book. One wallet for the NHL, NFL and NBA pages (same origin, localStorage); bets are graded
 // in the browser from ESPN's final scores and box scores, on whichever page is open.
 // A selection (built by bkSel):
 //   {key, sport, gid, kind: ml|spread|total|prop, side: home|away|over|under|yes, line, p, pick, mkt, game, start,
@@ -82,7 +81,7 @@ function bkSlipHtml() {
     <div class="bk-q">${[25, 50, 100, 250].map(v => `<button data-bkq="${v}">${v}</button>`).join("")}<button data-bkq="max">Max</button></div>
     <div class="bk-foot"><div><span>Stake</span><b id="bk-ts">0</b></div><div><span>To win</span><b id="bk-tw">0</b></div></div>
     <button class="bk-place" id="bk-place">Place bet</button><button class="bk-clear" data-bkclear="1">Clear slip</button>
-    <div class="bk-fine">Play coins only, no cash value. Prices are the model's chances plus a ${(100 * BK.hold).toFixed(1)}% hold.</div>`;
+    <div class="bk-fine">Play coins only. No deposits, no cash value.</div>`;
 }
 function bkTotals() {
   const P = bkCanParlay() && BKS.mode === "parlay";
@@ -177,8 +176,7 @@ function bkScreen() {
         <div><i>Record</i><b>${s.w}-${s.l}${s.p ? "-" + s.p : ""}</b></div><div><i>In play</i><b>${bkN(s.risk)}</b></div></div>
       ${BKS.drop !== bkDay() ? `<button class="bk-drop" data-bkdrop="1">${BK_COIN}<span><b>Daily drop</b><i>Claim ${BK.drop} free coins</i></span><em>Claim</em></button>` : ""}
       ${bkBroke() ? `<button class="bk-drop" data-bkreload="1">${BK_COIN}<span><b>Out of coins</b><i>Reload to ${bkN(BK.reload)} (once a day)</i></span><em>Reload</em></button>` : ""}</section>`;
-  const edge = s.edge == null ? `<div class="bk-edge"><div><b>You vs the model</b><i>Every price is the model's own chance. Betting blind loses ${(100 * (1 - 1 / (1 + BK.hold))).toFixed(1)}% to the hold; beat that and you know something it doesn't.</i></div></div>`
-    : `<div class="bk-edge"><div><b>You vs the model</b><i>${s.w + s.l + s.p} settled · ROI ${(100 * s.roi).toFixed(1)}% against the model's prices</i></div><span class="${s.edge >= 0 ? "up" : "dn"}">${s.edge >= 0 ? "+" : "−"}${Math.abs(100 * s.edge).toFixed(1)}%<i>${s.edge >= 0 ? "edge" : "behind"}</i></span></div>`;
+  const edge = s.roi == null ? "" : `<div class="bk-edge"><div><b>You vs the house</b><i>${s.w + s.l + s.p} settled · ${bkN(s.staked)} staked</i></div><span class="${s.roi >= 0 ? "up" : "dn"}">${s.roi >= 0 ? "+" : "−"}${Math.abs(100 * s.roi).toFixed(1)}%<i>ROI</i></span></div>`;
   const seg = `<div class="seg" style="--n:2"><button class="${V === "open" ? "on" : ""}" data-bkv="open">Open${s.open ? ` · ${s.open}` : ""}</button><button class="${V === "settled" ? "on" : ""}" data-bkv="settled">Settled</button></div>`;
   const list = L.length ? L.slice(0, 60).map(bkTicket).join("") : `<div class="bk-empty">${V === "open" ? "No open bets. Tap any price on a game card or player to start a slip." : "Nothing settled yet."}</div>`;
   return hero + edge + seg + `<div class="bk-list">${list}</div><div class="bk-fine">Play coins only: no deposits, no cash value, nothing to withdraw. Bets grade automatically from ESPN finals.</div>`;
