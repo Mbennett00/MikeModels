@@ -11,7 +11,7 @@ def inline(html: str) -> str:
 
 
 # offline-capable, installable app: network first (always fresh prices), the last copy when offline
-SW = """const C = "bz-v2";
+SW = """const C = "pikt-v1";
 self.addEventListener("install", e => self.skipWaiting());
 self.addEventListener("activate", e => e.waitUntil(self.clients.claim()));
 self.addEventListener("fetch", e => {
@@ -21,9 +21,9 @@ self.addEventListener("fetch", e => {
     .catch(() => caches.match(r).then(m => m || caches.match("./index.html"))));
 });
 """
-MANIFEST = dict(name="Blitzed", short_name="Blitzed", description="Blitzed: NHL, NFL and NBA model projections and a play-coin book",
+MANIFEST = dict(name="Pikt", short_name="Pikt", description="Pikt: NHL, NFL and NBA lines and props with play coins",
                 start_url="./index.html", scope="./", display="standalone", orientation="portrait",
-                background_color="#070806", theme_color="#070806",
+                background_color="#030706", theme_color="#030706",
                 icons=[dict(src="icon-192.png", sizes="192x192", type="image/png", purpose="any"),
                        dict(src="icon-512.png", sizes="512x512", type="image/png", purpose="any")],
                 shortcuts=[dict(name="NHL", url="./index.html"), dict(name="NFL", url="./nfl.html"), dict(name="NBA", url="./nba.html")])

@@ -1,4 +1,4 @@
-// ---------- 🪙 BLITZED BOOK: virtual coins, priced by the model ----------
+// ---------- 🪙 PIKT BOOK: virtual coins, priced by the model ----------
 // Play money only. Every price carries a thin hold, like a real book. One wallet for the NHL, NFL and NBA pages (same origin, localStorage); bets are graded
 // in the browser from ESPN's final scores and box scores, on whichever page is open.
 // A selection (built by bkSel):
@@ -13,7 +13,7 @@ const bkAm = d => d >= 2 ? "+" + Math.round(100 * (d - 1)) : "−" + Math.round(
 const bkEvDate = s => bkDay(new Date(s).getTime()).replace(/-/g, "");
 const bkHalf = x => Math.floor(x) + 0.5;   // the nearest hook below: lines never push
 const bkN = n => Math.round(n).toLocaleString("en-US");
-const BK_COIN = '<svg class="bk-c" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9.2 7.4h3.9a2.2 2.2 0 0 1 0 4.4H9.2zm0 4.4h4.5a2.4 2.4 0 0 1 0 4.8H9.2zM9.2 7.4v9.2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>';
+const BK_COIN = '<svg class="bk-c" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9.6 16.9V7.3h3.5a2.75 2.75 0 0 1 0 5.5H9.6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
 function bkLoad() {
   try { const s = JSON.parse(localStorage.getItem(BK.key)); if (s && typeof s.coins === "number" && Array.isArray(s.bets)) return Object.assign({slip: [], mode: "single", pstake: 0, drop: "", reload: "", view: "open"}, s); } catch (e) {}

@@ -1,4 +1,4 @@
-// ---------- BLITZED (shared by the NHL, NFL and NBA pages) ----------
+// ---------- PIKT (shared by the NHL, NFL and NBA pages) ----------
 // A play-coin sportsbook: game lines and player props (calib/web/book.js). Prices are set in the page from each
 // league's pricing engine; nothing on screen is a projection.
 // Each page sets PJA (its adapter) and calls pjRender():
@@ -74,7 +74,7 @@ const pjCtx = gid => PJA.ctx ? PJA.ctx(gid) : null;
 // a player's bettable lines for one stat: [{sel, top}] nearest even money first, then shown low to high
 function pjProps(p, stat, max = 3) {
   const C = pjCtx(p.gid); if (!C || !PJA.playerLines) return [];
-  const L = PJA.playerLines(p.id).filter(x => x[2] && x[2].stat === stat && x[1] != null && x[1] >= 0.08 && x[1] <= 0.92);   // no lottery tickets, no −3000 locks
+  const L = PJA.playerLines(p.id).filter(x => x[2] && x[2].stat === stat && x[1] != null && x[1] >= 0.1 && x[1] <= 0.88);   // no lottery tickets, no −3000 locks
   return L.sort((x, y) => Math.abs(x[1] - 0.5) - Math.abs(y[1] - 0.5)).slice(0, max).sort((x, y) => x[2].n - y[2].n).map(([l, c, spec]) => ({
     top: (stat === "td" || stat === "goals") && spec.n === 1 ? "Anytime" : `${Math.ceil(spec.n)}+`,
     sel: bkSel({sport: C.sport, gid: p.gid, kind: "prop", side: "yes", line: spec.n, p: c, pick: `${p.name} ${l}`, mkt: (PJA.markets.find(m => m.k === stat) || {}).label || "Player prop",

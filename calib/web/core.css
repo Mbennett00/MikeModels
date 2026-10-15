@@ -2,15 +2,17 @@
    One stylesheet for all three pages. Obsidian surfaces, one lime accent, one typeface.
    Page templates add only their own court / field / rink pieces below the shared parts. */
 :root {
-  --bg: #060706; --s1: #0d0f0c; --s2: #151812; --s3: #1f231b; --s4: #2a2f25;
-  --line: rgba(255,255,255,.065); --line2: rgba(255,255,255,.12);
-  --t1: #f2f4ee; --t2: #a6ab9f; --t3: #6c7166;
-  --acc: #c6ff3a; --acc-ink: #0b0f04; --acc-soft: rgba(198,255,58,.1);
-  --up: #c6ff3a; --dn: #ff5f57; --gold: #f5c451; --live: #ff4d4d;
-  --fb: "Inter Tight", "Inter", system-ui, -apple-system, sans-serif; --fh: var(--fb); --fd: var(--fb);
-  --r: 20px; --dock: 64px; --safe-b: env(safe-area-inset-bottom, 0px);
+  --bg: #030706; --s1: #08100d; --s2: #0d1713; --s3: #14211b; --s4: #1c2d25;
+  --line: rgba(140,255,215,.07); --line2: rgba(140,255,215,.14);
+  --t1: #effaf4; --t2: #9db2a8; --t3: #5f746a;
+  --acc: #14f5a0; --acc2: #00e2c4; --lime: #b8ff4a; --acc-ink: #00170e; --acc-soft: rgba(20,245,160,.1);
+  --grad: linear-gradient(105deg, #b8ff4a 0%, #14f5a0 42%, #00e2c4 100%);
+  --edge: linear-gradient(160deg, rgba(20,245,160,.32), rgba(140,255,215,.06) 38%, rgba(140,255,215,.03) 70%, rgba(0,226,196,.18));
+  --up: #14f5a0; --dn: #ff5d6c; --gold: #ffc94d; --live: #ff4d5e;
+  --fb: "Inter Tight", "Inter", system-ui, -apple-system, sans-serif; --fh: var(--fb); --fd: "Barlow", var(--fb);
+  --r: 20px; --dock: 66px; --safe-b: env(safe-area-inset-bottom, 0px);
   /* legacy names some page markup still uses */
-  --muted: var(--t3); --ink: var(--t1); --ink-2: var(--t2); --navy: var(--t1); --red: var(--dn); --red-soft: rgba(255,95,87,.14); --green: var(--up);
+  --muted: var(--t3); --ink: var(--t1); --ink-2: var(--t2); --navy: var(--t1); --red: var(--dn); --red-soft: rgba(255,93,108,.14); --green: var(--up);
   color-scheme: dark;
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -44,7 +46,6 @@ b, strong { font-weight: 700; }
 .hb1 { display: flex; align-items: center; gap: 10px; }
 .mlogo { width: 34px; height: 34px; object-fit: contain; }
 .hb1 .t { min-width: 0; flex: 1; }
-.hb1 .t::before { content: "BLITZED"; display: block; font: 800 10px var(--fd); letter-spacing: .34em; color: var(--acc); margin-bottom: 1px; }
 .hb1 h1 { margin: 0; font: 800 22px/1.05 var(--fd); letter-spacing: -.03em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .coin { flex: none; display: flex; align-items: center; gap: 6px; height: 36px; padding: 0 14px 0 10px; border-radius: 18px; background: var(--s2); border: 1px solid var(--line2); color: var(--acc); }
 .coin b { color: var(--t1); font-size: 15px; font-weight: 800; letter-spacing: -.01em; }
@@ -513,3 +514,66 @@ b, strong { font-weight: 700; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 ::view-transition-old(root), ::view-transition-new(root) { animation-duration: .18s; }
+
+/* =================== PIKT theme layer ===================
+   Slanted display type from the logo, mint-to-lime gradient for anything that means "yours", and glass surfaces
+   with a thin emerald edge. */
+body::before { inset: -10vh -30vw auto; height: 70vh; background: radial-gradient(45% 55% at 20% 0%, rgba(20,245,160,.13), transparent 70%), radial-gradient(40% 50% at 95% 10%, rgba(0,226,196,.08), transparent 70%); }
+body::after { content: ""; position: fixed; inset: auto -20vw -20vh; height: 50vh; z-index: -1; pointer-events: none; background: radial-gradient(50% 60% at 85% 100%, rgba(20,245,160,.07), transparent 70%); }
+/* display type: the logo's italic */
+.hb1 h1, .hd b, .hx-h b, .hm-n, .sh-t, .bk-hb b, .coin b, .bk-px b, .gc-sc, .gr-t strong, .bk-od, .bk-par b, .bk-foot b, .tp-n, .bk-edge > span, .empty .t, .lk-h, .hm-bal b, .bk-n, .mk-t b, .nav button em {
+  font-family: var(--fd); font-style: italic; font-weight: 800; letter-spacing: -.005em; }
+.bk-px b { font-size: 17px; } .coin b { font-size: 17px; } .bk-od { font-size: 17px; } .hm-bal b { font-size: 24px; }
+.hd b { font-size: 21px; text-transform: uppercase; letter-spacing: .01em; } .sh-t { font-size: 25px; } .bk-hb b { font-size: 58px; letter-spacing: -.02em; }
+.tp-n { font-size: 25px; } .tp-n small { font-family: var(--fb); font-style: normal; } .gc-sc { font-size: 30px; }
+/* header */
+.hdr { background: linear-gradient(180deg, rgba(3,7,6,.94), rgba(3,7,6,.78)); }
+.mlogo { width: auto; height: 30px; filter: drop-shadow(0 0 14px rgba(20,245,160,.25)); }
+.hb1 .t { display: flex; align-items: center; gap: 10px; }
+.hb1 h1 { font-size: 13px; font-weight: 700; font-family: var(--fb); font-style: normal; letter-spacing: .08em; text-transform: uppercase; color: var(--t2); padding-left: 10px; border-left: 1px solid var(--line2); }
+.coin { height: 38px; border: 1px solid transparent; background: linear-gradient(var(--s2), var(--s2)) padding-box, var(--edge) border-box; box-shadow: 0 0 22px rgba(20,245,160,.08); }
+.sport { background: var(--s1); border-color: var(--line); }
+.sport a.on { background: linear-gradient(var(--s3), var(--s3)) padding-box, var(--edge) border-box; border: 1px solid transparent; }
+/* surfaces: glass with an emerald edge */
+.gc, .gl, .list, .hm-book, .bk-hero, .bk-tk, .bk-edge, .card, .hm-tile {
+  border: 1px solid transparent; background: linear-gradient(170deg, rgba(14,24,20,.96), rgba(7,13,11,.96)) padding-box, var(--edge) border-box; }
+.gc { border-radius: 24px; box-shadow: 0 18px 40px rgba(0,0,0,.35); }
+.gc.islive { background: linear-gradient(170deg, rgba(20,14,16,.96), rgba(7,13,11,.96)) padding-box, linear-gradient(160deg, rgba(255,77,94,.45), rgba(140,255,215,.05) 45%) border-box; }
+.bk-hero { background: radial-gradient(90% 120% at 100% 0%, rgba(20,245,160,.2), transparent 55%), radial-gradient(60% 80% at 0% 100%, rgba(184,255,74,.07), transparent 60%), linear-gradient(170deg, #0c1813, #070d0b) padding-box, var(--edge) border-box; }
+.bk-tk.won { background: linear-gradient(170deg, rgba(14,30,22,.96), rgba(7,13,11,.96)) padding-box, linear-gradient(160deg, rgba(20,245,160,.6), rgba(140,255,215,.05) 50%) border-box; }
+/* prices: the signature */
+.bk-px { position: relative; overflow: hidden; border-radius: 12px; background: linear-gradient(180deg, #13201b, #0c1612); border: 1px solid rgba(140,255,215,.09); box-shadow: inset 0 1px 0 rgba(255,255,255,.04); }
+.bk-px::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--grad); opacity: 0; transition: opacity .15s; }
+.bk-px:hover::before { opacity: .6; }
+.bk-px i { color: var(--t3); font-weight: 650; }
+.bk-px.on { background: var(--grad); border-color: transparent; color: var(--acc-ink); box-shadow: 0 6px 22px rgba(20,245,160,.35), inset 0 1px 0 rgba(255,255,255,.35); }
+.bk-px.on i { color: rgba(0,23,14,.62); } .bk-px.on::before { opacity: 0; }
+.bk-px.off { background: var(--s1); }
+.mk > i, .gc-stats i { color: var(--t3); letter-spacing: .12em; }
+/* chips + segments */
+.chip { background: rgba(13,23,19,.9); border-color: var(--line); }
+.chip.on { background: var(--grad); color: var(--acc-ink); border-color: transparent; font-weight: 750; box-shadow: 0 4px 16px rgba(20,245,160,.25); }
+.chip.on img { filter: none; }
+.seg button.on, .hv button.on, .xseg button.on, .seg2 .chip.on { background: var(--s4); color: var(--acc); box-shadow: inset 0 0 0 1px rgba(20,245,160,.25); }
+/* dock */
+.nav .in { background: rgba(8,15,12,.82); border: 1px solid transparent; background: linear-gradient(rgba(8,15,12,.86), rgba(8,15,12,.86)) padding-box, var(--edge) border-box; border-radius: 26px; }
+.nav button.on { color: var(--t1); } .nav button.on .ico { color: var(--acc); filter: drop-shadow(0 0 8px rgba(20,245,160,.6)); }
+.nav button.on::after { content: ""; position: absolute; bottom: 7px; width: 18px; height: 3px; border-radius: 2px; background: var(--grad); }
+.nav button em { background: var(--grad); }
+/* slip */
+.bk-bar { background: var(--grad); box-shadow: 0 16px 40px rgba(20,245,160,.3), 0 0 0 1px rgba(255,255,255,.2) inset; }
+.bk-place { background: var(--grad); box-shadow: 0 10px 30px rgba(20,245,160,.3); font-family: var(--fd); font-style: italic; font-size: 19px; text-transform: uppercase; letter-spacing: .02em; }
+.bk-place:disabled { background: var(--s3); box-shadow: none; }
+.bk-foot div:last-child b, .bk-par b, .bk-st span, .tp-v b, .pj-rr b { color: var(--acc); }
+.bk-drop { background: linear-gradient(100deg, rgba(184,255,74,.1), rgba(20,245,160,.08)); border-color: rgba(20,245,160,.3); }
+.bk-drop em { background: var(--grad); }
+.bk-tk.won .bk-tag, .bk-tl.win .bk-r { background: var(--grad); border-color: transparent; }
+.bk-toast.ok { background: linear-gradient(var(--s3), var(--s3)) padding-box, var(--grad) border-box; border: 1px solid transparent; }
+/* props */
+.tp { border-radius: 24px; }
+.tp-v .bk-px { min-width: 140px; }
+.pr-who .pav { box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--tc) 70%, transparent); }
+.sheet { background: linear-gradient(180deg, #0b1511, #060c0a); border: 1px solid transparent; border-bottom: 0;
+  background: linear-gradient(180deg, #0b1511, #060c0a) padding-box, var(--edge) border-box; }
+/* splash */
+.splash img { width: 108px; height: 108px; border-radius: 26px; box-shadow: 0 0 60px rgba(20,245,160,.35); }
