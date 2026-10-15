@@ -1,17 +1,17 @@
-"""Inline the shared Model Health component (calib/web/health.css, health.js) into a page template."""
+"""Inline the shared design system (calib/web/core.css) and app code (health.js, book.js, proj.js) into a page template."""
 import os
 
 HERE = os.path.join(os.path.dirname(__file__), "web")
 
 
 def inline(html: str) -> str:
-    css = "\n".join(open(os.path.join(HERE, n)).read() for n in ("health.css", "theme.css", "premium.css", "luxe.css", "pro.css", "fx.css", "fit.css", "shell.css", "play.css", "prime.css", "proj.css", "perf.css"))
-    js = "\n".join(open(os.path.join(HERE, n)).read() for n in ("health.js", "proj.js"))
+    css = open(os.path.join(HERE, "core.css")).read()
+    js = "\n".join(open(os.path.join(HERE, n)).read() for n in ("health.js", "book.js", "proj.js"))
     return html.replace("/*CALIB_CSS*/", css).replace("/*CALIB_JS*/", js)
 
 
 # offline-capable, installable app: network first (always fresh prices), the last copy when offline
-SW = """const C = "mm-v1";
+SW = """const C = "bz-v2";
 self.addEventListener("install", e => self.skipWaiting());
 self.addEventListener("activate", e => e.waitUntil(self.clients.claim()));
 self.addEventListener("fetch", e => {
@@ -21,7 +21,7 @@ self.addEventListener("fetch", e => {
     .catch(() => caches.match(r).then(m => m || caches.match("./index.html"))));
 });
 """
-MANIFEST = dict(name="Blitzed", short_name="Blitzed", description="Blitzed: NHL, NFL and NBA model projections",
+MANIFEST = dict(name="Blitzed", short_name="Blitzed", description="Blitzed: NHL, NFL and NBA model projections and a play-coin book",
                 start_url="./index.html", scope="./", display="standalone", orientation="portrait",
                 background_color="#070806", theme_color="#070806",
                 icons=[dict(src="icon-192.png", sizes="192x192", type="image/png", purpose="any"),
