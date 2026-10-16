@@ -222,6 +222,7 @@ PJA = {
   ctx: gid => { const g = D.games.find(x => String(x.game_id) === String(gid)); if (!g) return null;
     return {sport: "NBA", espnIds: true, game: `${g.away.abbr} @ ${g.home.abbr}`, start: g.start_utc, open: !scoreOf(g) && new Date(g.start_utc) > Date.now(),
       ev: {date: bkEvDate(g.start_utc), home: g.home.abbr, away: g.away.abbr, id: String(g.game_id)}}; },
+  propP: (pid, stat, L) => { const p = (D.players || []).find(x => String(x.id) === String(pid)); return p ? pStat(p, stat, L) : null; },
   star: p => ({s: (p.vals.pts || {}).v || 0, mk: "pts"}),
   price: (gid, kind, side, line) => { const g = D.games.find(x => String(x.game_id) === String(gid)); if (!g) return null;
     if (kind === "spread") return side === "home" ? phi((g.margin + line) / g.sd_margin) : phi((line - g.margin) / g.sd_margin);
