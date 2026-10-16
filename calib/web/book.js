@@ -160,7 +160,7 @@ const bkDropAmt = () => BK.drop + 250 * Math.min(6, BKS.drop === bkYday() ? (BKS
 function bkClaim() {
   if (BKS.drop === bkDay()) return; const amt = bkDropAmt();
   BKS.streak = BKS.drop === bkYday() ? (BKS.streak || 1) + 1 : 1; BKS.drop = bkDay(); BKS.coins += amt;
-  bkSave(); bkPaint(); bkToast(`+${amt} coins · ${BKS.streak}-day streak`, "ok"); bkCoinFx(); }
+  bkSave(); bkPaint(); bkToast(`${bkN(amt)} coins added`, "ok"); bkCoinFx(); }
 const BK_LV = [[1, "Rookie"], [3, "Starter"], [6, "Pro"], [10, "All-Star"], [15, "MVP"], [21, "Hall of Fame"]];
 function bkLevel() {   // XP = every coin you've ever put in play
   const xp = BKS.bets.reduce((s, b) => s + b.stake, 0), n = Math.floor(Math.sqrt(xp / 100)) + 1;
@@ -168,10 +168,10 @@ function bkLevel() {   // XP = every coin you've ever put in play
   return {n, xp, name: BK_LV.filter(x => n >= x[0]).pop()[1], prog: (xp - lo) / (hi - lo), need: hi - xp};
 }
 const BK_MIS = [
-  {id: "three", ic: "🎯", t: "Place 3 bets", r: 500, f: T => [Math.min(3, T.length), 3]},
-  {id: "prop", ic: "🙋", t: "Bet a player prop", r: 250, f: T => [T.some(b => b.legs.some(l => l.kind === "prop")) ? 1 : 0, 1]},
-  {id: "parlay", ic: "🧩", t: "Place a 3-leg parlay", r: 750, f: T => [T.some(b => b.legs.length >= 3) ? 1 : 0, 1]},
-  {id: "multi", ic: "🌐", t: "Bet two different leagues", r: 500, f: T => [Math.min(2, new Set(T.flatMap(b => b.legs.map(l => l.sport))).size), 2]},
+  {id: "three", ic: "", t: "Place 3 bets", r: 500, f: T => [Math.min(3, T.length), 3]},
+  {id: "prop", ic: "", t: "Bet a player prop", r: 250, f: T => [T.some(b => b.legs.some(l => l.kind === "prop")) ? 1 : 0, 1]},
+  {id: "parlay", ic: "", t: "Place a 3-leg parlay", r: 750, f: T => [T.some(b => b.legs.length >= 3) ? 1 : 0, 1]},
+  {id: "multi", ic: "", t: "Bet two different leagues", r: 500, f: T => [Math.min(2, new Set(T.flatMap(b => b.legs.map(l => l.sport))).size), 2]},
 ];
 function bkMissions() {
   const day = bkDay(), T = BKS.bets.filter(b => bkDay(b.at) === day), got = (BKS.mis && BKS.mis.day === day) ? BKS.mis.got : [];
@@ -180,24 +180,20 @@ function bkMissions() {
 function bkClaimMission(id) {
   const m = bkMissions().find(x => x.id === id); if (!m || !m.done || m.got) return;
   if (!BKS.mis || BKS.mis.day !== bkDay()) BKS.mis = {day: bkDay(), got: []};
-  BKS.mis.got.push(id); BKS.coins += m.r; bkSave(); bkPaint(); bkToast(`Mission complete · +${m.r} coins`, "ok"); bkCoinFx();
+  BKS.mis.got.push(id); BKS.coins += m.r; bkSave(); bkPaint(); bkToast(`${bkN(m.r)} coins added`, "ok"); bkCoinFx();
 }
 function bkMissionsHtml() {
-  return `<div class="ms">${bkMissions().map(m => `<div class="ms-r ${m.got ? "got" : m.done ? "done" : ""}"><span class="ms-ic">${m.ic}</span>
+  return `<div class="ms">${bkMissions().map(m => `<div class="ms-r ${m.got ? "got" : m.done ? "done" : ""}"><span class="ms-ic">${m.got ? "✓" : `${m.a}/${m.n}`}</span>
     <div class="ms-t"><b>${esc(m.t)}</b><span class="ms-bar"><i style="width:${Math.round(100 * m.a / m.n)}%"></i></span></div>
-    ${m.got ? `<span class="ms-ok">✓</span>` : m.done ? `<button class="ms-go" data-bkmis="${m.id}">+${m.r}</button>` : `<span class="ms-rw">${BK_COIN}${m.r}</span>`}</div>`).join("")}</div>`;
+    ${m.got ? `<span class="ms-rw">Claimed</span>` : m.done ? `<button class="ms-go" data-bkmis="${m.id}">Claim ${bkN(m.r)}</button>` : `<span class="ms-rw">${bkN(m.r)}</span>`}</div>`).join("")}</div>`;
 }
-// the wallet card (Home and My bets): balance, level, streak, daily drop
-function bkWalletHtml(big) {
-  const s = bkStats(), L = bkLevel(), st = bkStreakNow();
-  return `<section class="wl ${big ? "big" : ""}"><div class="wl-top"><span class="wl-k">Balance</span><span class="wl-lv"><b>Lv ${L.n}</b>${esc(L.name)}</span></div>
-    <button class="wl-bal" data-go="bets">${BK_COIN}<b>${bkN(BKS.coins)}</b></button>
-    <div class="wl-xp"><i style="width:${Math.max(3, Math.round(100 * L.prog))}%"></i></div>
-    <div class="wl-xpl"><span>${bkN(L.xp)} XP</span><span>${bkN(L.need)} to Lv ${L.n + 1}</span></div>
-    <div class="wl-row"><span class="wl-ch">🔥 <b>${st}</b> day${st === 1 ? "" : "s"}</span><span class="wl-ch">🎟️ <b>${s.open}</b> open</span>
-      <span class="wl-ch ${s.today > 0 ? "up" : s.today < 0 ? "dn" : ""}">📈 <b>${s.today > 0 ? "+" : s.today < 0 ? "−" : ""}${bkN(Math.abs(s.today))}</b> today</span></div>
-    ${BKS.drop !== bkDay() ? `<button class="bk-drop" data-bkdrop="1">${BK_COIN}<span><b>Daily drop${st ? ` · day ${st + 1}` : ""}</b><i>Free coins every day · streaks pay more</i></span><em>+${bkN(bkDropAmt())}</em></button>` : ""}
-    ${bkBroke() ? `<button class="bk-drop" data-bkreload="1">${BK_COIN}<span><b>Out of coins</b><i>Reload to ${bkN(BK.reload)} (once a day)</i></span><em>Reload</em></button>` : ""}</section>`;
+function bkStripHtml() {
+  const s = bkStats(), sg = v => v > 0 ? "+" + bkN(v) : v < 0 ? "−" + bkN(-v) : "0";
+  return `<section class="mb-strip"><button class="mb-bal" data-go="bets"><i>Balance</i><span>${BK_COIN}<b>${bkN(BKS.coins)}</b></span></button>
+      <div class="mb-st"><span><i>Today</i><b class="${s.today > 0 ? "up" : s.today < 0 ? "dn" : ""}">${sg(s.today)}</b></span><span><i>Open</i><b>${s.open}</b></span>
+        <span><i>Record</i><b>${s.w}-${s.l}${s.p ? "-" + s.p : ""}</b></span></div></section>
+    ${BKS.drop !== bkDay() ? `<button class="bk-drop" data-bkdrop="1"><span><b>Daily bonus</b><i>${bkStreakNow() ? `Day ${bkStreakNow() + 1} in a row` : "Free coins every day"}</i></span><em>Claim ${bkN(bkDropAmt())}</em></button>` : ""}
+    ${bkBroke() ? `<button class="bk-drop" data-bkreload="1"><span><b>Out of coins</b><i>Reload once a day</i></span><em>Reload ${bkN(BK.reload)}</em></button>` : ""}`;
 }
 function bkAddParlay(legs) {
   if (!legs || legs.length < 2 || legs.some(l => !l.open)) return bkToast("Those games have started");
@@ -254,15 +250,14 @@ function bkScreen() {
   const s = bkStats(), V = BKS.view === "settled" ? "settled" : "open";
   const open = BKS.bets.filter(b => b.st === "open"), settled = BKS.bets.filter(b => b.st !== "open");
   const sg = v => v > 0 ? "+" + bkN(v) : v < 0 ? "−" + bkN(-v) : "0";
-  const strip = `<section class="mb-strip"><button class="mb-bal" data-bkv="open">${BK_COIN}<b>${bkN(BKS.coins)}</b></button>
-      <div class="mb-st"><span><i>Today</i><b class="${s.today > 0 ? "up" : s.today < 0 ? "dn" : ""}">${sg(s.today)}</b></span><span><i>Record</i><b>${s.w}-${s.l}${s.p ? "-" + s.p : ""}</b></span><span><i>ROI</i><b class="${(s.roi || 0) > 0 ? "up" : (s.roi || 0) < 0 ? "dn" : ""}">${s.roi == null ? "–" : (s.roi >= 0 ? "+" : "−") + Math.abs(100 * s.roi).toFixed(0) + "%"}</b></span></div></section>`;
+  const strip = bkStripHtml();
   const seg = `<div class="seg mb-seg" style="--n:2"><button class="${V === "open" ? "on" : ""}" data-bkv="open">Open${open.length ? ` <em>${open.length}</em>` : ""}</button><button class="${V === "settled" ? "on" : ""}" data-bkv="settled">Settled${settled.length ? ` <em>${settled.length}</em>` : ""}</button></div>`;
   let list;
   if (V === "open") {
     const live = open.filter(b => b.legs.some(l => l.start && new Date(l.start) <= Date.now())), up = open.filter(b => !live.includes(b));
     list = open.length ? (live.length ? `<div class="mb-day"><b>Live now</b><span>${live.length}</span></div>${live.map(bkTicket).join("")}` : "")
         + (up.length ? `<div class="mb-day"><b>Upcoming</b><span>${bkN(up.reduce((x, b) => x + b.stake, 0))} in play</span></div>${up.map(bkTicket).join("")}` : "")
-      : `<div class="mb-empty"><b>No open bets</b><span>Tap any price on a game or player to build a slip.</span><div><button data-go="games">Games</button><button data-go="players">Props</button></div></div>`;
+      : `<div class="mb-empty"><b>No open bets</b><span>Tap a price on any game or player to add it to your bet slip.</span><div><button data-go="games">Games</button><button data-go="players">Props</button></div></div>`;
   } else {
     const days = {};
     for (const b of settled.slice(0, 80)) (days[bkDay(b.done || b.at)] = days[bkDay(b.done || b.at)] || []).push(b);
@@ -271,11 +266,8 @@ function bkScreen() {
         return `<div class="mb-day"><b>${lab(d)}</b><span>${w}-${B.filter(b => b.st === "lost").length} · <em class="${net > 0 ? "up" : net < 0 ? "dn" : ""}">${sg(net)}</em></span></div>${B.map(bkTicket).join("")}`; }).join("")
       : `<div class="mb-empty"><b>Nothing settled yet</b><span>Bets grade automatically from ESPN finals.</span></div>`;
   }
-  const L = bkLevel(), st = bkStreakNow();
-  const rewards = `<div class="hd"><b>Rewards</b><span class="hd-s">Lv ${L.n} ${esc(L.name)} · 🔥 ${st} day${st === 1 ? "" : "s"}</span></div>
-    ${BKS.drop !== bkDay() ? `<button class="bk-drop" data-bkdrop="1">${BK_COIN}<span><b>Daily drop${st ? ` · day ${st + 1}` : ""}</b><i>Free coins every day · streaks pay more</i></span><em>+${bkN(bkDropAmt())}</em></button>` : ""}
-    ${bkBroke() ? `<button class="bk-drop" data-bkreload="1">${BK_COIN}<span><b>Out of coins</b><i>Reload to ${bkN(BK.reload)} (once a day)</i></span><em>Reload</em></button>` : ""}
-    ${bkMissionsHtml()}`;
+  const L = bkLevel();
+  const rewards = `<div class="hd"><b>Daily challenges</b><span class="hd-s">Level ${L.n} · ${bkN(L.need)} XP to next</span></div>${bkMissionsHtml()}`;
   return strip + seg + `<div class="bk-list">${list}</div>` + rewards + `<div class="bk-fine">Play coins only: no deposits, no cash value, nothing to withdraw.</div>`;
 }
 function bkWire(root = document) {

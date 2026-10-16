@@ -11,7 +11,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Barlow:ital,wght@1,700;1,800;1,900&family=Inter+Tight:wght@500;600;650;700;750;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
 /*CALIB_CSS*/
 </style>
@@ -106,7 +106,7 @@ function nGame(g) {
     a: Object.assign({}, g.away, {sub: sub(g.away)}), h: Object.assign({}, g.home, {sub: sub(g.home)}),
     sa: Math.round(g.pts_away), sh: Math.round(g.pts_home), total: g.total, totalTxt: `${g.total.toFixed(1)} pts`,
     score: st === "pre" ? null : {a: s.away ?? 0, h: s.home ?? 0},
-    note: g.pre ? "Preseason · rotations vary" : g.home.b2b || g.away.b2b ? `🔋 ${[g.away, g.home].filter(t => t.b2b).map(t => t.abbr).join(" & ")} on a back-to-back` : (g.neutral ? "Neutral site" : ""),
+    note: g.pre ? "Preseason · rotations vary" : g.home.b2b || g.away.b2b ? `${[g.away, g.home].filter(t => t.b2b).map(t => t.abbr).join(" & ")} on a back-to-back` : (g.neutral ? "Neutral site" : ""),
     stats: [["Total", `${g.total.toFixed(1)} pts`], ["Line", modelLine(g)], ["Within 5", pct(closeGame(g))], ["Margin", `±${g.sd_margin.toFixed(0)}`]]};
   if (st === "final") v.hit = (s.home > s.away) === (g.p_home >= 0.5);
   return v;
