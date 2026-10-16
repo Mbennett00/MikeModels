@@ -207,7 +207,7 @@ function pjGameCard(g) {
     : `<div class="rows">${team(g.a, "a")}${team(g.h, "h")}</div>`;
   const stars = pre ? [g.a, g.h].map(t => pjStarChip(g, t)).filter(Boolean) : [];
   const n = (PJA.panels && PJA.panels(g).some(x => ["rink", "field", "court"].includes(x.k)));
-  return `<article class="gc ${g.state === "live" ? "islive" : ""}" data-gid="${esc(g.id)}">
+  return `<article class="gc ${g.state === "live" ? "islive" : ""}" data-gid="${esc(g.id)}" style="--ca:${esc(g.a.color || "#3a4a44")};--ch:${esc(g.h.color || "#44503a")}">
       <div class="gc-h"><span class="gc-st">${pjStatus(g)}</span>${pre ? pjCountdown(g) : ""}${g.note ? `<span class="gc-note">${g.note}</span>` : ""}</div>
       ${grid}
       ${info.length ? `<div class="gc-info">${info.map(x => esc(x)).join(" · ")}</div>` : ""}
@@ -237,7 +237,7 @@ function pjCountdown(g) {
 function pjFeatured(G) {
   return `<div class="fgs">${G.slice(0, 6).map(g => { const M = pjLines(g), T = (M.total || [])[0];
     const tm = (t, i) => `<div class="fg-r">${pjLogo(t)}<b>${esc(t.name)}</b>${bkBtn(M.ml[i])}</div>`;
-    return `<article class="fg"><div class="fg-top"><span>${esc(g.time || "")}</span>${pjCountdown(g)}</div>${tm(g.a, 0)}${tm(g.h, 1)}
+    return `<article class="fg" style="--ca:${esc(g.a.color || "#3a4a44")};--ch:${esc(g.h.color || "#44503a")}"><div class="fg-top"><span>${esc(g.time || "")}</span>${pjCountdown(g)}</div>${tm(g.a, 0)}${tm(g.h, 1)}
       ${T ? `<div class="fg-t"><span>Total</span>${bkBtn(M.total[0], "O " + T.line)}${bkBtn(M.total[1], "U " + T.line)}</div>` : ""}
       <button class="fg-all" data-gogame="${esc(g.id)}">All bets</button></article>`; }).join("")}</div>`;
 }

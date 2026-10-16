@@ -482,3 +482,48 @@ b, strong { font-weight: 700; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 ::view-transition-old(root), ::view-transition-new(root) { animation-duration: .15s; }
+
+/* =================== premium finish: depth, light, team colour =================== */
+:root { --acc: #22d98f; --acc-hi: #3be8a4; --acc-lo: #13b874; --cta: linear-gradient(180deg, var(--acc-hi), var(--acc-lo));
+  --card: linear-gradient(180deg, #151a18 0%, #101412 100%); --hair: inset 0 1px 0 rgba(255,255,255,.045); --lift: 0 10px 30px rgba(0,0,0,.38); }
+body { background: radial-gradient(120% 50% at 50% -10%, rgba(34,217,143,.07), transparent 60%) fixed, var(--bg); }
+.hdr { background: rgba(9,11,10,.86); }
+.hd b, .hx-h b { font-size: 18px; letter-spacing: -.015em; }
+/* surfaces */
+.gc, .list, .gl, .ms, .fg, .pod, .bk-tk, .card, .bk-drop, .mb-empty { background: var(--card); border-color: rgba(255,255,255,.06); box-shadow: var(--hair), var(--lift); }
+.gc { position: relative; }
+.gc::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 2px; background: linear-gradient(90deg, var(--ca) 0%, var(--ca) 48%, var(--ch) 52%, var(--ch) 100%); opacity: .9; }
+.gc-h { padding-top: 14px; }
+.tm img, .gr-t img, .fg-r img { filter: drop-shadow(0 2px 4px rgba(0,0,0,.35)); }
+/* prices */
+.bk-px { background: linear-gradient(180deg, #1c2220, #161b19); border-color: rgba(255,255,255,.07); box-shadow: var(--hair); transition: transform .08s, background .12s, box-shadow .12s; }
+.bk-px:active { transform: scale(.97); }
+.bk-px.on { background: var(--cta); border-color: transparent; box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 6px 16px rgba(34,217,143,.28); }
+.bk-px b { letter-spacing: -.01em; }
+/* primary actions */
+.bk-drop em, .pod-go, .ms-go, .mb-empty button:first-child, .bk-sf { background: var(--cta); box-shadow: inset 0 1px 0 rgba(255,255,255,.3); }
+.bk-bar { background: var(--cta); box-shadow: inset 0 1px 0 rgba(255,255,255,.3), 0 12px 30px rgba(0,0,0,.5); }
+/* balance: the one hero surface */
+.mb-strip { position: relative; overflow: hidden; padding: 16px; border: 1px solid rgba(34,217,143,.18);
+  background: radial-gradient(120% 140% at 100% 0%, rgba(34,217,143,.16), transparent 55%), repeating-linear-gradient(135deg, rgba(255,255,255,.018) 0 1px, transparent 1px 7px), linear-gradient(180deg, #10201a, #0b1210);
+  box-shadow: var(--hair), var(--lift); }
+.mb-bal b { font-size: 28px; letter-spacing: -.02em; } .mb-st b { font-size: 16px; }
+/* featured: a gentle wash of both teams' colours */
+.fg { background: linear-gradient(120deg, color-mix(in srgb, var(--ca) 20%, #121614) 0%, #121614 48%, #121614 52%, color-mix(in srgb, var(--ch) 20%, #121614) 100%); }
+.fg-r b { font-size: 15px; }
+/* people: thin team-colour ring */
+.pav { box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--tc, #445) 75%, transparent); }
+.pr, .gp { --tc: inherit; }
+/* tabs + bar */
+.tabs button.on::after, .sport a.on::after { background: var(--cta); height: 2.5px; }
+.nav { background: rgba(10,13,12,.92); }
+.nav button .ico { padding: 3px 12px; box-sizing: content-box; border-radius: 14px; transition: background .15s; }
+.nav button.on .ico { background: rgba(34,217,143,.14); }
+.nav button.on span { color: var(--t1); }
+/* tickets */
+.bk-tk { position: relative; overflow: hidden; }
+.bk-tk.won::before, .bk-tk.live::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--acc); }
+.bk-tk.live::before { background: var(--live); }
+/* sheet */
+.sheet { background: linear-gradient(180deg, #151a18, #0f1311); box-shadow: 0 -20px 50px rgba(0,0,0,.5); }
+.coin { background: linear-gradient(180deg, #1a201e, #141917); box-shadow: var(--hair); }
