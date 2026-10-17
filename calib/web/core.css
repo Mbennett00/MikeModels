@@ -584,3 +584,5 @@ body { background: radial-gradient(120% 50% at 50% -10%, rgba(34,217,143,.07), t
 .er-ev { min-width: 60px; text-align: center; }
 .pr .pr-px { grid-column: 1 / -1; grid-template-columns: repeat(var(--n, 3), minmax(0, 1fr)); } .pr .px { width: auto; height: 52px; } .pr .px em { font-size: 10.5px; }
 .pr { grid-template-columns: minmax(0, 1fr) auto; row-gap: 8px; }
+
+.gc-sim { margin-left: auto; color: var(--acc); font-weight: 700; font-size: 12px; text-decoration: none; }

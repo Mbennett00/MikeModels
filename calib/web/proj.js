@@ -184,7 +184,7 @@ function pjGameCard(g) {
       ${pre ? `<span class="tr-p"><b>${esc(k === "h" ? g.sh : g.sa)}</b><i>proj</i></span>` : `<strong>${sc ?? 0}</strong>`}<span class="tr-w"><b>${pjPct(mine)}</b><i>${g.state === "live" && g.lph != null ? "live" : g.state === "final" ? "model" : "win"}</i></span></div>`; };
   const pa = Math.round(100 * (1 - p)), best = pjGameEdges(g).filter(e => e.ev >= PJ_EDGE).sort((a, b) => b.ev - a.ev)[0];
   return `<article class="gc ${g.state === "live" ? "islive" : ""}" data-gid="${esc(g.id)}" style="--ca:${esc(g.a.color || "#3a4a44")};--ch:${esc(g.h.color || "#44503a")}">
-      <div class="gc-h"><span class="gc-st">${pjStatus(g)}</span>${pre ? pjCountdown(g) : ""}${g.note ? `<span class="gc-note">${g.note}</span>` : ""}</div>
+      <div class="gc-h"><span class="gc-st">${pjStatus(g)}</span>${pre ? pjCountdown(g) : ""}${g.note ? `<span class="gc-note">${g.note}</span>` : ""}${PJA.simUrl ? `<a class="gc-sim" href="${esc(PJA.simUrl(g))}">Simulate ›</a>` : ""}</div>
       <div class="rows">${team(g.a, "a")}${team(g.h, "h")}</div>
       <div class="tug"><i style="width:${pa}%;background:${esc(g.a.color || "#556")}"></i><i style="width:${100 - pa}%;background:${esc(g.h.color || "#556")}"></i></div>
       ${g.stats && g.stats.length ? `<div class="gst">${g.stats.map(([l, v]) => `<div><i>${l}</i><b>${v}</b></div>`).join("")}</div>` : ""}

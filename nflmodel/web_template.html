@@ -360,6 +360,7 @@ PJA = {
   kicker: () => `NFL · ${D.meta.week ? "Week " + D.meta.week : "This week"}`,
   header, strip,
   games: () => byStatus(D.games).map(nGame),
+  simUrl: g => `sim.html?away=${encodeURIComponent(g.a.abbr)}&home=${encodeURIComponent(g.h.abbr)}`,
   players: () => { pjImgAlts(D.players); return (D.players || []).map(nPlayer); },
   top: () => (D.players || []).filter(p => p.role !== "QB" && nflOpen(gameOf(p))).sort((x, y) => y.p_td - x.p_td).slice(0, 8).map(p => ({p: nPlayer(p), mk: "td"})),
   panels: gm => { const g = D.games.find(x => String(x.game_id) === String(gm.id));

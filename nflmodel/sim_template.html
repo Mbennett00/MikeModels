@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a0c0b">
+<title>Pikt · NFL game sim</title>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+/*CALIB_CSS*/
+/* ---------- game sim ---------- */
+.sim-top { display: flex; align-items: center; gap: 12px; height: 52px; }
+.sim-top a { color: var(--t2); text-decoration: none; font-weight: 600; font-size: 14px; } .sim-top b { font-size: 16px; } .sim-top .mlogo { margin-left: auto; }
+.pick { margin-top: 14px; padding: 14px; border-radius: var(--r); background: var(--card); border: 1px solid rgba(255,255,255,.06); box-shadow: var(--hair), var(--lift); }
+.pick-r { display: grid; grid-template-columns: 1fr 22px 1fr; gap: 8px; align-items: center; }
+.pick-r span { text-align: center; color: var(--t3); font-weight: 700; font-size: 13px; }
+.pick select { width: 100%; height: 44px; padding: 0 10px; border-radius: 10px; background: var(--s2); border: 1px solid var(--line2); color: var(--t1); font: 600 14px var(--fb); }
+.pick label { display: block; font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--t3); margin-bottom: 6px; }
+.go { width: 100%; height: 48px; margin-top: 12px; border-radius: 12px; background: var(--cta); color: var(--acc-ink); font-weight: 700; font-size: 15px; box-shadow: inset 0 1px 0 rgba(255,255,255,.3); }
+.wk { margin-top: 12px; }
+.sb { margin-top: 14px; border-radius: var(--r); overflow: hidden; background: var(--card); border: 1px solid rgba(255,255,255,.06); box-shadow: var(--hair), var(--lift); }
+.sb-r { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: 14px; gap: 8px; }
+.sb-t { display: flex; align-items: center; gap: 10px; min-width: 0; } .sb-t.h { flex-direction: row-reverse; text-align: right; } .sb-t.h strong { margin: 0 auto 0 0; }
+.sb-t img { width: 40px; height: 40px; flex: none; object-fit: contain; } .sb-t div { flex: none; display: flex; flex-direction: column; }
+.sb-t b { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .sb-t i { font-style: normal; font-size: 11.5px; color: var(--t3); }
+.sb-t strong { margin-left: auto; font-size: 34px; font-weight: 700; letter-spacing: -.02em; min-width: 44px; text-align: center; }
+.sb-t.pos b::after { content: ""; display: inline-block; width: 7px; height: 7px; margin: 0 6px; border-radius: 50%; background: var(--acc); vertical-align: 2px; }
+.sb-m { display: flex; flex-direction: column; align-items: center; gap: 2px; } .sb-m b { font-size: 14px; } .sb-m i { font-style: normal; font-size: 12px; color: var(--t3); }
+.sb-m .fin { color: var(--acc); }
+.dd { padding: 8px 14px; border-top: 1px solid var(--line); font-size: 13px; color: var(--t2); display: flex; justify-content: space-between; } .dd b { color: var(--t1); }
+.fld { position: relative; height: 64px; margin: 0 14px 14px; border-radius: 8px; overflow: hidden; background: repeating-linear-gradient(90deg, #1b4d2b 0 10%, #1e5530 10% 20%); }
+.fld .ez { position: absolute; top: 0; bottom: 0; width: 8.333%; display: grid; place-items: center; font-size: 10px; font-weight: 700; color: rgba(255,255,255,.85); writing-mode: vertical-rl; letter-spacing: .1em; }
+.fld .ez.a { left: 0; transform: rotate(180deg); } .fld .ez.h { right: 0; }
+.fld .yd { position: absolute; top: 0; bottom: 0; width: 1px; background: rgba(255,255,255,.18); }
+.fld .los { position: absolute; top: 0; bottom: 0; width: 2px; background: #5aa9ff; transition: left .35s; }
+.fld .fd { position: absolute; top: 0; bottom: 0; width: 2px; background: #f2c14e; transition: left .35s; }
+.fld .ball { position: absolute; top: 50%; width: 14px; height: 9px; margin: -4.5px 0 0 -7px; border-radius: 50%; background: #8a4b22; border: 1px solid #f5e6d3; transition: left .35s; }
+.ctl { display: flex; gap: 6px; margin-top: 10px; } .ctl button { flex: 1; height: 36px; border-radius: 9px; background: var(--s2); border: 1px solid var(--line2); color: var(--t2); font-weight: 600; font-size: 13px; }
+.ctl button.on { background: var(--acc-soft); border-color: rgba(34,217,143,.45); color: var(--acc); }
+.feed { margin-top: 12px; }
+.pl { display: grid; grid-template-columns: 54px 1fr auto; gap: 10px; padding: 9px 14px; border-top: 1px solid var(--line); font-size: 13.5px; align-items: start; }
+.pl:first-child { border-top: 0; } .pl i { font-style: normal; font-size: 11px; color: var(--t3); line-height: 1.6; } .pl span { color: var(--t2); line-height: 1.4; } .pl b { color: var(--t1); font-weight: 600; }
+.pl.sc { background: var(--acc-soft); } .pl.sc span { color: var(--t1); } .pl.to span { color: #ff8a8f; }
+.pl em { font-style: normal; font-weight: 700; font-size: 12px; color: var(--acc); white-space: nowrap; }
+.dh { padding: 8px 14px; font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--t3); background: rgba(255,255,255,.02); border-top: 1px solid var(--line); display: flex; align-items: center; gap: 8px; }
+.dh img { width: 16px; height: 16px; }
+.bx { width: 100%; border-collapse: collapse; font-size: 13px; }
+.bx th { text-align: right; font-size: 10.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--t3); padding: 8px 6px; }
+.bx th:first-child, .bx td:first-child { text-align: left; padding-left: 14px; } .bx th:last-child, .bx td:last-child { padding-right: 14px; }
+.bx td { text-align: right; padding: 8px 6px; border-top: 1px solid var(--line); white-space: nowrap; } .bx td:first-child { white-space: normal; } .bx td b { font-weight: 600; }
+.bx tr.tl td { color: var(--t2); font-weight: 600; }
+.ts { display: grid; grid-template-columns: 1fr auto 1fr; padding: 0 14px; }
+.ts div { padding: 9px 0; border-top: 1px solid var(--line); font-size: 13.5px; } .ts div:nth-child(-n+3) { border-top: 0; }
+.ts .l { font-weight: 600; } .ts .m { text-align: center; color: var(--t3); font-size: 12px; padding: 9px 12px; } .ts .r { text-align: right; font-weight: 600; } .ts .w { color: var(--acc); }
+.qs { width: 100%; border-collapse: collapse; font-size: 13.5px; margin: 6px 0 4px; } .qs th, .qs td { padding: 7px 8px; text-align: center; } .qs th { font-size: 11px; color: var(--t3); }
+.qs td:first-child, .qs th:first-child { text-align: left; padding-left: 14px; } .qs td:last-child { font-weight: 700; } .qs tr + tr td { border-top: 1px solid var(--line); }
+.bxh { display: flex; align-items: center; gap: 8px; padding: 12px 14px 4px; font-size: 13px; font-weight: 700; } .bxh img { width: 18px; height: 18px; }
+.note2 { font-size: 12px; color: var(--t3); margin: 12px 2px; line-height: 1.5; }
+</style>
+</head>
+<body class="sim">
+<div class="wrap">
+  <div class="hdr"><div class="sim-top"><a href="nfl.html">‹ NFL</a><b>Game sim</b><img class="mlogo" src="pikt-wordmark.png" alt="Pikt"></div></div>
+  <div id="view"><div class="empty"><div class="t">Loading teams…</div></div></div>
+</div>
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+let D = null, SIM = null, TIMER = null, SPEED = 1, VIEW = "live";
+
+// ---------- randomness ----------
+const R = Math.random;
+const pick = (arr, w) => { const t = w.reduce((a, b) => a + b, 0); let x = R() * t; for (let i = 0; i < arr.length; i++) { x -= w[i]; if (x <= 0) return arr[i]; } return arr[arr.length - 1]; };
+const norm = () => { let u = 0, v = 0; while (!u) u = R(); while (!v) v = R(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+
+// ---------- teams and rosters from the NFL model ----------
+function roster(ab) {
+  const T = D.teams[ab], L = ((D.lineups || {})[ab] || {}), off = (L.off || {}).players || [], def = (L.def || {}).players || [];
+  const P = (D.players || []).filter(p => p.team === ab);
+  const last = n => { const w = String(n).split(" "); return w.length > 1 && /^(jr\.?|sr\.?|ii|iii|iv)$/i.test(w[w.length - 1]) ? w[w.length - 2] : w[w.length - 1]; };
+  const qb = (off.find(p => p.slot === "QB") || {}).name || (P.find(p => p.role === "QB") || {}).name || `${ab} QB`;
+  let rush = P.filter(p => p.car > 0.3 && p.role !== "QB").map(p => [p.name, p.car]);
+  const qbRun = (P.find(p => p.role === "QB") || {}).car || 2.5;
+  if (!rush.length) rush = off.filter(p => p.slot === "RB").map(p => [p.name, 12]).concat([[`${ab} RB2`, 4]]);
+  if (!rush.length) rush = [[`${ab} RB`, 14], [`${ab} RB2`, 5]];
+  rush.push([qb, qbRun]);
+  let tgt = P.filter(p => p.tgt > 0.3).map(p => [p.name, p.tgt]);
+  if (!tgt.length) tgt = off.filter(p => ["WR", "TE", "RB"].includes(p.slot)).map(p => [p.name, p.slot === "WR" ? 7 : p.slot === "TE" ? 5 : 3]);
+  if (!tgt.length) tgt = [[`${ab} WR1`, 8], [`${ab} WR2`, 6], [`${ab} TE`, 5], [`${ab} RB`, 3]];
+  const dnames = def.map(p => p.name);
+  const tack = dnames.length ? dnames : [`${ab} LB`, `${ab} S`, `${ab} CB`];
+  const rushers = def.filter(p => ["DL", "LB"].includes(p.slot)).map(p => p.name);
+  const dbs = def.filter(p => ["CB", "S"].includes(p.slot)).map(p => p.name);
+  return {ab, T, qb, rush, tgt, tack, rushers: rushers.length ? rushers : tack, dbs: dbs.length ? dbs : tack, last};
+}
+// expected points: this week's model projection when the matchup is on the slate, else the team ratings
+function expected(a, h) {
+  const g = (D.games || []).find(x => x.home.abbr === h && x.away.abbr === a);
+  if (g && g.pts_home != null) return [g.pts_away, g.pts_home, true];
+  const A = D.teams[a] || {}, H = D.teams[h] || {}, M = 22.4, m = (H.pts || 0) - (A.pts || 0) + 1.5;
+  return [M - m / 2, M + m / 2, false];
+}
+
+// ---------- the simulation ----------
+// Each drive's outcome is drawn first, with odds tuned so a team's average score equals the model's projection;
+// then the plays are written to fit: real down and distance, the clock, and players chosen in proportion to their
+// projected carries and targets.
+const BASE = {td: .23, fg: .155, punt: .38, int: .065, fum: .05, downs: .06};
+function driveOdds(exp) {
+  const k = clamp(exp * 1.36 / 22.8, .3, 2.4), td = clamp(.23 * Math.pow(k, 1.15), .07, .5), fg = clamp(.155 * Math.pow(k, .55), .07, .26);
+  const rest = 1 - td - fg, b = BASE.punt + BASE.int + BASE.fum + BASE.downs;
+  return {td, fg, punt: rest * BASE.punt / b, int: rest * BASE.int / b, fum: rest * BASE.fum / b, downs: rest * BASE.downs / b};
+}
+function simulate(a, h) {
+  const [ea, eh, onSlate] = expected(a, h), S = {a: roster(a), h: roster(h)}, odds = {a: driveOdds(ea), h: driveOdds(eh)};
+  const st = {score: {a: 0, h: 0}, q: 1, clock: 900, ev: [], qs: {a: [0, 0, 0, 0], h: [0, 0, 0, 0]}, box: {}, team: {a: tstat(), h: tstat()}, scoring: [], drives: []};
+  function tstat() { return {fd: 0, plays: 0, pyds: 0, ryds: 0, rcar: 0, cmp: 0, att: 0, sacks: 0, sackyds: 0, to: 0, third: [0, 0], fourth: [0, 0], top: 0, pen: 0}; }
+  const pb = (side, name) => { const k = side + "|" + name; return st.box[k] || (st.box[k] = {side, name, cmp: 0, att: 0, pyds: 0, ptd: 0, int: 0, sk: 0, car: 0, ryds: 0, rtd: 0, rlong: 0, rec: 0, tgt: 0, cyds: 0, ctd: 0, clong: 0, fgm: 0, fga: 0, xpm: 0, xpa: 0, flong: 0}); };
+  const spot = (side, x) => x === 50 ? "50" : x < 50 ? `${S[side].ab} ${x}` : `${S[side === "a" ? "h" : "a"].ab} ${100 - x}`;
+  const clk = () => `${Math.floor(st.clock / 60)}:${String(st.clock % 60).padStart(2, "0")}`;
+  const ord = d => ["1st", "2nd", "3rd", "4th"][d - 1];
+  const log = (o) => st.ev.push(Object.assign({q: st.q, t: clk(), score: {...st.score}}, o));
+  const tick = s => {   // returns true when the quarter ends
+    st.clock = Math.max(0, st.clock - s);
+    if (st.clock > 0) return false;
+    if (st.q === 4 || st.q === 5) return "end";
+    st.q++; st.clock = st.q === 5 ? 600 : 900; log({kind: "q", text: st.q === 3 ? "Halftime" : st.q === 5 ? "Overtime" : `End of quarter ${st.q - 1}`});
+    return st.q === 3 ? "half" : "q";
+  };
+  const score = (side, pts, text) => { st.score[side] += pts; st.qs[side][Math.min(3, st.q - 1)] += pts; st.qs[side].ot = (st.qs[side].ot || 0) + (st.q === 5 ? pts : 0); st.scoring.push({q: st.q, t: clk(), side, text, a: st.score.a, h: st.score.h}); };
+  let pos = "a", startX = 25, recv2 = "h";   // away receives the opening kickoff
+  log({kind: "q", text: "Kickoff"});
+  let ended = false, drives = 0;
+  while (!ended && drives < 40) {
+    drives++;
+    const def = pos === "a" ? "h" : "a", O = S[pos], X = S[def], od = odds[pos], T = st.team[pos];
+    const outcome = pick(["td", "fg", "punt", "int", "fum", "downs"], [od.td, od.fg, od.punt, od.int, od.fum, od.downs]);
+    let x = startX, down = 1, togo = 10, plays = 0, yards = 0, t0 = st.clock, q0 = st.q, result = null, stopAt = null;
+    // where this drive is allowed to get to before its outcome happens
+    if (outcome === "fg") stopAt = clamp(Math.round(62 + R() * 28), Math.max(x + 8, 60), 92);
+    if (outcome === "punt") stopAt = clamp(Math.round(x + 4 + R() * 30), x + 2, 62);
+    if (outcome === "downs") stopAt = clamp(Math.round(x + 10 + R() * 35), x + 6, 85);
+    if (outcome === "int" || outcome === "fum") stopAt = clamp(Math.round(x + R() * 45), x + 1, 92);
+    st.drives.push({side: pos, q: st.q, t: clk(), start: spot(pos, x)});
+    log({kind: "drive", side: pos, text: `${O.T.name} ball at ${spot(pos, x)}`, x, fd: Math.min(100, x + 10), ndd: "1st & 10", nat: spot(pos, x)});
+    const brk = (why) => { result = why; };
+    while (!result) {
+      const fourth = down === 4, need = togo, toGoal = 100 - x;
+      // decisions on 4th down
+      if (fourth) {
+        if (outcome === "fg" || (outcome !== "td" && outcome !== "downs" && x >= 62)) {
+          const dist = 117 - x, kick = pb(pos, `${O.ab} K`); kick.fga++; T.plays++;
+          const make = R() < clamp(1.02 - (dist - 25) * .0115, .35, .99);
+          if (make) { kick.fgm++; kick.flong = Math.max(kick.flong, dist); score(pos, 3, `${dist}-yd field goal`); log({kind: "fg", side: pos, sc: true, text: `<b>${dist}-yard field goal is GOOD</b>`, x}); }
+          else log({kind: "fg", side: pos, to: true, text: `${dist}-yard field goal is NO GOOD`, x});
+          tick(5); brk(make ? "fg" : "miss"); break;
+        }
+        if (outcome === "punt" || x < 45) {
+          const net = clamp(Math.round(42 + norm() * 7), 25, 60), land = x + net;
+          T.plays++;
+          if (land >= 100) { log({kind: "punt", side: pos, text: `Punt ${100 - x} yards, touchback`, x}); startX = 20; }
+          else { const ret = Math.max(0, Math.round(6 + norm() * 5)); startX = clamp(100 - land + ret, 5, 60); log({kind: "punt", side: pos, text: `Punt ${net} yards${ret ? `, returned ${ret}` : ", fair catch"}`, x}); }
+          tick(6); brk("punt"); break;
+        }
+        T.fourth[1]++;
+      }
+      if (down === 3) T.third[1]++;
+      // the play
+      const goForIt = outcome === "td" || (outcome === "downs" && x < stopAt) || (stopAt && x < stopAt) || (fourth && outcome !== "downs");
+      const mustConvert = down >= 3 && (outcome === "td" || (stopAt && x + need < stopAt));   // early downs play out naturally
+      const boost = outcome === "td" ? 1.55 : outcome === "fg" ? 1.25 : 1;   // scoring drives move the ball faster
+      const pass = R() < (down === 3 && togo > 4 ? .82 : togo > 7 ? .66 : .52);
+      let gained, text, inc = false, timeUsed = 0, turnover = false, sackp = false;
+      // turnovers land when the drive reaches its spot
+      if ((outcome === "int" || outcome === "fum") && x >= stopAt - 1) {
+        T.to++; T.plays++;
+        if (outcome === "int") { const tg = pick(O.tgt.map(t => t[0]), O.tgt.map(t => t[1])), dbn = pick(X.dbs, X.dbs.map(() => 1)), q = pb(pos, O.qb); q.att++; q.int++; T.att++; pb(pos, tg).tgt++;
+          const ry = Math.max(0, Math.round(8 + norm() * 10)); startX = clamp(100 - (x + Math.round(10 + R() * 15)) + ry, 1, 95);
+          log({kind: "int", side: pos, to: true, text: `${O.last(O.qb)} pass intended for ${O.last(tg)} <b>INTERCEPTED</b> by ${X.last(dbn)}, returned ${ry} yards`, x}); }
+        else { const rb = pick(O.rush.map(t => t[0]), O.rush.map(t => t[1])), fr = pick(X.tack, X.tack.map(() => 1)), y = Math.round(2 + R() * 4); const r = pb(pos, rb); r.car++; r.ryds += y; T.rcar++; T.ryds += y;
+          startX = clamp(100 - (x + y), 1, 99); log({kind: "fum", side: pos, to: true, text: `${O.last(rb)} rush for ${y} yards, <b>FUMBLES</b>, recovered by ${X.last(fr)}`, x}); }
+        tick(Math.round(25 + R() * 10)); brk(outcome); break;
+      }
+      if (pass) {
+        const q = pb(pos, O.qb);
+        if (!mustConvert && R() < .065) {   // sack
+          gained = -Math.round(4 + R() * 6); sackp = true; q.sk++; T.sacks++; T.sackyds -= gained;
+          text = `${O.last(O.qb)} sacked by ${X.last(pick(X.rushers, X.rushers.map(() => 1)))} for ${gained} yards`; timeUsed = 35;
+        } else {
+          const tg = pick(O.tgt.map(t => t[0]), O.tgt.map(t => t[1])), r = pb(pos, tg); q.att++; T.att++; r.tgt++;
+          let comp = R() < (mustConvert ? .78 : .64);
+          let y = Math.round(boost * Math.max(0, 3 + Math.abs(norm()) * 6.5 + (R() < .1 ? 10 + R() * 24 : 0)));
+          if (mustConvert && comp && y < need) y = need + Math.round(R() * 6);
+          if (!mustConvert && stopAt && x + y >= stopAt) { y = Math.max(0, stopAt - x - 1); if (down >= 3) comp = R() < .4 && y < need ? comp : false; }
+          if (outcome === "td" && x + y >= 100) y = toGoal;
+          if (comp) { gained = Math.min(y, toGoal); q.cmp++; T.cmp++; q.pyds += gained; r.rec++; r.cyds += gained; r.clong = Math.max(r.clong, gained); T.pyds += gained;
+            text = `${O.last(O.qb)} pass ${gained > 15 ? "deep" : "short"} ${pick(["left", "middle", "right"], [1, 1, 1])} to ${O.last(tg)} for ${gained === toGoal ? `${gained} yard${gained === 1 ? "" : "s"}, <b>TOUCHDOWN</b>` : `${gained} yard${gained === 1 ? "" : "s"}`}${gained < toGoal ? ` (${X.last(pick(X.tack, X.tack.map(() => 1)))})` : ""}`;
+            timeUsed = 35; if (gained === toGoal) { q.ptd++; r.ctd++; } }
+          else { gained = 0; inc = true; text = `${O.last(O.qb)} pass incomplete ${pick(["short", "deep"], [3, 1])} ${pick(["left", "middle", "right"], [1, 1, 1])} intended for ${O.last(tg)}`; timeUsed = 8; }
+        }
+      } else {
+        const rb = pick(O.rush.map(t => t[0]), O.rush.map(t => t[1])), r = pb(pos, rb);
+        let y = Math.round(boost * (3 + norm() * 3 + (R() < .05 ? 8 + R() * 26 : 0)));
+        if (mustConvert && y < need) y = need + Math.round(R() * 4);
+        if (!mustConvert && stopAt && x + y >= stopAt) y = Math.max(-2, stopAt - x - 1);
+        if (outcome === "td" && x + y >= 100) y = toGoal;
+        gained = Math.min(y, toGoal); r.car++; r.ryds += gained; r.rlong = Math.max(r.rlong, gained); T.rcar++; T.ryds += gained;
+        text = `${O.last(rb)} rush ${pick(["up the middle", "left end", "right tackle", "left guard", "right end"], [3, 1, 1, 1, 1])} for ${gained === toGoal ? `${gained} yard${gained === 1 ? "" : "s"}, <b>TOUCHDOWN</b>` : `${gained} yard${Math.abs(gained) === 1 ? "" : "s"}`}${gained < toGoal ? ` (${X.last(pick(X.tack, X.tack.map(() => 1)))})` : ""}`;
+        timeUsed = 35; if (gained === toGoal) r.rtd++;
+      }
+      T.plays++; plays++; yards += gained;
+      const before = {down, togo, x};
+      x += gained;
+      const td = x >= 100;
+      log({kind: "play", side: pos, text, dd: `${ord(before.down)} & ${before.togo >= 100 - before.x ? "Goal" : before.togo}`, at: spot(pos, before.x), x: Math.min(x, 100), fd: Math.min(100, x + (td ? 0 : togo)), gained});
+      if (td) {
+        score(pos, 6, "Touchdown"); const k = pb(pos, `${O.ab} K`); k.xpa++;
+        const good = R() < .945; if (good) { k.xpm++; score(pos, 1, "Extra point"); }
+        st.scoring[st.scoring.length - 1].text = `${st.ev[st.ev.length - 1].text.replace(/<[^>]+>/g, "").replace(/, TOUCHDOWN.*$/, "").replace(/ \([^)]*\)$/, "")} TD${good ? "" : " (kick failed)"}`;
+        st.scoring.splice(st.scoring.length - 2, good ? 1 : 0);
+        log({kind: "td", side: pos, sc: true, text: `<b>TOUCHDOWN ${O.T.name.toUpperCase()}</b>${good ? ", extra point good" : ", extra point no good"}`, x: 100});
+        if (before.down === 3) T.third[0]++; if (before.down === 4) T.fourth[0]++;
+        tick(timeUsed); startX = 30; brk("td"); break;
+      }
+      if (gained >= togo) { T.fd++; if (before.down === 3) T.third[0]++; if (before.down === 4) T.fourth[0]++; down = 1; togo = Math.min(10, 100 - x); }
+      else { down++; togo -= gained; if (down > 4) {   // turnover on downs
+        startX = clamp(100 - x, 1, 99); log({kind: "downs", side: pos, to: true, text: "Turnover on downs", x}); tick(timeUsed); brk("downs"); break; } }
+      if (outcome === "downs" && x >= stopAt && down < 4) { down = 4; togo = Math.max(1, togo); }
+      Object.assign(st.ev[st.ev.length - 1], {ndd: `${ord(down)} & ${togo >= 100 - x ? "Goal" : togo}`, nat: spot(pos, x), fd: Math.min(100, x + togo)});   // the next snap, for the scoreboard
+      if (outcome === "punt" && x >= stopAt && down < 4 && !inc) { down = Math.max(down, 3); }
+      if (outcome === "fg" && x >= stopAt && down < 4) { down = Math.max(down, 3); }
+      const t = tick(timeUsed);
+      if (t === "half" || t === "end") { brk(t); break; }
+    }
+    T.top += (q0 - st.q) * 900 + (t0 - st.clock) * 1 + (st.q > q0 ? (st.q - q0) * 900 : 0);   // rough time of possession
+    T.top = Math.max(0, T.top);
+    if (result === "end") { if (st.score.a !== st.score.h || st.q === 5) { ended = true; break; } }
+    if (st.q === 5 && st.score.a !== st.score.h) { ended = true; break; }
+    if (result === "end" && st.score.a === st.score.h && st.q === 4) { st.q = 5; st.clock = 600; log({kind: "q", text: "Overtime"}); pos = R() < .5 ? "a" : "h"; startX = 30; continue; }
+    if (result === "half") { pos = recv2; startX = 30; continue; }
+    if (["td", "fg"].includes(result)) { pos = def; startX = 30; log({kind: "ko", side: pos, text: `Kickoff, touchback`}); continue; }
+    if (result === "miss") { pos = def; startX = clamp(100 - Math.max(x, 20) - 7, 20, 60); continue; }
+    pos = def;
+  }
+  log({kind: "final", text: `Final${st.q === 5 ? " (OT)" : ""}`});
+  return {a, h, S, st, exp: [ea, eh], onSlate};
+}
+
+// ---------- screens ----------
+const logoOf = ab => (D.teams[ab] || {}).logo || "";
+function picker() {
+  const T = Object.entries(D.teams).sort((x, y) => (x[1].city + x[1].name).localeCompare(y[1].city + y[1].name));
+  const u = new URLSearchParams(location.search), g0 = (D.games || []).find(g => g.state !== "post") || (D.games || [])[0];
+  const a = u.get("away") || (g0 ? g0.away.abbr : T[0][0]), h = u.get("home") || (g0 ? g0.home.abbr : T[1][0]);
+  const opt = sel => T.map(([ab, t]) => `<option value="${ab}" ${ab === sel ? "selected" : ""}>${esc(t.city)} ${esc(t.name)}</option>`).join("");
+  const wk = (D.games || []).slice(0, 16).map(g => `<button class="chip" data-wk="${g.away.abbr}|${g.home.abbr}"><img src="${esc(g.away.logo)}" alt=""><img src="${esc(g.home.logo)}" alt="">${esc(g.away.abbr)} @ ${esc(g.home.abbr)}</button>`).join("");
+  return `<section class="pick"><div class="pick-r"><div><label>Away</label><select id="sa">${opt(a)}</select></div><span>@</span><div><label>Home</label><select id="sh">${opt(h)}</select></div></div>
+      <button class="go" id="go">Simulate game</button></section>
+    ${wk ? `<div class="hd"><b>This week</b><span class="hd-s">Week ${esc(D.meta.week || "")}</span></div><div class="strip wk">${wk}</div>` : ""}
+    <div class="note2">Each drive's result is drawn with odds tuned to the model's projected points for this matchup (this week's projection when the game is on the slate, otherwise the team ratings), then the plays are written to fit: down and distance, the clock, and real players chosen in proportion to their projected carries and targets. Every simulation is different.</div>`;
+}
+function scoreboard(sim, e, final) {
+  const {S} = sim, s = e ? e.score : {a: 0, h: 0}, side = k => S[k];
+  const team = k => `<div class="sb-t ${k} ${e && e.side === k && !final ? "pos" : ""}"><img src="${esc(side(k).T.logo)}" alt=""><div><b>${esc(side(k).ab)}</b><i>${esc(side(k).T.record || "")}</i></div><strong>${s[k]}</strong></div>`;
+  const mid = final ? `<b class="fin">FINAL${sim.st.q === 5 ? " / OT" : ""}</b>` : e ? `<b>${e.q === 5 ? "OT" : "Q" + e.q}</b><i>${esc(e.t)}</i>` : `<b>Q1</b><i>15:00</i>`;
+  const ballX = e && e.x != null ? e.x : 25, abs = k => (e && e.side === "h") ? 100 - k : k;   // the field reads away → home, left to right
+  const fx = v => `${8.333 + (abs(v) / 100) * 83.333}%`;
+  return `<section class="sb"><div class="sb-r">${team("a")}<div class="sb-m">${mid}</div>${team("h")}</div>
+    ${final ? "" : `<div class="dd"><span>${e && e.ndd ? `<b>${esc(e.ndd)}</b> at ${esc(e.nat)}` : e && e.dd ? `<b>${esc(e.dd)}</b> at ${esc(e.at)}` : "&nbsp;"}</span><span>${e && e.side ? esc(S[e.side].ab) + " ball" : ""}</span></div>
+    <div class="fld"><div class="ez a" style="background:${esc(S.a.T.color)}">${esc(S.a.ab)}</div><div class="ez h" style="background:${esc(S.h.T.color)}">${esc(S.h.ab)}</div>
+      ${[10, 20, 30, 40, 50, 60, 70, 80, 90].map(y => `<i class="yd" style="left:${8.333 + y * .83333}%"></i>`).join("")}
+      ${e && e.fd != null ? `<i class="fd" style="left:${fx(e.fd)}"></i>` : ""}<i class="los" style="left:${fx(ballX)}"></i><i class="ball" style="left:${fx(ballX)}"></i></div>`}</section>`;
+}
+function feedRow(e, S) {
+  if (e.kind === "q" || e.kind === "final") return `<div class="dh">${esc(e.text)}</div>`;
+  if (e.kind === "drive") return `<div class="dh"><img src="${esc(S[e.side].T.logo)}" alt="">${esc(e.text)}</div>`;
+  return `<div class="pl ${e.sc ? "sc" : ""} ${e.to ? "to" : ""}"><i>${e.q === 5 ? "OT" : "Q" + e.q} ${esc(e.t)}</i><span>${e.dd ? `<b>${esc(e.dd)}</b> · ` : ""}${e.text}</span>${e.sc ? `<em>${esc(S.a.ab)} ${e.score.a}–${e.score.h} ${esc(S.h.ab)}</em>` : ""}</div>`;
+}
+function live(sim, n) {
+  const E = sim.st.ev, shown = E.slice(0, n), last = [...shown].reverse().find(e => e.side || e.kind === "final") || null, final = n >= E.length;
+  const cur = shown[shown.length - 1] || {};
+  const ctl = final ? `<div class="ctl"><button data-v="box">Box score</button><button data-v="pbp">Play-by-play</button><button data-again="1">Sim again</button><button data-new="1">New matchup</button></div>`
+    : `<div class="ctl">${[[1, "1x"], [3, "3x"], [10, "10x"]].map(([s, l]) => `<button class="${SPEED === s ? "on" : ""}" data-sp="${s}">${l}</button>`).join("")}<button data-skip="1">Skip to final</button></div>`;
+  return scoreboard(sim, final ? {...cur, score: sim.st.score} : last && {...last, score: cur.score || last.score}, final) + ctl
+    + `<div class="list feed">${shown.slice(-60).reverse().map(e => feedRow(e, sim.S)).join("")}</div>`;
+}
+function boxScore(sim) {
+  const {S, st} = sim, A = st.team.a, H = st.team.h, tt = s => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
+  const row = (l, va, vh, better) => { const wa = better && better(va, vh) > 0, wh = better && better(va, vh) < 0;
+    return `<div class="l ${wa ? "w" : ""}">${va}</div><div class="m">${l}</div><div class="r ${wh ? "w" : ""}">${vh}</div>`; };
+  const n = x => typeof x === "number" ? x : parseFloat(x);
+  const hi = (a, b) => n(a) - n(b), lo = (a, b) => n(b) - n(a);
+  const qs = `<table class="qs"><tr><th></th><th>1</th><th>2</th><th>3</th><th>4</th>${st.q === 5 ? "<th>OT</th>" : ""}<th>T</th></tr>${["a", "h"].map(k => `<tr><td><b>${esc(S[k].ab)}</b></td>${st.qs[k].slice(0, 4).map(v => `<td>${v}</td>`).join("")}${st.q === 5 ? `<td>${st.qs[k].ot || 0}</td>` : ""}<td>${st.score[k]}</td></tr>`).join("")}</table>`;
+  const team = `<div class="ts">${row(`<b>${esc(S.a.ab)}</b>`, "", "")}${row("First downs", A.fd, H.fd, hi)}${row("Total yards", A.pyds - A.sackyds + A.ryds, H.pyds - H.sackyds + H.ryds, hi)}
+    ${row("Passing", A.pyds - A.sackyds, H.pyds - H.sackyds, hi)}${row("Comp / att", `${A.cmp}/${A.att}`, `${H.cmp}/${H.att}`)}${row("Rushing", `${A.ryds} (${A.rcar})`, `${H.ryds} (${H.rcar})`, hi)}
+    ${row("Third down", `${A.third[0]}/${A.third[1]}`, `${H.third[0]}/${H.third[1]}`)}${row("Sacks taken", A.sacks, H.sacks, lo)}${row("Turnovers", A.to, H.to, lo)}${row("Plays", A.plays, H.plays)}</div>`.replace(`<div class="m"><b>${esc(S.a.ab)}</b></div>`, `<div class="m"></div>`);
+  const players = k => { const B = Object.values(st.box).filter(p => p.side === k);
+    const P = B.filter(p => p.att).sort((x, y) => y.att - x.att), Ru = B.filter(p => p.car).sort((x, y) => y.ryds - x.ryds), Re = B.filter(p => p.tgt).sort((x, y) => y.cyds - x.cyds), K = B.filter(p => p.fga || p.xpa);
+    return `<div class="bxh"><img src="${esc(S[k].T.logo)}" alt="">${esc(S[k].T.city)} ${esc(S[k].T.name)}</div>
+      <table class="bx"><tr><th>Passing</th><th>C/ATT</th><th>YDS</th><th>TD</th><th>INT</th><th>SK</th></tr>${P.map(p => `<tr><td><b>${esc(p.name)}</b></td><td>${p.cmp}/${p.att}</td><td>${p.pyds}</td><td>${p.ptd}</td><td>${p.int}</td><td>${p.sk}</td></tr>`).join("")}</table>
+      <table class="bx"><tr><th>Rushing</th><th>CAR</th><th>YDS</th><th>AVG</th><th>TD</th><th>LNG</th></tr>${Ru.map(p => `<tr><td><b>${esc(p.name)}</b></td><td>${p.car}</td><td>${p.ryds}</td><td>${(p.ryds / p.car).toFixed(1)}</td><td>${p.rtd}</td><td>${p.rlong}</td></tr>`).join("")}</table>
+      <table class="bx"><tr><th>Receiving</th><th>REC</th><th>TGT</th><th>YDS</th><th>TD</th><th>LNG</th></tr>${Re.map(p => `<tr><td><b>${esc(p.name)}</b></td><td>${p.rec}</td><td>${p.tgt}</td><td>${p.cyds}</td><td>${p.ctd}</td><td>${p.clong}</td></tr>`).join("")}</table>
+      ${K.length ? `<table class="bx"><tr><th>Kicking</th><th>FG</th><th>LNG</th><th>XP</th><th>PTS</th></tr>${K.map(p => `<tr><td><b>${esc(p.name)}</b></td><td>${p.fgm}/${p.fga}</td><td>${p.flong || "–"}</td><td>${p.xpm}/${p.xpa}</td><td>${3 * p.fgm + p.xpm}</td></tr>`).join("")}</table>` : ""}`; };
+  const scoring = `<div class="list">${st.scoring.map(s => `<div class="pl sc"><i>${s.q === 5 ? "OT" : "Q" + s.q} ${esc(s.t)}</i><span><b>${esc(S[s.side].ab)}</b> · ${esc(s.text)}</span><em>${s.a}–${s.h}</em></div>`).join("") || `<div class="bk-empty">No scoring.</div>`}</div>`;
+  return scoreboard(sim, {score: st.score}, true)
+    + `<div class="ctl"><button class="on" data-v="box">Box score</button><button data-v="pbp">Play-by-play</button><button data-again="1">Sim again</button><button data-new="1">New matchup</button></div>`
+    + `<div class="hd"><b>Scoring</b></div><div class="card" style="padding:0">${qs}</div>${scoring}`
+    + `<div class="hd"><b>Team stats</b><span class="hd-s">Model projection ${esc(S.a.ab)} ${sim.exp[0].toFixed(1)} – ${sim.exp[1].toFixed(1)} ${esc(S.h.ab)}</span></div><div class="card" style="padding:0">${team}</div>`
+    + `<div class="hd"><b>Player stats</b></div><div class="card" style="padding:0 0 8px">${players("a")}</div><div class="card" style="padding:0 0 8px">${players("h")}</div>`;
+}
+function pbpAll(sim) {
+  return scoreboard(sim, {score: sim.st.score}, true)
+    + `<div class="ctl"><button data-v="box">Box score</button><button class="on" data-v="pbp">Play-by-play</button><button data-again="1">Sim again</button><button data-new="1">New matchup</button></div>`
+    + `<div class="list feed">${sim.st.ev.map(e => feedRow(e, sim.S)).join("")}</div>`;
+}
+let N = 0;
+function render() {
+  const v = $("#view");
+  if (!SIM) { v.innerHTML = picker(); wirePick(); return; }
+  const done = N >= SIM.st.ev.length;
+  v.innerHTML = done && VIEW === "box" ? boxScore(SIM) : done && VIEW === "pbp" ? pbpAll(SIM) : live(SIM, N);
+  v.querySelectorAll("[data-sp]").forEach(b => b.onclick = () => { SPEED = +b.dataset.sp; run(); render(); });
+  v.querySelectorAll("[data-skip]").forEach(b => b.onclick = () => { N = SIM.st.ev.length; VIEW = "box"; clearTimeout(TIMER); render(); window.scrollTo(0, 0); });
+  v.querySelectorAll("[data-v]").forEach(b => b.onclick = () => { VIEW = b.dataset.v; render(); window.scrollTo(0, 0); });
+  v.querySelectorAll("[data-again]").forEach(b => b.onclick = () => start(SIM.a, SIM.h));
+  v.querySelectorAll("[data-new]").forEach(b => b.onclick = () => { clearTimeout(TIMER); SIM = null; render(); });
+}
+function run() {
+  clearTimeout(TIMER);
+  const step = () => { if (!SIM || N >= SIM.st.ev.length) { VIEW = "box"; render(); return; } N++; render(); TIMER = setTimeout(step, Math.max(40, 1100 / SPEED)); };
+  TIMER = setTimeout(step, Math.max(40, 1100 / SPEED));
+}
+function start(a, h) { if (a === h) return; SIM = simulate(a, h); N = 1; VIEW = "live"; history.replaceState(null, "", `?away=${a}&home=${h}`); render(); window.scrollTo(0, 0); run(); }
+function wirePick() {
+  $("#go").onclick = () => start($("#sa").value, $("#sh").value);
+  document.querySelectorAll("[data-wk]").forEach(b => b.onclick = () => { const [a, h] = b.dataset.wk.split("|"); $("#sa").value = a; $("#sh").value = h; start(a, h); });
+}
+fetch("nfl.json?v=" + Date.now()).then(r => r.json()).then(d => { D = d; for (const g of D.games || []) for (const t of [g.home, g.away]) if (D.teams[t.abbr] && !D.teams[t.abbr].logo) D.teams[t.abbr].logo = t.logo; render(); })
+  .catch(() => { $("#view").innerHTML = `<div class="empty"><div class="t">Couldn't load the NFL data</div></div>`; });
+</script>
+</body>
+</html>
