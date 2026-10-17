@@ -8,7 +8,8 @@ def inline(html: str) -> str:
     css = open(os.path.join(HERE, "core.css")).read()
     js = "\n".join(open(os.path.join(HERE, n)).read() for n in ("health.js", "book.js", "proj.js"))
     sim = open(os.path.join(HERE, "sim.css")).read()   # the game simulators' shared screens
-    return html.replace("/*CALIB_CSS*/", css).replace("/*SIM_CSS*/", sim).replace("/*CALIB_JS*/", js)
+    sim_js = open(os.path.join(HERE, "sim.js")).read()
+    return html.replace("/*CALIB_CSS*/", css).replace("/*SIM_CSS*/", sim).replace("/*SIM_JS*/", sim_js).replace("/*CALIB_JS*/", js)
 
 
 # offline-capable, installable app: network first (always fresh prices), the last copy when offline

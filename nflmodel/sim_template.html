@@ -11,289 +11,332 @@
 <style>
 /*CALIB_CSS*/
 /*SIM_CSS*/
+/* ---------- the field ---------- */
+.fld { position: relative; height: 70px; margin: 0 14px 14px; border-radius: 8px; overflow: hidden; background: #1d5230; }
+.fld .gr { position: absolute; top: 0; bottom: 0; left: 8.333%; right: 8.333%; background: repeating-linear-gradient(90deg, #1d5230 0 10%, #205a35 10% 20%); }
+.fld .ez { position: absolute; top: 0; bottom: 0; width: 8.333%; display: grid; place-items: center; }
+.fld .ez b { font-size: 10px; font-weight: 700; color: rgba(255,255,255,.9); letter-spacing: .12em; writing-mode: vertical-rl; }
+.fld .ez.a { left: 0; } .fld .ez.a b { transform: rotate(180deg); } .fld .ez.h { right: 0; }
+.fld .yl { position: absolute; top: 0; bottom: 0; width: 1px; background: rgba(255,255,255,.22); }
+.fld .yn { position: absolute; bottom: 4px; font-size: 9px; font-weight: 700; color: rgba(255,255,255,.4); transform: translateX(-50%); }
+.fld .los, .fld .fd { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; transition: left .35s ease; }
+.fld .los { background: #6fb3ff; } .fld .fd { background: #f5c84b; }
+.fld .ball { position: absolute; top: 42%; width: 14px; height: 9px; margin: -4.5px 0 0 -7px; border-radius: 50%; background: #8b4a20; border: 1px solid #f3e3cf; transition: left .35s ease; box-shadow: 0 1px 3px rgba(0,0,0,.5); }
 </style>
 </head>
 <body class="sim">
 <div class="wrap">
-  <div class="hdr"><div class="sim-top"><a href="nfl.html">‹ NFL</a><b>Game sim</b><img class="mlogo" src="pikt-wordmark.png" alt="Pikt"></div></div>
+  <div class="hdr"><div class="sx-top"><a href="nfl.html" id="back"></a><b>Game sim</b><img class="mlogo" src="pikt-wordmark.png" alt="Pikt"></div></div>
   <div id="view"><div class="empty"><div class="t">Loading teams…</div></div></div>
 </div>
 <script>
-"use strict";
-const $ = s => document.querySelector(s);
-const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
-let D = null, SIM = null, TIMER = null, SPEED = 1, VIEW = "live";
+/*SIM_JS*/
+$("#back").innerHTML = ICON.back + "NFL";
+const nm = n => GEN.has(n) ? n : lastName(n), tk = who => who ? `(${esc(nm(who))})` : "";
+let D = null;
+const TM = {}, CALK = {}, GEN = new Set(), FORM = .12, SIM_VER = "3|";   // bump when the engine changes so saved tunings are redone
 
-// ---------- randomness ----------
-const R = Math.random;
-const pick = (arr, w) => { const t = w.reduce((a, b) => a + b, 0); let x = R() * t; for (let i = 0; i < arr.length; i++) { x -= w[i]; if (x <= 0) return arr[i]; } return arr[arr.length - 1]; };
-const norm = () => { let u = 0, v = 0; while (!u) u = R(); while (!v) v = R(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
-const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
-
-// ---------- teams and rosters from the NFL model ----------
-function roster(ab) {
-  const T = D.teams[ab], L = ((D.lineups || {})[ab] || {}), off = (L.off || {}).players || [], def = (L.def || {}).players || [];
-  const P = (D.players || []).filter(p => p.team === ab);
-  const last = n => { const w = String(n).split(" "); return w.length > 1 && /^(jr\.?|sr\.?|ii|iii|iv)$/i.test(w[w.length - 1]) ? w[w.length - 2] : w[w.length - 1]; };
-  const qb = (off.find(p => p.slot === "QB") || {}).name || (P.find(p => p.role === "QB") || {}).name || `${ab} QB`;
-  let rush = P.filter(p => p.car > 0.3 && p.role !== "QB").map(p => [p.name, p.car]);
-  const qbRun = (P.find(p => p.role === "QB") || {}).car || 2.5;
-  if (!rush.length) rush = off.filter(p => p.slot === "RB").map(p => [p.name, 12]).concat([[`${ab} RB2`, 4]]);
-  if (!rush.length) rush = [[`${ab} RB`, 14], [`${ab} RB2`, 5]];
-  rush.push([qb, qbRun]);
-  let tgt = P.filter(p => p.tgt > 0.3).map(p => [p.name, p.tgt]);
-  if (!tgt.length) tgt = off.filter(p => ["WR", "TE", "RB"].includes(p.slot)).map(p => [p.name, p.slot === "WR" ? 7 : p.slot === "TE" ? 5 : 3]);
-  if (!tgt.length) tgt = [[`${ab} WR1`, 8], [`${ab} WR2`, 6], [`${ab} TE`, 5], [`${ab} RB`, 3]];
-  const dnames = def.map(p => p.name);
-  const tack = dnames.length ? dnames : [`${ab} LB`, `${ab} S`, `${ab} CB`];
-  const rushers = def.filter(p => ["DL", "LB"].includes(p.slot)).map(p => p.name);
-  const dbs = def.filter(p => ["CB", "S"].includes(p.slot)).map(p => p.name);
-  return {ab, T, qb, rush, tgt, tack, rushers: rushers.length ? rushers : tack, dbs: dbs.length ? dbs : tack, last};
+// ---------- teams, from the NFL model ----------
+// Each offence plays to its players' projections: who gets the carries and targets, each receiver's catch rate and
+// yards per catch, each runner's yards per carry, and the team's run/pass mix from its quarterback's projected attempts.
+function team(ab) {
+  if (TM[ab]) return TM[ab];
+  const T = D.teams[ab] || {}, L = (D.lineups || {})[ab] || {}, off = (L.off || {}).players || [], def = (L.def || {}).players || [];
+  const P = (D.players || []).filter(p => p.team === ab && !/^(out|ir|doubtful)/i.test(p.status || ""));
+  const gen = role => { const n = `${T.name || ab} ${role}`; GEN.add(n); return n; };   // a stand-in when the model lists no one
+  const qbP = P.find(p => p.role === "QB"), qb = qbP ? qbP.name : (off.find(p => p.slot === "QB") || {}).name || gen("QB");
+  let rush = P.filter(p => p.car > .2).map(p => ({name: p.name, p, w: p.car, ypc: clamp(1.07 * p.rush_yds / p.car, 2.4, 8.5), qb: p.role === "QB"}));
+  if (!rush.some(r => !r.qb)) { const rb = off.filter(p => p.slot === "RB").map(p => p.name); rush.push({name: rb[0] || gen("RB"), w: 15, ypc: 4.3}, {name: rb[1] || gen("RB2"), w: 5, ypc: 4.1}); }
+  if (!rush.some(r => r.qb)) rush.push({name: qb, w: 2.8, ypc: 4.8, qb: true});
+  let tgt = P.filter(p => p.tgt > .2).map(p => ({name: p.name, p, w: p.tgt, cr: clamp(p.rec / p.tgt, .42, .9), ypr: clamp(p.rec_yds / Math.max(.1, p.rec), 4, 19)}));
+  if (!tgt.length) { const nm = s => off.filter(p => p.slot === s).map(p => p.name);
+    const W = nm("WR"), TE = nm("TE"), RB = nm("RB");
+    tgt = [[W[0] || gen("WR1"), 7.5, .64, 13], [W[1] || gen("WR2"), 6, .63, 12.5], [W[2] || gen("WR3"), 4, .62, 11.5], [TE[0] || gen("TE"), 5, .7, 10.5], [RB[0] || gen("RB"), 3.5, .78, 7.5]]
+      .map(([name, w, cr, ypr]) => ({name, w, cr, ypr})); }
+  const att = qbP && qbP.att ? qbP.att : 33;
+  // the model lists a team's main targets and ball carriers; the rest of its targets and carries go to depth players
+  const listed = new Set(tgt.concat(rush).map(r => r.name)), depth = s => off.filter(p => s.includes(p.slot) && !listed.has(p.name)).map(p => p.name);
+  const tgtGap = att * .95 - tgt.reduce((s, r) => s + r.w, 0), carGap = 26.5 - rush.reduce((s, r) => s + r.w, 0);
+  if (tgtGap > .5) { const d = depth(["WR", "TE"]); tgt.push({name: d[0] || gen("WR"), w: tgtGap * .6, cr: .62, ypr: 11}, {name: d[1] || gen("TE"), w: tgtGap * .4, cr: .68, ypr: 9.5}); }
+  if (carGap > .5) { const d = depth(["RB"]); rush.push({name: d[0] || gen("RB2"), w: carGap, ypc: 4.1}); }
+  // receivers' yards per catch scaled so a pass attempt averages the quarterback's projected yards per attempt
+  const ypaQB = qbP && qbP.pass_yds && qbP.att ? qbP.pass_yds / qbP.att : null, wsum = tgt.reduce((s, r) => s + r.w, 0);
+  if (ypaQB) { const f = clamp(ypaQB / (tgt.reduce((s, r) => s + r.w * r.cr * r.ypr, 0) / wsum), .7, 1.35); for (const r of tgt) r.ypr *= f; }
+  const car = rush.reduce((s, r) => s + r.w, 0), drop = att / (1 - .066);
+  const dn = s => def.filter(p => s.includes(p.slot)).map(p => p.name);
+  const tack = def.map(p => p.name), rushers = dn(["DL", "LB", "EDGE"]), dbs = dn(["CB", "S"]);
+  return TM[ab] = {ab, name: T.name || ab, full: `${T.city || ""} ${T.name || ab}`.trim(), color: sxVis(T.color, T.color2), logo: T.logo, record: T.record || "",
+    qb, qbP, rush, tgt, att, passRate: clamp(drop / (drop + car), .45, .72),
+    tack: tack.length ? tack : [""], rushers: rushers.length ? rushers : [gen("pass rush")], dbs: dbs.length ? dbs : [gen("secondary")]};
 }
-// expected points: this week's model projection when the matchup is on the slate, else the team ratings
+const gameOf = (a, h) => (D.games || []).find(x => x.home.abbr === h && x.away.abbr === a);
 function expected(a, h) {
-  const g = (D.games || []).find(x => x.home.abbr === h && x.away.abbr === a);
-  if (g && g.pts_home != null) return [g.pts_away, g.pts_home, true];
-  const A = D.teams[a] || {}, H = D.teams[h] || {}, M = 22.4, m = (H.pts || 0) - (A.pts || 0) + 1.5;
-  return [M - m / 2, M + m / 2, false];
+  const g = gameOf(a, h); if (g && g.pts_home != null) return [g.pts_away, g.pts_home];
+  const A = D.teams[a] || {}, H = D.teams[h] || {}, m = (H.pts || 0) - (A.pts || 0) + 1.5;
+  return [22.4 - m / 2, 22.4 + m / 2];
+}
+function pModel(a, h) {
+  const g = gameOf(a, h); if (g && g.p_home != null) return g.p_home;
+  const [ea, eh] = expected(a, h), z = (eh - ea) / 13.5;   // margin spread of NFL games
+  return 1 / (1 + Math.exp(-1.702 * z));
+}
+// tune each offence's efficiency until its average score matches the model's projection for this matchup
+function prepare(a, h) {
+  const key = a + "|" + h; if (CALK[key]) return CALK[key];
+  const saved = sxCalGet("nfl", SIM_VER + (D.meta.generated_at || D.meta.week), key); if (saved) return CALK[key] = saved;
+  const [ea, eh] = expected(a, h); let k = {a: 1, h: 1};
+  for (const n of [250, 400, 800, 1500]) {
+    CALK[key] = k; let sa = 0, sh = 0;
+    for (let i = 0; i < n; i++) { const s = simulate(a, h, true); sa += s.final.a; sh += s.final.h; }
+    k = {a: clamp(k.a * Math.pow(ea / Math.max(3, sa / n), .55), .5, 2), h: clamp(k.h * Math.pow(eh / Math.max(3, sh / n), .55), .5, 2)};
+  }
+  sxCalPut("nfl", SIM_VER + (D.meta.generated_at || D.meta.week), key, k);
+  return CALK[key] = k;
 }
 
-// ---------- the simulation ----------
-// Each drive's outcome is drawn first, with odds tuned so a team's average score equals the model's projection;
-// then the plays are written to fit: real down and distance, the clock, and players chosen in proportion to their
-// projected carries and targets.
-const BASE = {td: .23, fg: .155, punt: .38, int: .065, fum: .05, downs: .06};
-function driveOdds(exp) {
-  const k = clamp(exp * 1.36 / 22.8, .3, 2.4), td = clamp(.23 * Math.pow(k, 1.15), .07, .5), fg = clamp(.155 * Math.pow(k, .55), .07, .26);
-  const rest = 1 - td - fg, b = BASE.punt + BASE.int + BASE.fum + BASE.downs;
-  return {td, fg, punt: rest * BASE.punt / b, int: rest * BASE.int / b, fum: rest * BASE.fum / b, downs: rest * BASE.downs / b};
-}
-function simulate(a, h) {
-  const [ea, eh, onSlate] = expected(a, h), S = {a: roster(a), h: roster(h)}, odds = {a: driveOdds(ea), h: driveOdds(eh)};
-  const st = {score: {a: 0, h: 0}, q: 1, clock: 900, ev: [], qs: {a: [0, 0, 0, 0], h: [0, 0, 0, 0]}, box: {}, team: {a: tstat(), h: tstat()}, scoring: [], drives: []};
-  function tstat() { return {fd: 0, plays: 0, pyds: 0, ryds: 0, rcar: 0, cmp: 0, att: 0, sacks: 0, sackyds: 0, to: 0, third: [0, 0], fourth: [0, 0], top: 0, pen: 0}; }
-  const pb = (side, name) => { const k = side + "|" + name; return st.box[k] || (st.box[k] = {side, name, cmp: 0, att: 0, pyds: 0, ptd: 0, int: 0, sk: 0, car: 0, ryds: 0, rtd: 0, rlong: 0, rec: 0, tgt: 0, cyds: 0, ctd: 0, clong: 0, fgm: 0, fga: 0, xpm: 0, xpa: 0, flong: 0}); };
-  const spot = (side, x) => x === 50 ? "50" : x < 50 ? `${S[side].ab} ${x}` : `${S[side === "a" ? "h" : "a"].ab} ${100 - x}`;
+// ---------- the engine: one snap at a time ----------
+function simulate(a, h, Q) {
+  const S = {a: team(a), h: team(h)}, K0 = CALK[a + "|" + h] || {a: 1, h: 1};
+  const K = {a: K0.a * Math.exp(FORM * norm()), h: K0.h * Math.exp(FORM * norm())};   // each offence has a good or bad day
+  const ts = () => ({plays: 0, fd: 0, pyds: 0, ryds: 0, rcar: 0, cmp: 0, att: 0, sacks: 0, sackYds: 0, to: 0, third: [0, 0], fourth: [0, 0], top: 0, pens: 0});
+  const st = {q: 1, clock: 900, score: {a: 0, h: 0}, qs: {a: [0, 0, 0, 0, 0], h: [0, 0, 0, 0, 0]}, team: {a: ts(), h: ts()}, box: {}, scoring: []};
+  const ev = [], opp = k => k === "a" ? "h" : "a", ord = ["", "1st", "2nd", "3rd", "4th"];
+  const pb = (k, name, p) => st.box[k + "|" + name] || (st.box[k + "|" + name] = {k, name, p, cmp: 0, att: 0, pyds: 0, ptd: 0, int: 0, sk: 0, car: 0, ryds: 0, rtd: 0, rlong: 0, rec: 0, tgt: 0, cyds: 0, ctd: 0, clong: 0, fgm: 0, fga: 0, flong: 0, xpm: 0, xpa: 0, sacks: 0, ints: 0});
+  const pl = () => st.q === 5 ? "OT" : "Q" + st.q;
   const clk = () => `${Math.floor(st.clock / 60)}:${String(st.clock % 60).padStart(2, "0")}`;
-  const ord = d => ["1st", "2nd", "3rd", "4th"][d - 1];
-  const log = (o) => st.ev.push(Object.assign({q: st.q, t: clk(), score: {...st.score}}, o));
-  const tick = s => {   // returns true when the quarter ends
+  const spot = (k, y) => y === 50 ? "the 50" : y < 50 ? `${S[k].ab} ${y}` : `${S[opp(k)].ab} ${100 - y}`;
+  const yds = n => `${n} yard${Math.abs(n) === 1 ? "" : "s"}`;
+  const say = (o, f) => { if (Q) return null; const e = Object.assign({pl: pl(), t: clk(), score: {...st.score}}, o, {text: f()}); ev.push(e); return e; };
+  let pos = "a", x = 25, down = 1, togo = 10, over = false, otPoss = 0;
+  const half2 = R() < .5 ? "a" : "h";
+  const lead = () => st.score[pos] - st.score[opp(pos)];
+  const hurry = () => (st.q === 2 && st.clock <= 120) || (st.q >= 4 && st.clock <= 240 && lead() < 0);
+  const snapTime = () => hurry() ? 15 + Math.round(R() * 7) : st.q >= 4 && lead() > 0 ? 40 + Math.round(R() * 4) : 36 + Math.round(R() * 7);
+
+  function tick(s) {   // run the clock; returns "half" when a new half or overtime began, "end" when the game is over
+    st.team[pos].top += Math.min(s, st.clock);
     st.clock = Math.max(0, st.clock - s);
-    if (st.clock > 0) return false;
-    if (st.q === 4 || st.q === 5) return "end";
-    st.q++; st.clock = st.q === 5 ? 600 : 900; log({kind: "q", text: st.q === 3 ? "Halftime" : st.q === 5 ? "Overtime" : `End of quarter ${st.q - 1}`});
-    return st.q === 3 ? "half" : "q";
-  };
-  const score = (side, pts, text) => { st.score[side] += pts; st.qs[side][Math.min(3, st.q - 1)] += pts; st.qs[side].ot = (st.qs[side].ot || 0) + (st.q === 5 ? pts : 0); st.scoring.push({q: st.q, t: clk(), side, text, a: st.score.a, h: st.score.h}); };
-  let pos = "a", startX = 25, recv2 = "h";   // away receives the opening kickoff
-  log({kind: "q", text: "Kickoff"});
-  let ended = false, drives = 0;
-  while (!ended && drives < 40) {
-    drives++;
-    const def = pos === "a" ? "h" : "a", O = S[pos], X = S[def], od = odds[pos], T = st.team[pos];
-    const outcome = pick(["td", "fg", "punt", "int", "fum", "downs"], [od.td, od.fg, od.punt, od.int, od.fum, od.downs]);
-    let x = startX, down = 1, togo = 10, plays = 0, yards = 0, t0 = st.clock, q0 = st.q, result = null, stopAt = null;
-    // where this drive is allowed to get to before its outcome happens
-    if (outcome === "fg") stopAt = clamp(Math.round(62 + R() * 28), Math.max(x + 8, 60), 92);
-    if (outcome === "punt") stopAt = clamp(Math.round(x + 4 + R() * 30), x + 2, 62);
-    if (outcome === "downs") stopAt = clamp(Math.round(x + 10 + R() * 35), x + 6, 85);
-    if (outcome === "int" || outcome === "fum") stopAt = clamp(Math.round(x + R() * 45), x + 1, 92);
-    st.drives.push({side: pos, q: st.q, t: clk(), start: spot(pos, x)});
-    log({kind: "drive", side: pos, text: `${O.T.name} ball at ${spot(pos, x)}`, x, fd: Math.min(100, x + 10), ndd: "1st & 10", nat: spot(pos, x)});
-    const brk = (why) => { result = why; };
-    while (!result) {
-      const fourth = down === 4, need = togo, toGoal = 100 - x;
-      // decisions on 4th down
-      if (fourth) {
-        if (outcome === "fg" || (outcome !== "td" && outcome !== "downs" && x >= 62)) {
-          const dist = 117 - x, kick = pb(pos, `${O.ab} K`); kick.fga++; T.plays++;
-          const make = R() < clamp(1.02 - (dist - 25) * .0115, .35, .99);
-          if (make) { kick.fgm++; kick.flong = Math.max(kick.flong, dist); score(pos, 3, `${dist}-yd field goal`); log({kind: "fg", side: pos, sc: true, text: `<b>${dist}-yard field goal is GOOD</b>`, x}); }
-          else log({kind: "fg", side: pos, to: true, text: `${dist}-yard field goal is NO GOOD`, x});
-          tick(5); brk(make ? "fg" : "miss"); break;
-        }
-        if (outcome === "punt" || x < 45) {
-          const net = clamp(Math.round(42 + norm() * 7), 25, 60), land = x + net;
-          T.plays++;
-          if (land >= 100) { log({kind: "punt", side: pos, text: `Punt ${100 - x} yards, touchback`, x}); startX = 20; }
-          else { const ret = Math.max(0, Math.round(6 + norm() * 5)); startX = clamp(100 - land + ret, 5, 60); log({kind: "punt", side: pos, text: `Punt ${net} yards${ret ? `, returned ${ret}` : ", fair catch"}`, x}); }
-          tick(6); brk("punt"); break;
-        }
-        T.fourth[1]++;
-      }
-      if (down === 3) T.third[1]++;
-      // the play
-      const goForIt = outcome === "td" || (outcome === "downs" && x < stopAt) || (stopAt && x < stopAt) || (fourth && outcome !== "downs");
-      const mustConvert = down >= 3 && (outcome === "td" || (stopAt && x + need < stopAt));   // early downs play out naturally
-      const boost = outcome === "td" ? 1.55 : outcome === "fg" ? 1.25 : 1;   // scoring drives move the ball faster
-      const pass = R() < (down === 3 && togo > 4 ? .82 : togo > 7 ? .66 : .52);
-      let gained, text, inc = false, timeUsed = 0, turnover = false, sackp = false;
-      // turnovers land when the drive reaches its spot
-      if ((outcome === "int" || outcome === "fum") && x >= stopAt - 1) {
-        T.to++; T.plays++;
-        if (outcome === "int") { const tg = pick(O.tgt.map(t => t[0]), O.tgt.map(t => t[1])), dbn = pick(X.dbs, X.dbs.map(() => 1)), q = pb(pos, O.qb); q.att++; q.int++; T.att++; pb(pos, tg).tgt++;
-          const ry = Math.max(0, Math.round(8 + norm() * 10)); startX = clamp(100 - (x + Math.round(10 + R() * 15)) + ry, 1, 95);
-          log({kind: "int", side: pos, to: true, text: `${O.last(O.qb)} pass intended for ${O.last(tg)} <b>INTERCEPTED</b> by ${X.last(dbn)}, returned ${ry} yards`, x}); }
-        else { const rb = pick(O.rush.map(t => t[0]), O.rush.map(t => t[1])), fr = pick(X.tack, X.tack.map(() => 1)), y = Math.round(2 + R() * 4); const r = pb(pos, rb); r.car++; r.ryds += y; T.rcar++; T.ryds += y;
-          startX = clamp(100 - (x + y), 1, 99); log({kind: "fum", side: pos, to: true, text: `${O.last(rb)} rush for ${y} yards, <b>FUMBLES</b>, recovered by ${X.last(fr)}`, x}); }
-        tick(Math.round(25 + R() * 10)); brk(outcome); break;
-      }
-      if (pass) {
-        const q = pb(pos, O.qb);
-        if (!mustConvert && R() < .065) {   // sack
-          gained = -Math.round(4 + R() * 6); sackp = true; q.sk++; T.sacks++; T.sackyds -= gained;
-          text = `${O.last(O.qb)} sacked by ${X.last(pick(X.rushers, X.rushers.map(() => 1)))} for ${gained} yards`; timeUsed = 35;
-        } else {
-          const tg = pick(O.tgt.map(t => t[0]), O.tgt.map(t => t[1])), r = pb(pos, tg); q.att++; T.att++; r.tgt++;
-          let comp = R() < (mustConvert ? .78 : .64);
-          let y = Math.round(boost * Math.max(0, 3 + Math.abs(norm()) * 6.5 + (R() < .1 ? 10 + R() * 24 : 0)));
-          if (mustConvert && comp && y < need) y = need + Math.round(R() * 6);
-          if (!mustConvert && stopAt && x + y >= stopAt) { y = Math.max(0, stopAt - x - 1); if (down >= 3) comp = R() < .4 && y < need ? comp : false; }
-          if (outcome === "td" && x + y >= 100) y = toGoal;
-          if (comp) { gained = Math.min(y, toGoal); q.cmp++; T.cmp++; q.pyds += gained; r.rec++; r.cyds += gained; r.clong = Math.max(r.clong, gained); T.pyds += gained;
-            text = `${O.last(O.qb)} pass ${gained > 15 ? "deep" : "short"} ${pick(["left", "middle", "right"], [1, 1, 1])} to ${O.last(tg)} for ${gained === toGoal ? `${gained} yard${gained === 1 ? "" : "s"}, <b>TOUCHDOWN</b>` : `${gained} yard${gained === 1 ? "" : "s"}`}${gained < toGoal ? ` (${X.last(pick(X.tack, X.tack.map(() => 1)))})` : ""}`;
-            timeUsed = 35; if (gained === toGoal) { q.ptd++; r.ctd++; } }
-          else { gained = 0; inc = true; text = `${O.last(O.qb)} pass incomplete ${pick(["short", "deep"], [3, 1])} ${pick(["left", "middle", "right"], [1, 1, 1])} intended for ${O.last(tg)}`; timeUsed = 8; }
-        }
-      } else {
-        const rb = pick(O.rush.map(t => t[0]), O.rush.map(t => t[1])), r = pb(pos, rb);
-        let y = Math.round(boost * (3 + norm() * 3 + (R() < .05 ? 8 + R() * 26 : 0)));
-        if (mustConvert && y < need) y = need + Math.round(R() * 4);
-        if (!mustConvert && stopAt && x + y >= stopAt) y = Math.max(-2, stopAt - x - 1);
-        if (outcome === "td" && x + y >= 100) y = toGoal;
-        gained = Math.min(y, toGoal); r.car++; r.ryds += gained; r.rlong = Math.max(r.rlong, gained); T.rcar++; T.ryds += gained;
-        text = `${O.last(rb)} rush ${pick(["up the middle", "left end", "right tackle", "left guard", "right end"], [3, 1, 1, 1, 1])} for ${gained === toGoal ? `${gained} yard${gained === 1 ? "" : "s"}, <b>TOUCHDOWN</b>` : `${gained} yard${Math.abs(gained) === 1 ? "" : "s"}`}${gained < toGoal ? ` (${X.last(pick(X.tack, X.tack.map(() => 1)))})` : ""}`;
-        timeUsed = 35; if (gained === toGoal) r.rtd++;
-      }
-      T.plays++; plays++; yards += gained;
-      const before = {down, togo, x};
-      x += gained;
-      const td = x >= 100;
-      log({kind: "play", side: pos, text, dd: `${ord(before.down)} & ${before.togo >= 100 - before.x ? "Goal" : before.togo}`, at: spot(pos, before.x), x: Math.min(x, 100), fd: Math.min(100, x + (td ? 0 : togo)), gained});
-      if (td) {
-        score(pos, 6, "Touchdown"); const k = pb(pos, `${O.ab} K`); k.xpa++;
-        const good = R() < .945; if (good) { k.xpm++; score(pos, 1, "Extra point"); }
-        st.scoring[st.scoring.length - 1].text = `${st.ev[st.ev.length - 1].text.replace(/<[^>]+>/g, "").replace(/, TOUCHDOWN.*$/, "").replace(/ \([^)]*\)$/, "")} TD${good ? "" : " (kick failed)"}`;
-        st.scoring.splice(st.scoring.length - 2, good ? 1 : 0);
-        log({kind: "td", side: pos, sc: true, text: `<b>TOUCHDOWN ${O.T.name.toUpperCase()}</b>${good ? ", extra point good" : ", extra point no good"}`, x: 100});
-        if (before.down === 3) T.third[0]++; if (before.down === 4) T.fourth[0]++;
-        tick(timeUsed); startX = 30; brk("td"); break;
-      }
-      if (gained >= togo) { T.fd++; if (before.down === 3) T.third[0]++; if (before.down === 4) T.fourth[0]++; down = 1; togo = Math.min(10, 100 - x); }
-      else { down++; togo -= gained; if (down > 4) {   // turnover on downs
-        startX = clamp(100 - x, 1, 99); log({kind: "downs", side: pos, to: true, text: "Turnover on downs", x}); tick(timeUsed); brk("downs"); break; } }
-      if (outcome === "downs" && x >= stopAt && down < 4) { down = 4; togo = Math.max(1, togo); }
-      Object.assign(st.ev[st.ev.length - 1], {ndd: `${ord(down)} & ${togo >= 100 - x ? "Goal" : togo}`, nat: spot(pos, x), fd: Math.min(100, x + togo)});   // the next snap, for the scoreboard
-      if (outcome === "punt" && x >= stopAt && down < 4 && !inc) { down = Math.max(down, 3); }
-      if (outcome === "fg" && x >= stopAt && down < 4) { down = Math.max(down, 3); }
-      const t = tick(timeUsed);
-      if (t === "half" || t === "end") { brk(t); break; }
-    }
-    T.top += (q0 - st.q) * 900 + (t0 - st.clock) * 1 + (st.q > q0 ? (st.q - q0) * 900 : 0);   // rough time of possession
-    T.top = Math.max(0, T.top);
-    if (result === "end") { if (st.score.a !== st.score.h || st.q === 5) { ended = true; break; } }
-    if (st.q === 5 && st.score.a !== st.score.h) { ended = true; break; }
-    if (result === "end" && st.score.a === st.score.h && st.q === 4) { st.q = 5; st.clock = 600; log({kind: "q", text: "Overtime"}); pos = R() < .5 ? "a" : "h"; startX = 30; continue; }
-    if (result === "half") { pos = recv2; startX = 30; continue; }
-    if (["td", "fg"].includes(result)) { pos = def; startX = 30; log({kind: "ko", side: pos, text: `Kickoff, touchback`}); continue; }
-    if (result === "miss") { pos = def; startX = clamp(100 - Math.max(x, 20) - 7, 20, 60); continue; }
-    pos = def;
+    if (st.clock > 0) return null;
+    if (st.q === 1 || st.q === 3) { say({kind: "sec"}, () => `End of the ${ord[st.q]} quarter`); st.q++; st.clock = 900; return null; }
+    if (st.q === 2) { say({kind: "sec"}, () => "Halftime"); st.q = 3; st.clock = 900; next(half2, 0, true); return "half"; }
+    if (st.q === 4 && st.score.a === st.score.h) { say({kind: "sec"}, () => "End of regulation · overtime"); st.q = 5; st.clock = 600; otPoss = 0; next(R() < .5 ? "a" : "h", 0, true); return "half"; }
+    over = true; return "end";
   }
-  log({kind: "final", text: `Final${st.q === 5 ? " (OT)" : ""}`});
-  return {a, h, S, st, exp: [ea, eh], onSlate};
+  const after = (s, f) => { if (!tick(s) && !over) f(); };
+  function next(k, y, ko) {   // a new possession: overtime ends once both teams have had the ball and someone leads
+    if (st.q === 5 && otPoss >= 2 && st.score.a !== st.score.h) { over = true; return; }
+    if (ko) {
+      if (R() < .6) { y = 35; say({kind: "ko", side: k}, () => "Kickoff, touchback"); }
+      else { y = clamp(Math.round(29 + norm() * 7), 8, 60); say({kind: "ko", side: k}, () => `Kickoff returned to the ${spot(k, y)}`); }
+    }
+    pos = k; x = y; down = 1; togo = 10; if (st.q === 5) otPoss++;
+    say({kind: "sec", side: k, bx: y, fd: y + 10, ndd: "1st & 10", nat: spot(k, y)}, () => `${S[k].name} ball at ${spot(k, y)}`);
+  }
+  function score(k, pts) { st.score[k] += pts; st.qs[k][st.q - 1] += pts; }
+  function touchdown(desc, secs) {
+    const O = S[pos], k = pos; score(k, 6);
+    const d = st.score[k] - st.score[opp(k)], two = st.q >= 4 && (d === -1 || d === 5 || d === -5) && st.clock < 600;
+    let tail;
+    if (two) { const good = R() < .48; if (good) score(k, 2); tail = good ? "two-point try good" : "two-point try fails"; }
+    else { const kick = pb(k, `${O.ab} kicker`); kick.xpa++; const good = R() < .945; if (good) { kick.xpm++; score(k, 1); } tail = good ? "extra point good" : "extra point missed"; }
+    st.scoring.push({pl: pl(), t: clk(), k, text: `${desc} (${tail})`, a: st.score.a, h: st.score.h});
+    say({kind: "td", side: k, sc: true, bx: 100}, () => `<b>Touchdown ${esc(O.name)}</b> · ${tail}`);
+    after(secs, () => next(opp(k), 0, true));
+  }
+  function fieldGoal() {
+    const O = S[pos], k = pos, d = 117 - x, kick = pb(k, `${O.ab} kicker`); kick.fga++; st.team[k].plays++;
+    if (R() < 1 / (1 + Math.exp((d - 57) / 5.6))) {
+      kick.fgm++; kick.flong = Math.max(kick.flong, d); score(k, 3);
+      st.scoring.push({pl: pl(), t: clk(), k, text: `${d}-yard field goal`, a: st.score.a, h: st.score.h});
+      say({kind: "fg", side: k, sc: true, bx: x}, () => `<b>${d}-yard field goal is good</b>`);
+      after(5, () => next(opp(k), 0, true));
+    } else {
+      say({kind: "fg", side: k, to: true, bx: x}, () => `${d}-yard field goal is no good`);
+      const y = Math.max(20, 100 - (x - 7)); after(5, () => next(opp(k), y));
+    }
+  }
+  function punt() {
+    const k = pos, toGoal = 100 - x; st.team[k].plays++;
+    let gross = clamp(Math.round(46 + norm() * 6), 30, 66);
+    if (toGoal < 55) gross = Math.min(gross, toGoal - 4 - Math.round(R() * 8));   // pinning it deep
+    const land = x + gross;
+    if (land >= 100) { say({kind: "punt", side: k, bx: x}, () => "Punt into the end zone, touchback"); after(7, () => next(opp(k), 20)); return; }
+    const fair = R() < .42 || land > 88, ret = fair ? 0 : Math.max(0, Math.round(8 + norm() * 6)), y = clamp(100 - land + ret, 1, 70);
+    say({kind: "punt", side: k, bx: x}, () => `Punt ${gross} yards${fair ? ", fair catch" : `, returned ${ret}`}`);
+    after(7, () => next(opp(k), y));
+  }
+  // a snap's result: move the ball, keep the downs, the clock and the books
+  function advance(g, secs, txt, desc) {
+    const T = st.team[pos], b = {down, togo, x};
+    T.plays++; x += g;
+    const e = say({kind: "play", side: pos, dd: `${ord[b.down]} & ${b.togo >= 100 - b.x ? "Goal" : b.togo}`}, txt);
+    if (x >= 100) { if (b.down >= 3) T[b.down === 3 ? "third" : "fourth"][0]++; if (e) e.bx = 100; return touchdown(desc, Math.min(secs, 7)); }
+    if (x <= 0) { score(opp(pos), 2); st.scoring.push({pl: pl(), t: clk(), k: opp(pos), text: "Safety", a: st.score.a, h: st.score.h}); say({kind: "td", side: opp(pos), sc: true}, () => "<b>Safety</b>"); return after(secs, () => next(opp(pos), 35)); }
+    if (g >= togo) { T.fd++; if (b.down >= 3) T[b.down === 3 ? "third" : "fourth"][0]++; down = 1; togo = Math.min(10, 100 - x); }
+    else { down++; togo -= g;
+      if (down > 4) { if (e) Object.assign(e, {bx: x}); say({kind: "to", side: pos, to: true, bx: x}, () => "Turnover on downs"); const y = 100 - x; return after(secs, () => next(opp(pos), y)); } }
+    if (e) Object.assign(e, {bx: x, fd: Math.min(100, x + togo), ndd: `${ord[down]} & ${togo >= 100 - x ? "Goal" : togo}`, nat: spot(pos, x)});
+    tick(secs);
+  }
+  function turnover(y, secs) { st.team[pos].to++; const k = opp(pos); after(secs, () => next(k, clamp(y, 1, 99))); }
+  const dir = () => pick(["left", "middle", "right"], [1, 1.1, 1]);
+  function pass() {
+    const O = S[pos], X = S[opp(pos)], T = st.team[pos], k = K[pos], q = pb(pos, O.qb, O.qbP), toGoal = 100 - x;
+    if (R() < .066) {   // sack
+      const l = Math.min(Math.round(4 + R() * 6), x - 1), who = pick(X.rushers, X.rushers.map(() => 1));
+      q.sk++; T.sacks++; T.sackYds += l; pb(opp(pos), who).sacks++;
+      return advance(-l, snapTime(), () => `${esc(nm(O.qb))} sacked by ${esc(nm(who))} for a loss of ${l}`);
+    }
+    q.att++; T.att++;
+    const t = pick(O.tgt, O.tgt.map(r => r.w * (toGoal <= 10 && r.p && r.p.pos === "TE" ? 1.3 : 1))), r = pb(pos, t.name, t.p); r.tgt++;
+    if (R() < .023 / Math.sqrt(k)) {   // interception
+      const air = Math.min(toGoal + 5, Math.round(8 + R() * 22)), who = pick(X.dbs, X.dbs.map(() => 1)), ret = Math.max(0, Math.round(6 + norm() * 8));
+      q.int++; pb(opp(pos), who).ints++; T.plays++;
+      say({kind: "int", side: pos, to: true, bx: x}, () => `${esc(nm(O.qb))} pass intended for ${esc(nm(t.name))} <b>intercepted</b> by ${esc(nm(who))}, returned ${ret} yards`);
+      return turnover(100 - Math.min(99, x + air) + ret, snapTime());
+    }
+    if (R() > clamp(t.cr * Math.pow(k, .1), .3, .92)) {
+      return advance(0, 6, () => `${esc(nm(O.qb))} pass incomplete ${pick(["short", "short", "deep"], [1, 1, 1])} ${dir()}, intended for ${esc(nm(t.name))}`);
+    }
+    let y = Math.round(t.ypr * k * (.3 + .7 * expo())); if (R() < .08) y = Math.min(y, Math.round(R() * 4) - 2);   // screens and checkdowns behind the line
+    y = Math.min(y, toGoal);
+    if (R() < .004) {   // fumble after the catch
+      const who = pick(X.tack, X.tack.map(() => 1)); q.cmp++; q.pyds += y; r.rec++; r.cyds += y; T.cmp++; T.pyds += y; T.plays++;
+      say({kind: "fum", side: pos, to: true, bx: x + y}, () => `${esc(nm(O.qb))} to ${esc(nm(t.name))} for ${yds(y)}, <b>fumbles</b>, ${who ? `recovered by ${esc(nm(who))}` : "lost"}`);
+      return turnover(100 - (x + y), snapTime());
+    }
+    q.cmp++; q.pyds += y; r.rec++; r.cyds += y; r.clong = Math.max(r.clong, y); T.cmp++; T.pyds += y;
+    const td = y >= toGoal; if (td) { q.ptd++; r.ctd++; }
+    const oob = !td && R() < .15, who = pick(X.tack, X.tack.map(() => 1));
+    advance(y, oob && hurry() ? 6 : oob ? 18 : snapTime(),
+      () => `${esc(nm(O.qb))} pass ${y > 15 ? "deep" : "short"} ${dir()} to ${esc(nm(t.name))} for ${td ? `${yds(y)}, <b>touchdown</b>` : `${yds(y)}${oob ? ", out of bounds" : ` ${tk(who)}`}`}`,
+      `${O.qb} ${y}-yard pass to ${t.name}`);
+  }
+  function run() {
+    const O = S[pos], X = S[opp(pos)], T = st.team[pos], k = K[pos], toGoal = 100 - x;
+    const r = pick(O.rush, O.rush.map(c => c.w * (toGoal <= 3 && !c.qb ? 1.25 : 1))), b = pb(pos, r.name, r.p);
+    let y = R() < .09 ? Math.round(8 + expo() * Math.max(3, (r.ypc - 2.37) / .09 - 8)) : Math.round(2.6 + norm() * 2.6);
+    y = Math.max(-4, y > 0 ? Math.round(y * k) : y); y = Math.min(y, toGoal);
+    if (R() < .0055) {   // fumble lost
+      const who = pick(X.tack, X.tack.map(() => 1)); b.car++; b.ryds += y; T.rcar++; T.ryds += y; T.plays++;
+      say({kind: "fum", side: pos, to: true, bx: x + y}, () => `${esc(nm(r.name))} rush for ${yds(y)}, <b>fumbles</b>, ${who ? `recovered by ${esc(nm(who))}` : "lost"}`);
+      return turnover(100 - (x + y), snapTime());
+    }
+    b.car++; b.ryds += y; b.rlong = Math.max(b.rlong, y); T.rcar++; T.ryds += y;
+    const td = y >= toGoal; if (td) b.rtd++;
+    const who = pick(X.tack, X.tack.map(() => 1));
+    advance(y, snapTime(), () => `${esc(nm(r.name))} ${r.qb && R() < .5 ? "scrambles" : "rush"} ${pick(["up the middle", "left end", "right end", "left tackle", "right guard"], [3, 1, 1, 1, 1])} for ${td ? `${yds(y)}, <b>touchdown</b>` : `${yds(y)} ${tk(who)}`}`,
+      `${r.name} ${y}-yard run`);
+  }
+  function passRate() {
+    const base = S[pos].passRate, ld = lead(), toGoal = 100 - x; let p;
+    if (down === 1) p = base - .05; else if (down === 2) p = togo >= 8 ? base + .08 : togo <= 3 ? base - .14 : base;
+    else p = togo >= 7 ? .9 : togo >= 4 ? .78 : togo >= 2 ? .58 : .34;
+    if (toGoal <= 3) p = Math.min(p, .45);
+    if (st.q >= 4) { if (ld >= 9 || (ld > 0 && st.clock <= 300)) p = Math.min(p, .28); if (ld <= -9 || (ld < 0 && st.clock <= 300)) p = Math.max(p, .8); }
+    if (st.q === 2 && st.clock <= 120) p = Math.max(p, .72);
+    return p;
+  }
+  function fourth() {
+    const ld = lead(), d = 117 - x;
+    if (st.q >= 4 && st.clock <= 300 && ld < 0 && !(d <= 55 && ld >= -3)) return "go";
+    if (d <= 56) return togo <= 1 && x >= 95 && R() < .45 ? "go" : "fg";
+    if (togo <= 1 && x >= 40) return R() < .7 ? "go" : "punt";
+    if (togo <= 2 && x >= 50) return R() < .45 ? "go" : "punt";
+    if (togo <= 4 && x >= 57) return R() < .35 ? "go" : "punt";
+    return "punt";
+  }
+  function snap() {
+    const ld = lead(), O = S[pos];
+    // take a knee when the clock can be run out
+    if ((st.q >= 4 && ld > 0 && st.clock <= (5 - down) * 40) || (st.q === 2 && st.clock <= 25 && x < 60 && down < 4)) {
+      st.team[pos].plays++; say({kind: "play", side: pos, dd: `${ord[down]} & ${togo}`, bx: x}, () => `${esc(nm(O.qb))} kneels`);
+      down++; x = Math.max(1, x - 1); if (down > 4) { const y = 100 - x; return after(Math.min(40, st.clock), () => next(opp(pos), y)); }
+      return tick(Math.min(40, st.clock));
+    }
+    if ((st.q === 2 || (st.q >= 4 && ld >= -3 && ld <= 0)) && st.clock <= 8 && 117 - x <= 58) return fieldGoal();
+    if (down === 4) { const d = fourth(); if (d === "fg") return fieldGoal(); if (d === "punt") return punt(); }
+    if (down >= 3) st.team[pos].third[1] += down === 3 ? 1 : 0, st.team[pos].fourth[1] += down === 4 ? 1 : 0;
+    R() < passRate() ? pass() : run();
+  }
+  say({kind: "sec"}, () => "Kickoff");
+  next(opp(half2), 0, true);
+  for (let guard = 0; !over && guard < 500; guard++) snap();
+  say({kind: "sec"}, () => `Final${st.q === 5 ? " · overtime" : ""}`);
+  return {a, h, T: S, st, ev, final: {...st.score}, exp: expected(a, h)};
 }
 
 // ---------- screens ----------
-const logoOf = ab => (D.teams[ab] || {}).logo || "";
-function picker() {
-  const T = Object.entries(D.teams).sort((x, y) => (x[1].city + x[1].name).localeCompare(y[1].city + y[1].name));
-  const u = new URLSearchParams(location.search), g0 = (D.games || []).find(g => g.state !== "post") || (D.games || [])[0];
-  const a = u.get("away") || (g0 ? g0.away.abbr : T[0][0]), h = u.get("home") || (g0 ? g0.home.abbr : T[1][0]);
-  const opt = sel => T.map(([ab, t]) => `<option value="${ab}" ${ab === sel ? "selected" : ""}>${esc(t.city)} ${esc(t.name)}</option>`).join("");
-  const wk = (D.games || []).slice(0, 16).map(g => `<button class="chip" data-wk="${g.away.abbr}|${g.home.abbr}"><img src="${esc(g.away.logo)}" alt=""><img src="${esc(g.home.logo)}" alt="">${esc(g.away.abbr)} @ ${esc(g.home.abbr)}</button>`).join("");
-  return `<section class="pick"><div class="pick-r"><div><label>Away</label><select id="sa">${opt(a)}</select></div><span>@</span><div><label>Home</label><select id="sh">${opt(h)}</select></div></div>
-      <button class="go" id="go">Simulate game</button></section>
-    ${wk ? `<div class="hd"><b>This week</b><span class="hd-s">Week ${esc(D.meta.week || "")}</span></div><div class="strip wk">${wk}</div>` : ""}
-    <div class="note2">Each drive's result is drawn with odds tuned to the model's projected points for this matchup (this week's projection when the game is on the slate, otherwise the team ratings), then the plays are written to fit: down and distance, the clock, and real players chosen in proportion to their projected carries and targets. Every simulation is different.</div>`;
-}
-function scoreboard(sim, e, final) {
-  const {S} = sim, s = e ? e.score : {a: 0, h: 0}, side = k => S[k];
-  const team = k => `<div class="sb-t ${k} ${e && e.side === k && !final ? "pos" : ""}"><img src="${esc(side(k).T.logo)}" alt=""><div><b>${esc(side(k).ab)}</b><i>${esc(side(k).T.record || "")}</i></div><strong>${s[k]}</strong></div>`;
-  const mid = final ? `<b class="fin">FINAL${sim.st.q === 5 ? " / OT" : ""}</b>` : e ? `<b>${e.q === 5 ? "OT" : "Q" + e.q}</b><i>${esc(e.t)}</i>` : `<b>Q1</b><i>15:00</i>`;
-  const ballX = e && e.x != null ? e.x : 25, abs = k => (e && e.side === "h") ? 100 - k : k;   // the field reads away → home, left to right
-  const fx = v => `${8.333 + (abs(v) / 100) * 83.333}%`;
-  return `<section class="sb"><div class="sb-r">${team("a")}<div class="sb-m">${mid}</div>${team("h")}</div>
-    ${final ? "" : `<div class="dd"><span>${e && e.ndd ? `<b>${esc(e.ndd)}</b> at ${esc(e.nat)}` : e && e.dd ? `<b>${esc(e.dd)}</b> at ${esc(e.at)}` : "&nbsp;"}</span><span>${e && e.side ? esc(S[e.side].ab) + " ball" : ""}</span></div>
-    <div class="fld"><div class="ez a" style="background:${esc(S.a.T.color)}">${esc(S.a.ab)}</div><div class="ez h" style="background:${esc(S.h.T.color)}">${esc(S.h.ab)}</div>
-      ${[10, 20, 30, 40, 50, 60, 70, 80, 90].map(y => `<i class="yd" style="left:${8.333 + y * .83333}%"></i>`).join("")}
-      ${e && e.fd != null ? `<i class="fd" style="left:${fx(e.fd)}"></i>` : ""}<i class="los" style="left:${fx(ballX)}"></i><i class="ball" style="left:${fx(ballX)}"></i></div>`}</section>`;
-}
-function feedRow(e, S) {
-  if (e.kind === "q" || e.kind === "final") return `<div class="dh">${esc(e.text)}</div>`;
-  if (e.kind === "drive") return `<div class="dh"><img src="${esc(S[e.side].T.logo)}" alt="">${esc(e.text)}</div>`;
-  return `<div class="pl ${e.sc ? "sc" : ""} ${e.to ? "to" : ""}"><i>${e.q === 5 ? "OT" : "Q" + e.q} ${esc(e.t)}</i><span>${e.dd ? `<b>${esc(e.dd)}</b> · ` : ""}${e.text}</span>${e.sc ? `<em>${esc(S.a.ab)} ${e.score.a}–${e.score.h} ${esc(S.h.ab)}</em>` : ""}</div>`;
-}
-function live(sim, n) {
-  const E = sim.st.ev, shown = E.slice(0, n), last = [...shown].reverse().find(e => e.side || e.kind === "final") || null, final = n >= E.length;
-  const cur = shown[shown.length - 1] || {};
-  const ctl = final ? `<div class="ctl"><button data-v="box">Box score</button><button data-v="pbp">Play-by-play</button><button data-again="1">Sim again</button><button data-new="1">New matchup</button></div>`
-    : `<div class="ctl">${[[1, "1x"], [3, "3x"], [10, "10x"]].map(([s, l]) => `<button class="${SPEED === s ? "on" : ""}" data-sp="${s}">${l}</button>`).join("")}<button data-skip="1">Skip to final</button></div>`;
-  return scoreboard(sim, final ? {...cur, score: sim.st.score} : last && {...last, score: cur.score || last.score}, final) + ctl
-    + `<div class="list feed">${shown.slice(-60).reverse().map(e => feedRow(e, sim.S)).join("")}</div>`;
-}
-function boxScore(sim) {
-  const {S, st} = sim, A = st.team.a, H = st.team.h, tt = s => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
-  const row = (l, va, vh, better) => { const wa = better && better(va, vh) > 0, wh = better && better(va, vh) < 0;
-    return `<div class="l ${wa ? "w" : ""}">${va}</div><div class="m">${l}</div><div class="r ${wh ? "w" : ""}">${vh}</div>`; };
-  const n = x => typeof x === "number" ? x : parseFloat(x);
-  const hi = (a, b) => n(a) - n(b), lo = (a, b) => n(b) - n(a);
-  const qs = `<table class="qs"><tr><th></th><th>1</th><th>2</th><th>3</th><th>4</th>${st.q === 5 ? "<th>OT</th>" : ""}<th>T</th></tr>${["a", "h"].map(k => `<tr><td><b>${esc(S[k].ab)}</b></td>${st.qs[k].slice(0, 4).map(v => `<td>${v}</td>`).join("")}${st.q === 5 ? `<td>${st.qs[k].ot || 0}</td>` : ""}<td>${st.score[k]}</td></tr>`).join("")}</table>`;
-  const team = `<div class="ts">${row(`<b>${esc(S.a.ab)}</b>`, "", "")}${row("First downs", A.fd, H.fd, hi)}${row("Total yards", A.pyds - A.sackyds + A.ryds, H.pyds - H.sackyds + H.ryds, hi)}
-    ${row("Passing", A.pyds - A.sackyds, H.pyds - H.sackyds, hi)}${row("Comp / att", `${A.cmp}/${A.att}`, `${H.cmp}/${H.att}`)}${row("Rushing", `${A.ryds} (${A.rcar})`, `${H.ryds} (${H.rcar})`, hi)}
-    ${row("Third down", `${A.third[0]}/${A.third[1]}`, `${H.third[0]}/${H.third[1]}`)}${row("Sacks taken", A.sacks, H.sacks, lo)}${row("Turnovers", A.to, H.to, lo)}${row("Plays", A.plays, H.plays)}</div>`.replace(`<div class="m"><b>${esc(S.a.ab)}</b></div>`, `<div class="m"></div>`);
-  const players = k => { const B = Object.values(st.box).filter(p => p.side === k);
-    const P = B.filter(p => p.att).sort((x, y) => y.att - x.att), Ru = B.filter(p => p.car).sort((x, y) => y.ryds - x.ryds), Re = B.filter(p => p.tgt).sort((x, y) => y.cyds - x.cyds), K = B.filter(p => p.fga || p.xpa);
-    return `<div class="bxh"><img src="${esc(S[k].T.logo)}" alt="">${esc(S[k].T.city)} ${esc(S[k].T.name)}</div>
-      <table class="bx"><tr><th>Passing</th><th>C/ATT</th><th>YDS</th><th>TD</th><th>INT</th><th>SK</th></tr>${P.map(p => `<tr><td><b>${esc(p.name)}</b></td><td>${p.cmp}/${p.att}</td><td>${p.pyds}</td><td>${p.ptd}</td><td>${p.int}</td><td>${p.sk}</td></tr>`).join("")}</table>
-      <table class="bx"><tr><th>Rushing</th><th>CAR</th><th>YDS</th><th>AVG</th><th>TD</th><th>LNG</th></tr>${Ru.map(p => `<tr><td><b>${esc(p.name)}</b></td><td>${p.car}</td><td>${p.ryds}</td><td>${(p.ryds / p.car).toFixed(1)}</td><td>${p.rtd}</td><td>${p.rlong}</td></tr>`).join("")}</table>
-      <table class="bx"><tr><th>Receiving</th><th>REC</th><th>TGT</th><th>YDS</th><th>TD</th><th>LNG</th></tr>${Re.map(p => `<tr><td><b>${esc(p.name)}</b></td><td>${p.rec}</td><td>${p.tgt}</td><td>${p.cyds}</td><td>${p.ctd}</td><td>${p.clong}</td></tr>`).join("")}</table>
-      ${K.length ? `<table class="bx"><tr><th>Kicking</th><th>FG</th><th>LNG</th><th>XP</th><th>PTS</th></tr>${K.map(p => `<tr><td><b>${esc(p.name)}</b></td><td>${p.fgm}/${p.fga}</td><td>${p.flong || "–"}</td><td>${p.xpm}/${p.xpa}</td><td>${3 * p.fgm + p.xpm}</td></tr>`).join("")}</table>` : ""}`; };
-  const scoring = `<div class="list">${st.scoring.map(s => `<div class="pl sc"><i>${s.q === 5 ? "OT" : "Q" + s.q} ${esc(s.t)}</i><span><b>${esc(S[s.side].ab)}</b> · ${esc(s.text)}</span><em>${s.a}–${s.h}</em></div>`).join("") || `<div class="bk-empty">No scoring.</div>`}</div>`;
-  return scoreboard(sim, {score: st.score}, true)
-    + `<div class="ctl"><button class="on" data-v="box">Box score</button><button data-v="pbp">Play-by-play</button><button data-again="1">Sim again</button><button data-new="1">New matchup</button></div>`
-    + `<div class="hd"><b>Scoring</b></div><div class="card" style="padding:0">${qs}</div>${scoring}`
-    + `<div class="hd"><b>Team stats</b><span class="hd-s">Model projection ${esc(S.a.ab)} ${sim.exp[0].toFixed(1)} – ${sim.exp[1].toFixed(1)} ${esc(S.h.ab)}</span></div><div class="card" style="padding:0">${team}</div>`
-    + `<div class="hd"><b>Player stats</b></div><div class="card" style="padding:0 0 8px">${players("a")}</div><div class="card" style="padding:0 0 8px">${players("h")}</div>`;
-}
-function pbpAll(sim) {
-  return scoreboard(sim, {score: sim.st.score}, true)
-    + `<div class="ctl"><button data-v="box">Box score</button><button class="on" data-v="pbp">Play-by-play</button><button data-again="1">Sim again</button><button data-new="1">New matchup</button></div>`
-    + `<div class="list feed">${sim.st.ev.map(e => feedRow(e, sim.S)).join("")}</div>`;
-}
-let N = 0;
-function render() {
-  const v = $("#view");
-  if (!SIM) { v.innerHTML = picker(); wirePick(); return; }
-  const done = N >= SIM.st.ev.length;
-  v.innerHTML = done && VIEW === "box" ? boxScore(SIM) : done && VIEW === "pbp" ? pbpAll(SIM) : live(SIM, N);
-  v.querySelectorAll("[data-sp]").forEach(b => b.onclick = () => { SPEED = +b.dataset.sp; run(); render(); });
-  v.querySelectorAll("[data-skip]").forEach(b => b.onclick = () => { N = SIM.st.ev.length; VIEW = "box"; clearTimeout(TIMER); render(); window.scrollTo(0, 0); });
-  v.querySelectorAll("[data-v]").forEach(b => b.onclick = () => { VIEW = b.dataset.v; render(); window.scrollTo(0, 0); });
-  v.querySelectorAll("[data-again]").forEach(b => b.onclick = () => start(SIM.a, SIM.h));
-  v.querySelectorAll("[data-new]").forEach(b => b.onclick = () => { clearTimeout(TIMER); SIM = null; render(); });
-}
-function run() {
-  clearTimeout(TIMER);
-  const step = () => { if (!SIM || N >= SIM.st.ev.length) { VIEW = "box"; render(); return; } N++; render(); TIMER = setTimeout(step, Math.max(40, 1100 / SPEED)); };
-  TIMER = setTimeout(step, Math.max(40, 1100 / SPEED));
-}
-function start(a, h) { if (a === h) return; SIM = simulate(a, h); N = 1; VIEW = "live"; history.replaceState(null, "", `?away=${a}&home=${h}`); render(); window.scrollTo(0, 0); run(); }
-function wirePick() {
-  $("#go").onclick = () => start($("#sa").value, $("#sh").value);
-  document.querySelectorAll("[data-wk]").forEach(b => b.onclick = () => { const [a, h] = b.dataset.wk.split("|"); $("#sa").value = a; $("#sh").value = h; start(a, h); });
-}
-fetch("nfl.json?v=" + Date.now()).then(r => r.json()).then(d => { D = d; for (const g of D.games || []) for (const t of [g.home, g.away]) if (D.teams[t.abbr] && !D.teams[t.abbr].logo) D.teams[t.abbr].logo = t.logo; render(); })
-  .catch(() => { $("#view").innerHTML = `<div class="empty"><div class="t">Couldn't load the NFL data</div></div>`; });
+const statLine = (b, kind) => kind === "pass" ? `${b.cmp}/${b.att}, ${b.pyds} yds${b.ptd ? `, ${b.ptd} TD` : ""}${b.int ? `, ${b.int} INT` : ""}` : kind === "rush" ? `${b.car} car, ${b.ryds} yds${b.rtd ? `, ${b.rtd} TD` : ""}` : `${b.rec} rec, ${b.cyds} yds${b.ctd ? `, ${b.ctd} TD` : ""}`;
+const mmss = s => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
+const SIMX = {
+  dataUrl: "nfl.json", startPl: "Q1", startClock: "15:00", kickText: "Coin toss", otLabel: "Overtime", emptyText: "No NFL teams in the data",
+  multiN: 1000, multiChunk: 50, marginBins: [[-99, -17], [-16, -11], [-10, -7], [-6, -4], [-3, -1], [0, 0], [1, 3], [4, 6], [7, 10], [11, 16], [17, 99]], marginEdge: 17, marginMid: "Tie",
+  note: "Every snap is played out: run or pass by down, distance, score and clock; carries and targets by each player's projection; each receiver's catch rate and yards per catch and each runner's yards per carry from the model; real fourth-down, field-goal, clock and overtime rules. Each offence's efficiency is then tuned so its average score matches the model's projection for the matchup. No two games are alike.",
+  fmt: v => v.toFixed(1),
+  init(d) { D = d; for (const g of D.games || []) for (const t of [g.home, g.away]) if (D.teams[t.abbr] && !D.teams[t.abbr].logo) D.teams[t.abbr].logo = t.logo; },
+  teams: () => Object.keys(D.teams || {}).map(team).sort((x, y) => x.full.localeCompare(y.full)),
+  team, expected, pModel, prepare, simulate,
+  slate: () => (D.games || []).slice().sort((x, y) => (x.state === "post") - (y.state === "post") || String(x.start_utc).localeCompare(String(y.start_utc))).map(g => ({a: team(g.away.abbr), h: team(g.home.abbr), pa: g.pts_away, ph: g.pts_home, pHome: g.p_home,
+    when: g.start_utc ? new Date(g.start_utc).toLocaleString("en-US", {weekday: "short", hour: "numeric", minute: "2-digit"}) : ""})),
+  slateLabel: () => `Week ${D.meta.week || ""}`,
+  teamSub: (sim, e, k) => sim.T[k].record,
+  finalLab: sim => sim.final.a === sim.final.h ? "FINAL · TIE" : sim.st.q === 5 ? "FINAL · OT" : "FINAL",
+  stage(sim, e, n) {
+    const L = sim.ev.slice(0, n).reverse().find(x => x.bx != null), k = L && L.side, T = sim.T;
+    const fx = v => `${(8.333 + (k === "h" ? 100 - v : v) * .83333).toFixed(2)}%`;   // the field reads away end zone left, home right
+    const nums = [10, 20, 30, 40, 50, 60, 70, 80, 90];
+    return `<div class="sx-sit"><span>${L && L.ndd ? `<b>${esc(L.ndd)}</b> at ${esc(L.nat)}` : "&nbsp;"}</span><span>${k ? `${esc(T[k].ab)} ball` : ""}</span></div>
+      <div class="fld"><div class="gr"></div><div class="ez a" style="background:${esc(T.a.color)}"><b>${esc(T.a.ab)}</b></div><div class="ez h" style="background:${esc(T.h.color)}"><b>${esc(T.h.ab)}</b></div>
+        ${nums.map(y => `<i class="yl" style="left:${(8.333 + y * .83333).toFixed(2)}%"></i><span class="yn" style="left:${(8.333 + y * .83333).toFixed(2)}%">${y > 50 ? 100 - y : y}</span>`).join("")}
+        ${L && L.fd != null && L.fd < 100 ? `<i class="fd" style="left:${fx(L.fd)}"></i>` : ""}${L ? `<i class="los" style="left:${fx(Math.min(L.bx, 100))}"></i><i class="ball" style="left:${fx(Math.min(L.bx, 100))}"></i>` : ""}</div>`;
+  },
+  summary(sim) {
+    const {st, T} = sim, B = Object.values(st.box), A = st.team.a, H = st.team.h;
+    const lead = (f, kind, label) => { const b = B.filter(f).sort((x, y) => (kind === "pass" ? y.pyds - x.pyds : kind === "rush" ? y.ryds - x.ryds : y.cyds - x.cyds))[0];
+      return b && {label, name: b.name, img: b.p && b.p.headshot, team: T[b.k], line: statLine(b, kind)}; };
+    const tops = [lead(b => b.att, "pass", "Passing"), lead(b => b.car, "rush", "Rushing"), lead(b => b.rec, "rec", "Receiving")].filter(Boolean);
+    const ot = st.q === 5, tot = t => t.pyds - t.sackYds + t.ryds;
+    return sxTops(tops)
+      + `<div class="sx-h"><b>Scoring</b></div>` + sxLineScore(sim, ["1", "2", "3", "4"].concat(ot ? ["OT"] : []), {a: st.qs.a.slice(0, ot ? 5 : 4), h: st.qs.h.slice(0, ot ? 5 : 4)})
+      + `<div class="sx-card sx-feed" style="margin-top:8px">${st.scoring.map(s => `<div class="sx-r sc"><i>${esc(s.pl)} ${esc(s.t)}</i><span><b>${esc(T[s.k].ab)}</b> · ${esc(s.text)}</span><em>${s.a}–${s.h}</em></div>`).join("") || `<div class="sx-r"><i></i><span>No scoring</span></div>`}</div>`
+      + `<div class="sx-h"><b>Team stats</b><span>Model ${esc(T.a.ab)} ${sim.exp[0].toFixed(1)} – ${sim.exp[1].toFixed(1)} ${esc(T.h.ab)}</span></div>`
+      + sxCompare(sim, [["Total yards", tot(A), tot(H), true], ["Passing", A.pyds - A.sackYds, H.pyds - H.sackYds, true], ["Rushing", A.ryds, H.ryds, true], ["First downs", A.fd, H.fd, true],
+        ["Third down", A.third[1] ? A.third[0] / A.third[1] : 0, H.third[1] ? H.third[0] / H.third[1] : 0, true, `${A.third[0]}/${A.third[1]}`, `${H.third[0]}/${H.third[1]}`],
+        ["Turnovers", A.to, H.to, false], ["Sacks allowed", A.sacks, H.sacks, false], ["Possession", A.top, H.top, true, mmss(A.top), mmss(H.top)]]);
+  },
+  box(sim) {
+    const {st, T} = sim;
+    return ["a", "h"].map(k => { const B = Object.values(st.box).filter(b => b.k === k);
+      const P = B.filter(b => b.att || b.sk).sort((x, y) => y.att - x.att), Ru = B.filter(b => b.car).sort((x, y) => y.ryds - x.ryds), Re = B.filter(b => b.tgt).sort((x, y) => y.cyds - x.cyds);
+      const Ki = B.filter(b => b.fga || b.xpa), De = B.filter(b => b.sacks || b.ints).sort((x, y) => (y.sacks + y.ints) - (x.sacks + x.ints));
+      return `<div class="sx-card" style="margin-top:12px;padding-bottom:6px">${sxHead(T[k])}
+        ${sxTable(["Passing", "C/Att", "Yds", "TD", "Int", "Sk"], P.map(b => [esc(b.name), `${b.cmp}/${b.att}`, b.pyds, b.ptd, b.int, b.sk]))}
+        ${sxTable(["Rushing", "Car", "Yds", "Avg", "TD", "Lng"], Ru.map(b => [esc(b.name), b.car, b.ryds, (b.ryds / b.car).toFixed(1), b.rtd, b.rlong]))}
+        ${sxTable(["Receiving", "Rec", "Tgt", "Yds", "TD", "Lng"], Re.map(b => [esc(b.name), b.rec, b.tgt, b.cyds, b.ctd, b.clong]))}
+        ${sxTable(["Kicking", "FG", "Lng", "XP", "Pts"], Ki.map(b => ["Kicker", `${b.fgm}/${b.fga}`, b.flong || "–", `${b.xpm}/${b.xpa}`, 3 * b.fgm + b.xpm]))}
+        ${sxTable(["Defense", "Sacks", "Int"], De.map(b => [esc(b.name), b.sacks, b.ints]))}</div>`; }).join("");
+  },
+  digest(sim) {   // what the 1,000-game view keeps from each game
+    const p = {}; for (const b of Object.values(sim.st.box)) if (b.p) p[b.k + "|" + b.name] = [b.pyds, b.ryds, b.cyds, b.rec, b.rtd + b.ctd > 0 ? 1 : 0];
+    return {s: sim.final, ot: sim.st.q === 5, p};
+  },
+  multiPlayers(M) {
+    const rows = [];
+    for (const k of ["a", "h"]) { const T = M.T[k], av = (name, i) => M.res.reduce((s, d) => s + ((d.p[k + "|" + name] || [])[i] || 0), 0) / M.res.length;
+      const P = (D.players || []).filter(p => p.team === T.ab && !/^(out|ir|doubtful)/i.test(p.status || ""));
+      const qb = P.find(p => p.role === "QB"), rb = P.filter(p => p.role === "RB").sort((x, y) => y.rush_yds - x.rush_yds).slice(0, 2), wr = P.filter(p => p.role !== "QB").sort((x, y) => y.rec_yds - x.rec_yds).slice(0, 4);
+      if (qb) rows.push([T, qb.name, "Pass yds", av(qb.name, 0).toFixed(0), qb.pass_yds.toFixed(0)]);
+      for (const p of rb) rows.push([T, p.name, "Rush yds", av(p.name, 1).toFixed(0), p.rush_yds.toFixed(0)]);
+      for (const p of wr) rows.push([T, p.name, "Rec yds", av(p.name, 2).toFixed(0), p.rec_yds.toFixed(0)], [T, p.name, "Catches", av(p.name, 3).toFixed(1), p.rec.toFixed(1)]);
+      for (const p of rb.concat(wr).sort((x, y) => y.p_td - x.p_td).slice(0, 3)) rows.push([T, p.name, "Anytime TD", sxPct(av(p.name, 4)), sxPct(p.p_td)]);
+    }
+    if (!rows.length) return "";
+    return `<div class="sx-h"><b>Players: sim vs model</b><span>Average over ${M.res.length.toLocaleString()} games</span></div>
+      <div class="sx-card">${sxTable(["Player", "Stat", "Sim", "Model"], rows.map(([T, n, s, v, m]) => [`${esc(nm(n))} <span style="color:var(--t3);font-weight:500">${esc(T.ab)}</span>`, `<span style="color:var(--t2)">${s}</span>`, `<b>${v}</b>`, `<span style="color:var(--t3)">${m}</span>`]))}</div>`;
+  },
+};
+sxBoot();
 </script>
 </body>
 </html>
