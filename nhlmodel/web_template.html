@@ -412,6 +412,7 @@ PJA = {
   gamesLabel: "Tonight's games",
   header, strip,
   games: () => byStatus(D.games).map(pGame),
+  simUrl: g => `nhlsim.html?away=${encodeURIComponent(g.a.abbr)}&home=${encodeURIComponent(g.h.abbr)}`,
   players: () => { pjImgAlts(D.players); return D.players.map(pPlayer); },
   top: () => D.players.filter(p => p.lam.goals != null && notStarted(D.games.find(g => g.game_id === p.game_id) || {})).map(pPlayer)
     .sort((x, y) => y.vals.goals.v - x.vals.goals.v).slice(0, 8).map(p => ({p, mk: "goals"})),

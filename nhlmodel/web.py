@@ -195,6 +195,7 @@ def _write(out_dir: str, data: dict):
         json.dump(data, f, separators=(",", ":"), default=str, allow_nan=False)
     from calib.webassets import install as _install   # inlines the shared Model Health component
     _install(os.path.join(HERE, "web_template.html"), os.path.join(out_dir, "index.html"))
+    _install(os.path.join(HERE, "sim_template.html"), os.path.join(out_dir, "nhlsim.html"))   # the game simulator
     for name in os.listdir(os.path.join(HERE, "web_assets")):   # home-screen icons
         shutil.copy(os.path.join(HERE, "web_assets", name), os.path.join(out_dir, name))
     open(os.path.join(out_dir, ".nojekyll"), "w").close()

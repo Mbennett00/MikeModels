@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a0c0b">
+<title>Pikt · NHL game sim</title>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+/*CALIB_CSS*/
+/*SIM_CSS*/
+/* ---------- hockey ---------- */
+.sb-t i.sog { color: var(--t2); }
+.str { padding: 7px 14px; border-top: 1px solid var(--line); font-size: 12.5px; font-weight: 700; color: #f2c14e; text-align: center; letter-spacing: .03em; }
+.ice { position: relative; height: 96px; margin: 0 14px 14px; border-radius: 40px; overflow: hidden; background: linear-gradient(180deg, #e9f1f7, #d8e4ee); border: 2px solid #9fb4c6; }
+.ice .cl { position: absolute; top: 0; bottom: 0; width: 3px; margin-left: -1.5px; }
+.ice .gl { position: absolute; top: 10%; bottom: 10%; width: 2px; background: #d33; opacity: .6; }
+.ice .crease { position: absolute; top: 50%; width: 12px; height: 22px; margin-top: -11px; background: rgba(80,140,230,.35); border: 1px solid #d33; }
+.ice .crease.l { left: 7.5%; border-radius: 0 12px 12px 0; } .ice .crease.r { right: 7.5%; border-radius: 12px 0 0 12px; }
+.ice .fo { position: absolute; top: 50%; left: 50%; width: 26px; height: 26px; margin: -13px; border-radius: 50%; border: 2px solid rgba(60,110,200,.5); }
+.ice .tag { position: absolute; top: 6px; font-size: 9.5px; font-weight: 700; letter-spacing: .08em; color: rgba(20,40,60,.55); }
+.ice .dot { position: absolute; width: 8px; height: 8px; margin: -4px; border-radius: 50%; opacity: .45; }
+.ice .dot.g { width: 14px; height: 14px; margin: -7px; opacity: 1; border: 2px solid #fff; box-shadow: 0 0 0 2px #f2c14e; }
+.ice .dot.now { opacity: 1; box-shadow: 0 0 0 3px rgba(255,255,255,.9); animation: pk 1s ease-out; }
+@keyframes pk { from { transform: scale(2.2); } to { transform: scale(1); } }
+.stars { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.star { padding: 12px 10px; border-radius: var(--r); background: var(--card); border: 1px solid rgba(255,255,255,.06); text-align: center; display: flex; flex-direction: column; gap: 4px; align-items: center; }
+.star img { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; background: var(--s2); }
+.star i { font-style: normal; font-size: 11px; font-weight: 700; color: #f2c14e; letter-spacing: .05em; } .star b { font-size: 13px; line-height: 1.2; } .star span { font-size: 11.5px; color: var(--t3); }
+</style>
+</head>
+<body class="sim">
+<div class="wrap">
+  <div class="hdr"><div class="sim-top"><a href="index.html">‹ NHL</a><b>Game sim</b><img class="mlogo" src="pikt-wordmark.png" alt="Pikt"></div></div>
+  <div id="view"><div class="empty"><div class="t">Loading teams…</div></div></div>
+</div>
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+let D = null, TEAMS = {}, SIM = null, TIMER = null, SPEED = 1, VIEW = "live", N = 0;
+
+// ---------- randomness ----------
+const R = Math.random;
+const pick = (arr, w) => { const t = w.reduce((a, b) => a + b, 0); let x = R() * t; for (let i = 0; i < arr.length; i++) { x -= w[i]; if (x <= 0) return arr[i]; } return arr[arr.length - 1]; };
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+const last = n => String(n).split(" ").slice(-1)[0];
+
+// ---------- teams and rosters from the NHL model ----------
+// Every team on today's slate: skaters with their projected shots, goals and assists, lines, power-play units and the starting goalie.
+function loadTeams() {
+  const L = {}; for (const l of D.lines || []) L[l.id] = l;
+  for (const g of D.games || []) for (const [k, o] of [["home", "away"], ["away", "home"]]) {
+    const t = g[k], out = new Set((t.injuries || []).filter(x => /out|ir|ltir/i.test(x.status)).map(x => x.name));
+    const sk = (D.players || []).filter(p => p.team === t.abbr && !out.has(p.name)).map(p => Object.assign({}, p, L[p.id] ? {line: L[p.id].line, pp: L[p.id].pp} : {}));
+    TEAMS[t.abbr] = {ab: t.abbr, name: t.name, color: t.color || (D.colors || {})[t.abbr] || "#556", logo: t.logo, goalie: t.goalie || `${t.abbr} goalie`,
+      lamFor: k === "home" ? g.lam_home : g.lam_away, lamAg: k === "home" ? g.lam_away : g.lam_home, sk};
+  }
+}
+const TOI = {F1: 1.25, F2: 1.08, F3: .85, F4: .6, D1: 1.25, D2: 1, D3: .75};
+function roster(ab) {
+  const T = TEAMS[ab], sk = T.sk.length ? T.sk : ["C", "LW", "RW", "D"].flatMap((p, i) => [1, 2, 3].map(n => ({name: `${ab} ${p}${n}`, pos: p === "D" ? "D" : "F", lam: {sog: 2, goals: .25, assists: .35}})));
+  const sog = sk.map(p => Math.max(.2, (p.lam || {}).sog || 1)), goals = sk.map(p => Math.max(.01, (p.lam || {}).goals || .1));
+  const S = sog.reduce((a, b) => a + b, 0), G = goals.reduce((a, b) => a + b, 0);
+  const lines = {}; sk.forEach(p => { if (p.line) (lines[p.line] = lines[p.line] || []).push(p); });
+  const centers = ["F1", "F2", "F3", "F4"].filter(l => lines[l]).map(l => lines[l][0]);   // the first forward listed on each line takes the draws
+  return Object.assign({}, T, {sk, sog, S, G, avgSh: G / S, centers: centers.length ? centers : sk.filter(p => p.pos !== "D").slice(0, 4)});
+}
+// expected goals: the model's number for today's game, else built from each team's attack and defence on today's slate
+function expected(a, h) {
+  const g = (D.games || []).find(x => x.home.abbr === h && x.away.abbr === a);
+  if (g) return [g.lam_away, g.lam_home, true];
+  const gpg = (D.model || {}).goals_pg || 3, he = (D.model || {}).home_edge || .02, A = TEAMS[a], H = TEAMS[h];
+  return [gpg * (A.lamFor / gpg) * (H.lamAg / gpg) * (1 - he), gpg * (H.lamFor / gpg) * (A.lamAg / gpg) * (1 + he), false];
+}
+
+// ---------- the simulation ----------
+// Second by second. Each team shoots at the rate its skaters' projected shots add up to, and a shot goes in often enough
+// that the team's goals average the model's expected goals; the shooter is drawn by projected shots and his chance to
+// score by his projected shooting rate. Penalties bring power plays, a trailing team pulls its goalie late, ties go to
+// 3-on-3 overtime and then a shootout.
+const PEN = ["Tripping", "Hooking", "Slashing", "Holding", "Interference", "High-sticking", "Roughing", "Cross-checking", "Delay of game", "Holding the stick"];
+const SHOT = ["wrist shot", "wrist shot", "snap shot", "slap shot", "backhand", "tip-in", "one-timer", "wrap-around"];
+const CAL = .845;   // tuned so final scores (power plays, empty nets, overtime included) average the model
+function simulate(a, h) {
+  const [ea, eh, onSlate] = expected(a, h), S = {a: roster(a), h: roster(h)}, E = {a: ea, h: eh};
+  const st = {score: {a: 0, h: 0}, sog: {a: 0, h: 0}, per: 1, ev: [], gp: {a: [0, 0, 0, 0], h: [0, 0, 0, 0]}, sp: {a: [0, 0, 0, 0], h: [0, 0, 0, 0]},
+    team: {a: tstat(), h: tstat()}, box: {}, goals: [], pens: [], so: null, gk: {a: gstat(S.a.goalie), h: gstat(S.h.goalie)}};
+  function tstat() { return {pp: 0, ppg: 0, pim: 0, hits: 0, blk: 0, fow: 0, miss: 0, give: 0}; }
+  function gstat(name) { return {name, sa: 0, ga: 0}; }
+  const pb = (side, p) => { const k = side + "|" + p.name; return st.box[k] || (st.box[k] = {side, p, g: 0, a: 0, sog: 0, hit: 0, blk: 0, pim: 0, fow: 0, fol: 0, pm: 0}); };
+  const other = k => k === "a" ? "h" : "a";
+  let t = 0, len = 1200, pens = [], pulled = {a: false, h: false};
+  const clk = () => { const r = Math.max(0, len - t); return `${Math.floor(r / 60)}:${String(Math.floor(r % 60)).padStart(2, "0")}`; };
+  const pl = () => st.per === 4 ? "OT" : `P${st.per}`;
+  const strength = () => { const n = {a: 5, h: 5}; for (const p of pens) n[p.side]--; if (st.per === 4) { n.a -= 2; n.h -= 2; for (const p of pens) n[other(p.side)]++; } return n; };
+  const log = o => st.ev.push(Object.assign({per: st.per, t: clk(), score: {...st.score}, sog: {...st.sog}, str: strLab()}, o));
+  function strLab() {
+    const n = strength(), lab = [];
+    if (n.a !== n.h) { const k = n.a > n.h ? "a" : "h", p = pens.filter(x => x.side !== k).sort((x, y) => x.until - y.until)[0];
+      lab.push(`Power play ${S[k].ab} · ${n.a}-on-${n.h}${p ? " · " + Math.floor((p.until - t) / 60) + ":" + String(Math.floor((p.until - t) % 60)).padStart(2, "0") : ""}`); }
+    else if (st.per === 4) lab.push("3-on-3 overtime");
+    for (const k of ["a", "h"]) if (pulled[k]) lab.push(`${S[k].ab} goalie pulled`);
+    return lab.join(" · ");
+  }
+  const pickSk = (side, w) => { const P = S[side].sk; return pick(P, P.map(w)); };
+  const lineW = p => TOI[p.line] || .9;
+  function faceoff() {   // a coin flip between the two centres on the ice
+    const ca = pick(S.a.centers, S.a.centers.map(lineW)), ch = pick(S.h.centers, S.h.centers.map(lineW)), w = R() < .5 ? "a" : "h";
+    st.team[w].fow++; pb("a", ca)[w === "a" ? "fow" : "fol"]++; pb("h", ch)[w === "h" ? "fow" : "fol"]++;
+  }
+  function goal(k, shooter, kind, en) {
+    const n = strength(), tag = en ? "EN" : n[k] > n[other(k)] ? "PP" : n[k] < n[other(k)] ? "SH" : "";
+    st.score[k]++; st.gp[k][st.per - 1]++; pb(k, shooter).g++;
+    const mates = S[k].sk.filter(p => p !== shooter), nA = R() < .08 ? 0 : R() < .25 ? 1 : 2, ast = [];
+    for (let i = 0; i < nA && mates.length; i++) { const m = pick(mates, mates.map(p => Math.max(.02, (p.lam || {}).assists || .1) * (p.line && p.line === shooter.line ? 3 : 1) * (tag === "PP" && p.pp ? 2.5 : 1)));
+      ast.push(m); mates.splice(mates.indexOf(m), 1); pb(k, m).a++; }
+    if (tag === "PP") { st.team[k].ppg++; const i = pens.filter(p => p.side === other(k)).sort((x, y) => x.until - y.until)[0]; if (i) pens.splice(pens.indexOf(i), 1); }
+    if (!en) st.gk[other(k)].ga++;
+    const txt = `<b>GOAL</b> ${esc(shooter.name)}${kind ? ` (${kind})` : ""}${ast.length ? `, assisted by ${ast.map(x => esc(last(x.name))).join(" and ")}` : ", unassisted"}${tag ? ` · ${tag === "EN" ? "empty net" : tag === "PP" ? "power-play goal" : "shorthanded"}` : ""}`;
+    st.goals.push({per: st.per, t: clk(), side: k, who: shooter.name, ast: ast.map(x => x.name), tag, a: st.score.a, h: st.score.h});
+    return {txt, tag};
+  }
+  log({kind: "per", text: "Puck drop · 1st period"});
+  faceoff();
+  let ended = false;
+  while (!ended) {
+    t += 1;
+    const over = pens.filter(p => p.until <= t);
+    if (over.length) { pens = pens.filter(p => p.until > t); for (const p of over) log({kind: "note", text: `${esc(S[p.side].ab)} back to full strength`}); }
+    // pull the goalie when trailing late in the third
+    for (const k of ["a", "h"]) { const down = st.score[other(k)] - st.score[k], r = len - t, want = st.per === 3 && ((down === 1 && r <= 140) || (down === 2 && r <= 210)) && strength()[k] >= strength()[other(k)];
+      if (want && !pulled[k]) { pulled[k] = true; log({kind: "note", text: `${esc(S[k].ab)} pull ${esc(last(S[k].goalie))} for an extra attacker`}); }
+      if (!want && pulled[k]) pulled[k] = false; }
+    const n = strength();
+    for (const k of ["a", "h"]) {
+      const o = other(k), T = S[k];
+      let rate = T.S / 3600 * (n[k] > n[o] ? 2.1 : n[k] < n[o] ? .42 : 1) * (st.per === 4 ? 1.7 : 1) * (pulled[k] ? 1.8 : 1);
+      if (R() < rate) {
+        // attempt: on goal, missed or blocked
+        const pp = n[k] > n[o], sh = n[k] < n[o];
+        const shooter = pickSk(k, p => Math.max(.2, (p.lam || {}).sog || 1) * (pp ? (p.pp === 1 ? 3 : p.pp === 2 ? 1.4 : .15) : sh ? (p.pos === "D" ? .6 : .8) : lineW(p)));
+        if (pulled[o] && R() < .5) {   // shooting at the empty net
+          const g = goal(k, shooter, "", true); st.sog[k]++; st.sp[k][Math.min(3, st.per - 1)]++; pb(k, shooter).sog++;
+          log({kind: "goal", side: k, sc: true, text: g.txt, x: k === "a" ? 92 : 8, y: 50}); pulled[o] = false; faceoff(); continue;
+        }
+        st.sog[k]++; st.sp[k][Math.min(3, st.per - 1)]++; pb(k, shooter).sog++; st.gk[o].sa++;
+        const sh_ = clamp(((shooter.lam || {}).goals || .1) / Math.max(.2, (shooter.lam || {}).sog || 1) / T.avgSh, .35, 2.4);
+        const pg = CAL * E[k] / T.S * sh_ * (pp ? 1.3 : sh ? .9 : 1) * (st.per === 4 ? 1.25 : 1) * (pulled[k] ? 1.05 : 1);
+        const kind = pick(SHOT, SHOT.map(() => 1)), close = R() < pg * 2.2, dist = close ? Math.round(6 + R() * 18) : Math.round(18 + R() * 42);
+        const x = k === "a" ? 89 - dist * .45 : 11 + dist * .45, y = clamp(50 + (R() - .5) * (close ? 30 : 75), 8, 92);
+        if (R() < pg) {
+          const g = goal(k, shooter, `${kind}, ${dist} ft`, false);
+          log({kind: "goal", side: k, sc: true, text: g.txt, x, y});
+          faceoff();
+          if (st.per === 4) { ended = true; break; }
+        } else {
+          const frz = R() < .38;
+          log({kind: "shot", side: k, text: `${esc(last(shooter.name))} ${kind} from ${dist} ft, saved by ${esc(last(S[o].goalie))}${frz ? ", who covers up" : ""}`, x, y});
+          if (frz) faceoff();
+        }
+      }
+      // the rest of the game, kept in the box score: misses, blocks, hits, giveaways, whistles
+      if (R() < rate * .45) st.team[k].miss++;
+      if (R() < rate * .5) { st.team[o].blk++; pb(o, pickSk(o, p => p.pos === "D" ? 2.6 : .7)).blk++; }
+      if (R() < 21 / 3600) { st.team[k].hits++; pb(k, pickSk(k, p => (p.pos === "D" ? 1.1 : 1) * (p.line === "F4" ? 1.6 : 1) * lineW(p))).hit++; }
+      if (R() < 3.1 / 3600 && st.per < 4) {
+        const who = pickSk(k, p => (p.pos === "D" ? 1.15 : 1) * lineW(p)), why = pick(PEN, PEN.map(() => 1));
+        pens.push({side: k, until: t + 120, who}); st.team[k].pim += 2; st.team[o].pp++; pb(k, who).pim += 2;
+        st.pens.push({per: st.per, t: clk(), side: k, who: who.name, why});
+        log({kind: "pen", side: k, to: true, text: `Penalty · ${esc(who.name)}, 2 minutes for ${why.toLowerCase()}`}); faceoff();
+      }
+    }
+    if (R() < 1 / 165) faceoff();   // icings, offsides, pucks out of play
+    if (ended) break;
+    if (t >= len) {
+      if (st.per < 3) { log({kind: "per", text: `End of the ${["1st", "2nd"][st.per - 1]} period`}); st.per++; t = 0; pens = pens.map(p => Object.assign(p, {until: p.until - len}));
+        log({kind: "per", text: `${["", "", "2nd", "3rd"][st.per]} period`}); faceoff(); continue; }
+      if (st.score.a !== st.score.h) break;
+      if (st.per === 3) { log({kind: "per", text: "End of regulation · 3-on-3 overtime"}); st.per = 4; t = 0; len = 300; pulled = {a: false, h: false}; pens = pens.map(p => Object.assign(p, {until: p.until - 1200})); faceoff(); continue; }
+      // shootout
+      log({kind: "per", text: "Overtime ends · shootout"});
+      const so = {a: [], h: []}, shooters = k => [...S[k].sk].sort((x, y) => ((y.lam || {}).goals || 0) - ((x.lam || {}).goals || 0));
+      const L = {a: shooters("a"), h: shooters("h")};
+      for (let r = 0; r < 20; r++) {
+        for (const k of ["a", "h"]) { const p = L[k][r % L[k].length], sc = R() < .32 + ((p.lam || {}).goals || .2) * .25; so[k].push(sc);
+          st.ev.push({per: 5, t: `Round ${r + 1}`, score: {...st.score}, sog: {...st.sog}, side: k, sc, kind: "so", text: `${esc(p.name)} ${sc ? "<b>scores</b>" : `stopped by ${esc(last(S[other(k)].goalie))}`}`});
+          const ga = so.a.filter(Boolean).length, gh = so.h.filter(Boolean).length, ra = 3 - so.a.length, rh = 3 - so.h.length;
+          if (r < 3 && (ga > gh + Math.max(0, rh) || gh > ga + Math.max(0, ra))) break; }
+        const ga = so.a.filter(Boolean).length, gh = so.h.filter(Boolean).length;
+        if (so.a.length === so.h.length && so.a.length >= 3 && ga !== gh) break;
+        if (r < 3 && (ga > gh + (3 - so.h.length) || gh > ga + (3 - so.a.length))) break;
+      }
+      const w = so.a.filter(Boolean).length > so.h.filter(Boolean).length ? "a" : "h";
+      st.so = {a: so.a.filter(Boolean).length, h: so.h.filter(Boolean).length, w}; st.score[w]++;
+      break;
+    }
+  }
+  log({kind: "final", text: `Final${st.so ? " (SO)" : st.per === 4 ? " (OT)" : ""}`});
+  return {a, h, S, st, exp: [ea, eh], onSlate};
+}
+
+// ---------- screens ----------
+function picker() {
+  const T = Object.values(TEAMS).sort((x, y) => x.name.localeCompare(y.name));
+  const u = new URLSearchParams(location.search), g0 = (D.games || [])[0];
+  const a = TEAMS[u.get("away")] ? u.get("away") : g0.away.abbr, h = TEAMS[u.get("home")] ? u.get("home") : g0.home.abbr;
+  const opt = sel => T.map(t => `<option value="${t.ab}" ${t.ab === sel ? "selected" : ""}>${esc(t.name)}</option>`).join("");
+  const wk = (D.games || []).map(g => `<button class="chip" data-wk="${g.away.abbr}|${g.home.abbr}"><img src="${esc(g.away.logo)}" alt=""><img src="${esc(g.home.logo)}" alt="">${esc(g.away.abbr)} @ ${esc(g.home.abbr)}</button>`).join("");
+  return `<section class="pick"><div class="pick-r"><div><label>Away</label><select id="sa">${opt(a)}</select></div><span>@</span><div><label>Home</label><select id="sh">${opt(h)}</select></div></div>
+      <button class="go" id="go">Simulate game</button></section>
+    ${wk ? `<div class="hd"><b>Today</b><span class="hd-s">${esc(D.meta.date || "")}</span></div><div class="strip wk">${wk}</div>` : ""}
+    <div class="note2">Teams on today's slate. Each team shoots at the rate its skaters' projected shots add up to, and shots go in often enough that its goals average the model's expected goals for the matchup. Shooters, scorers and assists follow each player's projections, lines and power-play units. Penalties, pulled goalies, 3-on-3 overtime and shootouts all play out. Every simulation is different.</div>`;
+}
+function scoreboard(sim, e, final) {
+  const {S, st} = sim, s = e ? e.score : {a: 0, h: 0}, g = e ? e.sog : {a: 0, h: 0};
+  const team = k => `<div class="sb-t ${k}"><img src="${esc(S[k].logo)}" alt=""><div><b>${esc(S[k].ab)}</b><i class="sog">${g[k]} SOG</i></div><strong>${s[k]}</strong></div>`;
+  const mid = final ? `<b class="fin">FINAL${st.so ? " / SO" : st.per === 4 ? " / OT" : ""}</b>` : e ? `<b>${e.per === 5 ? "SO" : e.per === 4 ? "OT" : "P" + e.per}</b><i>${esc(e.t)}</i>` : `<b>P1</b><i>20:00</i>`;
+  let rink = "";
+  if (!final) {
+    const n = st.ev.indexOf(e), per = e ? e.per : 1, dots = st.ev.slice(0, n + 1).filter(x => x.x != null && x.per === per).slice(-14);
+    rink = `${e && e.str ? `<div class="str">${esc(e.str)}</div>` : ""}<div class="ice"><span class="tag" style="left:14%">${esc(S.h.ab)} ZONE</span><span class="tag" style="right:14%">${esc(S.a.ab)} ATTACKS →</span>
+      <i class="gl" style="left:9%"></i><i class="gl" style="right:9%"></i><i class="crease l"></i><i class="crease r"></i>
+      <i class="cl" style="left:35%;background:rgba(60,110,220,.55)"></i><i class="cl" style="left:50%;background:rgba(210,40,40,.55)"></i><i class="cl" style="left:65%;background:rgba(60,110,220,.55)"></i><i class="fo"></i>
+      ${dots.map(d => `<i class="dot ${d.kind === "goal" ? "g" : ""} ${d === e ? "now" : ""}" style="left:${d.x}%;top:${d.y}%;background:${esc(S[d.side].color)}"></i>`).join("")}</div>`;
+  }
+  return `<section class="sb"><div class="sb-r">${team("a")}<div class="sb-m">${mid}</div>${team("h")}</div>${rink}</section>`;
+}
+function feedRow(e, S) {
+  if (e.kind === "per" || e.kind === "final") return `<div class="dh">${esc(e.text)}</div>`;
+  const tm = e.per === 5 ? "SO" : e.per === 4 ? "OT" : "P" + e.per;
+  return `<div class="pl ${e.sc ? "sc" : ""} ${e.to ? "to" : ""}"><i>${tm} ${esc(e.t)}</i><span>${e.side ? `<b>${esc(S[e.side].ab)}</b> · ` : ""}${e.text}</span>${e.kind === "goal" ? `<em>${esc(S.a.ab)} ${e.score.a}–${e.score.h} ${esc(S.h.ab)}</em>` : ""}</div>`;
+}
+const ctlDone = v => `<div class="ctl"><button class="${v === "box" ? "on" : ""}" data-v="box">Box score</button><button class="${v === "pbp" ? "on" : ""}" data-v="pbp">Play-by-play</button><button data-again="1">Sim again</button><button data-new="1">New matchup</button></div>`;
+function live(sim, n) {
+  const E = sim.st.ev, shown = E.slice(0, n), cur = shown[shown.length - 1];
+  const ctl = `<div class="ctl">${[[1, "1x"], [3, "3x"], [10, "10x"]].map(([s, l]) => `<button class="${SPEED === s ? "on" : ""}" data-sp="${s}">${l}</button>`).join("")}<button data-skip="1">Skip to final</button></div>`;
+  return scoreboard(sim, cur, false) + ctl + `<div class="list feed">${shown.slice(-60).reverse().map(e => feedRow(e, sim.S)).join("")}</div>`;
+}
+function stars(sim) {
+  const {st, S} = sim, c = Object.values(st.box).map(b => ({name: b.p.name, img: b.p.headshot, side: b.side, sc: 3 * b.g + 2 * b.a + .12 * b.sog + .05 * (b.hit + b.blk) + (st.score[b.side] > st.score[b.side === "a" ? "h" : "a"] ? .3 : 0),
+    line: `${b.g} G · ${b.a} A · ${b.sog} SOG`}));
+  for (const k of ["a", "h"]) { const G = st.gk[k], sv = G.sa - G.ga, pct = G.sa ? sv / G.sa : 1;
+    c.push({name: G.name, side: k, sc: (pct - .88) * 40 + sv * .06 + (st.score[k] > st.score[k === "a" ? "h" : "a"] ? .4 : 0) + (G.ga === 0 ? 2 : 0), line: `${sv} saves · ${pct.toFixed(3).replace(/^0/, "")}`}); }
+  return c.sort((x, y) => y.sc - x.sc).slice(0, 3).map((p, i) => `<div class="star"><i>${["1st", "2nd", "3rd"][i]} STAR</i>${p.img ? `<img src="${esc(p.img)}" alt="" onerror="this.src='${esc(S[p.side].logo)}'">` : `<img src="${esc(S[p.side].logo)}" alt="">`}<b>${esc(p.name)}</b><span>${esc(S[p.side].ab)} · ${esc(p.line)}</span></div>`).join("");
+}
+function boxScore(sim) {
+  const {S, st} = sim, A = st.team.a, H = st.team.h, ot = st.per === 4 || st.so;
+  const row = (l, va, vh, better) => { const d = better ? better(va, vh) : 0; return `<div class="l ${d > 0 ? "w" : ""}">${va}</div><div class="m">${l}</div><div class="r ${d < 0 ? "w" : ""}">${vh}</div>`; };
+  const hi = (a, b) => parseFloat(a) - parseFloat(b), lo = (a, b) => parseFloat(b) - parseFloat(a);
+  const fo = k => { const t = st.team.a.fow + st.team.h.fow; return t ? Math.round(100 * st.team[k].fow / t) + "%" : "–"; };
+  const per = (arr, k) => arr[k].slice(0, ot ? 4 : 3);
+  const qs = `<table class="qs"><tr><th></th><th>1</th><th>2</th><th>3</th>${ot ? "<th>OT</th>" : ""}${st.so ? "<th>SO</th>" : ""}<th>T</th><th>SOG</th></tr>${["a", "h"].map(k => `<tr><td><b>${esc(S[k].ab)}</b></td>${per(st.gp, k).map(v => `<td>${v}</td>`).join("")}${st.so ? `<td>${st.so[k]}</td>` : ""}<td>${st.score[k]}</td><td style="font-weight:500;color:var(--t2)">${st.sog[k]}</td></tr>`).join("")}</table>`;
+  const team = `<div class="ts">${row("", `<b>${esc(S.a.ab)}</b>`, `<b>${esc(S.h.ab)}</b>`)}${row("Shots on goal", st.sog.a, st.sog.h, hi)}${row("Power play", `${A.ppg}/${A.pp}`, `${H.ppg}/${H.pp}`)}
+    ${row("Faceoffs", fo("a"), fo("h"), hi)}${row("Hits", A.hits, H.hits, hi)}${row("Blocked shots", A.blk, H.blk, hi)}${row("Missed shots", A.miss, H.miss)}${row("Penalty minutes", A.pim, H.pim, lo)}</div>`;
+  const scoring = `<div class="list">${st.goals.map(g => `<div class="pl sc"><i>${g.per === 4 ? "OT" : "P" + g.per} ${esc(g.t)}</i><span><b>${esc(S[g.side].ab)}</b> · ${esc(g.who)}${g.tag ? ` (${g.tag})` : ""}<br><span style="font-size:12px;color:var(--t3)">${g.ast.length ? "Assists: " + g.ast.map(esc).join(", ") : "Unassisted"}</span></span><em>${g.a}–${g.h}</em></div>`).join("")
+    + (st.so ? `<div class="pl sc"><i>SO</i><span><b>${esc(S[st.so.w].ab)}</b> win the shootout ${Math.max(st.so.a, st.so.h)}–${Math.min(st.so.a, st.so.h)}</span><em>${st.score.a}–${st.score.h}</em></div>` : "") || `<div class="bk-empty">No goals.</div>`}</div>`;
+  const pens = st.pens.length ? `<div class="list">${st.pens.map(p => `<div class="pl"><i>${p.per === 4 ? "OT" : "P" + p.per} ${esc(p.t)}</i><span><b>${esc(S[p.side].ab)}</b> · ${esc(p.who)}, ${esc(p.why.toLowerCase())}</span><em style="color:var(--t3)">2 min</em></div>`).join("")}</div>` : "";
+  const players = k => { const B = Object.values(st.box).filter(b => b.side === k).sort((x, y) => (y.g + y.a) - (x.g + x.a) || y.g - x.g || y.sog - x.sog), G = st.gk[k];
+    return `<div class="bxh"><img src="${esc(S[k].logo)}" alt="">${esc(S[k].name)}</div>
+      <table class="bx"><tr><th>Skaters</th><th>G</th><th>A</th><th>P</th><th>SOG</th><th>HIT</th><th>BLK</th><th>PIM</th></tr>${B.map(b => `<tr><td><b>${esc(b.p.name)}</b></td><td>${b.g}</td><td>${b.a}</td><td>${b.g + b.a}</td><td>${b.sog}</td><td>${b.hit}</td><td>${b.blk}</td><td>${b.pim}</td></tr>`).join("")}</table>
+      <table class="bx"><tr><th>Goalie</th><th>SA</th><th>GA</th><th>SV</th><th>SV%</th></tr><tr><td><b>${esc(G.name)}</b></td><td>${G.sa}</td><td>${G.ga}</td><td>${G.sa - G.ga}</td><td>${G.sa ? ((G.sa - G.ga) / G.sa).toFixed(3).replace(/^0/, "") : "–"}</td></tr></table>`; };
+  return scoreboard(sim, {score: st.score, sog: st.sog}, true) + ctlDone("box")
+    + `<div class="hd"><b>Three stars</b></div><div class="stars">${stars(sim)}</div>`
+    + `<div class="hd"><b>Scoring</b></div><div class="card" style="padding:0">${qs}</div>${scoring}`
+    + `<div class="hd"><b>Team stats</b><span class="hd-s">Model xG ${esc(S.a.ab)} ${sim.exp[0].toFixed(2)} – ${sim.exp[1].toFixed(2)} ${esc(S.h.ab)}</span></div><div class="card" style="padding:0">${team}</div>`
+    + (pens ? `<div class="hd"><b>Penalties</b></div>${pens}` : "")
+    + `<div class="hd"><b>Player stats</b></div><div class="card" style="padding:0 0 8px">${players("a")}</div><div class="card" style="padding:0 0 8px">${players("h")}</div>`;
+}
+const pbpAll = sim => scoreboard(sim, {score: sim.st.score, sog: sim.st.sog}, true) + ctlDone("pbp") + `<div class="list feed">${sim.st.ev.map(e => feedRow(e, sim.S)).join("")}</div>`;
+function render() {
+  const v = $("#view");
+  if (!SIM) { v.innerHTML = picker(); wirePick(); return; }
+  const done = N >= SIM.st.ev.length;
+  v.innerHTML = done && VIEW === "pbp" ? pbpAll(SIM) : done ? boxScore(SIM) : live(SIM, N);
+  v.querySelectorAll("[data-sp]").forEach(b => b.onclick = () => { SPEED = +b.dataset.sp; run(); render(); });
+  v.querySelectorAll("[data-skip]").forEach(b => b.onclick = () => { N = SIM.st.ev.length; VIEW = "box"; clearTimeout(TIMER); render(); window.scrollTo(0, 0); });
+  v.querySelectorAll("[data-v]").forEach(b => b.onclick = () => { VIEW = b.dataset.v; render(); window.scrollTo(0, 0); });
+  v.querySelectorAll("[data-again]").forEach(b => b.onclick = () => start(SIM.a, SIM.h));
+  v.querySelectorAll("[data-new]").forEach(b => b.onclick = () => { clearTimeout(TIMER); SIM = null; render(); });
+}
+function run() {
+  clearTimeout(TIMER);
+  const step = () => { if (!SIM || N >= SIM.st.ev.length) { VIEW = "box"; render(); window.scrollTo(0, 0); return; } N++; render(); TIMER = setTimeout(step, Math.max(40, 1000 / SPEED)); };
+  TIMER = setTimeout(step, Math.max(40, 1000 / SPEED));
+}
+function start(a, h) { if (a === h) return; SIM = simulate(a, h); N = 1; VIEW = "live"; history.replaceState(null, "", `?away=${a}&home=${h}`); render(); window.scrollTo(0, 0); run(); }
+function wirePick() {
+  $("#go").onclick = () => start($("#sa").value, $("#sh").value);
+  document.querySelectorAll("[data-wk]").forEach(b => b.onclick = () => { const [a, h] = b.dataset.wk.split("|"); start(a, h); });
+}
+fetch("data.json?v=" + Date.now()).then(r => r.json()).then(d => { D = d; loadTeams();
+  if (!Object.keys(TEAMS).length) { $("#view").innerHTML = `<div class="empty"><div class="t">No NHL games on today's slate</div></div>`; return; } render(); })
+  .catch(() => { $("#view").innerHTML = `<div class="empty"><div class="t">Couldn't load the NHL data</div></div>`; });
+</script>
+</body>
+</html>
