@@ -165,8 +165,9 @@ function sxCalGet(sport, ver, key) { try { const v = JSON.parse(localStorage.get
 function sxCalPut(sport, ver, key, k) { try { const id = `pikt-sim-${sport}`, v = JSON.parse(localStorage.getItem(id) || "{}"), o = v.ver === String(ver) ? v : {ver: String(ver), k: {}}; o.k[key] = k; localStorage.setItem(id, JSON.stringify(o)); } catch (e) {} }
 const go = (a, h) => { if (a === h) return; SX.mode === "multi" ? sxRunMulti(a, h) : watch(a, h); };
 function sxBoot() {
-  fetch(SIMX.dataUrl + "?v=" + Date.now()).then(r => r.json()).then(d => {
-    SIMX.init(d);
+  const extra = SIMX.extraUrl ? fetch(SIMX.extraUrl + "?v=" + Date.now()).then(r => r.ok ? r.json() : null).catch(() => null) : Promise.resolve(null);   // the sim's league, team and player profiles
+  Promise.all([fetch(SIMX.dataUrl + "?v=" + Date.now()).then(r => r.json()), extra]).then(([d, x]) => {
+    SIMX.init(d, x);
     if (!SIMX.teams().length) { $("#view").innerHTML = `<div class="empty"><div class="t">${esc(SIMX.emptyText)}</div></div>`; return; }
     const u = new URLSearchParams(location.search);
     if (u.get("mode") === "multi") SX.mode = "multi";

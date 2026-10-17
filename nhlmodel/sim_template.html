@@ -33,33 +33,58 @@
 <script>
 /*SIM_JS*/
 $("#back").innerHTML = ICON.back + "NHL";
-let D = null;
-const TEAMS = {}, TM = {}, CALK = {}, SIM_VER = "3|";   // bump when the engine changes so saved tunings are redone
+let D = null, SDH = null;
+const TEAMS = {}, TM = {}, CALK = {}, SIM_VER = "4|";   // bump when the engine changes so saved tunings are redone
 const TOI = {F1: 1.25, F2: 1.08, F3: .85, F4: .6, D1: 1.25, D2: 1, D3: .75};
 const PEN = ["tripping", "hooking", "slashing", "holding", "interference", "high-sticking", "roughing", "cross-checking", "delay of game", "holding the stick"];
-const SHOT = ["wrist shot", "wrist shot", "wrist shot", "snap shot", "slap shot", "backhand", "tip-in", "one-timer", "deflection"];
+const TYPES = ["wrist", "snap", "slap", "tip-in", "backhand", "deflected", "wrap-around"];
+const SAY = {wrist: "wrist shot", snap: "snap shot", slap: "slap shot", "tip-in": "tip-in", backhand: "backhand", deflected: "deflection", "wrap-around": "wrap-around"};
 const L3 = p => (p.lam || {});
-const HIT = 21 / 3600, WHISTLE = 1 / 165;
+// league numbers: replaced by nhl_sim.json (built from every shot, goal, penalty and shift of this season and last)
+let LGH = {xg: {dist: [10, 20, 30, 40, 50, 60], tab: {}, base: .105}, reb: {rate: .1, lift: 1.5}, pp_lift: 1.5, mix: {wrist: .45, snap: .26, slap: .1, "tip-in": .08, backhand: .08, deflected: .02, "wrap-around": .01},
+  att: {on: .48, blocked: .27, miss: .25}, pen60: 3.6, cf60: 55, pp60: 95};
+const PER_G = {hits: 21, blk: 14, give: 8, take: 6};
 
-// ---------- teams, from the NHL model ----------
-// Every team on today's slate: skaters with projected shots, goals and assists, their lines and power-play units, and the starting goalie.
+// ---------- teams: the model's projections plus each team's and player's profile ----------
 function loadTeams() {
   const Ln = {}; for (const l of D.lines || []) Ln[l.id] = l;
   for (const g of D.games || []) for (const k of ["home", "away"]) {
     const t = g[k], out = new Set((t.injuries || []).filter(x => /^(out|ir|ltir)/i.test(x.status)).map(x => x.name));
     const sk = (D.players || []).filter(p => p.team === t.abbr && !out.has(p.name)).map(p => Object.assign({}, p, Ln[p.id] ? {line: Ln[p.id].line, pp: Ln[p.id].pp} : {}));
-    TEAMS[t.abbr] = {ab: t.abbr, name: t.name, full: t.name, color: sxVis(t.color || (D.colors || {})[t.abbr]), logo: t.logo, goalie: t.goalie || `${t.abbr} goalie`,
+    TEAMS[t.abbr] = {ab: t.abbr, name: t.name, full: t.name, color: sxVis(t.color || (D.colors || {})[t.abbr]), logo: t.logo, goalie: t.goalie || `${t.abbr} goalie`, goalieId: t.goalie_id,
       lamFor: k === "home" ? g.lam_home : g.lam_away, lamAg: k === "home" ? g.lam_away : g.lam_home, sk};
   }
 }
+const xgOf = (type, d) => { const tab = LGH.xg.tab[type] || LGH.xg.tab.wrist; if (!tab) return LGH.xg.base; let i = 0; while (i < LGH.xg.dist.length && d > LGH.xg.dist[i]) i++; return tab[i]; };
 function team(ab) {
   if (TM[ab]) return TM[ab];
-  const T = TEAMS[ab];
-  const sk = T.sk.length ? T.sk : ["C", "LW", "RW", "D"].flatMap(p => [1, 2, 3].map(n => ({name: `${ab} ${p}${n}`, pos: p === "D" ? "D" : "F", lam: {sog: 2, goals: .25, assists: .35}})));
+  const T = TEAMS[ab], X = (SDH && SDH.teams && SDH.teams[ab]) || {}, PX = id => (SDH && SDH.players && SDH.players[String(id)]) || {};
+  const sk = (T.sk.length ? T.sk : ["C", "L", "R", "D"].flatMap(p => [1, 2, 3].map(n => ({name: `${ab} ${p}${n}`, pos: p === "D" ? "D" : "F", lam: {sog: 2, goals: .25, assists: .35}})))).map(p => {
+    const x = PX(p.id), pos = x.pos || (p.pos === "D" ? "D" : "C");
+    // where his shots come from: real locations and shot types, and how good his finishing is on top of them
+    const loc = (x.loc || []).map(([ax, ay, ti]) => ({ax, ay, type: TYPES[ti] || "wrist", d: Math.sqrt((89 - ax) ** 2 + ay ** 2)})).filter(s => s.d < 95);
+    const xgAvg = loc.length ? loc.reduce((s, l) => s + xgOf(l.type, l.d), 0) / loc.length : LGH.xg.base;
+    const toi = x.toi || [p.pos === "D" ? 17 : 13, p.pp ? 2.5 : .4, p.pos === "D" ? 1.8 : .9];
+    return Object.assign({}, p, {px: x, pos2: pos, loc, finish: clamp(((L3(p).goals || .1) / Math.max(.15, L3(p).sog || 1)) / xgAvg, .5, 2.2), toi,
+      fo: x.fo ? (x.fo[0] + 50) / (x.fo[1] + 100) : .5, hit: x.hit60 ?? (pos === "D" ? 1.6 : 1.4), blk: x.blk60 ?? (pos === "D" ? 2.6 : .7), pim: x.pim60 ?? (pos === "D" ? 1.1 : .9),
+      give: x.give60 ?? .9, take: x.take60 ?? .7, ast: x.ast || {}});
+  });
+  // how his shots split across strengths, relative to his team's (so power-play and penalty-kill shooters are the real ones)
+  const tot = [0, 0, 0]; for (const p of sk) if (p.px.split) p.px.split.forEach((v, i) => tot[i] += v);
+  const tsum = tot[0] + tot[1] + tot[2] || 1, share = tot.map(v => v / tsum);
+  for (const p of sk) {
+    const sp = p.px.split, n = sp ? sp[0] + sp[1] + sp[2] : 0;
+    p.rel = [0, 1, 2].map(i => sp && tsum > 30 ? ((sp[i] + 8 * share[i]) / (n + 8)) / Math.max(.02, share[i]) : 1);
+    if (!sp) p.rel = [1, p.pp === 1 ? 1.6 : p.pp === 2 ? 1.15 : .45, p.pp ? .7 : 1.15];
+    p.rel[1] *= p.toi[1] > .3 || !p.px.toi ? 1 : .3; p.rel[2] *= p.toi[2] > .3 || !p.px.toi ? 1 : .3;
+  }
   const sog = p => Math.max(.15, L3(p).sog || 1), S = sk.reduce((s, p) => s + sog(p), 0), G = sk.reduce((s, p) => s + Math.max(.01, L3(p).goals || .1), 0);
   const lines = {}; for (const p of sk) if (p.line) (lines[p.line] = lines[p.line] || []).push(p);
-  const centers = ["F1", "F2", "F3", "F4"].filter(l => lines[l]).map(l => lines[l][0]);   // the first forward listed on a line takes its draws
-  return TM[ab] = Object.assign({}, T, {sk, S, G, avgSh: G / S, centers: centers.length ? centers : sk.filter(p => p.pos !== "D").slice(0, 4)});
+  let centers = sk.filter(p => p.pos2 === "C" && p.px.fo && p.px.fo[1] > 10);
+  if (centers.length < 3) centers = ["F1", "F2", "F3", "F4"].filter(l => lines[l]).map(l => lines[l][0]);
+  if (!centers.length) centers = sk.filter(p => p.pos !== "D").slice(0, 4);
+  const gk = (SDH && SDH.goalies && SDH.goalies[String(T.goalieId)]) || {};
+  return TM[ab] = Object.assign({}, T, {sk, S, G, avgSh: G / S, centers, x: X, gk, toiSum: [0, 1, 2].map(i => sk.reduce((s, p) => s + p.toi[i], 0))});
 }
 const gameOf = (a, h) => (D.games || []).find(x => x.home.abbr === h && x.away.abbr === a);
 function expected(a, h) {   // regulation expected goals
@@ -78,30 +103,33 @@ function pModel(a, h) {
 // tune each team's shot rate and finishing until its regulation shots and goals average the model's numbers for this matchup
 function prepare(a, h) {
   const key = a + "|" + h; if (CALK[key]) return CALK[key];
-  const saved = sxCalGet("nhl", SIM_VER + (D.meta.generated_at || D.meta.date), key); if (saved) return CALK[key] = saved;
+  const ver = SIM_VER + (D.meta.generated_at || D.meta.date) + (SDH ? SDH.built : "");
+  const saved = sxCalGet("nhl", ver, key); if (saved) return CALK[key] = saved;
   const [ea, eh] = expected(a, h), E = {a: ea, h: eh}, T = {a: team(a), h: team(h)};
   let c = {a: {s: 1, g: 1}, h: {s: 1, g: 1}};
-  for (const n of [200, 400, 900]) {
+  for (const n of [200, 400, 700]) {
     CALK[key] = c; const sog = {a: 0, h: 0}, gl = {a: 0, h: 0};
     for (let i = 0; i < n; i++) { const s = simulate(a, h, true); for (const k of ["a", "h"]) { sog[k] += s.st.regSog[k]; gl[k] += s.st.gp[k][0] + s.st.gp[k][1] + s.st.gp[k][2]; } }
-    const nc = {}; for (const k of ["a", "h"]) nc[k] = {s: clamp(c[k].s * T[k].S / Math.max(5, sog[k] / n), .5, 2), g: clamp(c[k].g * Math.pow(E[k] / Math.max(.3, gl[k] / n), .9), .4, 2.5)};
+    const nc = {}; for (const k of ["a", "h"]) nc[k] = {s: clamp(c[k].s * T[k].S / Math.max(5, sog[k] / n), .5, 2), g: clamp(c[k].g * Math.pow(E[k] / Math.max(.3, gl[k] / n), .9), .3, 3)};
     c = nc;
   }
-  sxCalPut("nhl", SIM_VER + (D.meta.generated_at || D.meta.date), key, c);
+  sxCalPut("nhl", ver, key, c);
   return CALK[key] = c;
 }
 
 // ---------- the engine: second by second ----------
-// Each team shoots at the rate its skaters' projected shots add up to; the shooter is drawn by projected shots (power-play
-// units on the power play) and scores at his projected shooting rate, so team goals land on the model's expected goals.
-// Penalties bring power plays, a trailing team pulls its goalie late, ties go to 3-on-3 overtime and then a shootout.
+// Shots on goal come at the rate the skaters' projected shots add up to, power plays and penalty kills at the rates these
+// two teams generate and allow; each shot is a real location and shot type from the shooter's own history, it goes in at
+// the league's rate for that spot and type times his finishing, and the matchup is tuned to the model's expected goals.
+// Misses, blocks, rebounds, hits, takeaways, giveaways, penalties and faceoffs follow each team's and player's real rates.
 function simulate(a, h, Q) {
   const S = {a: team(a), h: team(h)}, C = CALK[a + "|" + h] || {a: {s: 1, g: 1}, h: {s: 1, g: 1}};
-  const ts = () => ({pp: 0, ppg: 0, pim: 0, hits: 0, blk: 0, fow: 0, miss: 0});
+  const ts = () => ({pp: 0, ppg: 0, pim: 0, hits: 0, blk: 0, fow: 0, miss: 0, give: 0, take: 0});
   const st = {score: {a: 0, h: 0}, sog: {a: 0, h: 0}, regSog: {a: 0, h: 0}, per: 1, gp: {a: [0, 0, 0, 0], h: [0, 0, 0, 0]}, sp: {a: [0, 0, 0, 0], h: [0, 0, 0, 0]},
-    team: {a: ts(), h: ts()}, box: {}, goals: [], pens: [], so: null, gk: {a: {name: S.a.goalie, sa: 0, ga: 0}, h: {name: S.h.goalie, sa: 0, ga: 0}}};
-  const ev = [], opp = k => k === "a" ? "h" : "a";
-  const pb = (k, p) => st.box[k + "|" + p.name] || (st.box[k + "|" + p.name] = {k, p, g: 0, a: 0, sog: 0, hit: 0, blk: 0, pim: 0, fow: 0, fol: 0});
+    team: {a: ts(), h: ts()}, box: {}, goals: [], pens: [], so: null, secs: {a: [0, 0, 0], h: [0, 0, 0]},
+    gk: {a: {name: S.a.goalie, sa: 0, ga: 0, season: S.a.gk.sv}, h: {name: S.h.goalie, sa: 0, ga: 0, season: S.h.gk.sv}}};
+  const ev = [], opp = k => k === "a" ? "h" : "a", X = {a: S.a.x, h: S.h.x}, la = LGH.att;
+  const pb = (k, p) => st.box[k + "|" + p.name] || (st.box[k + "|" + p.name] = {k, p, g: 0, a: 0, sog: 0, hit: 0, blk: 0, pim: 0, fow: 0, fol: 0, give: 0, take: 0});
   let t = 0, len = 1200, pens = [], pulled = {a: false, h: false};
   const clk = () => { const r = Math.max(0, len - t); return `${Math.floor(r / 60)}:${String(Math.floor(r % 60)).padStart(2, "0")}`; };
   const pl = () => st.per === 4 ? "OT" : `P${st.per}`;
@@ -116,17 +144,19 @@ function simulate(a, h, Q) {
   }
   const say = (o, f) => { if (Q) return; ev.push(Object.assign({pl: pl(), t: clk(), score: {...st.score}, sog: {...st.sog}, str: strLab()}, o, {text: f()})); };
   const pickSk = (k, w) => pick(S[k].sk, S[k].sk.map(w));
-  const lineW = p => TOI[p.line] || .9;
-  function faceoff() {
-    const ca = pick(S.a.centers, S.a.centers.map(lineW)), ch = pick(S.h.centers, S.h.centers.map(lineW)), w = R() < .5 ? "a" : "h";
+  const toiW = (p, i) => p.toi[i] || 0;
+  function faceoff() {   // centres by ice time; the winner by each one's faceoff record against the other's
+    const ca = pick(S.a.centers, S.a.centers.map(p => toiW(p, 0) + 1)), ch = pick(S.h.centers, S.h.centers.map(p => toiW(p, 0) + 1));
+    const pa = ca.fo * (1 - ch.fo) / (ca.fo * (1 - ch.fo) + ch.fo * (1 - ca.fo)), w = R() < pa ? "a" : "h";
     st.team[w].fow++; pb("a", ca)[w === "a" ? "fow" : "fol"]++; pb("h", ch)[w === "h" ? "fow" : "fol"]++;
   }
   function goal(k, shooter, kind, en) {
     const n = strength(), tag = en ? "EN" : n[k] > n[opp(k)] ? "PP" : n[k] < n[opp(k)] ? "SH" : "";
     st.score[k]++; st.gp[k][st.per - 1]++; pb(k, shooter).g++;
-    const mates = S[k].sk.filter(p => p !== shooter), nA = R() < .05 ? 0 : R() < .2 ? 1 : 2, ast = [];
-    for (let i = 0; i < nA && mates.length; i++) {
-      const m = pick(mates, mates.map(p => Math.max(.02, L3(p).assists || .1) * (p.line && p.line === shooter.line ? 2.2 : 1) * (tag === "PP" ? (p.pp ? 2 : .25) : 1)));
+    const mates = S[k].sk.filter(p => p !== shooter), nA = R() < .05 ? 0 : R() < .2 ? 1 : 2, ast = [], partners = shooter.ast || {}, ptot = Object.values(partners).reduce((s, v) => s + v, 0) || 1;
+    for (let i = 0; i < nA && mates.length; i++) {   // assists: projected assists, his usual linemates and real assist partners
+      const m = pick(mates, mates.map(p => Math.max(.02, L3(p).assists || .1) * (p.line && p.line === shooter.line ? 1.8 : 1) * (1 + 3 * (partners[String(p.id)] || 0) / ptot)
+        * (tag === "PP" ? (p.rel[1] > .8 ? 2 : .3) : tag === "SH" ? (p.rel[2] > .8 ? 2 : .3) : 1)));
       ast.push(m); mates.splice(mates.indexOf(m), 1); pb(k, m).a++;
     }
     if (tag === "PP") { st.team[k].ppg++; const p = pens.filter(x => x.side === opp(k)).sort((x, y) => x.until - y.until)[0]; if (p) pens.splice(pens.indexOf(p), 1); }
@@ -134,28 +164,42 @@ function simulate(a, h, Q) {
     st.goals.push({pl: pl(), t: clk(), k, who: shooter.name, ast: ast.map(x => x.name), tag, a: st.score.a, h: st.score.h});
     return () => `<b>Goal</b> · ${esc(shooter.name)}${kind ? ` (${kind})` : ""}${ast.length ? `, assists ${ast.map(x => esc(lastName(x.name))).join(" and ")}` : ", unassisted"}${tag ? ` · ${tag === "EN" ? "empty net" : tag === "PP" ? "power play" : "shorthanded"}` : ""}`;
   }
-  function shot(k, n) {   // returns true when an overtime goal ends it
-    const o = opp(k), T = S[k], pp = n[k] > n[o], sh = n[k] < n[o];
-    const shooter = pickSk(k, p => Math.max(.15, L3(p).sog || 1) * (pp ? (p.pp === 1 ? 1.6 : p.pp === 2 ? 1.15 : .45) : sh ? (p.pp ? .7 : 1.15) : 1));
+  // the rink: away attacks the right-hand net, home the left
+  const rinkXY = (k, ax, ay) => ({x: k === "a" ? 50 + ax * 41 / 89 : 50 - ax * 41 / 89, y: clamp(50 + (k === "a" ? ay : -ay) / 42.5 * 44, 6, 94)});
+  function shot(k, n, reb) {   // returns true when an overtime goal ends it
+    const o = opp(k), T = S[k], si = n[k] > n[o] ? 1 : n[k] < n[o] ? 2 : 0;
+    const shooter = reb ? pickSk(k, p => Math.max(.15, L3(p).sog || 1) * (p.pos2 === "D" ? .4 : 1.2) * p.rel[si]) : pickSk(k, p => Math.max(.15, L3(p).sog || 1) * p.rel[si]);
     st.sog[k]++; if (st.per <= 3) st.regSog[k]++; st.sp[k][Math.min(3, st.per - 1)]++; pb(k, shooter).sog++;
     if (pulled[o] && R() < .45) {   // into the empty net
-      const txt = goal(k, shooter, "", true); say({kind: "goal", side: k, sc: true, x: k === "a" ? 93 : 7, y: 50}, txt); pulled[o] = false; faceoff(); return false;
+      const txt = goal(k, shooter, "", true), p = rinkXY(k, 60 + R() * 20, (R() - .5) * 30); say({kind: "goal", side: k, sc: true, x: p.x, y: p.y}, txt); pulled[o] = false; faceoff(); return false;
     }
     st.gk[o].sa++;
-    const own = clamp((L3(shooter).goals || .1) / Math.max(.15, L3(shooter).sog || 1) / T.avgSh, .35, 2.4);
-    const pg = C[k].g * .82 * T.G / T.S * own * (pp ? 1.35 : sh ? .9 : 1) * (st.per === 4 ? 1.25 : 1);
-    const kind = Q ? "" : pick(SHOT, SHOT.map(() => 1)), close = R() < Math.min(.9, pg * 2.4), dist = close ? Math.round(6 + R() * 16) : Math.round(18 + R() * 42);
-    const x = k === "a" ? 90 - dist * .45 : 10 + dist * .45, y = clamp(50 + (R() - .5) * (close ? 28 : 76), 10, 90);
-    if (R() < pg) { const txt = goal(k, shooter, `${kind}, ${dist} ft`, false); say({kind: "goal", side: k, sc: true, x, y}, txt); faceoff(); return st.per === 4; }
+    // where it comes from: one of his real shots (or the league's mix), and the league's goal rate for that spot and type
+    let ax, ay, type;
+    if (reb) { ax = 80 + R() * 7; ay = (R() - .5) * 16; type = pick(["wrist", "backhand", "tip-in", "snap"], [3, 3, 2, 1]); }
+    else if (shooter.loc.length && R() < .85) { const L = shooter.loc[Math.floor(R() * shooter.loc.length)]; ax = L.ax + (R() - .5) * 4; ay = L.ay + (R() - .5) * 4; type = L.type; }
+    else { type = pick(TYPES, TYPES.map(x => LGH.mix[x] || .01)); const d = type === "tip-in" || type === "deflected" ? 6 + R() * 18 : 12 + R() * 48, ang = (R() - .5) * 1.6; ax = 89 - d * Math.cos(ang); ay = d * Math.sin(ang); }
+    const dist = Math.max(4, Math.round(Math.sqrt((89 - ax) ** 2 + ay ** 2)));
+    const pg = clamp(C[k].g * xgOf(type, dist) * shooter.finish * (reb ? LGH.reb.lift : 1) * (si === 1 ? LGH.pp_lift || 1.5 : si === 2 ? .95 : 1) * (st.per === 4 ? 1.2 : 1), .002, .7);
+    const pos = rinkXY(k, ax, ay), kind = `${reb ? "rebound, " : ""}${SAY[type] || type}, ${dist} ft`;
+    if (R() < pg) { const txt = goal(k, shooter, kind, false); say({kind: "goal", side: k, sc: true, x: pos.x, y: pos.y}, txt); faceoff(); return st.per === 4; }
     const frz = R() < .36;
-    say({kind: "shot", side: k, x, y}, () => `${esc(lastName(shooter.name))} ${kind} from ${dist} ft, saved by ${esc(lastName(S[o].goalie))}${frz ? ", who covers it" : ""}`);
-    if (frz) faceoff();
+    say({kind: "shot", side: k, x: pos.x, y: pos.y}, () => `${esc(lastName(shooter.name))} ${reb ? "rebound " : ""}${SAY[type] || type} from ${dist} ft, saved by ${esc(lastName(S[o].goalie))}${frz ? ", who covers it" : ""}`);
+    if (frz) { faceoff(); return false; }
+    if (!reb && R() < (LGH.reb.rate || .1) * (X[k].reb || 1) / .64) return shot(k, n, true);   // a rebound chance
     return false;
   }
   say({kind: "sec"}, () => "1st period");
   faceoff();
   let ended = false, n = null, lastPens = -1, lastPull = {}, lastPer = 0;
-  const rt = {a: 0, h: 0};
+  const rt = {a: 0, h: 0}, missR = {a: 0, h: 0}, blkR = {a: 0, h: 0}, hitR = {}, giveR = {}, takeR = {}, penR = {};
+  for (const k of ["a", "h"]) { const x = X[k], o = X[opp(k)];
+    missR[k] = la.miss / (la.on * (x.on || 1)); blkR[k] = la.blocked * (o.blk || 1) / (la.on * (x.on || 1));   // misses and blocks per shot on goal
+    hitR[k] = (x.hits_g ?? PER_G.hits) / 3600; giveR[k] = (x.give_g ?? PER_G.give) / 3600; takeR[k] = (x.take_g ?? PER_G.take) / 3600;
+    penR[k] = (LGH.pen60 || 3.6) / 3600 * Math.sqrt((x.pen || 1) * (o.drawn || 1)); }
+  // a power play's shot rate over even strength: these two teams' power-play and penalty-kill attempt rates
+  const ppMult = k => { const x = X[k], o = X[opp(k)]; return x.pp60 && o.pk60 && LGH.cf60 ? clamp((LGH.pp60 * x.pp60 * o.pk60) / (LGH.cf60 * (x.cf60 || 1) * (o.ca60 || 1)), 1.4, 2.8) : 2.1; };
+  const PPM = {a: ppMult("a"), h: ppMult("h")};
   while (!ended) {
     t += 1;
     if (pens.length && pens.some(p => p.until <= t)) { const over = pens.filter(p => p.until <= t); pens = pens.filter(p => p.until > t); for (const p of over) say({kind: "note"}, () => `${esc(S[p.side].ab)} back to full strength`); }
@@ -165,22 +209,25 @@ function simulate(a, h, Q) {
       if (want && !pulled[k]) { pulled[k] = true; say({kind: "note", side: k}, () => `${esc(S[k].ab)} pull ${esc(lastName(S[k].goalie))} for an extra attacker`); }
       if (!want && pulled[k]) pulled[k] = false;
     }
-    // at most one thing happens in a second: one draw decides whether anything does, a second one decides what
     if (pens.length !== lastPens || pulled.a !== lastPull.a || pulled.h !== lastPull.h || st.per !== lastPer) {   // strengths change rarely: recompute only then
       lastPens = pens.length; lastPull = {...pulled}; lastPer = st.per; n = strength();
-      for (const k of ["a", "h"]) { const o = opp(k); rt[k] = C[k].s * S[k].S / 3600 * (n[k] > n[o] ? 2.1 : n[k] < n[o] ? .42 : 1) * (st.per === 4 ? 1.6 : 1) * (pulled[k] ? 1.8 : 1); }
+      for (const k of ["a", "h"]) { const o = opp(k); rt[k] = C[k].s * S[k].S / 3600 * (n[k] > n[o] ? PPM[k] : n[k] < n[o] ? .42 : 1) * (st.per === 4 ? 1.6 : 1) * (pulled[k] ? 1.8 : 1); }
     }
-    const pen = st.per < 4 ? 3.05 / 3600 : 0, tot = 1.95 * (rt.a + rt.h) + 2 * (HIT + pen) + WHISTLE;
+    for (const k of ["a", "h"]) st.secs[k][n[k] > n[opp(k)] ? 1 : n[k] < n[opp(k)] ? 2 : 0]++;
+    // at most one thing happens in a second: one draw decides whether anything does, a second one decides what
+    const pen = st.per < 4 ? 1 : 0, tot = rt.a * (1 + missR.a + blkR.a) + rt.h * (1 + missR.h + blkR.h) + hitR.a + hitR.h + giveR.a + giveR.h + takeR.a + takeR.h + pen * (penR.a + penR.h) + 1 / 165;
     if (R() < tot) {
       let u = R() * tot;
       for (const k of ["a", "h"]) {
-        const o = opp(k);
-        if ((u -= rt[k]) < 0) { if (shot(k, n)) ended = true; break; }
-        if ((u -= .45 * rt[k]) < 0) { st.team[k].miss++; break; }
-        if ((u -= .5 * rt[k]) < 0) { st.team[o].blk++; pb(o, pickSk(o, p => p.pos === "D" ? 2.6 : .7)).blk++; break; }
-        if ((u -= HIT) < 0) { st.team[k].hits++; pb(k, pickSk(k, p => (p.pos === "D" ? 1.1 : 1) * (p.line === "F4" ? 1.6 : 1) * lineW(p))).hit++; break; }
-        if ((u -= pen) < 0) {
-          const who = pickSk(k, p => (p.pos === "D" ? 1.15 : 1) * lineW(p)), why = pick(PEN, PEN.map(() => 1));
+        const o = opp(k), si = n[k] > n[o] ? 1 : n[k] < n[o] ? 2 : 0, on = p => toiW(p, si) + .1;
+        if ((u -= rt[k]) < 0) { if (shot(k, n, false)) ended = true; break; }
+        if ((u -= rt[k] * missR[k]) < 0) { st.team[k].miss++; break; }
+        if ((u -= rt[k] * blkR[k]) < 0) { st.team[o].blk++; pb(o, pickSk(o, p => p.blk * on(p))).blk++; break; }
+        if ((u -= hitR[k]) < 0) { st.team[k].hits++; pb(k, pickSk(k, p => p.hit * toiW(p, 0))).hit++; break; }
+        if ((u -= giveR[k]) < 0) { st.team[k].give++; pb(k, pickSk(k, p => p.give * on(p))).give++; break; }
+        if ((u -= takeR[k]) < 0) { st.team[k].take++; pb(k, pickSk(k, p => p.take * on(p))).take++; break; }
+        if ((u -= pen * penR[k]) < 0) {
+          const who = pickSk(k, p => p.pim * (toiW(p, 0) + toiW(p, 2))), why = pick(PEN, PEN.map(() => 1));
           pens.push({side: k, until: t + 120}); st.team[k].pim += 2; st.team[o].pp++; pb(k, who).pim += 2;
           st.pens.push({pl: pl(), t: clk(), k, who: who.name, why});
           say({kind: "pen", side: k, to: true}, () => `Penalty · ${esc(who.name)}, 2 minutes for ${why}`); faceoff(); break;
@@ -192,7 +239,7 @@ function simulate(a, h, Q) {
     if (st.per < 3) { say({kind: "sec"}, () => `End of the ${["1st", "2nd"][st.per - 1]} period`); st.per++; t = 0; pens.forEach(p => p.until -= len); say({kind: "sec"}, () => `${["", "", "2nd", "3rd"][st.per]} period`); faceoff(); continue; }
     if (st.score.a !== st.score.h) break;
     if (st.per === 3) { say({kind: "sec"}, () => "End of regulation · 3-on-3 overtime"); st.per = 4; t = 0; len = 300; pulled = {a: false, h: false}; pens.forEach(p => p.until -= 1200); faceoff(); continue; }
-    // shootout: three rounds, then sudden death
+    // shootout: three rounds, then sudden death; shooters by projected goals
     say({kind: "sec"}, () => "Shootout");
     const so = {a: 0, h: 0}, shots = {a: 0, h: 0}, L = {a: [...S.a.sk].sort((x, y) => (L3(y).goals || 0) - (L3(x).goals || 0)), h: [...S.h.sk].sort((x, y) => (L3(y).goals || 0) - (L3(x).goals || 0))};
     for (let r = 0; r < 20; r++) {
@@ -208,6 +255,9 @@ function simulate(a, h, Q) {
     const w = so.a > so.h ? "a" : "h"; st.so = {a: so.a, h: so.h, w}; st.score[w]++;
     break;
   }
+  // ice time: each strength's minutes shared by usual deployment (five skaters at even strength, four killing a penalty)
+  for (const k of ["a", "h"]) for (const p of S[k].sk) { const b = pb(k, p), T = S[k];
+    b.toi = [0, 1, 2].reduce((s, i) => s + (T.toiSum[i] ? st.secs[k][i] * p.toi[i] / T.toiSum[i] * (i === 2 ? 4 : 5) : 0), 0); }
   say({kind: "sec"}, () => `Final${st.so ? " · shootout" : st.per === 4 ? " · overtime" : ""}`);
   return {a, h, T: S, st, ev, final: {...st.score}, exp: expected(a, h)};
 }
@@ -215,11 +265,11 @@ function simulate(a, h, Q) {
 // ---------- screens ----------
 const svp = G => G.sa ? ((G.sa - G.ga) / G.sa).toFixed(3).replace(/^0/, "") : "–";
 const SIMX = {
-  dataUrl: "data.json", startPl: "P1", startClock: "20:00", kickText: "Puck drop", otLabel: "OT / shootout", emptyText: "No NHL games on today's slate",
+  dataUrl: "data.json", extraUrl: "nhl_sim.json", startPl: "P1", startClock: "20:00", kickText: "Puck drop", otLabel: "OT / shootout", emptyText: "No NHL games on today's slate",
   multiN: 1000, multiChunk: 25, marginBins: [[-99, -3], [-2, -2], [-1, -1], [1, 1], [2, 2], [3, 99]], marginEdge: 3, marginMid: "One-goal games in the middle",
-  note: "Teams on today's slate. The game is played out second by second: each team shoots as often as its skaters' projected shots add up to, shooters follow each player's projected shots and power-play unit, and finishing follows each player's projected shooting rate. Penalties, pulled goalies, 3-on-3 overtime and shootouts all play out. Each matchup is tuned so regulation shots and goals average the model's numbers.",
+  note: "Teams on today's slate, built from every shot, goal, penalty and shift of this season and last plus the model's projections. The game is played out second by second: each team shoots as often as its skaters' projected shots add up to, shooters follow each player's projected shots and power-play unit, and finishing follows each player's projected shooting rate. Penalties, pulled goalies, 3-on-3 overtime and shootouts all play out. Each matchup is tuned so regulation shots and goals average the model's numbers.",
   fmt: v => v.toFixed(2), avgLabel: "Regulation goals",
-  init(d) { D = d; loadTeams(); },
+  init(d, x) { D = d; if (x && x.league) { SDH = x; LGH = Object.assign({}, LGH, x.league); } loadTeams(); },
   teams: () => Object.keys(TEAMS).map(team).sort((x, y) => x.name.localeCompare(y.name)),
   team, expected, pModel, prepare, simulate,
   slate: () => (D.games || []).map(g => ({a: team(g.away.abbr), h: team(g.home.abbr), pa: g.lam_away, ph: g.lam_home, pHome: pModel(g.away.abbr, g.home.abbr),
@@ -251,15 +301,15 @@ const SIMX = {
         + (st.so ? `<div class="sx-r sc"><i>SO</i><span><b>${esc(T[st.so.w].ab)}</b> win the shootout ${Math.max(st.so.a, st.so.h)}–${Math.min(st.so.a, st.so.h)}</span><em>${st.score.a}–${st.score.h}</em></div>` : "") || `<div class="sx-r"><i></i><span>No goals</span></div>`}</div>`
       + `<div class="sx-h"><b>Team stats</b><span>Model xG ${esc(T.a.ab)} ${sim.exp[0].toFixed(2)} – ${sim.exp[1].toFixed(2)} ${esc(T.h.ab)}</span></div>`
       + sxCompare(sim, [["Shots on goal", st.sog.a, st.sog.h, true], ["Power play", A.pp ? A.ppg / A.pp : 0, H.pp ? H.ppg / H.pp : 0, true, `${A.ppg}/${A.pp}`, `${H.ppg}/${H.pp}`],
-        ["Faceoffs", fo("a"), fo("h"), true, sxPct(fo("a")), sxPct(fo("h"))], ["Hits", A.hits, H.hits, null], ["Blocked shots", A.blk, H.blk, null], ["Penalty minutes", A.pim, H.pim, false]])
+        ["Faceoffs", fo("a"), fo("h"), true, sxPct(fo("a")), sxPct(fo("h"))], ["Hits", A.hits, H.hits, null], ["Blocked shots", A.blk, H.blk, null], ["Missed shots", A.miss, H.miss, null], ["Takeaways", A.take, H.take, true], ["Giveaways", A.give, H.give, false], ["Penalty minutes", A.pim, H.pim, false]])
       + (st.pens.length ? `<div class="sx-h"><b>Penalties</b></div><div class="sx-card sx-feed">${st.pens.map(p => `<div class="sx-r"><i>${esc(p.pl)} ${esc(p.t)}</i><span><b>${esc(T[p.k].ab)}</b> · ${esc(p.who)}, ${esc(p.why)}</span><em style="color:var(--t3)">2:00</em></div>`).join("")}</div>` : "");
   },
   box(sim) {
     const {st, T} = sim;
     return ["a", "h"].map(k => { const B = Object.values(st.box).filter(b => b.k === k).sort((x, y) => (y.g + y.a) - (x.g + x.a) || y.g - x.g || y.sog - x.sog), G = st.gk[k];
       return `<div class="sx-card" style="margin-top:12px;padding-bottom:6px">${sxHead(T[k])}
-        ${sxTable(["Skaters", "G", "A", "P", "SOG", "Hit", "Blk", "PIM"], B.map(b => [esc(b.p.name), b.g, b.a, b.g + b.a, b.sog, b.hit, b.blk, b.pim]))}
-        ${sxTable(["Goalie", "SA", "GA", "SV", "SV%"], [[esc(G.name), G.sa, G.ga, G.sa - G.ga, svp(G)]])}</div>`; }).join("");
+        ${sxTable(["Skaters", "G", "A", "SOG", "Hit", "Blk", "FO", "TOI"], B.map(b => [esc(b.p.name), b.g, b.a, b.sog, b.hit, b.blk, b.fow + b.fol ? `${b.fow}-${b.fol}` : "–", b.toi ? `${Math.floor(b.toi / 60)}:${String(Math.round(b.toi % 60)).padStart(2, "0")}` : "–"]))}
+        ${sxTable(["Goalie", "SA", "GA", "SV%", "Season"], [[esc(G.name), G.sa, G.ga, svp(G), G.season ? G.season.toFixed(3).replace(/^0/, "") : "–"]])}</div>`; }).join("");
   },
   digest(sim) {
     const p = {}; for (const b of Object.values(sim.st.box)) p[b.k + "|" + b.p.name] = [b.g, b.a, b.sog];

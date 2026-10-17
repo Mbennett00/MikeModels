@@ -889,9 +889,10 @@ def install_page(web: str):
     from calib.webassets import install as _install   # inlines the shared Model Health component
     _install(os.path.join(HERE, "web_template.html"), os.path.join(web, "nfl.html"))
     _install(os.path.join(HERE, "sim_template.html"), os.path.join(web, "sim.html"))   # the game simulator
-    src = os.path.join(os.path.dirname(web), "nfl.json")
-    if os.path.exists(src) and os.path.abspath(src) != os.path.abspath(os.path.join(web, "nfl.json")):
-        shutil.copy(src, os.path.join(web, "nfl.json"))
+    for name in ("nfl.json", "nfl_sim.json", "nhl_sim.json"):   # the page data and the game simulators' profiles
+        src = os.path.join(os.path.dirname(web), name)
+        if os.path.exists(src) and os.path.abspath(src) != os.path.abspath(os.path.join(web, name)):
+            shutil.copy(src, os.path.join(web, name))
 
 
 if __name__ == "__main__":
