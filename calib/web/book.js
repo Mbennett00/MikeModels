@@ -23,7 +23,7 @@ function bkLoad() {
 }
 let BKS = bkLoad();
 function bkSave() { try { localStorage.setItem(BK.key, JSON.stringify(BKS)); } catch (e) {} }
-   // another league's tab placed or graded a bet
+window.addEventListener("storage", e => { if (e.key === BK.key) { BKS = bkLoad(); bkPaint(); } });   // another league's tab placed or graded a bet
 
 function bkSel(o) {
   const s = Object.assign({}, o);
@@ -368,4 +368,4 @@ async function bkSettle() {
     }
   } finally { bkBusy = false; }
 }
-// Model-vs-market mode: no wallet, so nothing to grade in the background (the helpers above still price and draw).
+setTimeout(bkSettle, 1500); setInterval(bkSettle, 120e3);   // grade open bets from ESPN finals

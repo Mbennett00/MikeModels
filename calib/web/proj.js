@@ -1,6 +1,7 @@
 // ---------- PIKT (shared by the NHL, NFL and NBA pages) ----------
-// Model vs market: each league's projections next to the real market (consensus game lines from The Odds API,
-// DraftKings props), with the model's edges marked. No betting.
+// A play-coin sportsbook on the real market (consensus game lines from The Odds API, DraftKings props) with the
+// model's read on every price: its chance for each side, and the prices where it sees an edge. Bets settle from
+// ESPN finals (calib/web/book.js).
 // Each page sets PJA (its adapter) and calls pjRender():
 //   PJA.games()      -> [{id, state: pre|live|final, time, detail, a, h, ph, lph, sa, sh, score: {a, h}, stats: [[label, value]], note}]
 //                       team = {abbr, name, color, logo, sub}
@@ -14,7 +15,7 @@
 document.body.classList.add("pj");
 let PJA = null;
 const PJ = {mk: null, q: "", game: "all", open: new Set(), panel: {}, n: 40};
-const PJ_TABS = [["home", "Home"], ["games", "Games"], ["players", "Players"], ["model", "Model"]];
+const PJ_TABS = [["home", "Home"], ["games", "Games"], ["players", "Props"], ["bets", "My bets"], ["model", "Model"]];
 const PJ_IC = {
   home: '<path d="M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5.5h-5V20H5a1 1 0 0 1-1-1z"/>',
   games: '<rect x="3.5" y="5" width="17" height="14" rx="3"/><path d="M12 5v14M3.5 12h17"/>',
@@ -42,10 +43,13 @@ function pjImgAlts(players) { for (const p of players || []) { if (!p.headshot |
 (() => {
   const sub = document.getElementById("sub"), hb2 = document.querySelector(".hb2"), hb1 = document.querySelector(".hb1");
   if (sub && hb2) hb2.insertBefore(sub, hb2.querySelector(".iconbtn"));
+  if (hb1 && !document.getElementById("coin")) { const c = document.createElement("button"); c.id = "coin"; c.className = "coin"; c.setAttribute("aria-label", "Wallet");
+    c.onclick = () => pjGo("bets"); hb1.appendChild(c); }
 })();
 function pjNav() {
   const el = document.getElementById("nav"); if (!el) return;
   const html = PJ_TABS.map(([k, n]) => `<button class="${TAB === k ? "on" : ""}" data-k="${k}">${pjIc(k)}<span>${n}</span></button>`).join("");
+  el.style.setProperty("--n", PJ_TABS.length);
   if (el.dataset.h !== html) { el.dataset.h = html; el.innerHTML = html; el.querySelectorAll("[data-k]").forEach(b => b.onclick = () => pjGo(b.dataset.k)); }
 }
 function pjGo(tab) {   // one smooth cross-fade between tabs where the browser supports it
@@ -136,10 +140,12 @@ const pjIsMkt = x => x && (x.src === "mkt" || x.src === "dk");
 function pjModelP(g, x) { if (!x) return null; if (x.kind === "ml") return x.side === "home" ? g.ph : 1 - g.ph; return PJA.price ? PJA.price(g.id, x.kind, x.side, x.line) : null; }
 const pjEV = (x, mp) => pjIsMkt(x) && mp != null && isFinite(mp) ? mp * x.dec - 1 : null;
 const pjEvTxt = ev => `${ev >= 0 ? "+" : "−"}${Math.abs(100 * ev).toFixed(1)}%`;
+// a bettable price: the market's odds (the model's own price where the market has none), with the model's chance under it
 function pjCell(x, top, mp) {
-  if (!x) return `<span class="px off">–</span>`;
-  const ev = pjEV(x, mp), hot = ev != null && ev >= PJ_EDGE;
-  return `<span class="px ${hot ? "edge" : ""} ${pjIsMkt(x) ? "" : "fair"}">${top ? `<i>${esc(top)}</i>` : ""}<b>${pjIsMkt(x) ? bkAm(x.dec) : pjFair(mp)}</b><em>${hot ? pjEvTxt(ev) : mp != null ? "Model " + pjPct(mp) : ""}</em></span>`;
+  if (!x || x.p == null || !isFinite(x.dec)) return `<span class="px off">–</span>`;
+  const ev = pjEV(x, mp), hot = ev != null && ev >= PJ_EDGE, t = top ? `<i>${esc(top)}</i>` : "";
+  if (!x.open) return `<span class="px off">${t}<b>🔒</b></span>`;
+  return `<button class="px ${hot ? "edge" : ""} ${pjIsMkt(x) ? "" : "fair"} ${bkIn(x.key) ? "on" : ""}" data-bk="${esc(x.key)}">${t}<b>${bkAm(x.dec)}</b><em>${hot ? pjEvTxt(ev) : mp != null ? "Model " + pjPct(mp) : ""}</em></button>`;
 }
 // a game's six market sides with the model's view of each
 function pjGameEdges(g) {
@@ -159,8 +165,8 @@ function pjAllEdges() {
 }
 function pjEdgeRow(e) {
   const tap = e.p ? `data-player="${esc(e.p.id)}"` : `data-gogame="${esc(e.g.id)}"`;
-  return `<button class="er" ${tap}>${bkArt(e.x, "sm")}<span class="er-t"><b>${esc(e.x.pick)}</b><i>${esc(e.x.game)} · ${esc(e.x.mkt)}</i></span>
-    <span class="er-n"><i>Market</i><b>${bkAm(e.x.dec)}</b></span><span class="er-n"><i>Model</i><b>${pjPct(e.mp)}</b></span><span class="er-ev">${pjEvTxt(e.ev)}</span></button>`;
+  return `<div class="er" ${tap}>${bkArt(e.x, "sm")}<span class="er-t"><b>${esc(e.x.pick)}</b><i>${esc(e.x.game)} · Model ${pjPct(e.mp)}</i></span>
+    <span class="er-ev">${pjEvTxt(e.ev)}</span>${bkBtn(e.x)}</div>`;
 }
 function pjMarkets(g) {
   if (g.state !== "pre") return "";
@@ -195,7 +201,7 @@ function pjGameCard(g) {
 // Home: a game row with the model's win chance and the market moneyline
 function pjGameRow(g) {
   const M = g.state === "pre" ? pjLines(g) : null;
-  const side = (t, i, mine, sc, other) => `<div class="gr-t">${pjLogo(t)}<b>${esc(t.name)}</b>${g.state === "pre" ? `<em>${pjPct(mine)}</em>${M && pjIsMkt(M.ml[i]) ? `<span class="gr-m">${bkAm(M.ml[i].dec)}</span>` : `<span class="gr-m fair">${pjFair(mine)}</span>`}` : `<strong class="${g.state === "final" && sc < other ? "lose" : ""}">${sc ?? 0}</strong>`}</div>`;
+  const side = (t, i, mine, sc, other) => `<div class="gr-t">${pjLogo(t)}<b>${esc(t.name)}</b>${g.state === "pre" ? `<em>${pjPct(mine)}</em>${M && M.ml && M.ml[i] ? bkBtn(M.ml[i]) : ""}` : `<strong class="${g.state === "final" && sc < other ? "lose" : ""}">${sc ?? 0}</strong>`}</div>`;
   return `<div class="gr" data-gogame="${esc(g.id)}"><div class="gr-st">${pjStatus(g)}${g.state === "pre" ? `<span>Model · Market</span>` : ""}</div>
     ${side(g.a, 0, 1 - g.ph, g.score && g.score.a, g.score && g.score.h)}${side(g.h, 1, g.ph, g.score && g.score.h, g.score && g.score.a)}</div>`;
 }
@@ -220,7 +226,7 @@ function pjHome() {
       <div class="hero-n"><div><b>${G.length}</b><i>games</i></div><div><b>${mkt}</b><i>with market lines</i></div><div><b class="${E.length ? "up" : ""}">${E.length}</b><i>model edges</i></div></div>
       <span class="hero-s">Edges are prices where the model's chance beats the market by ${Math.round(100 * PJ_EDGE)}% or more.</span></section>`;
   const top = (PJA.top ? PJA.top() : []).slice(0, 6);
-  return hero + pjTicker(live)
+  return bkStripHtml() + hero + pjTicker(live)
     + (E.length ? `<div class="hd"><b>Top edges</b><span class="hd-s">Model vs market</span></div><div class="list">${E.slice(0, 8).map(pjEdgeRow).join("")}</div>` : "")
     + `<div class="hd"><b>${esc(PJA.gamesLabel || "Tonight's games")}</b><button data-go="games">All games</button></div><div class="gl">${G.filter(g => g.state !== "live").map(pjGameRow).join("")}</div>`
     + (top.length ? `<div class="hd"><b>${esc(PJA.topLabel || "Top projections")}</b><button data-go="players">All players</button></div><div class="list">${top.map(({p, mk}) => pjProjRow(p, mk)).join("")}</div>` : "")
@@ -276,7 +282,7 @@ function pjRender() {
   const b = document.body;
   [...b.classList].filter(c => c.startsWith("tab-")).forEach(c => b.classList.remove(c)); b.classList.add("tab-" + TAB);
   const v = document.getElementById("view");
-  const html = ({home: pjHome, games: pjGames, players: pjPlayers, model: () => PJA.modelHtml ? PJA.modelHtml() : ""}[TAB] || pjHome)();
+  const html = ({home: pjHome, games: pjGames, players: pjPlayers, bets: bkScreen, model: () => PJA.modelHtml ? PJA.modelHtml() : ""}[TAB] || pjHome)();
   if (html !== window.PJ_HTML || v.dataset.tab !== TAB) { window.PJ_HTML = html; v.dataset.tab = TAB; v.innerHTML = html; }
   v.querySelectorAll("[data-go]").forEach(x => x.onclick = () => pjGo(x.dataset.go));
   v.querySelectorAll("[data-gogame]").forEach(x => x.onclick = () => { PJ.open.add(String(x.dataset.gogame)); TAB = "games"; pjRender();
@@ -291,10 +297,21 @@ function pjRender() {
   v.querySelectorAll("[data-pjsearch]").forEach(x => x.onclick = () => { PJ.searching = !PJ.searching; if (!PJ.searching) PJ.q = ""; pjRender(); const i = document.getElementById("pjq"); if (i) i.focus(); });
   const q = document.getElementById("pjq");
   if (q) q.oninput = () => { PJ.q = q.value; const pos = q.selectionStart; pjRender(); const n = document.getElementById("pjq"); if (n) { n.focus(); n.setSelectionRange(pos, pos); } };
+  bkWire(v);
   if (TAB === "model" && PJA.modelWire) PJA.modelWire(pjRender);
   if (PJA.after) PJA.after(pjRender);
+  const c = document.getElementById("coin"); if (c) { const h = bkPill(); if (c.dataset.h !== h) { c.dataset.h = h; c.innerHTML = h; } }
+  bkBar();
   requestAnimationFrame(() => { const h = document.querySelector(".hdr"); if (h) { const hv = h.offsetHeight + "px"; if (window.PJ_HH !== hv) { window.PJ_HH = hv; document.documentElement.style.setProperty("--hdrh", hv); } } });
   const sp = document.getElementById("splash"); if (sp && !sp.classList.contains("out")) { sp.classList.add("out"); setTimeout(() => sp.remove(), 400); }
 }
 window.addEventListener("scroll", () => { const h = document.querySelector(".hdr"); if (h) h.classList.toggle("stuck", window.scrollY > 8); }, {passive: true});
 setInterval(() => { if (TAB === "home" && !document.getElementById("sheet").classList.contains("open")) pjRender(); }, 60e3);   // countdowns
+// My bets: live status for a leg in this page's league
+function pjLegStatus(l) {
+  if (!PJA || l.sport !== PJA.sport) return null;
+  const g = PJA.games().find(x => String(x.id) === String(l.gid)); if (!g) return null;
+  if (g.state === "live" && g.score) return `<span class="lg-live">Live ${esc(g.detail || "")} · ${esc(g.a.abbr)} ${g.score.a}–${g.score.h} ${esc(g.h.abbr)}</span>`;
+  if (g.state === "final" && g.score) return `<span class="lg-fin">Final ${esc(g.a.abbr)} ${g.score.a}–${g.score.h} ${esc(g.h.abbr)}</span>`;
+  return g.time ? `<span class="lg-pre">${esc(g.time)}</span>` : null;
+}

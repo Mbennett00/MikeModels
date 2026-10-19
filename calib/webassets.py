@@ -25,7 +25,7 @@ self.addEventListener("fetch", e => {
 """
 MANIFEST = dict(name="Pikt", short_name="Pikt", description="Pikt: NHL, NFL and NBA lines and props with play coins",
                 start_url="./index.html", scope="./", display="standalone", orientation="portrait",
-                background_color="#030706", theme_color="#030706",
+                background_color="#15122e", theme_color="#1b173d",
                 icons=[dict(src="icon-192.png", sizes="192x192", type="image/png", purpose="any"),
                        dict(src="icon-512.png", sizes="512x512", type="image/png", purpose="any")],
                 shortcuts=[dict(name="NHL", url="./index.html"), dict(name="NFL", url="./nfl.html"), dict(name="NBA", url="./nba.html")])

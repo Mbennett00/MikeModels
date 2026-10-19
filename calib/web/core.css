@@ -586,3 +586,87 @@ body { background: radial-gradient(120% 50% at 50% -10%, rgba(34,217,143,.07), t
 .pr { grid-template-columns: minmax(0, 1fr) auto; row-gap: 8px; }
 
 .gc-sim { margin-left: auto; color: var(--acc); font-weight: 700; font-size: 12px; text-decoration: none; }
+
+/* ================= PIKT · night-battle cartoon theme =================
+   Dark indigo night, chunky ink outlines with a solid drop under every card and button, a rounded display face with a
+   pixel face for small labels, electric yellow for your picks and the main action, mint for edges and wins. */
+:root {
+  --bg: #15122e; --s1: #221e47; --s2: #2b2659; --s3: #352f6b; --s4: #433b82;
+  --line: rgba(8,6,24,.55); --line2: #0b0a1a; --ink: #0b0a1a;
+  --t1: #f7f4ff; --t2: #bfb8ec; --t3: #8f88c4;
+  --acc: #ffd23f; --acc-ink: #1b1533; --acc-soft: rgba(255,210,63,.15); --cta: #ffd23f;
+  --up: #3ee08f; --dn: #ff5a7a; --gold: #ffd23f; --live: #ff5a7a;
+  --fb: "Fredoka", "Baloo 2", system-ui, sans-serif; --px: "Press Start 2P", ui-monospace, monospace;
+  --r: 20px; --pop: 0 4px 0 var(--ink); --hair: none; --lift: none;
+}
+html, body.pj { background: radial-gradient(120% 60% at 50% -15%, rgba(124,92,255,.38), transparent 60%) fixed, radial-gradient(rgba(255,255,255,.08) 1.2px, transparent 1.4px) 0 0 / 24px 24px fixed, var(--bg); }
+body.pj { font-family: var(--fb); font-weight: 500; letter-spacing: .005em; }
+body.pj b, body.pj strong { font-weight: 700; }
+.splash { background: var(--bg); }
+/* header, wallet, tab bar */
+body.pj .hdr, body.pj .hdr.stuck { background: #1b173d; border-bottom: 3px solid var(--ink); box-shadow: 0 3px 0 rgba(0,0,0,.25); }
+body.pj .coin { height: 38px; padding: 0 14px 0 8px; border-radius: 19px; background: #fff3c4; color: var(--acc-ink); border: 3px solid var(--ink); box-shadow: var(--pop); }
+body.pj .coin b { color: var(--acc-ink); font-size: 16px; } body.pj .coin .bk-c { color: #c58a00; }
+body.pj .nav { background: #1b173d; border-top: 3px solid var(--ink); }
+body.pj .nav button { color: var(--t3); } body.pj .nav button span { font-size: 11px; font-weight: 700; }
+body.pj .nav button.on { color: var(--t1); } body.pj .nav button.on .ico { background: var(--acc); color: var(--acc-ink); border: 2px solid var(--ink); box-shadow: 0 2px 0 var(--ink); }
+body.pj .sport a { font-weight: 700; } body.pj .tabs button.on::after, body.pj .sport a.on::after { background: var(--acc); height: 4px; border-radius: 3px; }
+body.pj .tabs { border-bottom: 3px solid var(--ink); } body.pj .tabs button { font-weight: 700; }
+/* surfaces: every card is outlined in ink with a solid drop */
+body.pj .gc, body.pj .list, body.pj .gl, body.pj .card, body.pj .bk-tk, body.pj .ms, body.pj .mb-strip, body.pj .pod, body.pj .fg, body.pj .xpanel, body.pj .tk, body.pj .er-wrap {
+  background: var(--s1); border: 3px solid var(--ink); border-radius: var(--r); box-shadow: 0 5px 0 var(--ink); }
+body.pj .gc { margin-top: 16px; } body.pj .gc::before { height: 6px; }
+body.pj .list > * + *, body.pj .gr, body.pj .er, body.pj .pr { border-color: rgba(8,6,24,.6); }
+body.pj .hd b, body.pj .hx-h b { font-size: 20px; letter-spacing: 0; }
+body.pj .hd button { color: var(--acc); font-weight: 700; }
+body.pj .hero { border: 3px solid var(--ink); border-radius: 22px; box-shadow: 0 6px 0 var(--ink); background: radial-gradient(circle at 85% 0%, rgba(255,210,63,.25), transparent 45%), linear-gradient(160deg, #4b36b8, #2a2170 70%); }
+body.pj .hero-k { font-family: var(--px); font-size: 9px; letter-spacing: .02em; color: var(--acc); text-transform: uppercase; }
+body.pj .hero-n b { font-family: var(--px); font-size: 20px; } body.pj .hero-n i { font-weight: 600; }
+/* prices: chunky buttons, yellow when picked, mint glow on a model edge */
+body.pj .px, body.pj .bk-px { border: 3px solid var(--ink); border-radius: 13px; background: var(--s2); box-shadow: 0 3px 0 var(--ink); color: var(--t1); transition: transform .06s, box-shadow .06s; }
+body.pj .px:active, body.pj .bk-px:active { transform: translateY(3px); box-shadow: 0 0 0 var(--ink); }
+body.pj .px.on, body.pj .bk-px.on { background: var(--acc); color: var(--acc-ink); box-shadow: 0 1px 0 var(--ink); transform: translateY(2px); }
+body.pj .px.on i, body.pj .px.on em, body.pj .bk-px.on i { color: rgba(27,21,51,.75); }
+body.pj .px.edge { background: #17402f; box-shadow: 0 3px 0 var(--ink), inset 0 0 0 2px var(--up); } body.pj .px.edge em { color: var(--up); font-weight: 700; }
+body.pj .px.edge.on { background: var(--acc); }
+body.pj .px.off, body.pj .bk-px.off { background: var(--s1); box-shadow: none; color: var(--t3); }
+body.pj .px b, body.pj .bk-px b { font-weight: 700; }
+body.pj .er { grid-template-columns: 34px minmax(0, 1fr) auto 76px; cursor: pointer; }
+body.pj .er .bk-px { height: 44px; }
+body.pj .er-ev { background: rgba(62,224,143,.16); color: var(--up); border: 2px solid var(--up); border-radius: 10px; }
+body.pj .gr-t .bk-px { height: 38px; min-width: 64px; margin-left: 8px; }
+/* chips, segments, search */
+body.pj .chip { height: 34px; border: 3px solid var(--ink); background: var(--s2); color: var(--t2); font-weight: 700; box-shadow: 0 3px 0 var(--ink); }
+body.pj .chip.on { background: var(--acc); color: var(--acc-ink); border-color: var(--ink); }
+body.pj .seg, body.pj .hv, body.pj .xseg { background: var(--s2); border: 3px solid var(--ink); border-radius: 14px; box-shadow: 0 3px 0 var(--ink); }
+body.pj .seg button.on, body.pj .hv button.on, body.pj .xseg button.on { background: var(--acc); color: var(--acc-ink); }
+body.pj .search { border: 3px solid var(--ink); border-radius: 14px; background: var(--s2); }
+/* game cards */
+body.pj .st-live { font-family: var(--px); font-size: 8px; padding: 4px 6px; border-radius: 6px; background: var(--live); color: #fff; border: 2px solid var(--ink); }
+body.pj .st-fin { font-family: var(--px); font-size: 8px; color: var(--t2); }
+body.pj .tug { height: 10px; border: 2px solid var(--ink); border-radius: 6px; overflow: hidden; gap: 2px; background: var(--ink); }
+body.pj .tug i { border-radius: 0; }
+body.pj .tr-w b, body.pj .tr-p b, body.pj .tr strong { font-weight: 700; }
+body.pj .gc-edge { border-top: 3px dashed rgba(62,224,143,.45); } body.pj .gc-edge em { color: var(--up); }
+body.pj .more { font-weight: 700; color: var(--acc); }
+body.pj .gc-sim { font-family: var(--px); font-size: 8px; color: var(--acc); }
+body.pj .pav { border: 3px solid var(--ink); box-shadow: 0 0 0 2px var(--tc, #555); }
+body.pj .cd { font-family: var(--px); font-size: 8px; color: var(--acc); }
+/* slip bar, sheet, tickets, toasts */
+body.pj .bk-bar { background: var(--acc); color: var(--acc-ink); border: 3px solid var(--ink); border-radius: 18px; box-shadow: 0 5px 0 var(--ink); }
+body.pj .bk-bar .bk-n { background: var(--ink); color: #fff; }
+body.pj .sheet { background: #1f1b44; border: 3px solid var(--ink); border-bottom: 0; border-radius: 26px 26px 0 0; }
+body.pj .bk-tk.won { box-shadow: 0 5px 0 var(--ink), inset 0 0 0 2px var(--up); } body.pj .bk-tk.lost { opacity: .8; }
+body.pj .bk-tag { font-family: var(--px); font-size: 7.5px; border: 2px solid var(--ink); }
+body.pj .bk-toast { border: 3px solid var(--ink); border-radius: 16px; box-shadow: 0 5px 0 var(--ink); background: #2b2659; font-weight: 700; }
+body.pj .bk-toast.ok { background: #17402f; }
+body.pj .mb-empty { border: 3px dashed var(--s4); }
+body.pj .mb-empty button, body.pj .pod-go, body.pj .ms-go, body.pj .bk-drop button { border: 3px solid var(--ink); box-shadow: 0 3px 0 var(--ink); background: var(--acc); color: var(--acc-ink); }
+body.pj .empty .t { font-family: var(--px); font-size: 11px; line-height: 1.6; color: var(--acc); }
+body.pj .mk { grid-template-columns: minmax(0, 1fr) repeat(3, 76px); gap: 7px; }
+body.pj .mk .px { height: 56px; } body.pj .px em { font-size: 10px; white-space: nowrap; }
+body.pj .bk-drop { background: var(--s1); border: 3px solid var(--ink); border-radius: var(--r); box-shadow: 0 5px 0 var(--ink); }
+body.pj .bk-slide { border: 3px solid var(--ink); box-shadow: 0 4px 0 var(--ink); background: var(--s2); }
+body.pj .bk-slide.ready { background: var(--acc); color: var(--acc-ink); }
+body.pj .sheet input, body.pj .bk-q button, body.pj .bk-leg input { border: 3px solid var(--ink); border-radius: 12px; }
+body.pj .bk-q button { background: var(--s2); box-shadow: 0 3px 0 var(--ink); font-weight: 700; }
