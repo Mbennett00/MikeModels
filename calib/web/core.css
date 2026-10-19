@@ -670,3 +670,13 @@ body.pj .bk-slide { border: 3px solid var(--ink); box-shadow: 0 4px 0 var(--ink)
 body.pj .bk-slide.ready { background: var(--acc); color: var(--acc-ink); }
 body.pj .sheet input, body.pj .bk-q button, body.pj .bk-leg input { border: 3px solid var(--ink); border-radius: 12px; }
 body.pj .bk-q button { background: var(--s2); box-shadow: 0 3px 0 var(--ink); font-weight: 700; }
+/* real time: the live-feed dot, price moves, live markets */
+.rt-dot { display: inline-block; width: 8px; height: 8px; margin-right: 5px; border-radius: 50%; background: var(--up); box-shadow: 0 0 0 0 rgba(62,224,143,.6); animation: rtp 1.6s infinite; vertical-align: 1px; }
+.mk-live .rt-dot { background: var(--live); box-shadow: 0 0 0 0 rgba(255,90,122,.6); }
+@keyframes rtp { 70% { box-shadow: 0 0 0 7px rgba(0,0,0,0); } 100% { box-shadow: 0 0 0 0 rgba(0,0,0,0); } }
+.mk-h b { color: var(--live); font-weight: 700; margin-right: 3px; }
+body.pj .px.mv-up { animation: mvu 1.6s ease; } body.pj .px.mv-dn { animation: mvd 1.6s ease; }
+body.pj .px b s { text-decoration: none; font-size: 10px; margin-left: 3px; vertical-align: 2px; } body.pj .px.mv-up b s { color: var(--up); } body.pj .px.mv-dn b s { color: var(--dn); }
+@keyframes mvu { 0%, 40% { background: #17402f; box-shadow: 0 3px 0 var(--ink), inset 0 0 0 2px var(--up); } }
+@keyframes mvd { 0%, 40% { background: #4a1d33; box-shadow: 0 3px 0 var(--ink), inset 0 0 0 2px var(--dn); } }
+body.pj .mk-live { background: linear-gradient(180deg, rgba(255,90,122,.08), transparent 60%); }

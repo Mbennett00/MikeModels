@@ -437,7 +437,7 @@ document.addEventListener("error", e => { const el = e.target; if (!el || el.tag
 fetch("nfl.json?v=" + Date.now()).then(r => r.json()).then(async d => {
   for (const g of d.games || []) for (const t of [g.home, g.away]) if (t) t.logo = darkLogo(t.logo);
   D = d; render(); await loadLive(); await loadBoxes(); render();
-  setInterval(async () => { if (D.games.some(g => (LIVE[g.game_id] || {}).state === "in")) { await loadLive(); await loadBoxes(); render(); } }, 60000);
+  setInterval(async () => { if (document.hidden) return; if (D.games.some(g => { const L = LIVE[g.game_id] || {}; return L.state === "in" || (L.state !== "post" && new Date(g.start_utc) - Date.now() < 3 * 36e5); })) { await loadLive(); await loadBoxes(); render(); } }, 30000);   // real time: scores, clock and box scores every 30 seconds around game time
 }).catch(e => { $("#title").textContent = "NFL"; $("#sub").textContent = "This week's prices aren't published yet."; });
 </script>
 </body>

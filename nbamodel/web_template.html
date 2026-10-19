@@ -251,7 +251,7 @@ document.addEventListener("error", e => { const el = e.target; if (!el || el.tag
   if (s0.includes("/500-dark/")) { e.stopImmediatePropagation(); e.stopPropagation(); el.src = s0.replace("/500-dark/", "/500/"); } }, true);
 fetch("nba.json?v=" + Date.now()).then(r => r.json()).then(async d => {
   D = d; render(); await loadLive(); await loadBoxes(); render();
-  setInterval(async () => { if (D.games.some(g => (LIVE[g.game_id] || {}).state === "in")) { await loadLive(); await loadBoxes(); render(); } }, 60000);
+  setInterval(async () => { if (document.hidden) return; if (D.games.some(g => { const L = LIVE[g.game_id] || {}; return L.state === "in" || (L.state !== "post" && new Date(g.start_utc) - Date.now() < 3 * 36e5); })) { await loadLive(); await loadBoxes(); render(); } }, 30000);   // real time: scores, clock and box scores every 30 seconds around game time
 }).catch(e => { $("#title").textContent = "NBA"; $("#sub").textContent = "Projections aren't published yet."; const sp = document.getElementById("splash"); if (sp) sp.remove(); });
 
 </script>

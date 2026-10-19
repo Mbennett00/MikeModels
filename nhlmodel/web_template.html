@@ -173,9 +173,9 @@ async function refreshLive() {
   const ae = document.activeElement;
   if (!(ae && (ae.tagName === "INPUT" || ae.tagName === "SELECT"))) render();
   const anyLive = [TODAY, PREV].filter(Boolean).some(d => d.games.some(g => (LIVE[g.game_id] || {}).state === "in"
-      || ((LIVE[g.game_id] || {}).state === "pre" && new Date(g.start_utc) - Date.now() < 15 * 60e3)));
+      || ((LIVE[g.game_id] || {}).state !== "post" && new Date(g.start_utc) - Date.now() < 3 * 36e5)));
   clearTimeout(liveTimer);
-  liveTimer = setTimeout(refreshLive, anyLive ? 60e3 : 5 * 60e3);
+  liveTimer = setTimeout(refreshLive, anyLive ? 30e3 : 5 * 60e3);   // real time around game time
 }
 
 // ---------- rendering ----------

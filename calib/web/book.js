@@ -5,7 +5,8 @@
 //   {key, sport, gid, kind: ml|spread|total|prop, side: home|away|over|under|yes, line, p, pick, mkt, game, start,
 //    ev: {date: "YYYYMMDD", home, away, id}, pl: {name, id, team, stat, n}}
 const BK = {key: "bz.book.v1", hold: 0.045, start: 10000, drop: 1000, reload: 10000, legs: 8};
-const BK_REG = {};   // key -> the latest selection drawn on screen (prices refresh with the model)
+const BK_REG = {};
+const BK_LIVE_FRESH = 120e3;   // a live price older than this is pulled from the board and the slip   // key -> the latest selection drawn on screen (prices refresh with the model)
 const bkDay = (t = Date.now()) => new Date(t).toLocaleDateString("en-CA", {timeZone: "America/New_York"});
 const bkImp = p => Math.min(0.97, Math.max(0.03, p) * (1 + BK.hold));
 const bkDec = p => Math.round(1e4 / bkImp(p)) / 1e4;
@@ -27,8 +28,8 @@ window.addEventListener("storage", e => { if (e.key === BK.key) { BKS = bkLoad()
 
 function bkSel(o) {
   const s = Object.assign({}, o);
-  s.key = [s.sport, s.gid, s.kind, s.side, s.line ?? "", s.pl ? s.pl.id + ":" + s.pl.stat : "", s.boost ? "B" : ""].join("|");
-  s.open = s.open !== false && (!s.start || new Date(s.start) > Date.now());
+  s.key = [s.sport, s.gid, s.kind, s.side, s.line ?? "", s.pl ? s.pl.id + ":" + s.pl.stat : "", s.boost ? "B" : "", s.live ? "L" : ""].join("|");
+  s.open = s.open !== false && (s.live ? Date.now() - (s.at || 0) < BK_LIVE_FRESH : !s.start || new Date(s.start) > Date.now());   // live lines stay open while their price is fresh
   s.dec = o.dec || bkDec(s.p);   // a market price (or a boost) comes in as dec; otherwise price the chance
   BK_REG[s.key] = s;
   return s;
@@ -58,7 +59,7 @@ function bkToggle(key) {
   }
   bkSave(); bkPaint(); bkBump();
 }
-const bkCanParlay = () => BKS.slip.length >= 2 && BKS.slip.length <= BK.legs && new Set(BKS.slip.map(x => x.sport + x.gid)).size === BKS.slip.length;
+const bkCanParlay = () => !BKS.slip.some(x => x.live) && BKS.slip.length >= 2 && BKS.slip.length <= BK.legs && new Set(BKS.slip.map(x => x.sport + x.gid)).size === BKS.slip.length;
 function bkParlayDec() { return Math.round(BKS.slip.reduce((d, x) => d * (BK_REG[x.key] || x).dec, 1) * 100) / 100; }
 
 // ---------- slip ----------
@@ -138,7 +139,8 @@ function bkSlider(el) {
 function bkPlace() {
   const P = bkCanParlay() && BKS.mode === "parlay", t = bkTotals(), now = Date.now();
   const legs = BKS.slip.map(x => Object.assign({}, BK_REG[x.key] || x, {stake: undefined, r: null}));
-  if (legs.some(l => l.start && new Date(l.start) <= now)) { legs.forEach(l => { if (BK_REG[l.key]) BK_REG[l.key].open = new Date(l.start) > now; }); bkSlipRefresh(); return bkToast("A game in your slip has started"); }
+  const shut = l => l.live ? now - (l.at || 0) >= BK_LIVE_FRESH : l.start && new Date(l.start) <= now;   // pre-game lines close at the start, live ones when their price goes stale
+  if (legs.some(shut)) { legs.forEach(l => { if (BK_REG[l.key]) BK_REG[l.key].open = !shut(l); }); bkSlipRefresh(); return bkToast(legs.some(l => l.live) ? "A live price changed: check your slip" : "A game in your slip has started"); }
   if (!t.stake || t.stake > BKS.coins) return;
   const id = () => now.toString(36) + Math.random().toString(36).slice(2, 6);
   const made = [];
@@ -368,4 +370,4 @@ async function bkSettle() {
     }
   } finally { bkBusy = false; }
 }
-setTimeout(bkSettle, 1500); setInterval(bkSettle, 120e3);   // grade open bets from ESPN finals
+setTimeout(bkSettle, 1500); setInterval(bkSettle, 60e3);   // grade open bets from ESPN finals
