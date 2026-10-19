@@ -157,6 +157,7 @@ const PJ_RULES = {NBA: [["points + rebounds + assists", "pra"], ["pts + reb + as
 function pjPropKind(lg, name) {
   const n = String(name || "").toLowerCase();
   if (/1st|2nd|3rd|half|quarter|period|first |last /.test(n)) return null;
+  if (/power ?play|short|blocked|save|team|hit|faceoff|penalt|takeaway|giveaway|longest|interception|attempt|completion/.test(n)) return null;   // share a keyword with our stats
   if (lg === "NFL" && n.includes("2 or more touchdowns")) return ["td", 1.5];
   if (lg === "NHL" && n.includes("score 2+ goals")) return ["goals", 1.5];
   if (n.includes("anytime")) return lg === "NFL" && (n.includes("touchdown") || n.includes(" td")) ? ["td", true] : lg === "NHL" && n.includes("goal") ? ["goals", true] : null;

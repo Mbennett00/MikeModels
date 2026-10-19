@@ -158,10 +158,15 @@ RULES = {   # keyword in the market name -> the page's stat (first match wins, s
 }
 
 
+OTHER_MARKETS = ("power play", "powerplay", "short", "blocked", "save", "team", "hit", "faceoff", "penalt", "takeaway", "giveaway", "longest", "interception", "attempt", "completion")
+
+
 def prop_kind(league: str, name: str):
     n = (name or "").lower()
     if any(w in n for w in ("1st", "2nd", "3rd", "half", "quarter", "period", "first ", "last ")):
         return None                                   # partial-game and first/last scorer markets aren't on the page
+    if any(w in n for w in OTHER_MARKETS):
+        return None                                   # power-play points, blocked shots, team totals... share a keyword with ours
     if league == "NFL" and "2 or more touchdowns" in n:
         return "td", 1.5
     if league == "NHL" and "score 2+ goals" in n:

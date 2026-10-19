@@ -60,6 +60,9 @@ def test_prop_markets_map_to_page_stats():
     assert k("NFL", "Rushing + Receiving Yards Milestones") is None
     assert k("NHL", "Anytime Goalscorer") == ("goals", True)
     assert k("NHL", "Shots on Goal Milestones") == ("sog", False)
+    assert k("NHL", "Points Milestones") == ("points", False)
+    for other in ("Power Play Points Milestones", "Blocked Shots Milestones", "Shorthanded Points Milestones", "Saves Milestones", "Team Total Points Milestones"):
+        assert k("NHL", other) is None, other                          # same keyword, different stat (MacKinnon "2+ points" came out +850)
 
 
 def test_market_games_attach_to_page_ids(tmp_path):
