@@ -591,23 +591,23 @@ body { background: radial-gradient(120% 50% at 50% -10%, rgba(34,217,143,.07), t
    Dark indigo night, chunky ink outlines with a solid drop under every card and button, a rounded display face with a
    pixel face for small labels, electric yellow for your picks and the main action, mint for edges and wins. */
 :root {
-  --bg: #15122e; --s1: #221e47; --s2: #2b2659; --s3: #352f6b; --s4: #433b82;
-  --line: rgba(8,6,24,.55); --line2: #0b0a1a; --ink: #0b0a1a;
-  --t1: #f7f4ff; --t2: #bfb8ec; --t3: #8f88c4;
+  --bg: #0b1647; --s1: #13226a; --s2: #1a2d84; --s3: #22389a; --s4: #2c46b3;
+  --line: rgba(3,8,32,.55); --line2: #050c2e; --ink: #050c2e;
+  --t1: #f5f8ff; --t2: #bccbff; --t3: #8b9ce0;
   --acc: #ffd23f; --acc-ink: #1b1533; --acc-soft: rgba(255,210,63,.15); --cta: #ffd23f;
   --up: #3ee08f; --dn: #ff5a7a; --gold: #ffd23f; --live: #ff5a7a;
   --fb: "Fredoka", "Baloo 2", system-ui, sans-serif; --px: "Press Start 2P", ui-monospace, monospace;
   --r: 20px; --pop: 0 4px 0 var(--ink); --hair: none; --lift: none;
 }
-html, body.pj { background: radial-gradient(120% 60% at 50% -15%, rgba(124,92,255,.38), transparent 60%) fixed, radial-gradient(rgba(255,255,255,.08) 1.2px, transparent 1.4px) 0 0 / 24px 24px fixed, var(--bg); }
+html, body.pj { background: radial-gradient(120% 60% at 50% -15%, rgba(56,140,255,.42), transparent 60%) fixed, radial-gradient(rgba(255,255,255,.08) 1.2px, transparent 1.4px) 0 0 / 24px 24px fixed, var(--bg); }
 body.pj { font-family: var(--fb); font-weight: 500; letter-spacing: .005em; }
 body.pj b, body.pj strong { font-weight: 700; }
 .splash { background: var(--bg); }
 /* header, wallet, tab bar */
-body.pj .hdr, body.pj .hdr.stuck { background: #1b173d; border-bottom: 3px solid var(--ink); box-shadow: 0 3px 0 rgba(0,0,0,.25); }
+body.pj .hdr, body.pj .hdr.stuck { background: #0f1c58; border-bottom: 3px solid var(--ink); box-shadow: 0 3px 0 rgba(0,0,0,.25); }
 body.pj .coin { height: 38px; padding: 0 14px 0 8px; border-radius: 19px; background: #fff3c4; color: var(--acc-ink); border: 3px solid var(--ink); box-shadow: var(--pop); }
 body.pj .coin b { color: var(--acc-ink); font-size: 16px; } body.pj .coin .bk-c { color: #c58a00; }
-body.pj .nav { background: #1b173d; border-top: 3px solid var(--ink); }
+body.pj .nav { background: #0f1c58; border-top: 3px solid var(--ink); }
 body.pj .nav button { color: var(--t3); } body.pj .nav button span { font-size: 11px; font-weight: 700; }
 body.pj .nav button.on { color: var(--t1); } body.pj .nav button.on .ico { background: var(--acc); color: var(--acc-ink); border: 2px solid var(--ink); box-shadow: 0 2px 0 var(--ink); }
 body.pj .sport a { font-weight: 700; } body.pj .tabs button.on::after, body.pj .sport a.on::after { background: var(--acc); height: 4px; border-radius: 3px; }
@@ -616,10 +616,10 @@ body.pj .tabs { border-bottom: 3px solid var(--ink); } body.pj .tabs button { fo
 body.pj .gc, body.pj .list, body.pj .gl, body.pj .card, body.pj .bk-tk, body.pj .ms, body.pj .mb-strip, body.pj .pod, body.pj .fg, body.pj .xpanel, body.pj .tk, body.pj .er-wrap {
   background: var(--s1); border: 3px solid var(--ink); border-radius: var(--r); box-shadow: 0 5px 0 var(--ink); }
 body.pj .gc { margin-top: 16px; } body.pj .gc::before { height: 6px; }
-body.pj .list > * + *, body.pj .gr, body.pj .er, body.pj .pr { border-color: rgba(8,6,24,.6); }
+body.pj .list > * + *, body.pj .gr, body.pj .er, body.pj .pr { border-color: rgba(3,8,32,.6); }
 body.pj .hd b, body.pj .hx-h b { font-size: 20px; letter-spacing: 0; }
 body.pj .hd button { color: var(--acc); font-weight: 700; }
-body.pj .hero { border: 3px solid var(--ink); border-radius: 22px; box-shadow: 0 6px 0 var(--ink); background: radial-gradient(circle at 85% 0%, rgba(255,210,63,.25), transparent 45%), linear-gradient(160deg, #4b36b8, #2a2170 70%); }
+body.pj .hero { border: 3px solid var(--ink); border-radius: 22px; box-shadow: 0 6px 0 var(--ink); background: radial-gradient(circle at 85% 0%, rgba(255,210,63,.25), transparent 45%), linear-gradient(160deg, #2a6bff, #1430a0 70%); }
 body.pj .hero-k { font-family: var(--px); font-size: 9px; letter-spacing: .02em; color: var(--acc); text-transform: uppercase; }
 body.pj .hero-n b { font-family: var(--px); font-size: 20px; } body.pj .hero-n i { font-weight: 600; }
 /* prices: chunky buttons, yellow when picked, mint glow on a model edge */
@@ -655,10 +655,10 @@ body.pj .cd { font-family: var(--px); font-size: 8px; color: var(--acc); }
 /* slip bar, sheet, tickets, toasts */
 body.pj .bk-bar { background: var(--acc); color: var(--acc-ink); border: 3px solid var(--ink); border-radius: 18px; box-shadow: 0 5px 0 var(--ink); }
 body.pj .bk-bar .bk-n { background: var(--ink); color: #fff; }
-body.pj .sheet { background: #1f1b44; border: 3px solid var(--ink); border-bottom: 0; border-radius: 26px 26px 0 0; }
+body.pj .sheet { background: #112061; border: 3px solid var(--ink); border-bottom: 0; border-radius: 26px 26px 0 0; }
 body.pj .bk-tk.won { box-shadow: 0 5px 0 var(--ink), inset 0 0 0 2px var(--up); } body.pj .bk-tk.lost { opacity: .8; }
 body.pj .bk-tag { font-family: var(--px); font-size: 7.5px; border: 2px solid var(--ink); }
-body.pj .bk-toast { border: 3px solid var(--ink); border-radius: 16px; box-shadow: 0 5px 0 var(--ink); background: #2b2659; font-weight: 700; }
+body.pj .bk-toast { border: 3px solid var(--ink); border-radius: 16px; box-shadow: 0 5px 0 var(--ink); background: #1a2d84; font-weight: 700; }
 body.pj .bk-toast.ok { background: #17402f; }
 body.pj .mb-empty { border: 3px dashed var(--s4); }
 body.pj .mb-empty button, body.pj .pod-go, body.pj .ms-go, body.pj .bk-drop button { border: 3px solid var(--ink); box-shadow: 0 3px 0 var(--ink); background: var(--acc); color: var(--acc-ink); }
@@ -680,3 +680,7 @@ body.pj .px b s { text-decoration: none; font-size: 10px; margin-left: 3px; vert
 @keyframes mvu { 0%, 40% { background: #17402f; box-shadow: 0 3px 0 var(--ink), inset 0 0 0 2px var(--up); } }
 @keyframes mvd { 0%, 40% { background: #4a1d33; box-shadow: 0 3px 0 var(--ink), inset 0 0 0 2px var(--dn); } }
 body.pj .mk-live { background: linear-gradient(180deg, rgba(255,90,122,.08), transparent 60%); }
+/* the logo in the header: the cartoon wordmark, a little larger */
+body.pj .mlogo { height: 38px; filter: drop-shadow(0 2px 0 rgba(0,0,0,.35)); }
+body.pj .splash img { width: 132px; height: 132px; border-radius: 30px; animation: pop .6s ease; }
+@keyframes pop { 0% { transform: scale(.7); opacity: 0; } 60% { transform: scale(1.08); opacity: 1; } }

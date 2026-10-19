@@ -14,7 +14,7 @@ const sxPct = p => `${Math.round(100 * p)}%`;
 // a team colour that reads on the dark background: the second colour when the first is too dark, else the first lifted toward white
 function sxVis(c, alt) {
   const lum = h => { const m = /^#?([0-9a-f]{6})$/i.exec(h || ""); if (!m) return -1; const n = parseInt(m[1], 16); return (.2126 * (n >> 16) + .7152 * (n >> 8 & 255) + .0722 * (n & 255)) / 255; };
-  if (lum(c) < 0) return "#8f88c4"; if (lum(c) >= .2) return c; if (lum(alt) >= .2 && lum(alt) < .92) return alt;
+  if (lum(c) < 0) return "#8b9ce0"; if (lum(c) >= .2) return c; if (lum(alt) >= .2 && lum(alt) < .92) return alt;
   const n = parseInt(c.replace("#", ""), 16), mix = v => Math.round(v + (255 - v) * .4);
   return `rgb(${mix(n >> 16)},${mix(n >> 8 & 255)},${mix(n & 255)})`;
 }
@@ -271,14 +271,14 @@ function sxMultiView() {
   const bins = SIMX.marginBins, hist = bins.map(([lo, hi]) => D.filter(d => { const m = d.s.h - d.s.a; return m >= lo && m <= hi; }).length), hmax = Math.max(...hist, 1);
   const ot = D.filter(d => d.ot).length / n;
   return `<section class="sx-card"><div class="sx-mw">${["a", "h"].map(k => `<div class="${k}"><span class="tn">${sxLogo(T[k])}${esc(T[k].ab)}</span><strong>${sxPct(k === "a" ? wa : wh)}</strong><span>${M.pModel != null ? `Model ${sxPct(k === "a" ? 1 - M.pModel : M.pModel)}` : "win"}</span></div>`).join("")}</div>
-      <div class="sx-mbar"><i style="flex:${wa};background:${esc(T.a.color)}"></i>${tie > .001 ? `<i style="flex:${tie};background:#6e68a0"></i>` : ""}<i style="flex:${wh};background:${esc(T.h.color)}"></i></div>
+      <div class="sx-mbar"><i style="flex:${wa};background:${esc(T.a.color)}"></i>${tie > .001 ? `<i style="flex:${tie};background:#5a6db8"></i>` : ""}<i style="flex:${wh};background:${esc(T.h.color)}"></i></div>
       <div class="sx-kv"><div><i>${esc(SIMX.avgLabel || "Avg score")}</i><b>${SIMX.fmt(avg("a"))} – ${SIMX.fmt(avg("h"))}</b><span>Model ${SIMX.fmt(ex[0])} – ${SIMX.fmt(ex[1])}</span></div>
         <div><i>Avg total</i><b>${SIMX.fmt(avg("a") + avg("h"))}</b><span>Model ${SIMX.fmt(ex[0] + ex[1])}</span></div>
         <div><i>${esc(SIMX.otLabel)}</i><b>${sxPct(ot)}</b><span>${tie > .001 ? `Ties ${sxPct(tie)}` : `${n.toLocaleString()} games`}</span></div></div></section>
     <div class="sx-h"><b>Most common finals</b><span>${esc(T.a.ab)}–${esc(T.h.ab)}</span></div>
     <div class="sx-chips">${top.map(([s, c]) => `<span>${s}<i>${(100 * c / n).toFixed(1)}%</i></span>`).join("")}</div>
     <div class="sx-h"><b>Winning margin</b><span>How often each result came up</span></div>
-    <div class="sx-card"><div class="sx-hist">${hist.map((c, i) => { const [lo, hi] = bins[i], mid = (lo + hi) / 2; return `<i title="${c}" style="height:${(100 * c / hmax).toFixed(1)}%;background:${esc(mid < 0 ? T.a.color : mid > 0 ? T.h.color : "#6e68a0")}"></i>`; }).join("")}</div>
+    <div class="sx-card"><div class="sx-hist">${hist.map((c, i) => { const [lo, hi] = bins[i], mid = (lo + hi) / 2; return `<i title="${c}" style="height:${(100 * c / hmax).toFixed(1)}%;background:${esc(mid < 0 ? T.a.color : mid > 0 ? T.h.color : "#5a6db8")}"></i>`; }).join("")}</div>
       <div class="sx-hx"><span>${esc(T.a.ab)} by ${SIMX.marginEdge}+</span><span>${esc(SIMX.marginMid)}</span><span>${esc(T.h.ab)} by ${SIMX.marginEdge}+</span></div></div>
     ${SIMX.multiPlayers(M)}
     <div class="sx-act"><button class="sx-btn" data-bookm>Bet this game</button><button class="sx-btn ghost" data-new>New matchup</button></div>`;
