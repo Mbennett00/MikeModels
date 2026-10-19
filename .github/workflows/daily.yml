@@ -17,7 +17,7 @@ on:
         description: "What to run"
         type: choice
         default: slate
-        options: [slate, slate-odds, morning, update, grade, backtest, close, tune, dfo-probe, xg-compare, recalibrate]
+        options: [slate, slate-odds, morning, update, grade, backtest, close, tune, dfo-probe, xg-compare, recalibrate, espn-probe]
   workflow_call:                # used by recalibrate.yml (the page's RECALIBRATE MODEL button)
     inputs:
       task:
@@ -84,8 +84,11 @@ jobs:
           # weekly self-calibration (Mondays): applies a new version only if it beats the current one walk-forward
           if [ "$(TZ=America/New_York date +%u)" = "1" ]; then python -m calib recalibrate --sport all || true; fi
           python -m nhlmodel.daily slate
+      - name: ESPN probe
+        if: steps.pick.outputs.task == 'espn-probe'
+        run: python scripts/espn_probe.py
       - name: Run ${{ steps.pick.outputs.task }}
-        if: steps.pick.outputs.task != 'morning' && steps.pick.outputs.task != 'recalibrate'
+        if: steps.pick.outputs.task != 'morning' && steps.pick.outputs.task != 'recalibrate' && steps.pick.outputs.task != 'espn-probe'
         run: python -m nhlmodel.daily ${{ steps.pick.outputs.task }}
       - name: Recalibrate and republish
         if: steps.pick.outputs.task == 'recalibrate'
