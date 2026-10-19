@@ -3,25 +3,25 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0a0c0b">
+<meta name="theme-color" content="#8fd3ff">
 <title>Pikt · NFL game sim</title>
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Press+Start+2P&display=swap" rel="stylesheet">
 <style>
 /*CALIB_CSS*/
 /*SIM_CSS*/
 /* ---------- the field ---------- */
-.fld { position: relative; height: 70px; margin: 0 14px 14px; border-radius: 8px; overflow: hidden; background: #1d5230; }
-.fld .gr { position: absolute; top: 0; bottom: 0; left: 8.333%; right: 8.333%; background: repeating-linear-gradient(90deg, #1d5230 0 10%, #205a35 10% 20%); }
+.fld { position: relative; height: 70px; margin: 0 14px 14px; border-radius: 12px; overflow: hidden; background: #3fae4a; border: 3px solid var(--ink); }
+.fld .gr { position: absolute; top: 0; bottom: 0; left: 8.333%; right: 8.333%; background: repeating-linear-gradient(90deg, #4cbf55 0 10%, #44b44d 10% 20%); }
 .fld .ez { position: absolute; top: 0; bottom: 0; width: 8.333%; display: grid; place-items: center; }
 .fld .ez b { font-size: 10px; font-weight: 700; color: rgba(255,255,255,.9); letter-spacing: .12em; writing-mode: vertical-rl; }
 .fld .ez.a { left: 0; } .fld .ez.a b { transform: rotate(180deg); } .fld .ez.h { right: 0; }
 .fld .yl { position: absolute; top: 0; bottom: 0; width: 1px; background: rgba(255,255,255,.22); }
-.fld .yn { position: absolute; bottom: 4px; font-size: 9px; font-weight: 700; color: rgba(255,255,255,.4); transform: translateX(-50%); }
+.fld .yn { position: absolute; bottom: 4px; font-size: 9px; font-weight: 700; color: rgba(255,255,255,.75); transform: translateX(-50%); }
 .fld .los, .fld .fd { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; transition: left .35s ease; }
 .fld .los { background: #6fb3ff; } .fld .fd { background: #f5c84b; }
-.fld .ball { position: absolute; top: 42%; width: 14px; height: 9px; margin: -4.5px 0 0 -7px; border-radius: 50%; background: #8b4a20; border: 1px solid #f3e3cf; transition: left .35s ease; box-shadow: 0 1px 3px rgba(0,0,0,.5); }
+.fld .ball { position: absolute; top: 42%; width: 18px; height: 12px; margin: -6px 0 0 -9px; border-radius: 50%; background: #9c5a2b; border: 2px solid var(--ink); transition: left .35s ease; box-shadow: 0 1px 3px rgba(0,0,0,.5); }
 </style>
 </head>
 <body class="sim">
@@ -421,6 +421,42 @@ const SIMX = {
         ${sxTable(["Punting", "Punts", "Yds", "Avg"], Pu.map(b => [esc(b.name), b.punts, b.pyd, (b.pyd / b.punts).toFixed(1)]))}
         ${sxTable(["Returns", "KR", "Yds", "PR", "Yds"], Rt.map(b => [esc(b.name), b.kr, b.kryd, b.prt, b.pryd]))}
         ${sxTable(["Defense", "Tkl", "Sck", "Int", "PD"], De.map(b => [esc(b.name), b.tkl, b.sacks, b.ints, b.pd]))}</div>`; }).join("");
+  },
+  // the battle: how a play reads as a move, each offence's type, and the live win chance on the HP bars
+  frac(e) { const m = /(\d+):(\d+)/.exec(e.t || "") || [0, 0, 0], secs = +m[1] * 60 + +m[2], q = +String(e.pl).replace("Q", "") || 5;
+    return q <= 4 ? ((4 - q) * 900 + secs) / 3600 : secs / 3600; },
+  liveP(sim, e) { const f = SIMX.frac(e), lead = e.score.h - e.score.a, mu = sim.exp[1] - sim.exp[0];
+    if (e.kind === "sec" && /Final/.test(e.text)) return lead > 0 ? 1 : lead < 0 ? 0 : .5;
+    const z = (lead + mu * f) / (13.5 * Math.sqrt(Math.max(f, .004))); return 1 / (1 + Math.exp(-1.702 * z)); },
+  type: T => { const pr = (T.o || {}).proe || 0; return pr > .025 ? {n: "Air", c: "#3b82f6"} : pr < -.025 ? {n: "Ground", c: "#b7791f"} : {n: "Normal", c: "#8b90a8"}; },
+  move(e, sim) {
+    const T = sim.T, me = e.side && T[e.side] ? T[e.side].ab : "", them = e.side ? T[e.side === "a" ? "h" : "a"].ab : "", txt = e.text || "", y = +((/for (?:a loss of )?(-?\d+) yard/.exec(txt) || [])[1] || 0);
+    if (e.kind === "td") return {mv: `${me} used TOUCHDOWN BLAST!`, eff: "It's super effective!"};
+    if (e.kind === "fg") return e.sc ? {mv: `${me} used BOOT KICK!`, eff: "It's a hit!"} : {mv: `${me} used BOOT KICK!`, eff: "But it missed!"};
+    if (e.kind === "int") return {mv: `${them} used PICK OFF!`, eff: "A critical hit!"};
+    if (e.kind === "fum") return {mv: `${them} used STRIP BALL!`, eff: "A critical hit!"};
+    if (e.kind === "pen") return {mv: `${me} got flagged!`, eff: ""};
+    if (e.kind === "punt") return {mv: `${me} used PUNT AWAY!`, eff: ""};
+    if (e.kind === "ko") return {mv: "KICKOFF!", eff: ""};
+    if (e.kind === "to") return {mv: `${them} used IRON WALL!`, eff: "It's super effective!"};
+    if (/sacked/.test(txt)) return {mv: `${them} used SACK ATTACK!`, eff: "It's super effective!"};
+    if (/kneels/.test(txt)) return {mv: `${me} used REST!`, eff: ""};
+    if (/incomplete/.test(txt)) return {mv: `${me} used AIR STRIKE!`, eff: "But it missed!"};
+    if (/scrambles/.test(txt)) return {mv: `${me} used QUICK ESCAPE!`, eff: y >= 15 ? "A critical hit!" : ""};
+    if (/pass/.test(txt)) return {mv: `${me} used ${y >= 20 ? "SKY BOMB" : "AIR STRIKE"}!`, eff: y >= 20 ? "A critical hit!" : ""};
+    if (/rush/.test(txt)) return {mv: `${me} used GROUND POUND!`, eff: y >= 15 ? "A critical hit!" : y <= 0 ? "It had no effect…" : ""};
+    return null;
+  },
+  props(B) {   // the sportsbook's player props: quarterback, lead back, top receivers, likeliest scorers
+    const out = [];
+    for (const k of ["a", "h"]) {
+      const T = B.T[k], P = (D.players || []).filter(p => p.team === T.ab && !/^(out|ir|doubtful)/i.test(p.status || "")), val = (d, n, i) => ((d.p[k + "|" + n] || [])[i] || 0);
+      const qb = P.find(p => p.role === "QB"); if (qb) out.push({id: `py_${k}`, who: qb.name, team: k, stat: "pass yds", kind: "ou", get: d => val(d, qb.name, 0)});
+      P.filter(p => p.role === "RB").sort((x, y) => y.rush_yds - x.rush_yds).slice(0, 1).forEach((p, i) => out.push({id: `ry_${k}${i}`, who: p.name, team: k, stat: "rush yds", kind: "ou", get: d => val(d, p.name, 1)}));
+      P.filter(p => p.role !== "QB").sort((x, y) => y.rec_yds - x.rec_yds).slice(0, 2).forEach((p, i) => out.push({id: `cy_${k}${i}`, who: p.name, team: k, stat: "rec yds", kind: "ou", get: d => val(d, p.name, 2)}));
+      P.filter(p => p.role !== "QB").sort((x, y) => y.p_td - x.p_td).slice(0, 3).forEach((p, i) => out.push({id: `td_${k}${i}`, who: p.name, team: k, stat: "anytime TD", kind: "yes", get: d => val(d, p.name, 4)}));
+    }
+    return out;
   },
   digest(sim) {   // what the 1,000-game view keeps from each game
     const p = {}; for (const b of Object.values(sim.st.box)) if (b.p) p[b.k + "|" + b.name] = [b.pyds, b.ryds, b.cyds, b.rec, b.rtd + b.ctd > 0 ? 1 : 0];
