@@ -61,20 +61,26 @@ function team(ab) {
   if (TM[ab]) return TM[ab];
   const T = D.teams[ab] || {}, L = (D.lineups || {})[ab] || {}, off = (L.off || {}).players || [], def = (L.def || {}).players || [];
   const X = (SD && SD.teams && SD.teams[ab]) || {}, PT = id => (SD && SD.players && SD.players[id]) || {};
-  const P = (D.players || []).filter(p => p.team === ab && !/^(out|ir|doubtful)/i.test(p.status || ""));
+  // injuries: the data run's report (already in the model's projection) plus ESPN's live one (news since then)
+  const known = new Set(), IJ = (D.injuries || {})[ab] || {}, outish = st => /^(out|ir|doubtful|suspend)/i.test(st || "");
+  for (const x of [...(IJ.listed || []), ...(IJ.counted || []), ...(IJ.qbs || [])]) if (outish(x.status)) known.add(sxNm(x.name));
+  const isOut = n => known.has(sxNm(n)) || sxInj(n) === "out";
+  const all = (D.players || []).filter(p => p.team === ab);
+  const P = all.filter(p => !outish(p.status) && !isOut(p.name));
+  const fresh = all.filter(p => !outish(p.status) && !known.has(sxNm(p.name)) && sxInj(p.name) === "out");   // ruled out after the projection was made
   const gen = role => { const n = `${T.name || ab} ${role}`; GEN.add(n); return n; };   // a stand-in when the model lists no one
-  const qbP = P.find(p => p.role === "QB"), qb = qbP ? qbP.name : (off.find(p => p.slot === "QB") || {}).name || gen("QB");
+  const qbP = P.find(p => p.role === "QB"), qb = qbP ? qbP.name : (off.find(p => p.slot === "QB" && !isOut(p.name)) || {}).name || gen("backup QB");
   let rush = P.filter(p => p.car > .2).map(p => ({name: p.name, p, w: p.car, ypc: clamp(p.rush_yds / p.car, 2.4, 8.5), qb: p.role === "QB", tr: PT(p.id)}));
   if (!rush.some(r => !r.qb)) { const rb = off.filter(p => p.slot === "RB").map(p => p.name); rush.push({name: rb[0] || gen("RB"), w: 15, ypc: 4.3, tr: {}}, {name: rb[1] || gen("RB2"), w: 5, ypc: 4.1, tr: {}}); }
   if (!rush.some(r => r.qb)) rush.push({name: qb, w: 2.8, ypc: 4.8, qb: true, tr: {}});
   let tgt = P.filter(p => p.tgt > .2).map(p => ({name: p.name, p, w: p.tgt, cr: clamp(p.rec / p.tgt, .42, .9), ypr: clamp(p.rec_yds / Math.max(.1, p.rec), 4, 19), tr: PT(p.id)}));
-  if (!tgt.length) { const nmS = s => off.filter(p => p.slot === s).map(p => p.name);
+  if (!tgt.length) { const nmS = s => off.filter(p => p.slot === s && !isOut(p.name)).map(p => p.name);
     const W = nmS("WR"), TE = nmS("TE"), RB = nmS("RB");
     tgt = [[W[0] || gen("WR1"), 7.5, .64, 13], [W[1] || gen("WR2"), 6, .63, 12.5], [W[2] || gen("WR3"), 4, .62, 11.5], [TE[0] || gen("TE"), 5, .7, 10.5], [RB[0] || gen("RB"), 3.5, .78, 7.5]]
       .map(([name, w, cr, ypr]) => ({name, w, cr, ypr, tr: {}})); }
   const att = qbP && qbP.att ? qbP.att : 33;
   // the model lists a team's main targets and ball carriers; the rest of its targets and carries go to depth players
-  const listed = new Set(tgt.concat(rush).map(r => r.name)), depth = s => off.filter(p => s.includes(p.slot) && !listed.has(p.name)).map(p => p.name);
+  const listed = new Set(tgt.concat(rush).map(r => r.name)), depth = s => off.filter(p => s.includes(p.slot) && !listed.has(p.name) && !isOut(p.name)).map(p => p.name);
   const tgtGap = att * .95 - tgt.reduce((s, r) => s + r.w, 0), carGap = 26.5 - rush.reduce((s, r) => s + r.w, 0);
   if (tgtGap > .5) { const d = depth(["WR", "TE"]); tgt.push({name: d[0] || gen("WR"), w: tgtGap * .6, cr: .62, ypr: 11, tr: {}}, {name: d[1] || gen("TE"), w: tgtGap * .4, cr: .68, ypr: 9.5, tr: {}}); }
   if (carGap > .5) { const d = depth(["RB"]); rush.push({name: d[0] || gen("RB2"), w: carGap, ypc: 4.1, tr: {}}); }
@@ -91,21 +97,27 @@ function team(ab) {
   const qbRun = rush.find(r => r.qb); if (qbRun && qbT.scr) qbRun.w = Math.max(.4, qbRun.w - qbT.scr * att / (1 - .066));
   const car = rush.reduce((s, r) => s + r.w, 0), drop = att / (1 - .066);
   // defenders: who makes the tackles, sacks and plays on the ball, from this season's play-by-play (else the depth chart)
-  let defs = (X.defs || []).map(([n, t, s, b]) => ({n, t, s, b}));
+  let defs = (X.defs || []).map(([n, t, s, b]) => ({n, t, s, b})).filter(d => sxInj(d.n) !== "out" && !known.has(sxNm(d.n)));   // injured defenders don't make plays
   if (!defs.length) defs = def.map(p => ({n: p.name, t: 1, s: ["DL", "LB", "EDGE"].includes(p.slot) ? 1 : .1, b: ["CB", "S"].includes(p.slot) ? 1 : .1}));
   const o = X.o || {}, dd = X.d || {};
-  return TM[ab] = {ab, name: T.name || ab, full: `${T.city || ""} ${T.name || ab}`.trim(), color: sxVis(T.color, T.color2), logo: T.logo, record: T.record || "",
+  // news since the projection: a starting quarterback ruled out costs about 3.5 points; skill players their share of the offence
+  const yards = p => (p.rec_yds || 0) + (p.rush_yds || 0), teamY = all.reduce((t, p) => t + yards(p), 0) || 1;
+  const adj = (fresh.some(p => p.role === "QB") ? 3.5 : 0) + 22 * .45 * fresh.filter(p => p.role !== "QB").reduce((t, p) => t + yards(p), 0) / teamY;
+  const inj = [...fresh.map(p => ({name: p.name, pos: p.pos || p.role, fresh: true})),
+    ...[...(IJ.qbs || []), ...(IJ.counted || []), ...(IJ.listed || [])].filter(x => outish(x.status) && !/not the projected starter|hasn't played/.test(x.note || "")).slice(0, 6).map(x => ({name: x.name, pos: x.pos}))];
+  return TM[ab] = {inj, ptsAdj: adj, adjTxt: adj >= .3 ? `sim −${adj.toFixed(1)} pts` : "", injSig: fresh.map(p => p.name).join(","),ab, name: T.name || ab, full: `${T.city || ""} ${T.name || ab}`.trim(), color: sxVis(T.color, T.color2), logo: T.logo, record: T.record || "",
     qb, qbP, qbT, rush, tgt, att, passRate: qbP ? clamp(drop / (drop + car), .4, .75) : clamp(.585 + (o.proe || 0), .4, .75),
     o, d: dd, kick: X.k || {}, punter: X.p || {}, kr: X.kr, pr: X.pr, koTb: X.ko_tb ?? LG.ko.tb, coach: X.coach, defs};
 }
 const gameOf = (a, h) => (D.games || []).find(x => x.home.abbr === h && x.away.abbr === a);
 function expected(a, h) {
-  const g = gameOf(a, h); if (g && g.pts_home != null) return [g.pts_away, g.pts_home];
+  const g = gameOf(a, h), A0 = team(a).ptsAdj || 0, H0 = team(h).ptsAdj || 0;   // minus anyone ruled out since the projection
+  if (g && g.pts_home != null) return [g.pts_away - A0, g.pts_home - H0];
   const A = D.teams[a] || {}, H = D.teams[h] || {}, m = (H.pts || 0) - (A.pts || 0) + 1.5;
-  return [22.4 - m / 2, 22.4 + m / 2];
+  return [22.4 - m / 2 - A0, 22.4 + m / 2 - H0];
 }
 function pModel(a, h) {
-  const g = gameOf(a, h); if (g && g.p_home != null) return g.p_home;
+  const g = gameOf(a, h); if (g && g.p_home != null && !team(a).ptsAdj && !team(h).ptsAdj) return g.p_home;
   const [ea, eh] = expected(a, h), z = (eh - ea) / 13.5;   // margin spread of NFL games
   return 1 / (1 + Math.exp(-1.702 * z));
 }
@@ -119,7 +131,7 @@ function weather(a, h) {
 // tune each offence's efficiency until its average score matches the model's projection for this matchup
 function prepare(a, h) {
   const key = a + "|" + h; if (CALK[key]) return CALK[key];
-  const ver = SIM_VER + (D.meta.generated_at || D.meta.week) + (SD ? SD.built : "");
+  const ver = SIM_VER + (D.meta.generated_at || D.meta.week) + (SD ? SD.built : "") + team(a).injSig + "|" + team(h).injSig;   // re-tune when injury news changes
   const saved = sxCalGet("nfl", ver, key); if (saved) return CALK[key] = saved;
   const [ea, eh] = expected(a, h); let k = {a: 1, h: 1};
   for (const n of [250, 400, 800, 1500]) {
@@ -369,7 +381,7 @@ function simulate(a, h, Q) {
 const statLine = (b, kind) => kind === "pass" ? `${b.cmp}/${b.att}, ${b.pyds} yds${b.ptd ? `, ${b.ptd} TD` : ""}${b.int ? `, ${b.int} INT` : ""}` : kind === "rush" ? `${b.car} car, ${b.ryds} yds${b.rtd ? `, ${b.rtd} TD` : ""}` : `${b.rec} rec, ${b.cyds} yds${b.ctd ? `, ${b.ctd} TD` : ""}`;
 const mmss = s => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
 const SIMX = {
-  dataUrl: "nfl.json", extraUrl: "nfl_sim.json", startPl: "Q1", startClock: "15:00", kickText: "Coin toss", otLabel: "Overtime", emptyText: "No NFL teams in the data",
+  dataUrl: "nfl.json", extraUrl: "nfl_sim.json", injPath: "football/nfl", startPl: "Q1", startClock: "15:00", kickText: "Coin toss", otLabel: "Overtime", emptyText: "No NFL teams in the data",
   multiN: 1000, multiChunk: 50, marginBins: [[-99, -17], [-16, -11], [-10, -7], [-6, -4], [-3, -1], [0, 0], [1, 3], [4, 6], [7, 10], [11, 16], [17, 99]], marginEdge: 17, marginMid: "Tie",
   note: "Built from this season's and last season's play-by-play plus the model's projections. Every snap is played out: run or pass by down, distance, score and clock; carries and targets by each player's projection; each receiver's catch rate and yards per catch and each runner's yards per carry from the model; real fourth-down, field-goal, clock and overtime rules. Each offence's efficiency is then tuned so its average score matches the model's projection for the matchup. No two games are alike.",
   fmt: v => v.toFixed(1),
@@ -450,7 +462,7 @@ const SIMX = {
   props(B) {   // the sportsbook's player props: quarterback, lead back, top receivers, likeliest scorers
     const out = [];
     for (const k of ["a", "h"]) {
-      const T = B.T[k], P = (D.players || []).filter(p => p.team === T.ab && !/^(out|ir|doubtful)/i.test(p.status || "")), val = (d, n, i) => ((d.p[k + "|" + n] || [])[i] || 0);
+      const T = B.T[k], P = (D.players || []).filter(p => p.team === T.ab && !/^(out|ir|doubtful)/i.test(p.status || "") && sxInj(p.name) !== "out"), val = (d, n, i) => ((d.p[k + "|" + n] || [])[i] || 0);
       const qb = P.find(p => p.role === "QB"); if (qb) out.push({id: `py_${k}`, who: qb.name, team: k, stat: "pass yds", kind: "ou", get: d => val(d, qb.name, 0)});
       P.filter(p => p.role === "RB").sort((x, y) => y.rush_yds - x.rush_yds).slice(0, 1).forEach((p, i) => out.push({id: `ry_${k}${i}`, who: p.name, team: k, stat: "rush yds", kind: "ou", get: d => val(d, p.name, 1)}));
       P.filter(p => p.role !== "QB").sort((x, y) => y.rec_yds - x.rec_yds).slice(0, 2).forEach((p, i) => out.push({id: `cy_${k}${i}`, who: p.name, team: k, stat: "rec yds", kind: "ou", get: d => val(d, p.name, 2)}));
@@ -465,7 +477,7 @@ const SIMX = {
   multiPlayers(M) {
     const rows = [];
     for (const k of ["a", "h"]) { const T = M.T[k], av = (name, i) => M.res.reduce((s, d) => s + ((d.p[k + "|" + name] || [])[i] || 0), 0) / M.res.length;
-      const P = (D.players || []).filter(p => p.team === T.ab && !/^(out|ir|doubtful)/i.test(p.status || ""));
+      const P = (D.players || []).filter(p => p.team === T.ab && !/^(out|ir|doubtful)/i.test(p.status || "") && sxInj(p.name) !== "out");
       const qb = P.find(p => p.role === "QB"), rb = P.filter(p => p.role === "RB").sort((x, y) => y.rush_yds - x.rush_yds).slice(0, 2), wr = P.filter(p => p.role !== "QB").sort((x, y) => y.rec_yds - x.rec_yds).slice(0, 4);
       if (qb) rows.push([T, qb.name, "Pass yds", av(qb.name, 0).toFixed(0), qb.pass_yds.toFixed(0)]);
       for (const p of rb) rows.push([T, p.name, "Rush yds", av(p.name, 1).toFixed(0), p.rush_yds.toFixed(0)]);

@@ -49,10 +49,18 @@ const PER_G = {hits: 21, blk: 14, give: 8, take: 6};
 function loadTeams() {
   const Ln = {}; for (const l of D.lines || []) Ln[l.id] = l;
   for (const g of D.games || []) for (const k of ["home", "away"]) {
-    const t = g[k], out = new Set((t.injuries || []).filter(x => /^(out|ir|ltir)/i.test(x.status)).map(x => x.name));
-    const sk = (D.players || []).filter(p => p.team === t.abbr && !out.has(p.name)).map(p => Object.assign({}, p, Ln[p.id] ? {line: Ln[p.id].line, pp: Ln[p.id].pp} : {}));
+    // injuries: the data run's report (already in the projection) plus ESPN's live one (news since then)
+    const t = g[k], listed = (t.injuries || []).filter(x => /^(out|ir|ltir)/i.test(x.status)), out = new Set(listed.map(x => x.name));
+    const mine = (D.players || []).filter(p => p.team === t.abbr && !out.has(p.name));
+    const fresh = mine.filter(p => sxInj(p.name) === "out");   // ruled out after the projection was made
+    const sk = mine.filter(p => !fresh.includes(p)).map(p => Object.assign({}, p, Ln[p.id] ? {line: Ln[p.id].line, pp: Ln[p.id].pp} : {}));
+    // the scoring they take with them: their share of the team's projected points, at about a third (others fill the minutes)
+    const pts = p => (p.lam || {}).points || 0, share = fresh.reduce((x, p) => x + pts(p), 0) / (mine.reduce((x, p) => x + pts(p), 0) || 1);
+    const gOut = sxInj(t.goalie) === "out";
+    const inj = [...fresh.map(p => ({name: p.name, pos: p.pos, fresh: true})), ...(gOut ? [{name: t.goalie, pos: "G", fresh: true}] : []), ...listed.slice(0, 6).map(x => ({name: x.name, pos: x.pos || ""}))];
     TEAMS[t.abbr] = {ab: t.abbr, name: t.name, full: t.name, color: sxVis(t.color || (D.colors || {})[t.abbr]), logo: t.logo, goalie: t.goalie || `${t.abbr} goalie`, goalieId: t.goalie_id,
-      lamFor: k === "home" ? g.lam_home : g.lam_away, lamAg: k === "home" ? g.lam_away : g.lam_home, sk};
+      lamFor: (k === "home" ? g.lam_home : g.lam_away) * (1 - .35 * share), lamAg: k === "home" ? g.lam_away : g.lam_home, sk, inj, adj: 1 - .35 * share,
+      adjTxt: share > .02 ? `sim −${(100 * .35 * share).toFixed(0)}% goals` : gOut ? "starting goalie out" : "", injSig: fresh.map(p => p.name).join(",") + (gOut ? "|G" : "")};
   }
 }
 const xgOf = (type, d) => { const tab = LGH.xg.tab[type] || LGH.xg.tab.wrist; if (!tab) return LGH.xg.base; let i = 0; while (i < LGH.xg.dist.length && d > LGH.xg.dist[i]) i++; return tab[i]; };
@@ -87,15 +95,15 @@ function team(ab) {
   return TM[ab] = Object.assign({}, T, {sk, S, G, avgSh: G / S, centers, x: X, gk, toiSum: [0, 1, 2].map(i => sk.reduce((s, p) => s + p.toi[i], 0))});
 }
 const gameOf = (a, h) => (D.games || []).find(x => x.home.abbr === h && x.away.abbr === a);
-function expected(a, h) {   // regulation expected goals
-  const g = gameOf(a, h); if (g) return [g.lam_away, g.lam_home];
+function expected(a, h) {   // regulation expected goals, less anyone ruled out since the projection
+  const g = gameOf(a, h); if (g) return [g.lam_away * TEAMS[a].adj, g.lam_home * TEAMS[h].adj];
   const gpg = (D.model || {}).goals_pg || 3, he = (D.model || {}).home_edge || .02, A = TEAMS[a], H = TEAMS[h];
   return [A.lamFor * H.lamAg / gpg * (1 - he), H.lamFor * A.lamAg / gpg * (1 + he)];
 }
 function pModel(a, h) {
   const g = gameOf(a, h);
   let hw = 0, tie = 0, pot = .5;
-  if (g && g.reg) { pot = g.p_ot_home ?? .5; g.reg.forEach((row, i) => row.forEach((p, j) => { if (i > j) hw += p; else if (i === j) tie += p; })); }
+  if (g && g.reg && TEAMS[a].adj === 1 && TEAMS[h].adj === 1) { pot = g.p_ot_home ?? .5; g.reg.forEach((row, i) => row.forEach((p, j) => { if (i > j) hw += p; else if (i === j) tie += p; })); }
   else { const [la, lh] = expected(a, h), pm = (l, k) => Math.exp(-l) * Math.pow(l, k) / [1, 1, 2, 6, 24, 120, 720, 5040, 40320, 362880, 3628800, 39916800, 479001600][k];
     for (let i = 0; i < 13; i++) for (let j = 0; j < 13; j++) { const p = pm(lh, i) * pm(la, j); if (i > j) hw += p; else if (i === j) tie += p; } }
   return hw + tie * pot;
@@ -103,7 +111,7 @@ function pModel(a, h) {
 // tune each team's shot rate and finishing until its regulation shots and goals average the model's numbers for this matchup
 function prepare(a, h) {
   const key = a + "|" + h; if (CALK[key]) return CALK[key];
-  const ver = SIM_VER + (D.meta.generated_at || D.meta.date) + (SDH ? SDH.built : "");
+  const ver = SIM_VER + (D.meta.generated_at || D.meta.date) + (SDH ? SDH.built : "") + TEAMS[a].injSig + "|" + TEAMS[h].injSig;   // re-tune when injury news changes
   const saved = sxCalGet("nhl", ver, key); if (saved) return CALK[key] = saved;
   const [ea, eh] = expected(a, h), E = {a: ea, h: eh}, T = {a: team(a), h: team(h)};
   let c = {a: {s: 1, g: 1}, h: {s: 1, g: 1}};
@@ -265,7 +273,7 @@ function simulate(a, h, Q) {
 // ---------- screens ----------
 const svp = G => G.sa ? ((G.sa - G.ga) / G.sa).toFixed(3).replace(/^0/, "") : "–";
 const SIMX = {
-  dataUrl: "data.json", extraUrl: "nhl_sim.json", startPl: "P1", startClock: "20:00", kickText: "Puck drop", otLabel: "OT / shootout", emptyText: "No NHL games on today's slate",
+  dataUrl: "data.json", extraUrl: "nhl_sim.json", injPath: "hockey/nhl", startPl: "P1", startClock: "20:00", kickText: "Puck drop", otLabel: "OT / shootout", emptyText: "No NHL games on today's slate",
   multiN: 1000, multiChunk: 25, marginBins: [[-99, -3], [-2, -2], [-1, -1], [1, 1], [2, 2], [3, 99]], marginEdge: 3, marginMid: "One-goal games in the middle",
   note: "Teams on today's slate, built from every shot, goal, penalty and shift of this season and last plus the model's projections. The game is played out second by second: each team shoots as often as its skaters' projected shots add up to, shooters follow each player's projected shots and power-play unit, and finishing follows each player's projected shooting rate. Penalties, pulled goalies, 3-on-3 overtime and shootouts all play out. Each matchup is tuned so regulation shots and goals average the model's numbers.",
   fmt: v => v.toFixed(2), avgLabel: "Regulation goals",

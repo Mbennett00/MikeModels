@@ -52,6 +52,31 @@ function sxRow(e, sim) {
   return `<div class="sx-r ${e.sc ? "sc" : ""} ${e.to ? "to" : ""}"><i>${esc(e.pl)} ${esc(e.t)}</i><span>${e.dd ? `<span class="sx-dd">${esc(e.dd)}</span>` : ""}${e.text}</span>${e.sc ? `<em>${e.score.a}–${e.score.h}</em>` : ""}</div>`;
 }
 
+// ---------- injuries: ESPN's live injury report, so news after the last data run still changes the sim ----------
+const SXI = {by: {}, at: 0};
+const sxNm = n => String(n || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\b(jr|sr|ii|iii|iv)\b/g, "").replace(/[^a-z]/g, "");
+async function sxInjLoad() {
+  if (!SIMX.injPath) return;
+  try {
+    const j = await (await fetch(`https://site.api.espn.com/apis/site/v2/sports/${SIMX.injPath}/injuries`)).json();
+    for (const t of j.injuries || []) for (const x of t.injuries || []) {
+      const a = x.athlete || {}, nm = sxNm(a.displayName || a.fullName); if (!nm) continue;
+      SXI.by[nm] = {status: x.status || (x.type || {}).description || "", pos: (a.position || {}).abbreviation || "", note: x.shortComment || "", team: t.displayName || ""};
+    }
+    SXI.at = Date.now();
+  } catch (e) {}
+}
+// "out" (won't play: out, doubtful, IR, suspended), "q" (questionable / day-to-day) or "" from the live report
+function sxInj(name) { const r = SXI.by[sxNm(name)]; if (!r) return "";
+  const s = String(r.status).toLowerCase(); return /out|doubt|injured reserve|^ir|suspen|reserve/.test(s) ? "out" : /question|day-to-day|day to day|game.time/.test(s) ? "q" : ""; }
+const sxInjInfo = name => SXI.by[sxNm(name)] || null;
+// the pre-game injury report: who's out for each side and how much the sim took off their scoring
+function sxInjCard(T) {
+  const rows = ["a", "h"].map(k => { const L = (T[k].inj || []); if (!L.length) return "";
+    return `<div class="bk-injt">${sxLogo(T[k])}<div><b>${esc(T[k].ab)}${T[k].adjTxt ? ` <em>${esc(T[k].adjTxt)}</em>` : ""}</b><span>${L.map(x => `${esc(x.name)}${x.pos ? ` <i>${esc(x.pos)}</i>` : ""}${x.fresh ? ' <u>NEW</u>' : ""}`).join(" · ")}</span></div></div>`; }).join("");
+  return rows ? `<div class="sx-h"><b>Injury report</b><span>${SXI.at ? "Live from ESPN" : "From the last data run"}</span></div><section class="sx-card bk-inj">${rows}</section>` : "";
+}
+
 // ---------- the wallet: virtual coins, kept on this device ----------
 const START_COINS = 10000;
 const BK = (() => { try { const v = JSON.parse(localStorage.getItem("pikt-simbook") || "null"); if (v && typeof v.coins === "number") return v; } catch (e) {} return {coins: START_COINS, bets: []}; })();
@@ -135,6 +160,7 @@ function sxBook() {
   }).join("");
   const mine = myBets(B.gid);
   return `<section class="sx-card">${vs}<div class="bk-intro">A wild <b>${esc(T.a.name)}</b> team appears! The house simulated <b>${B.N.toLocaleString()} games</b> of this matchup to set every price. Your game will be a brand-new one.</div></section>
+    ${sxInjCard(T)}
     <div class="sx-h"><b>Odds board</b><span>Tap a price to add it</span></div>
     <section class="sx-card">${groups}</section>
     ${mine.length ? `<div class="sx-h"><b>Your bets on this game</b><span>${mine.length} placed</span></div><section class="sx-card bk-bets">${mine.map(betRow).join("")}</section>` : ""}
@@ -345,7 +371,7 @@ function sxBoot() {
   const top = document.querySelector(".sx-top"); if (top && !$("#coins")) top.insertAdjacentHTML("beforeend", `<span class="sx-coins" id="coins"></span>`);
   coinsPill();
   const extra = SIMX.extraUrl ? fetch(SIMX.extraUrl + "?v=" + Date.now()).then(r => r.ok ? r.json() : null).catch(() => null) : Promise.resolve(null);   // the sim's league, team and player profiles
-  Promise.all([fetch(SIMX.dataUrl + "?v=" + Date.now()).then(r => r.json()), extra]).then(([d, x]) => {
+  Promise.all([fetch(SIMX.dataUrl + "?v=" + Date.now()).then(r => r.json()), extra, sxInjLoad()]).then(([d, x]) => {
     SIMX.init(d, x);
     if (!SIMX.teams().length) { $("#view").innerHTML = `<div class="empty"><div class="t">${esc(SIMX.emptyText)}</div></div>`; return; }
     const u = new URLSearchParams(location.search);
