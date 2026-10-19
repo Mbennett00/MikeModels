@@ -238,14 +238,21 @@ const PJ_PLAB = {goals: "goals", sog: "shots", points: "points", assists: "assis
   pts: "points", reb: "rebounds", ast: "assists", fg3: "threes", pra: "PRA"};
 const pjPropLab = (stat, n) => stat === "goals" && n === 1 ? "Scores a goal" : stat === "td" && n === 1 ? "Anytime TD" : `${n}+ ${PJ_PLAB[stat] || stat}`;
 const pjMktProps = () => { const P = ((PJ_ODDS.props || {})[PJA.sport] || {}).players; return P && Object.keys(P).length ? P : null; };
+// a ladder has to make sense: each higher rung ("3+" after "2+") is less likely, so its price is longer. A rung that
+// breaks the order is a misread or stale price and is dropped rather than shown (or flagged as an edge).
+function pjLadder(L) {
+  const out = []; let last = 1.01;
+  for (const r of L.sort((x, y) => x[2].n - y[2].n)) { if (r[1] < last - 0.005) { out.push(r); last = r[1]; } }
+  return out;
+}
 // a player's bettable lines for one stat: [{sel, top}], nearest even money first, then shown low to high.
 // A player is offered exactly DraftKings' lines at DraftKings' prices; with no DraftKings props for the league, none.
 function pjProps(p, stat, max = 3) {
   const C = pjCtx(p.gid); if (!C) return [];
   const MP = pjMktProps();
   let L;
-  if (MP) L = Object.entries(MP[bkNm(p.name)] || {}).filter(([k]) => k.split("|")[0] === stat)
-    .map(([k, a]) => { const n = +k.split("|")[1] + 0.5; return [pjPropLab(stat, n), 1 / pjDec(a), {stat, n}, a]; });
+  if (MP) L = pjLadder(Object.entries(MP[bkNm(p.name)] || {}).filter(([k]) => k.split("|")[0] === stat)
+    .map(([k, a]) => { const n = +k.split("|")[1] + 0.5; return [pjPropLab(stat, n), 1 / pjDec(a), {stat, n}, a]; }));
   else return [];   // no made-up props: a league's props open when DraftKings posts them
   L = L.filter(x => x[1] != null && x[1] >= 0.1 && x[1] <= 0.9);   // no lottery tickets, no −1000 locks
   return L.sort((x, y) => Math.abs(x[1] - 0.5) - Math.abs(y[1] - 0.5)).slice(0, max).sort((x, y) => x[2].n - y[2].n).map(([l, c, spec, a]) => ({
@@ -274,7 +281,18 @@ const pjIsMkt = x => x && (x.src === "mkt" || x.src === "dk");
 function pjModelP(g, x) { if (!x) return null;
   if (x.live) return x.kind === "ml" && g.lph != null ? (x.side === "home" ? g.lph : 1 - g.lph) : null;   // in play the model only reads the winner
   if (x.kind === "ml") return x.side === "home" ? g.ph : 1 - g.ph; return PJA.price ? PJA.price(g.id, x.kind, x.side, x.line) : null; }
-const pjEV = (x, mp) => pjIsMkt(x) && mp != null && isFinite(mp) ? mp * x.dec - 1 : null;
+// The edge reading: the model's chance is blended half and half with the market's fair chance (two-sided lines have
+// their vig removed; one-sided props lose a typical 6% hold), and a price only counts as an edge when that blended
+// chance beats it by PJ_EDGE. A model that disagrees with the market by more than 25 points is reading something the
+// market isn't (a misread price, late news): no edge is claimed there.
+const PJ_W = 0.5, PJ_GAP = 0.25;
+const pjMktFair = x => !x || x.p == null ? null : x.src === "dk" ? Math.min(0.99, (1 / x.dec) / 1.06) : x.p;
+function pjEV(x, mp) {
+  if (!pjIsMkt(x) || mp == null || !isFinite(mp)) return null;
+  const pm = pjMktFair(x); if (pm == null) return null;
+  if (Math.abs(mp - pm) > PJ_GAP) return null;
+  return (PJ_W * mp + (1 - PJ_W) * pm) * x.dec - 1;
+}
 const pjEvTxt = ev => `${ev >= 0 ? "+" : "−"}${Math.abs(100 * ev).toFixed(1)}%`;
 // a bettable price: the market's odds (the model's own price where the market has none), with the model's chance under it
 function pjCell(x, top, mp) {
@@ -362,7 +380,7 @@ function pjHome() {
   const E = pjAllEdges(), mkt = pre.filter(g => { const M = pjLines(g); return M && M.books; }).length;
   const hero = `<section class="hero"><span class="hero-k">${esc(PJA.kicker())}</span>
       <div class="hero-n"><div><b>${G.length}</b><i>games</i></div><div><b>${mkt}</b><i>with market lines</i></div><div><b class="${E.length ? "up" : ""}">${E.length}</b><i>model edges</i></div></div>
-      <span class="hero-s">Edges are prices where the model's chance beats the market by ${Math.round(100 * PJ_EDGE)}% or more.</span></section>`;
+      <span class="hero-s">An edge is a price where the model's chance, blended with the market's, beats it by ${Math.round(100 * PJ_EDGE)}% or more.</span></section>`;
   const top = (PJA.top ? PJA.top() : []).slice(0, 6);
   return bkStripHtml() + hero + pjTicker(live)
     + (E.length ? `<div class="hd"><b>Top edges</b><span class="hd-s">Model vs market</span></div><div class="list">${E.slice(0, 8).map(pjEdgeRow).join("")}</div>` : "")
