@@ -1,5 +1,6 @@
 """One-off: what ESPN's public odds look like right now, and whether a browser may call it (printed as workflow notices)."""
 import json
+import re
 import requests
 
 H = {"User-Agent": "Mozilla/5.0", "Origin": "https://mbennett00.github.io"}
@@ -38,3 +39,36 @@ for k, path in LG.items():
                 note(f"{k} core DK {ev['status']['type']['state']}", json.dumps(slim)[:3500])
         except Exception as e:
             note(f"{k} core err", str(e))
+
+
+# props: the raw DraftKings prop items for one star per league, to check how lines and prices are laid out
+STARS = {"nhl": ("Nathan MacKinnon", ("Points Milestones", "Assists Milestones", "Total Points")), "nba": ("", ("Points Milestones", "Total Points")),
+         "nfl": ("", ("Receiving Yards Milestones", "Rushing Yards Milestones"))}
+for k, path in LG.items():
+    sport, lg = path.split("/")
+    evs = [e for e in requests.get(f"https://site.api.espn.com/apis/site/v2/sports/{path}/scoreboard", headers=H, timeout=30).json().get("events", []) if e["status"]["type"]["state"] == "pre"]
+    star, kinds = STARS[k]
+    for ev in evs[:6]:
+        names = {}
+        for c in ev["competitions"][0]["competitors"]:
+            r = requests.get(f"https://site.api.espn.com/apis/site/v2/sports/{path}/teams/{c['team']['id']}/roster", headers=H, timeout=30).json()
+            for grp in r.get("athletes", []):
+                for a in grp.get("items", [grp]) if isinstance(grp, dict) else []:
+                    if a.get("id"): names[str(a["id"])] = a.get("fullName") or a.get("displayName")
+        pb = requests.get(f"https://sports.core.api.espn.com/v2/sports/{sport}/leagues/{lg}/events/{ev['id']}/competitions/{ev['id']}/odds/100/propBets", params={"limit": 1000}, headers=H, timeout=40).json()
+        items = pb.get("items", [])
+        want = None
+        if star:
+            sid = next((i for i, n in names.items() if n == star), None)
+            if not sid: continue
+            want = sid
+        else:
+            import collections
+            cnt = collections.Counter(re.search(r"/athletes/(\d+)", (it.get("athlete") or {}).get("$ref", "") or "x").group(1) if re.search(r"/athletes/(\d+)", (it.get("athlete") or {}).get("$ref", "") or "") else None for it in items if (it.get("type") or {}).get("name") in kinds)
+            want = next((a for a, _ in cnt.most_common() if a), None)
+        mine = [it for it in items if want and f"/athletes/{want}" in (it.get("athlete") or {}).get("$ref", "") and (it.get("type") or {}).get("name") in kinds]
+        note(f"{k} props {names.get(want, want)}", f"{len(mine)} items of {len(items)} (pages {pb.get('pageCount')})")
+        for it in mine[:9]:
+            slim = {x: v for x, v in it.items() if x not in ("athlete", "links", "$ref", "propBets")}
+            note(f"{k} prop {(it.get('type') or {}).get('name')}", json.dumps(slim)[:1500])
+        break
