@@ -26,7 +26,7 @@ for ev in evs:
     buf, n = "", 0
     for r in rows:
         if len(buf) + len(r) > 3700 and n < 8: note(f"prop rows {n}", buf); buf, n = "", n + 1
-        buf += r + "\n"
+        buf += r + " || "
     if buf and n < 9: note(f"prop rows {n}", buf)
     break
 else:
