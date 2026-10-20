@@ -17,7 +17,7 @@ on:
         description: "What to run"
         type: choice
         default: slate
-        options: [slate, slate-odds, morning, update, grade, backtest, close, tune, dfo-probe, xg-compare, recalibrate, espn-probe]
+        options: [slate, slate-odds, morning, update, grade, backtest, close, tune, dfo-probe, xg-compare, recalibrate, espn-probe, sharp-probe]
   workflow_call:                # used by recalibrate.yml (the page's RECALIBRATE MODEL button)
     inputs:
       task:
@@ -52,6 +52,7 @@ jobs:
       ODDS_BOOK_NAME: Caesars
       ODDS_BOOK_SHORT: CZR
       ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+      SHARP_API_KEY: ${{ secrets.SHARP_API_KEY }}
       PYTHONUNBUFFERED: "1"
     steps:
       - uses: actions/checkout@v4
@@ -87,8 +88,13 @@ jobs:
       - name: ESPN probe
         if: steps.pick.outputs.task == 'espn-probe'
         run: python scripts/espn_probe.py
+      - name: SharpAPI probe
+        if: steps.pick.outputs.task == 'sharp-probe'
+        run: |
+          python scripts/sharp_probe.py
+          gh release upload data-latest sharp_probe.txt --clobber
       - name: Run ${{ steps.pick.outputs.task }}
-        if: steps.pick.outputs.task != 'morning' && steps.pick.outputs.task != 'recalibrate' && steps.pick.outputs.task != 'espn-probe'
+        if: steps.pick.outputs.task != 'morning' && steps.pick.outputs.task != 'recalibrate' && steps.pick.outputs.task != 'espn-probe' && steps.pick.outputs.task != 'sharp-probe'
         run: python -m nhlmodel.daily ${{ steps.pick.outputs.task }}
       - name: Recalibrate and republish
         if: steps.pick.outputs.task == 'recalibrate'
