@@ -71,29 +71,3 @@ def test_roster_lineup_drops_departed_players_midseason(league):
     t = out[out.team == team]
     assert gone not in set(t.player_id)
     assert (t.pos == "F").sum() == 12 or (t.pos == "F").sum() == 11
-
-
-def test_odds_history_dates_stay_consistent():
-    from nhlmodel.daily import _append_odds
-    hist = pd.DataFrame(dict(date=["2026-09-30", "2026-09-30 00:00:00"], price=[100, 110]))
-    new = pd.DataFrame(dict(date=[pd.Timestamp("2026-10-01")], price=[-120]))
-    out = _append_odds(hist, new)
-    assert out.date.tolist() == ["2026-09-30", "2026-09-30", "2026-10-01"]
-
-
-def test_lean_pull_window_goes_by_clock_and_pulls_once():
-    from nhlmodel.daily import ET, lean_pull_window
-    t = lambda s: pd.Timestamp(f"2026-10-02 {s}", tz=ET)
-    empty = pd.DataFrame()
-    assert lean_pull_window(t("09:00"), empty, "williamhill_us") is None
-    assert lean_pull_window(t("13:40"), empty, "williamhill_us") == "morning"      # a late 11am run still pulls
-    assert lean_pull_window(t("18:20"), empty, "williamhill_us") == "evening"
-    assert lean_pull_window(t("21:00"), empty, "williamhill_us") is None            # too late: games started
-    done = pd.DataFrame(dict(book=["williamhill_us"], fetched_at=[t("11:02").tz_convert("UTC").isoformat()]))
-    assert lean_pull_window(t("14:30"), done, "williamhill_us") is None             # morning already pulled
-    assert lean_pull_window(t("15:30"), done, "williamhill_us") == "afternoon"      # the mid-day refresh
-    pm = pd.DataFrame(dict(book=["x"], fetched_at=[t("15:40").tz_convert("UTC").isoformat()]))
-    assert lean_pull_window(t("17:20"), pm, "williamhill_us") is None               # afternoon already pulled
-    assert lean_pull_window(t("18:00"), done, "williamhill_us") == "evening"
-    assert lean_pull_window(t("02:00"), done, "williamhill_us", force=True) == "manual"
-    assert lean_pull_window(t("13:40"), empty, "williamhill_us", tried=["morning"]) is None   # empty pull: no retry

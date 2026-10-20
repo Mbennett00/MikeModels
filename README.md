@@ -27,26 +27,15 @@ One-time setup: repo **Settings → Pages → Build and deployment → Source: G
 *Add to Home Screen*. The older Streamlit dashboard (`app/streamlit_app.py`) still works from the
 same release files but is no longer needed.
 
-**Market consensus game lines (lean mode, default).** `ODDS_ENABLED: "lean"` pulls moneyline, puck line
-and totals for every US book in one Odds API call (`regions=us`, 3 credits), once after 10:30am and once
-between 5:45 and 8pm ET (by the clock, since scheduled GitHub runs can start late; one attempt per
-window), about 180 credits a month. Edges are the model's chance minus the market consensus (median
-no-vig chance across books). Tiles show Caesars' price when Caesars is in the feed (matched by name; as
-of Oct 2026 the feed carries BetMGM, BetOnline, BetRivers, BetUS, Bovada, DraftKings, FanDuel, LowVig and
-MyBookie for NHL, not Caesars), otherwise the market's fair price ("Mkt"). The evening pull also records
-the close for games starting within 2.5 hours. Needs the repo secret `ODDS_API_KEY`.
-
-**Previously: no odds feed.** The site is a price sheet: for every bet it shows the model's chance, the
-fair price and a "bet at or better than" price (fair chance minus the market's edge threshold, with
-the book's cut left in as a cushion). You compare with your sportsbook yourself, or type its odds into
-the **Check** tab. The Odds API code is still in `nhlmodel/data/odds_api.py`: set `ODDS_ENABLED: "1"`
-and pass `secrets.ODDS_API_KEY` in `daily.yml` to switch it back on.
+**Market odds (free).** `calib/odds.py` runs on every scheduled run. Game lines and player props come from
+DraftKings and FanDuel through SharpAPI's free tier (repo secret `SHARP_API_KEY`; 12 requests a minute, data 60 s
+behind): each game's line is the one both books hang at their median price, and each prop rung gets a no-vig fair
+chance from the two books. DraftKings props also come straight from ESPN (no key), and the page refreshes DraftKings
+lines from ESPN every 30 seconds and props every 5 minutes. There is no paid odds feed.
 
 Setup (one time):
-1. **Odds (optional, off by default):** get a key from the-odds-api.com, then add it in GitHub
-   → repo **Settings → Secrets and variables → Actions → New repository secret**, name `ODDS_API_KEY`.
-   Player props cost one request per game per market group, so the free tier (500/month) is not
-   enough for props every day. Add `--no-props` to the workflow to save credits.
+1. **Odds:** sign up at sharpapi.io (free tier), then add the key in GitHub → repo **Settings → Secrets and
+   variables → Actions → New repository secret**, name `SHARP_API_KEY`.
 2. **First data load:** GitHub → **Actions → daily model run → Run workflow → task `update`**.
    The first run downloads two seasons of games (roughly 1–2 hours; it resumes if cut off).
 3. **Website:** enable GitHub Pages as above. The page is public (as is the repo).
@@ -230,7 +219,7 @@ whether that input is over- or under-weighted.
 
 | Spec section | Module |
 |---|---|
-| Data: NHL API play-by-play + shift charts (automated), MoneyPuck (manual), lineups, odds | `nhlmodel/data/` (`nhl_pipeline.py`, `xg.py`, `odds_api.py`, `moneypuck.py`, `schema.py`) |
+| Data: NHL API play-by-play + shift charts (automated), MoneyPuck (manual), lineups, odds | `nhlmodel/data/` (`nhl_pipeline.py`, `xg.py`, `names.py`, `moneypuck.py`, `schema.py`) |
 | No leakage, 2 seasons, decay half-life | `nhlmodel/ratings.py` (every rate is built from rows dated before the game) |
 | 1. Team model, bivariate Poisson, ML / PL / totals / P1 / team totals | `nhlmodel/team_model.py`, `nhlmodel/distributions.py` |
 | 2–6. Player shrinkage, TOI, goals, SOG (NB), assists, points | `nhlmodel/player_model.py` |

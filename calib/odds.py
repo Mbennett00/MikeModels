@@ -1,16 +1,13 @@
-"""Market odds for the Pikt pages: consensus game lines (The Odds API) and DraftKings player props (ESPN's free feed).
+"""Market odds for the Pikt pages: DraftKings + FanDuel game lines and player props, all free.
 
 python -m calib.odds [--state state]
 
-Game lines: one /odds request per league returns every upcoming game (spread, total, moneyline from US books) and
-costs 3 credits. The consensus is the most common line across books, priced at the median of the books on it.
-Budget: a league is pulled only when it has games coming up and its last pull is old enough (NHL / NBA twice a day,
-NFL once), and never once the month's usage would pass ODDS_MONTH_CAP (480 of 500 by default). Usage is read for
-free from /v4/sports before any paid call, so the cap holds whatever else uses the key.
-Props: ESPN's core odds feed carries DraftKings' prop prices for free (no key): milestones and anytime scorers for
-all three leagues. With SHARP_API_KEY set, calib.sharp adds DraftKings + FanDuel from SharpAPI's free tier: FanDuel
-fills rungs DraftKings doesn't hang, both books give each rung a no-vig fair chance, NFL props come priced (so the
-paid Odds API NFL prop pull is skipped), and games without a consensus line get one from the two books.
+Game lines: calib.sharp pulls DraftKings and FanDuel from SharpAPI's free tier (SHARP_API_KEY); each game's line is the
+one both books hang, priced at their median. Between pulls the last good lines stay, minus games that have started.
+Props: ESPN's core odds feed carries DraftKings' prop prices for free (milestones and anytime scorers, all three
+leagues). SharpAPI adds both books: FanDuel fills rungs DraftKings doesn't hang, each rung gets a no-vig fair chance
+from the two books, and NFL props (unpriced on ESPN) come priced. The page itself refreshes DraftKings from ESPN every
+30 seconds (lines) and 5 minutes (props).
 Writes state/site/odds.json (kept with the state) and state/site/web/odds.json. Never raises: a failed pull keeps
 the last good prices, and the pages fall back to their own when a game has none.
 """
@@ -21,7 +18,6 @@ import datetime as dt
 import json
 import os
 import re
-import statistics
 import unicodedata
 
 import requests
@@ -29,13 +25,7 @@ from zoneinfo import ZoneInfo
 
 ET = ZoneInfo("America/New_York")
 
-API = "https://api.the-odds-api.com/v4"
-LEAGUES = {"NHL": ("icehockey_nhl", 20), "NBA": ("basketball_nba", 20), "NFL": ("americanfootball_nfl", 44)}   # key, hours between pulls
-WINDOW = (13, 20)   # paid pulls only in the afternoon (ET), once lines have settled; NFL props too
 PAGE = {"NHL": "data.json", "NBA": "nba.json", "NFL": "nfl.json"}
-COST = 3   # h2h + spreads + totals, one region (budget: NHL + NBA lines daily ~180, NFL lines every 2 days ~45,
-           # NFL props ~3 a game ~200: about 430 a month, never past CAP)
-CAP = int(os.environ.get("ODDS_MONTH_CAP", "480"))
 UA = {"User-Agent": "Mozilla/5.0 (Pikt odds)"}
 
 
@@ -44,44 +34,6 @@ def nm(s: str) -> str:
     s = unicodedata.normalize("NFKD", str(s or "")).encode("ascii", "ignore").decode().lower()
     s = re.sub(r"\b(jr|sr|ii|iii|iv)\b", "", s)
     return re.sub(r"[^a-z]", "", s)
-
-
-def to_prob(a: float) -> float:
-    return 100 / (a + 100) if a > 0 else -a / (-a + 100)
-
-
-def to_am(p: float) -> int:
-    p = min(max(p, 0.01), 0.99)
-    return round(-100 * p / (1 - p)) if p >= 0.5 else round(100 * (1 - p) / p)
-
-
-def mid_price(prices: list) -> int | None:
-    """Median price, taken in probability space so +/- odds average properly."""
-    return to_am(statistics.median(to_prob(x) for x in prices)) if prices else None
-
-
-def consensus(ev: dict) -> dict | None:
-    home, away = ev.get("home_team"), ev.get("away_team")
-    ml_h, ml_a, sp, tot = [], [], {}, {}
-    for bk in ev.get("bookmakers") or []:
-        for m in bk.get("markets") or []:
-            o = {x.get("name"): x for x in m.get("outcomes") or []}
-            if m.get("key") == "h2h" and home in o and away in o:
-                ml_h.append(o[home]["price"]); ml_a.append(o[away]["price"])
-            elif m.get("key") == "spreads" and home in o and away in o and o[home].get("point") is not None:
-                sp.setdefault(float(o[home]["point"]), []).append((o[home]["price"], o[away]["price"]))
-            elif m.get("key") == "totals" and "Over" in o and "Under" in o and o["Over"].get("point") is not None:
-                tot.setdefault(float(o["Over"]["point"]), []).append((o["Over"]["price"], o["Under"]["price"]))
-    out = {"home": home, "away": away, "t": ev.get("commence_time"), "books": len(ev.get("bookmakers") or [])}
-    if ml_h:
-        out["ml"] = {"home": mid_price(ml_h), "away": mid_price(ml_a)}
-    if sp:
-        pt, L = max(sp.items(), key=lambda kv: (len(kv[1]), -abs(kv[0])))   # the line most books hang
-        out["spread"] = {"home": pt, "home_price": mid_price([x[0] for x in L]), "away_price": mid_price([x[1] for x in L])}
-    if tot:
-        pt, L = max(tot.items(), key=lambda kv: (len(kv[1]), -abs(kv[0] - statistics.median(tot))))
-        out["total"] = {"line": pt, "over": mid_price([x[0] for x in L]), "under": mid_price([x[1] for x in L])}
-    return out if len(out) > 4 else None
 
 
 def upcoming(web: str, league: str) -> int:
@@ -97,52 +49,6 @@ def upcoming(web: str, league: str) -> int:
         if t and dt.datetime.fromisoformat(str(t).replace("Z", "+00:00")) > now and g.get("state") not in ("post", "in"):
             n += 1
     return n
-
-
-def usage(key: str) -> int | None:
-    """Credits used this period, from the free /sports endpoint."""
-    try:
-        r = requests.get(f"{API}/sports", params={"apiKey": key}, timeout=20)
-        return int(r.headers.get("x-requests-used")) if r.ok else None
-    except Exception:
-        return None
-
-
-def pull_lines(prev: dict, web: str, key: str, log=print) -> dict:
-    lines = dict(prev.get("lines") or {})
-    pulled = dict(prev.get("pulled") or {})
-    if not key:
-        log("odds: no ODDS_API_KEY; keeping the last prices"); return {"lines": lines, "pulled": pulled, "used": prev.get("used")}
-    now = dt.datetime.now(dt.timezone.utc)
-    hr = dt.datetime.now(ET).hour
-    if not (WINDOW[0] <= hr < WINDOW[1]) and not os.environ.get("ODDS_PULL"):
-        log(f"odds: outside the {WINDOW[0]}:00-{WINDOW[1]}:00 ET pull window; keeping the last lines")
-        return {"lines": lines, "pulled": pulled, "used": prev.get("used")}
-    due = [lg for lg, (_, hrs) in LEAGUES.items() if upcoming(web, lg)
-           and (lg not in pulled or now - dt.datetime.fromisoformat(pulled[lg]) >= dt.timedelta(hours=hrs - 0.5))]
-    used = prev.get("used")
-    if not due:
-        log("odds: nothing due (no upcoming games or pulled recently)")
-        return {"lines": lines, "pulled": pulled, "used": used}
-    used = usage(key)
-    if used is None:
-        log("odds: couldn't read usage; skipping paid pulls"); return {"lines": lines, "pulled": pulled, "used": prev.get("used")}
-    for lg in due:
-        if used + COST > CAP:
-            log(f"odds: {used} credits used this month; {lg} skipped to stay under {CAP}"); continue
-        try:
-            r = requests.get(f"{API}/sports/{LEAGUES[lg][0]}/odds", timeout=30,
-                             params={"apiKey": key, "regions": "us", "markets": "h2h,spreads,totals", "oddsFormat": "american"})
-            r.raise_for_status()
-            evs = r.json()
-            used = int(r.headers.get("x-requests-used", used + COST))
-        except Exception as e:
-            log(f"odds: {lg} pull failed ({e})"); continue
-        games = [c for c in (consensus(ev) for ev in evs) if c]
-        lines[lg] = {"fetched_at": now.isoformat(timespec="seconds"), "games": games}
-        pulled[lg] = now.isoformat(timespec="seconds")
-        log(f"odds: {lg} consensus for {len(games)} games ({used} credits used this month)")
-    return {"lines": lines, "pulled": pulled, "used": used}
 
 
 # ---------- props: DraftKings via ESPN (free) ----------
@@ -324,58 +230,6 @@ def pull_props(prev: dict, web: str, log=print) -> dict:
     return props
 
 
-# ---------- NFL props: DraftKings via The Odds API ----------
-# ESPN lists DraftKings' NFL prop markets without prices, so football props come from The Odds API instead:
-# DraftKings only (bookmakers=draftkings -> 1 credit per market per game), three markets, each game pulled once when
-# it's about two days out. Over sides only, so each price is "N or more" like everywhere else on the page.
-NFL_PROPS = {"player_anytime_td": "td", "player_reception_yds": "rec_yds", "player_rush_yds": "rush_yds"}
-
-
-def pull_nfl_props(prev: dict, key: str, used, log=print):
-    st = dict(prev.get("nflp") or {}); ev_store = dict(st.get("events") or {})
-    now = dt.datetime.now(dt.timezone.utc)
-    ev_store = {k: v for k, v in ev_store.items() if dt.datetime.fromisoformat(v["t"].replace("Z", "+00:00")) > now - dt.timedelta(hours=4)}
-    in_window = WINDOW[0] <= dt.datetime.now(ET).hour < WINDOW[1] or os.environ.get("ODDS_PULL")
-    if key and in_window:
-        try:
-            evs = requests.get(f"{API}/sports/americanfootball_nfl/events", params={"apiKey": key}, timeout=20).json()   # free
-        except Exception as e:
-            evs = []; log(f"odds: NFL events list failed ({e})")
-        todo = [e for e in evs if isinstance(e, dict) and e.get("id") not in ev_store
-                and now < dt.datetime.fromisoformat(e["commence_time"].replace("Z", "+00:00")) < now + dt.timedelta(hours=54)]
-        if todo and used is None:
-            used = usage(key)
-        cost = len(NFL_PROPS)
-        for e in todo:
-            if used is None or used + cost > CAP:
-                log(f"odds: NFL props for {e.get('away_team')} @ {e.get('home_team')} skipped ({used} credits used, cap {CAP})"); continue
-            try:
-                r = requests.get(f"{API}/sports/americanfootball_nfl/events/{e['id']}/odds", timeout=30,
-                                 params={"apiKey": key, "bookmakers": "draftkings", "markets": ",".join(NFL_PROPS), "oddsFormat": "american"})
-                r.raise_for_status(); d = r.json(); used = int(r.headers.get("x-requests-used", used + cost))
-            except Exception as ex:
-                log(f"odds: NFL props {e.get('id')} failed ({ex})"); continue
-            players = {}
-            for bk in d.get("bookmakers") or []:
-                for m in bk.get("markets") or []:
-                    stat = NFL_PROPS.get(m.get("key"))
-                    for o in m.get("outcomes") or []:
-                        if not stat or o.get("name") not in ("Over", "Yes") or o.get("price") is None or not o.get("description"):
-                            continue
-                        line = 0.5 if stat == "td" else o.get("point")
-                        if line is None:
-                            continue
-                        players.setdefault(nm(o["description"]), {})[f"{stat}|{float(line):g}"] = int(o["price"])
-            ev_store[e["id"]] = {"t": e["commence_time"], "game": f"{e.get('away_team')} @ {e.get('home_team')}", "players": players}
-            log(f"odds: NFL props {e.get('away_team')} @ {e.get('home_team')}: {len(players)} players ({used} credits used)")
-    merged = {}
-    for v in ev_store.values():
-        if dt.datetime.fromisoformat(v["t"].replace("Z", "+00:00")) > now:
-            for k, q in v["players"].items():
-                merged.setdefault(k, {}).update(q)
-    return {"events": ev_store}, merged, used
-
-
 def attach_gids(lines: dict, web: str, log=print):
     """Tie each consensus game to the page's game id (team names + start time), and say how many matched."""
     for lg, blob in (lines or {}).items():
@@ -402,8 +256,8 @@ def attach_gids(lines: dict, web: str, log=print):
 
 def merge_sharp(out: dict, sh: dict, log=print):
     """Fold SharpAPI's DraftKings + FanDuel pull into the page's odds: DraftKings (ESPN, the live source) keeps every rung
-    it hangs; FanDuel fills the rest, tagged in "bk"; "fair" is the two-book no-vig chance; games the consensus lines
-    lack are added from the two books."""
+    it hangs; FanDuel fills the rest, tagged in "bk"; "fair" is the two-book no-vig chance; game lines are the two
+    books' consensus."""
     now = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
     for lg, v in sh.items():
         if v["props"]:
@@ -420,14 +274,7 @@ def merge_sharp(out: dict, sh: dict, log=print):
             out["props"][lg] = {"book": "DraftKings" + (" + FanDuel" if bk else ""), "fetched_at": cur.get("fetched_at") or now,
                                 "players": players, "bk": bk, "fair": v["fair"], "sharp_at": v["fetched_at"]}
         if v["games"]:
-            L = (out.get("lines") or {}).setdefault(lg, {"fetched_at": now, "games": []})
-            L["games"] = [x for x in L.get("games") or [] if x.get("src") != "sharp"]      # last run's fill-ins are replaced
-            nick = lambda t: nm(str(t or "").split()[-1] if str(t or "").split() else "")   # "LA Kings" = "Los Angeles Kings"
-            have = {(nick(x.get("home")), nick(x.get("away"))) for x in L.get("games") or []}
-            add = [g for g in v["games"] if (nick(g["home"]), nick(g["away"])) not in have]
-            L["games"] = (L.get("games") or []) + add
-            if add:
-                log(f"odds: {lg} {len(add)} games priced from DraftKings + FanDuel (no consensus line yet)")
+            out.setdefault("lines", {})[lg] = {"fetched_at": v["fetched_at"], "books": "DraftKings + FanDuel", "games": v["games"]}
 
 
 def run(state: str = "state", log=print):
@@ -438,29 +285,25 @@ def run(state: str = "state", log=print):
         prev = json.load(open(p))
     except (OSError, ValueError):
         prev = {}
-    out = pull_lines(prev, web, os.environ.get("ODDS_API_KEY", ""), log)
+    now = dt.datetime.now(dt.timezone.utc)
+    out = {"lines": {}}
+    for lg, L in (prev.get("lines") or {}).items():      # last good lines, minus games that have started
+        keep = [g for g in L.get("games") or [] if g.get("t") and dt.datetime.fromisoformat(str(g["t"]).replace("Z", "+00:00")) > now]
+        if keep:
+            out["lines"][lg] = dict(L, games=keep)
     out["props"] = pull_props(prev, web, log)
     from calib import sharp
     sh = sharp.pull(list(ESPN), os.environ.get("SHARP_API_KEY", ""), log)   # every league: the API only returns games to come
     out["sharp"] = {lg: {"fetched_at": v["fetched_at"], "complete": v["complete"], "games": len(v["games"]), "players": len(v["props"])} for lg, v in sh.items()}
-    # SharpAPI prices NFL props for free, so the paid Odds API pull only runs without it
-    have_nfl = len((sh.get("NFL") or {}).get("props") or {}) >= 10
-    out["nflp"], nflp, out["used"] = pull_nfl_props(prev, "" if have_nfl else os.environ.get("ODDS_API_KEY", ""), out.get("used"), log)
-    if nflp:
-        props_nfl = (out["props"].get("NFL") or {}).get("players") or {}
-        for k, q in nflp.items():
-            props_nfl.setdefault(k, {}).update(q)
-        out["props"]["NFL"] = {"book": "DraftKings", "fetched_at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), "players": props_nfl}
     merge_sharp(out, sh, log)
     attach_gids(out.get("lines"), web, log)
-    out["cap"] = CAP
     out["generated_at"] = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
     txt = json.dumps(out, separators=(",", ":"))
     for d in (site, web):
         with open(os.path.join(d, "odds.json"), "w") as f:
             f.write(txt)
     n = {lg: len(v.get("games") or []) for lg, v in (out.get("lines") or {}).items()}
-    log(f"odds: lines {n} · props {[k for k in out['props']]} · {out.get('used')} credits used")
+    log(f"odds: lines {n} · props {[k for k in out['props']]}")
 
 
 if __name__ == "__main__":

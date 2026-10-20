@@ -2,7 +2,6 @@
 
   python -m nhlmodel.daily update    fetch newly completed games (NHL API), rebuild tables
   python -m nhlmodel.daily slate     price today's games with projected/overridden lineups + 'bet' odds
-  python -m nhlmodel.daily close     snapshot closing odds for games starting within the next 75 min
   python -m nhlmodel.daily grade     settle logged plays: result, closing no-vig, CLV, profit
   python -m nhlmodel.daily backtest  walk-forward over recent dates -> validation report + dispersion inputs
   python -m nhlmodel.daily tune      grid search (slow; manual)
@@ -137,7 +136,7 @@ def _roster_lineup(team, roster_t: pd.DataFrame, pg: pd.DataFrame, date, game_id
 def _dfo_team_lineup(team, lines: pd.DataFrame, goalie: dict | None, rt: pd.DataFrame, extra_idx: dict,
                      date, game_id, log=print) -> pd.DataFrame | None:
     """Lineup from Daily Faceoff: F1-F4 / D1-D3 slots, PP1/PP2, starter + Confirmed/Likely status."""
-    from .data.odds_api import lookup, player_index
+    from .data.names import lookup, player_index
     ev = lines[(lines.category == "ev")]
     sk = ev[ev.group.str.fullmatch(r"f[1-4]|d[1-3]", na=False)]
     if len(sk) < 15:
@@ -191,7 +190,7 @@ def projected_lineups(tables: dict, schedule: pd.DataFrame, overrides: pd.DataFr
     dfo_goalies = {r["team"]: r for r in (dfo or {}).get("goalies", [])}
     extra_idx = {}
     if len(dfo_lines):
-        from .data.odds_api import player_index
+        from .data.names import player_index
         recent = pg[pg.date >= pd.Timestamp(date) - pd.Timedelta(days=400)].drop_duplicates("player_id", keep="last")
         extra_idx = player_index(recent)
     for g in schedule.itertuples():
@@ -307,7 +306,6 @@ def write_status(state, **kw):
 
 
 def cmd_slate(a):
-    from .data import odds_api
     from .report import slate_markdown, write
     from .slate import build_state, price_state
     site = _site(a.state)
@@ -344,53 +342,7 @@ def cmd_slate(a):
         gl = {r["team"]: dict(goalie=r["goalie"], status=r["status"], note=r["note"]) for r in dfo.get("goalies", [])}
         json.dump(dict(injuries=inj, goalies=gl, fetched_at=pd.Timestamp.now(tz=ET).isoformat()),
                   open(os.path.join(site, "news.json"), "w"), indent=1)
-    mode = os.environ.get("ODDS_ENABLED", "0")
-    book = os.environ.get("ODDS_BOOK", "williamhill_us")
-    odds = pd.DataFrame()
-    hist = _read(os.path.join(site, "odds_history.csv.gz"))
-    if mode == "1":
-        odds = odds_api.fetch(sched, roster if len(roster) else lineups, "bet", props=not a.no_props)
-    elif mode == "lean" and not upcoming:
-        now_et = pd.Timestamp.now(tz=ET)
-        pf = os.path.join(site, "odds_pulls.json")
-        try:
-            pulls = json.load(open(pf)) if os.path.exists(pf) else {}
-        except ValueError:
-            pulls = {}
-        tried = pulls.get(str(now_et.date()), [])
-        window = lean_pull_window(now_et, hist, book, force=os.environ.get("ODDS_PULL") == "1", tried=tried)
-        if window:
-            pulls = {str(now_et.date()): tried + [window]}      # one attempt per window, even if empty
-            json.dump(pulls, open(pf, "w"))
-            # game lines from every book in ODDS_REGIONS (us,us2 = ~20 US books, 6 credits a pull): edges are measured
-            # against the market consensus (median no-vig across books); the page shows Caesars' price when listed
-            regions = os.environ.get("ODDS_REGIONS", "us")
-            if window == "afternoon":   # the mid-day refresh uses the main US books only (3 credits) to stay on budget
-                regions = os.environ.get("ODDS_REGIONS_MID", regions)
-            print(f"odds pull ({window}, regions {regions})")
-            odds = odds_api.fetch(sched, lineups, "bet", regions=regions, game_only=True)
-            if len(odds) and window == "evening":
-                # closing line for games that have not started and start within ~2.5 hours
-                now = pd.Timestamp.now(tz="UTC")
-                st = pd.to_datetime(sched.start_utc, utc=True)
-                soon = set(sched[(st > now) & (st <= now + pd.Timedelta(hours=2.5))].game_id)
-                odds = pd.concat([odds, odds[odds.game_id.isin(soon)].assign(snapshot="close")], ignore_index=True)
-        else:
-            print("odds: outside a pull window or already pulled; reusing today's prices")
-    if not len(odds) and mode == "lean" and len(hist):
-        # between pulls: reuse today's latest prices from the chosen book
-        h = hist[(pd.to_datetime(hist.date.astype(str), format="mixed").dt.normalize() == date)
-                 & (hist.snapshot == "bet") & hist.game_id.isin(sched.game_id)]
-        if len(h):
-            odds = h.sort_values("fetched_at").drop_duplicates(
-                ["game_id", "market", "player_id", "selection", "line", "book"], keep="last")
-            print(f"reusing {len(odds)} prices ({odds.book.nunique()} books) from {odds.fetched_at.max()}")
-    elif len(odds):
-        hist = _append_odds(hist, odds)
-        hist.to_csv(os.path.join(site, "odds_history.csv.gz"), index=False, compression="gzip")
-        # latest bet-time price per book for today's pricing
-        odds = odds[odds.snapshot == "bet"].sort_values("fetched_at").drop_duplicates(
-            ["game_id", "market", "player_id", "selection", "line", "book"], keep="last")
+    odds = pd.DataFrame()   # market prices live in odds.json (calib.odds: DraftKings + FanDuel); the model prices on its own
     hp = {}
     for k in ("games", "players"):
         f = os.path.join(site, f"bt_{k}.csv.gz")
@@ -517,35 +469,6 @@ def _publish_web(site, state, plays, meta):
         print(f"web page build failed: {e}")
 
 
-def lean_pull_window(now_et: pd.Timestamp, hist: pd.DataFrame, book: str, force: bool = False, tried=()):
-    """Which pull this run should make: 'morning', 'afternoon', 'evening', 'manual' or None.
-
-    Scheduled GitHub runs can start hours late, so pulls go by the clock rather than the cron slot:
-    the first run between 10:30 and 15:00 ET pulls morning lines, the first between 15:00 and 17:45 pulls the
-    afternoon lines (after morning skates / goalie news), the first between 17:45 and 20:00 pulls pre-game lines;
-    each window pulls once a day (checked against odds_history)."""
-    if force:
-        return "manual"
-    t = now_et.hour + now_et.minute / 60
-    win = "morning" if 10.5 <= t < 15.0 else "afternoon" if 15.0 <= t < 17.75 else "evening" if 17.75 <= t < 20.0 else None
-    if win is None or win in tried:
-        return None
-    if len(hist) and "fetched_at" in hist:
-        f = pd.to_datetime(hist.fetched_at, utc=True, errors="coerce").dt.tz_convert(ET)
-        mine = f[f.dt.normalize() == now_et.normalize()]
-        start = now_et.normalize() + pd.Timedelta(hours={"morning": 10.5, "afternoon": 15.0}.get(win, 17.75))
-        if (mine >= start).any():
-            return None
-    return win
-
-
-def _append_odds(hist: pd.DataFrame, new: pd.DataFrame) -> pd.DataFrame:
-    """Append odds rows, keeping one date format (YYYY-MM-DD) in the stored history."""
-    out = pd.concat([hist, new], ignore_index=True)
-    out["date"] = pd.to_datetime(out.date.astype(str), format="mixed").dt.strftime("%Y-%m-%d")
-    return out
-
-
 LOG_KEYS = ["date", "game_id", "market", "selection", "line", "player_id"]
 
 
@@ -565,31 +488,6 @@ def log_flagged(site, plays, date):
     allr["player_id"] = pd.to_numeric(allr.player_id, errors="coerce")
     allr = allr.drop_duplicates(LOG_KEYS, keep="first")    # first time it was flagged = the bet price
     allr.to_csv(f, index=False)
-
-
-def cmd_close(a):
-    from .data import odds_api
-    if os.environ.get("ODDS_ENABLED", "0") != "1":
-        print("odds feed disabled: no closing odds to record"); return
-    site = _site(a.state)
-    now = pd.Timestamp.now(tz="UTC")
-    date = today_et()
-    sched = _schedule(date)
-    if sched.empty:
-        print("no games"); return
-    st = pd.to_datetime(sched.start_utc, utc=True)
-    hist = _read(os.path.join(site, "odds_history.csv.gz"))
-    done = set(hist[hist.snapshot == "close"].game_id) if len(hist) else set()
-    soon = sched[(st > now) & (st <= now + pd.Timedelta(minutes=a.window)) & ~sched.game_id.isin(done)]
-    if soon.empty:
-        print("no games starting soon"); return
-    tables = load_tables(a.state)
-    _, roster = projected_lineups(tables, soon, None, date, fetch_rosters(list(soon.home) + list(soon.away)))
-    odds = odds_api.fetch(soon, roster, "close", props=not a.no_props, game_ids=set(soon.game_id))
-    if len(odds):
-        hist = _append_odds(hist, odds)
-        hist.to_csv(os.path.join(site, "odds_history.csv.gz"), index=False, compression="gzip")
-    print(f"closing odds for {len(soon)} games: {len(odds)} rows")
 
 
 def cmd_grade(a):
@@ -757,7 +655,7 @@ def cmd_xg_compare(a):
 
 def main(argv=None):
     p = argparse.ArgumentParser(prog="nhlmodel.daily")
-    p.add_argument("cmd", choices=["update", "slate", "close", "grade", "backtest", "tune", "dfo-probe", "xg-compare"])
+    p.add_argument("cmd", choices=["update", "slate", "grade", "backtest", "tune", "dfo-probe", "xg-compare"])
     p.add_argument("--state", default="state")
     p.add_argument("--overrides", default="overrides")
     p.add_argument("--date")
@@ -765,11 +663,9 @@ def main(argv=None):
     p.add_argument("--max-games", type=int)
     p.add_argument("--full", action="store_true", help="update: rescan the whole date range")
     p.add_argument("--max-minutes", type=float, default=240, help="update: stop fetching after this long")
-    p.add_argument("--window", type=int, default=75, help="close: minutes ahead of puck drop")
     p.add_argument("--days", type=int, default=150, help="backtest/tune: number of recent game dates")
-    p.add_argument("--no-props", action="store_true", help="skip player-prop odds (saves API credits)")
     a = p.parse_args(argv)
-    {"update": cmd_update, "slate": cmd_slate, "close": cmd_close, "grade": cmd_grade,
+    {"update": cmd_update, "slate": cmd_slate, "grade": cmd_grade,
      "backtest": cmd_backtest, "tune": cmd_tune, "dfo-probe": cmd_dfo_probe,
      "xg-compare": cmd_xg_compare}[a.cmd](a)
 

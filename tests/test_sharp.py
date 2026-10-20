@@ -39,7 +39,7 @@ def test_games_consensus():
     assert g["ml"]["away"] < -140 and g["ml"]["home"] > 120
 
 
-def test_merge_keeps_draftkings_rungs_and_adds_missing_games():
+def test_merge_keeps_draftkings_rungs_and_takes_two_book_lines():
     out = {"props": {"NHL": {"book": "DraftKings", "players": {"nathanmackinnon": {"points|1.5": -110, "points|2.5": 285}}}},
            "lines": {"NHL": {"games": [{"home": "Boston Bruins", "away": "Buffalo Sabres"}, {"home": "Washington Capitals", "away": "Los Angeles Kings"},
                                        {"home": "New Jersey Devils", "away": "Colorado Avalanche", "src": "sharp", "old": 1}]}}}
@@ -51,8 +51,8 @@ def test_merge_keeps_draftkings_rungs_and_adds_missing_games():
     P = out["props"]["NHL"]
     assert P["players"]["nathanmackinnon"] == {"points|1.5": -110, "points|2.5": 285, "points|3.5": 900}   # ESPN DraftKings wins
     assert P["bk"] == {"nathanmackinnon": {"points|3.5": "FD"}} and P["book"] == "DraftKings + FanDuel"
-    assert [g["home"] for g in out["lines"]["NHL"]["games"]] == ["Boston Bruins", "Washington Capitals", "New Jersey Devils"]
-    assert not any(g.get("old") for g in out["lines"]["NHL"]["games"])
+    assert [g["home"] for g in out["lines"]["NHL"]["games"]] == ["New Jersey Devils", "Boston Bruins", "Washington Capitals"]
+    assert out["lines"]["NHL"]["books"] == "DraftKings + FanDuel"
 
 
 def test_misfiled_period_market_is_dropped():

@@ -3,7 +3,7 @@
     python -m nflmodel.daily            (reads/writes ./state, like the NHL job)
 
 Writes state/site/nfl.json (kept in the data-latest release) and state/site/web/nfl.json + nfl.html.
-Odds: one Odds API pull a day (3 credits) when ODDS_ENABLED is on; NFL_ODDS_PULL=1 forces one.
+Odds: the DraftKings + FanDuel consensus calib.odds saves from SharpAPI (odds.json), else nflverse's lines.
 """
 from __future__ import annotations
 
@@ -166,54 +166,14 @@ def run(state: str = "state", log=print) -> dict:
     lv = M.qb_levels(qb, now_et.tz_localize(None), cfg)
     season = int(wk.season.iloc[0]) if len(wk) else int(sched[sched.result.notna()].season.max())
 
-    # market: today's pull, else the last one, else the nflverse lines
-    # free by default: no Odds API credits for NFL (market = nflverse posted lines; the page adds DraftKings'
-    # live lines from ESPN). NFL_ODDS=1 turns the paid pulls back on.
-    key = os.environ.get("ODDS_API_KEY") if os.environ.get("NFL_ODDS", "0") == "1" else None
-    mode = os.environ.get("ODDS_ENABLED", "0")
-    book, book_short = os.environ.get("ODDS_BOOK", "williamhill_us"), os.environ.get("ODDS_BOOK_SHORT", "CZR")
-    opath = os.path.join(site, "nfl_odds.json")
-    cached = O.load_cached(opath)
-    upcoming = wk[wk.result.isna()]
-    if key and mode != "0" and O.due(cached, now_et, len(upcoming) > 0, os.environ.get("NFL_ODDS_PULL") == "1"):
-        try:
-            cached = O.fetch(key, log)
-            json.dump(cached, open(opath, "w"))
-        except Exception as e:
-            log(f"nfl odds: {e}")
+    # market: the DraftKings + FanDuel consensus calib.odds saved from SharpAPI (odds.json), else nflverse's posted lines
+    book, book_short = "consensus", "DK/FD"
+    cached = O.from_market(os.path.join(site, "odds.json"))
     evs = O.match(cached["events"], wk) if cached else {}
-    # anytime-TD consensus across every US book: one pull per game day for that day's games (1 credit a game).
-    # The event list is free, so this works without the paid game-line pulls. NFL_TD_ODDS=0 turns it off.
-    dpath = os.path.join(site, "nfl_tdprops.json")
-    dkp = O.load_cached(dpath) or {}
-    dkp.setdefault("events", {})
-    # DraftKings props from ESPN's free feed (TD, yards, catches): no credits. The paid anytime-TD pull below only
-    # runs for games ESPN has no TD prices for.
+    # DraftKings props from ESPN's free feed (TD, yards, catches)
     from . import espn_props as EP
     ep = EP.fetch(I.norm, log) if os.environ.get("NFL_ESPN_PROPS", "1") != "0" else {}
     ep_games = ep.get("games", {}) if ep else {}
-    ep_td_home = {k.split("@")[1] for k, v in ep_games.items() if any("td|0.5" in d for d in v["players"].values())}
-    tdkey = os.environ.get("ODDS_API_KEY") if os.environ.get("NFL_TD_ODDS", "1") != "0" else None
-    now_utc = now_et.tz_convert("UTC")
-    ev_all = {}
-    if tdkey:
-        def today(ev):
-            t = pd.Timestamp(ev["commence_time"])
-            return t.tz_convert("America/New_York").date() == now_et.date() and t > now_utc
-        games_today = [1] if any(pd.Timestamp(g.gameday).date() == now_et.date() for g in upcoming.itertuples()) else []
-        if O.props_due(dkp, now_et, games_today, os.environ.get("NFL_ODDS_PULL") == "1"):
-            ev_all = O.match(O.fetch_events(tdkey, log), wk)
-            home_of = dict(zip(wk.game_id, wk.home_team))
-            todays = [dict(ev, gid=gid) for gid, ev in ev_all.items() if today(ev) and home_of.get(gid) not in ep_td_home]
-            if ep_td_home:
-                log(f"nfl td odds: ESPN (free) already prices {len(ep_td_home)} games; paid pull for {len(todays)}")
-            got = O.fetch_td(tdkey, todays, I.norm, log) if todays else {}
-            if got:
-                cut = now_utc - pd.Timedelta(days=8)
-                dkp["events"] = {k: v for k, v in dkp["events"].items() if v.get("commence") and pd.Timestamp(v["commence"]) > cut}
-                dkp["events"].update(got)
-                dkp.update(pulled_on=str(now_et.date()), fetched_at=pd.Timestamp.now(tz="UTC").isoformat(timespec="seconds"))
-                json.dump(dkp, open(dpath, "w"), separators=(",", ":"))
     npath = os.path.join(site, "nfl_line_news.json")
     try:
         ln = json.load(open(npath))
@@ -359,7 +319,7 @@ def run(state: str = "state", log=print) -> dict:
     meta = dict(sport="nfl", generated_at=now_et.isoformat(), season=season,
                 week=int(wk.week.iloc[0]) if len(wk) else None,
                 data_through=str(tg.date.max().date()), games_this_season=int((played.season == season).sum()),
-                odds_at=cached["fetched_at"] if cached else None, book=os.environ.get("ODDS_BOOK_NAME", "Caesars"),
+                odds_at=cached["fetched_at"] if cached else None, book="DraftKings + FanDuel",
                 book_short=book_short, edge_flag=EDGE_FLAG,
                 inj_source="ESPN" if live is not None and "detail" in live else ("official report" if live is not None else None),
                 pts_per_starter=_r(-cfg.coef_m[-1], 2),
@@ -387,17 +347,12 @@ def run(state: str = "state", log=print) -> dict:
     except Exception as e:
         log(f"nfl matchup grades: {e}")
     attach_props(lineup, players)
-    # consensus anytime-TD prices onto each player (matched by team names + kickoff, then player name)
-    by_gid = {v.get("gid"): v for v in dkp["events"].values()}
+    # DraftKings prices onto each player (matched by team names + kickoff, then player name)
     key_of = {g.game_id: f"{g.away_team}@{g.home_team}" for g in wk.itertuples()}
     for p_ in players:
-        nm = I.norm(p_["name"])
-        cons = ((by_gid.get(p_["game_id"]) or {}).get("players") or {}).get(nm) or {}
-        dk = dict(((ep_games.get(key_of.get(p_["game_id"])) or {}).get("players") or {}).get(nm) or {})
-        dk.update(cons)          # multi-book consensus TD price wins over DraftKings' alone when both exist
-        p_["dk"] = dk or None
-    meta.update(props_book="Consensus" if dkp.get("fetched_at") else ("DraftKings" if ep_games else None),
-                props_at=dkp.get("fetched_at") or (ep or {}).get("fetched_at"))
+        dk = ((ep_games.get(key_of.get(p_["game_id"])) or {}).get("players") or {}).get(I.norm(p_["name"]))
+        p_["dk"] = dict(dk) if dk else None
+    meta.update(props_book="DraftKings" if ep_games else None, props_at=(ep or {}).get("fetched_at"))
     out = dict(meta=meta, games=games, players=players, teams=team_table(R, rows, season), key_m=cfg.key_m, key_t=cfg.key_t,
                injuries=injuries, lineups=lineup)
     try:

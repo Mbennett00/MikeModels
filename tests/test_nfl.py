@@ -95,17 +95,6 @@ def test_match_events_to_schedule():
     assert list(O.match([_event([])], g)) == ["2026_04_KC_LV"]
 
 
-def test_odds_pull_once_a_day_after_1030():
-    et = lambda s: pd.Timestamp(s, tz="America/New_York")
-    assert not O.due(None, et("2026-10-04 09:00"), True)
-    assert O.due(None, et("2026-10-04 10:45"), True)
-    assert not O.due(None, et("2026-10-04 10:45"), False)
-    done = dict(fetched_at=et("2026-10-04 10:40").tz_convert("UTC").isoformat())
-    assert not O.due(done, et("2026-10-04 18:00"), True)
-    assert O.due(done, et("2026-10-05 11:00"), True)
-    assert O.due(done, et("2026-10-04 18:00"), True, force=True)
-
-
 def test_week_games_picks_the_week_still_being_played():
     s = pd.DataFrame(dict(game_id=["a", "b", "c"], season=[2026] * 3, week=[4, 4, 5],
                           gameday=pd.to_datetime(["2026-10-01", "2026-10-04", "2026-10-08"]), gametime=["20:15", "13:00", "20:15"],
@@ -393,36 +382,15 @@ def test_matchup_grades_from_yards_allowed():
     assert grade(1.0) == "B"
 
 
-def test_dk_props_parse_and_daily_pull():
-    import pandas as pd
+def test_market_lines_come_from_odds_json(tmp_path):
+    import json
     from nflmodel import odds as O
-    from nflmodel.injuries import norm
-    ev = {"bookmakers": [
-        {"key": "fanduel", "markets": [{"key": "player_rush_yds", "outcomes": [{"name": "Over", "description": "Bijan Robinson", "point": 80.5, "price": -110}]}]},
-        {"key": "draftkings", "markets": [
-            {"key": "player_rush_yds", "outcomes": [{"name": "Over", "description": "Bijan Robinson", "point": 74.5, "price": -115},
-                                                    {"name": "Under", "description": "Bijan Robinson", "point": 74.5, "price": -105}]},
-            {"key": "player_anytime_td", "outcomes": [{"name": "Yes", "description": "Bijan Robinson", "price": -150}]},
-            {"key": "player_receptions", "outcomes": [{"name": "Over", "description": "Drake London", "point": 5.5, "price": 120}]}]}]}
-    got = O.parse_props(ev, norm)
-    b = got[norm("Bijan Robinson")]
-    assert b["rush_yds|74.5"] == {"o": -115, "u": -105} and b["td|0.5"] == {"o": -150}
-    assert "rush_yds|80.5" not in b                       # other books ignored
-    assert got[norm("Drake London")]["rec|5.5"] == {"o": 120}
-    now = pd.Timestamp("2026-10-04 11:00", tz="America/New_York")
-    assert O.props_due(None, now, [{"id": "x"}])
-    assert not O.props_due({"pulled_on": "2026-10-04"}, now, [{"id": "x"}])   # once a day
-    assert O.props_due({"pulled_on": "2026-10-03"}, now, [{"id": "x"}])
-    assert not O.props_due(None, now, [])                                    # no games today
-    assert not O.props_due(None, pd.Timestamp("2026-10-04 06:00", tz="America/New_York"), [{"id": "x"}])
+    p = tmp_path / "odds.json"
+    p.write_text(json.dumps({"lines": {"NFL": {"fetched_at": "t", "games": [{"home": "San Francisco 49ers", "away": "Washington Commanders",
+        "t": "2026-10-20T00:15:00Z", "ml": {"home": -395, "away": 310}, "spread": {"home": -7.5, "home_price": -108, "away_price": -112},
+        "total": {"line": 51.5, "over": -110, "under": -110}}]}}}))
+    ev = O.from_market(str(p))["events"][0]
+    c = O.consensus(ev)
+    assert c["spread"]["line"] == -7.5 and c["total"]["line"] == 51.5 and c["ml"]["p_home"] > 0.75
+    assert O.from_market(str(tmp_path / "missing.json")) is None
 
-
-def test_td_consensus_is_median_across_books():
-    from nflmodel import odds as O
-    from nflmodel.injuries import norm
-    ev = {"bookmakers": [
-        {"key": k, "markets": [{"key": "player_anytime_td", "outcomes": [{"name": "Yes", "description": "Bijan Robinson", "price": p}]}]}
-        for k, p in (("draftkings", -150), ("fanduel", -130), ("betmgm", -140))]}
-    got = O.parse_td(ev, norm)[norm("Bijan Robinson")]["td|0.5"]
-    assert got["n"] == 3 and got["best"] == -130
-    assert got["o"] == -140   # median implied probability of the three

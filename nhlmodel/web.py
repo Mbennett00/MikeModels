@@ -77,7 +77,7 @@ def build(state, plays: pd.DataFrame, meta: dict, news: dict | None, images: dic
                         (h["goalie_confirmed"], a["goalie_confirmed"]), sk)
         gp_by[int(g.game_id)] = gp
         dk = []
-        book = os.environ.get("ODDS_BOOK", "williamhill_us")
+        book = "consensus"
         bo = state.odds if state.odds is not None and len(state.odds) else None
         if len(plays) and "p_novig" in plays:
             gp_ = plays[(plays.game_id == g.game_id) & (plays.player.fillna("") == "") & plays.p_novig.notna()]
@@ -136,7 +136,7 @@ def build(state, plays: pd.DataFrame, meta: dict, news: dict | None, images: dic
                   games=len(games), goalies_confirmed=int(sum(g[s]["goalie_confirmed"] for g in games
                                                               for s in ("home", "away"))),
                   teams=2 * len(games), constants=meta.get("constants", ""),
-                  book=os.environ.get("ODDS_BOOK_NAME", "Caesars"), book_short=os.environ.get("ODDS_BOOK_SHORT", "CZR"),
+                  book="DraftKings + FanDuel", book_short="DK/FD",
                   props_book=meta.get("props_book"), props_at=meta.get("props_at")),
         params=dict(r_sog=P.nb_r.get("sog", {}), r_ast=P.count_r.get("assists", 1e6),
                     r_pts=P.count_r.get("points", 1e6), thresholds=state.cfg.edge_threshold),
