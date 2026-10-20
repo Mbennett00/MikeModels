@@ -226,51 +226,122 @@ function bkToast(msg, kind = "") {
 }
 
 // ---------- Bets tab ----------
-// a leg's live line: the page knows its own league's games (score, clock); other leagues show the start time
-function bkLegStatus(l) {
-  if (l.r) return "";
-  const live = typeof pjLegStatus === "function" ? pjLegStatus(l) : null; if (live) return live;
-  if (!l.start) return "";
-  const d = new Date(l.start), now = Date.now();
-  if (d > now) return `<span class="lg-pre">${esc(d.toLocaleString("en-US", {weekday: "short", hour: "numeric", minute: "2-digit", timeZone: "America/New_York"}))}</span>`;
-  return `<span class="lg-live">In progress</span>`;
+// Live tracking: every 30 seconds, any open leg whose game has started gets its game's score and clock from ESPN's
+// scoreboard, and a prop leg its player's stat so far from the box score. All three leagues, whichever page is open.
+const BK_LIVE_EV = {};   // "sport|event id" -> {state, detail, h, a, ha, aa, box}
+const bkLvKey = l => l.sport + "|" + ((l.ev || {}).id || (l.ev || {}).home + "@" + (l.ev || {}).away);
+function bkEvInfo(ev, sport) {
+  const c = (ev.competitions || [])[0] || {}, st = (ev.status || c.status || {}).type || {}, fix = (BK_ESPN[sport] || [])[1] || {}, o = {};
+  for (const t of c.competitors || []) { o[t.homeAway] = Number(t.score) || 0; o[t.homeAway + "b"] = fix[(t.team || {}).abbreviation] || (t.team || {}).abbreviation; }
+  return {state: st.state, detail: st.shortDetail || st.detail || "", h: o.home, a: o.away, ha: o.homeb, aa: o.awayb, id: ev.id};
+}
+let bkLvBusy = false, bkLvAt = 0;
+async function bkLiveTick(force) {
+  if (bkLvBusy || (document.hidden && !force)) return;
+  const now = Date.now(), legs = [];
+  for (const b of BKS.bets) if (b.st === "open") for (const l of b.legs) if (!l.r && l.start && new Date(l.start) <= now && BK_ESPN[l.sport] && l.ev) legs.push(l);
+  if (!legs.length) return;
+  bkLvBusy = true;
+  try {
+    const days = {};
+    for (const l of legs) (days[l.sport + "|" + l.ev.date] = days[l.sport + "|" + l.ev.date] || []).push(l);
+    await Promise.all(Object.entries(days).map(async ([k, L]) => {
+      const [sport, date] = k.split("|"), base = "https://site.api.espn.com/apis/site/v2/sports/" + BK_ESPN[sport][0] + "/";
+      let evs; try { evs = (await bkGet(base + "scoreboard?dates=" + date, 20e3)).events || []; } catch (e) { return; }
+      const boxes = {};
+      for (const l of L) {
+        const ev = bkFind(evs, l); if (!ev) continue;
+        const info = bkEvInfo(ev, sport), key = bkLvKey(l);
+        if (l.kind === "prop" && info.state !== "pre") {
+          if (!(ev.id in boxes)) { try { boxes[ev.id] = bkBox(sport, await bkGet(base + "summary?event=" + ev.id, 40e3)); } catch (e) { boxes[ev.id] = null; } }
+          info.box = boxes[ev.id];
+        } else if (BK_LIVE_EV[key] && BK_LIVE_EV[key].box) info.box = BK_LIVE_EV[key].box;
+        BK_LIVE_EV[key] = info;
+      }
+    }));
+    bkLvAt = Date.now();
+    bkListRefresh();
+  } finally { bkLvBusy = false; }
+}
+setInterval(bkLiveTick, 30e3); setTimeout(() => bkLiveTick(true), 800);
+// a leg's state right now: {chip: [class, text], bar: [now, target] | null, sb: scoreboard text}
+function bkLegNow(l) {
+  const F = l.fin, I = l.r ? F : BK_LIVE_EV[bkLvKey(l)];
+  if (!I) return null;
+  const sb = I.ha ? `${I.aa} ${I.a} – ${I.h} ${I.ha}` : "", out = {sb, clock: l.r ? "Final" : I.state === "post" ? "Final" : I.state === "in" ? I.detail : ""};
+  if (I.state === "pre" && !l.r) return null;
+  const mine = l.side === "home" ? I.h - I.a : I.a - I.h, tot = I.h + I.a;
+  if (l.kind === "ml") out.chip = mine > 0 ? ["ok", "Winning"] : mine < 0 ? ["bad", "Losing"] : ["mid", "Tied"];
+  else if (l.kind === "spread") { const m = mine + l.line; out.chip = m > 0 ? ["ok", "Covering"] : m < 0 ? ["bad", "Not covering"] : ["mid", "Push"]; }
+  else if (l.kind === "total") {
+    out.bar = [tot, l.line]; out.barLab = `Total ${tot} of ${l.line}`;
+    out.chip = l.side === "over" ? (tot > l.line ? ["ok", "Over hit"] : ["mid", `Needs ${Math.floor(l.line - tot) + 1}`]) : (tot > l.line ? ["bad", "Over the line"] : ["ok", `${Math.ceil(l.line - tot - 0.5)} to spare`]);
+  } else if (l.kind === "prop") {
+    const box = I.box || null, o = box && ((l.pl.espn && box["id:" + l.pl.id]) || box["nm:" + bkNm(l.pl.name)]);
+    const v = l.r ? (F && F.v != null ? F.v : null) : o ? (o[l.pl.stat] || 0) : (I.state === "in" ? 0 : null);
+    if (v != null) { out.bar = [v, l.pl.n]; out.barLab = `${v} of ${l.pl.n} ${BK_STAT[l.pl.stat] || l.pl.stat}`;
+      out.chip = v >= l.pl.n ? ["ok", "Hit"] : l.r === "loss" || I.state === "post" ? ["bad", "Missed"] : ["mid", `Needs ${l.pl.n - v}`]; }
+  }
+  if (l.r) out.chip = l.r === "win" ? ["ok", "Won"] : l.r === "loss" ? ["bad", "Lost"] : l.r === "push" ? ["mid", "Push"] : ["mid", "Void"];
+  return out;
+}
+const BK_STAT = {goals: "goals", sog: "shots", points: "points", assists: "assists", td: "TD", pass_yds: "pass yds", rush_yds: "rush yds",
+  rec_yds: "rec yds", rec: "catches", pts: "pts", reb: "reb", ast: "ast", fg3: "threes", pra: "PRA"};
+function bkLegHtml(l, multi) {
+  const N = bkLegNow(l), d = l.start ? new Date(l.start) : null;
+  const when = !N && d ? (d > Date.now() ? d.toLocaleString("en-US", {weekday: "short", hour: "numeric", minute: "2-digit", timeZone: "America/New_York"}) : "Starting…") : "";
+  const R = l.r === "win" ? "✓" : l.r === "loss" ? "✕" : l.r === "push" ? "–" : l.r === "void" ? "↺" : "";
+  const pct = N && N.bar ? Math.max(3, Math.min(100, Math.round(100 * N.bar[0] / Math.max(0.5, N.bar[1])))) : 0;
+  return `<div class="bk-tl ${l.r || ""} ${N && !l.r ? "is-live" : ""}">${bkArt(l, "sm")}<div><b>${esc(l.pick)}</b>
+      <i>${N && N.sb ? `<span class="lg-sb">${esc(N.sb)}</span>${N.clock ? ` · <span class="${l.r || N.clock === "Final" ? "lg-fin" : "lg-live"}">${esc(N.clock)}</span>` : ""}` : `${esc(l.game || "")}${when ? ` · <span class="lg-pre">${esc(when)}</span>` : ""}`}</i></div>
+      ${multi ? `<span class="bk-od">${bkAm(l.dec)}</span>` : ""}${N && N.chip ? `<span class="lg-chip ${N.chip[0]}">${esc(N.chip[1])}</span>` : `<span class="bk-r">${R}</span>`}</div>
+    ${N && N.bar ? `<div class="lg-bar ${N.chip ? N.chip[0] : ""}"><i style="width:${pct}%"></i><span>${esc(N.barLab)}</span></div>` : ""}`;
 }
 function bkTicket(b) {
   const started = b.legs.some(l => l.start && new Date(l.start) <= Date.now());
   const tag = b.st === "open" ? (started ? ["live", "Live"] : ["open", "Open"]) : b.st === "won" ? ["won", "Won"] : b.st === "lost" ? ["lost", "Lost"] : ["push", "Push"];
-  const R = r => r === "win" ? "✓" : r === "loss" ? "✕" : r === "push" ? "–" : r === "void" ? "↺" : "";
   const when = new Date(b.at).toLocaleString("en-US", {month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/New_York"});
-  const done = b.legs.filter(l => l.r === "win" || l.r === "push" || l.r === "void").length;
-  const title = b.legs.length > 1 ? `${b.legs.length}-leg parlay` : esc(b.legs[0].mkt);
+  const multi = b.legs.length > 1, title = multi ? `${b.legs.length}-leg parlay` : esc(b.legs[0].mkt);
   const win = b.stake * (b.dec - 1);
+  let prog = "";
+  if (b.st === "open" && multi) {
+    const st = b.legs.map(l => l.r ? (l.r === "loss" ? "x" : "y") : ((bkLegNow(l) || {}).chip || [""])[0] === "ok" ? "o" : ((BK_LIVE_EV[bkLvKey(l)] || {}).state === "in" ? "l" : "p"));
+    const n = k => st.filter(x => x === k).length;
+    prog = `<div class="bk-legs">${st.map(x => `<i class="${x}"></i>`).join("")}<span>${[n("y") && `${n("y")} won`, n("o") && `${n("o")} on track`, n("l") && `${n("l")} live`, n("x") && `${n("x")} lost`, n("p") && `${n("p")} to start`].filter(Boolean).join(" · ")}</span></div>`;
+  }
   return `<div class="bk-tk ${tag[0]}"><div class="bk-tkh"><span class="bk-tag">${tag[1]}</span><b class="bk-tt">${title}</b><span class="bk-tko">${bkAm(b.dec)}</span></div>
-    ${b.legs.map(l => `<div class="bk-tl ${l.r || ""}">${bkArt(l, "sm")}<div><b>${esc(l.pick)}</b><i>${esc(l.game)}${bkLegStatus(l) ? " · " + bkLegStatus(l) : ""}</i></div>${b.legs.length > 1 ? `<span class="bk-od">${bkAm(l.dec)}</span>` : ""}<span class="bk-r">${R(l.r)}</span></div>`).join("")}
-    ${b.st === "open" && b.legs.length > 1 && done ? `<div class="bk-prog"><i style="width:${Math.round(100 * done / b.legs.length)}%"></i><span>${done} of ${b.legs.length} legs in</span></div>` : ""}
+    ${b.legs.map(l => bkLegHtml(l, multi)).join("")}${prog}
     <div class="bk-tkf"><span class="bk-when">${esc(when)}</span><span>${bkN(b.stake)} ${b.st === "open" ? `<i>to win</i> <b class="up">${bkN(win)}</b>` : b.st === "won" ? `<i>paid</i> <b class="up">+${bkN(b.pay - b.stake)}</b>` : b.st === "push" ? `<i>returned</i> <b>${bkN(b.pay)}</b>` : `<i>lost</i> <b class="dn">−${bkN(b.stake)}</b>`}</span></div></div>`;
 }
-function bkScreen() {
-  const s = bkStats(), V = BKS.view === "settled" ? "settled" : "open";
+function bkListRefresh() {   // redraw just the tickets (live scores), leaving the rest of the screen and the scroll alone
+  const el = document.querySelector(".bk-list"); if (!el) return;
+  el.innerHTML = bkListHtml(BKS.view === "settled" ? "settled" : "open");
+}
+function bkListHtml(V) {
   const open = BKS.bets.filter(b => b.st === "open"), settled = BKS.bets.filter(b => b.st !== "open");
   const sg = v => v > 0 ? "+" + bkN(v) : v < 0 ? "−" + bkN(-v) : "0";
-  const strip = bkStripHtml();
-  const seg = `<div class="seg mb-seg" style="--n:2"><button class="${V === "open" ? "on" : ""}" data-bkv="open">Open${open.length ? ` <em>${open.length}</em>` : ""}</button><button class="${V === "settled" ? "on" : ""}" data-bkv="settled">Settled${settled.length ? ` <em>${settled.length}</em>` : ""}</button></div>`;
-  let list;
   if (V === "open") {
-    const live = open.filter(b => b.legs.some(l => l.start && new Date(l.start) <= Date.now())), up = open.filter(b => !live.includes(b));
-    list = open.length ? (live.length ? `<div class="mb-day"><b>Live now</b><span>${live.length}</span></div>${live.map(bkTicket).join("")}` : "")
-        + (up.length ? `<div class="mb-day"><b>Upcoming</b><span>${bkN(up.reduce((x, b) => x + b.stake, 0))} in play</span></div>${up.map(bkTicket).join("")}` : "")
+    const live = open.filter(b => b.legs.some(l => !l.r && l.start && new Date(l.start) <= Date.now())), up = open.filter(b => !live.includes(b));
+    const pot = B => bkN(B.reduce((x, b) => x + b.stake * b.dec, 0));
+    return open.length ? (live.length ? `<div class="mb-day"><b><span class="lv-dot"></span>Live now</b><span>${live.length} bet${live.length > 1 ? "s" : ""} · pays ${pot(live)}${bkLvAt ? ` · <em class="lv-at">updated ${new Date(bkLvAt).toLocaleTimeString("en-US", {hour: "numeric", minute: "2-digit"})}</em>` : ""}</span></div>${live.map(bkTicket).join("")}` : "")
+        + (up.length ? `<div class="mb-day"><b>Upcoming</b><span>${bkN(up.reduce((x, b) => x + b.stake, 0))} in play · pays ${pot(up)}</span></div>${up.map(bkTicket).join("")}` : "")
       : `<div class="mb-empty"><b>No open bets</b><span>Tap a price on any game or player to add it to your bet slip.</span><div><button data-go="games">Games</button><button data-go="players">Props</button></div></div>`;
-  } else {
-    const days = {};
-    for (const b of settled.slice(0, 80)) (days[bkDay(b.done || b.at)] = days[bkDay(b.done || b.at)] || []).push(b);
-    const lab = d => d === bkDay() ? "Today" : d === bkYday() ? "Yesterday" : new Date(d + "T12:00:00").toLocaleDateString("en-US", {weekday: "short", month: "short", day: "numeric"});
-    list = settled.length ? Object.entries(days).map(([d, B]) => { const net = B.reduce((x, b) => x + b.pay - b.stake, 0), w = B.filter(b => b.st === "won").length;
-        return `<div class="mb-day"><b>${lab(d)}</b><span>${w}-${B.filter(b => b.st === "lost").length} · <em class="${net > 0 ? "up" : net < 0 ? "dn" : ""}">${sg(net)}</em></span></div>${B.map(bkTicket).join("")}`; }).join("")
-      : `<div class="mb-empty"><b>Nothing settled yet</b><span>Bets grade automatically from ESPN finals.</span></div>`;
   }
+  const days = {};
+  for (const b of settled.slice(0, 80)) (days[bkDay(b.done || b.at)] = days[bkDay(b.done || b.at)] || []).push(b);
+  const lab = d => d === bkDay() ? "Today" : d === bkYday() ? "Yesterday" : new Date(d + "T12:00:00").toLocaleDateString("en-US", {weekday: "short", month: "short", day: "numeric"});
+  return settled.length ? Object.entries(days).map(([d, B]) => { const net = B.reduce((x, b) => x + b.pay - b.stake, 0), w = B.filter(b => b.st === "won").length;
+      return `<div class="mb-day"><b>${lab(d)}</b><span>${w}-${B.filter(b => b.st === "lost").length} · <em class="${net > 0 ? "up" : net < 0 ? "dn" : ""}">${sg(net)}</em></span></div>${B.map(bkTicket).join("")}`; }).join("")
+    : `<div class="mb-empty"><b>Nothing settled yet</b><span>Bets grade automatically from ESPN finals.</span></div>`;
+}
+function bkScreen() {
+  const V = BKS.view === "settled" ? "settled" : "open";
+  const open = BKS.bets.filter(b => b.st === "open"), settled = BKS.bets.filter(b => b.st !== "open");
+  const seg = `<div class="seg mb-seg" style="--n:2"><button class="${V === "open" ? "on" : ""}" data-bkv="open">Open${open.length ? ` <em>${open.length}</em>` : ""}</button><button class="${V === "settled" ? "on" : ""}" data-bkv="settled">Settled${settled.length ? ` <em>${settled.length}</em>` : ""}</button></div>`;
+  if (V === "open") setTimeout(() => bkLiveTick(true), 0);
   const L = bkLevel();
   const rewards = `<div class="hd"><b>Daily challenges</b><span class="hd-s">Level ${L.n} · ${bkN(L.need)} XP to next</span></div>${bkMissionsHtml()}`;
-  return strip + seg + `<div class="bk-list">${list}</div>` + rewards + `<div class="bk-fine">Play coins only: no deposits, no cash value, nothing to withdraw.</div>`;
+  return bkStripHtml() + seg + `<div class="bk-list">${bkListHtml(V)}</div>` + rewards + `<div class="bk-fine">Play coins only: no deposits, no cash value, nothing to withdraw.</div>`;
 }
 function bkWire(root = document) {
   root.querySelectorAll("[data-bk]").forEach(b => b.onclick = e => { e.stopPropagation(); bkToggle(b.dataset.bk); });
@@ -352,6 +423,8 @@ async function bkSettle() {
           try { const url = base + "summary?event=" + ev.id; box = bkBox(sport, await bkGet(url, 90e3)); BK_CACHE[url].keep = true; } catch (e) { continue; }
         }
         l.r = bkGrade(l, ev, box);
+        if (l.r && l.r !== "void") { const I = bkEvInfo(ev, sport); l.fin = {state: "post", h: I.h, a: I.a, ha: I.ha, aa: I.aa};
+          if (l.kind === "prop" && box) { const o = (l.pl.espn && box["id:" + l.pl.id]) || box["nm:" + bkNm(l.pl.name)]; if (o && o[l.pl.stat] != null) l.fin.v = o[l.pl.stat]; } }
       }
     }
     const news = [];

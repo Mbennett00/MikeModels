@@ -243,6 +243,27 @@ const PJ_PLAB = {goals: "goals", sog: "shots", points: "points", assists: "assis
   pts: "points", reb: "rebounds", ast: "assists", fg3: "threes", pra: "PRA"};
 const pjPropLab = (stat, n) => stat === "goals" && n === 1 ? "Scores a goal" : stat === "td" && n === 1 ? "Anytime TD" : `${n}+ ${PJ_PLAB[stat] || stat}`;
 const pjMktProps = () => { const P = ((PJ_ODDS.props || {})[PJA.sport] || {}).players; return P && Object.keys(P).length ? P : null; };
+// The books and our pages don't always spell a player the same way ("Alex Wennberg" / "Alexander Wennberg", "Nick" /
+// "Nicholas", "Yegor" / "Egor"). A player's props are found by his exact name first, then by a known first-name variant
+// with the same last name, or without middle names. No fuzzy matching: "Josh Manson" must never find "Josh Anderson".
+const PJ_FIRST = [["alex", "alexander", "alexandre", "aleksander", "alexandr"], ["nick", "nicholas", "nicolas", "nikolas"], ["mitch", "mitchell"],
+  ["matt", "matthew", "mathew"], ["zach", "zachary", "zack", "zachery"], ["josh", "joshua"], ["jake", "jacob", "jakob"], ["mike", "michael"],
+  ["chris", "christopher", "kristopher"], ["will", "william"], ["ben", "benjamin"], ["sam", "samuel"], ["tom", "thomas", "tommy"],
+  ["dan", "daniel", "danny"], ["dave", "david"], ["jon", "jonathan"], ["tony", "anthony"], ["joe", "joseph", "joey"], ["nate", "nathan", "nathaniel"],
+  ["pat", "patrick"], ["rob", "robert", "robbie", "bobby"], ["cam", "cameron"], ["max", "maxim", "maxime", "maximilian"], ["gabe", "gabriel"],
+  ["ken", "kenny", "kenneth"], ["greg", "gregory"], ["jeff", "jeffrey"], ["steve", "steven", "stephen"], ["tim", "timothy"], ["andy", "andrew"],
+  ["yegor", "egor"], ["evgeny", "evgeni", "evgenii", "yevgeni", "yevgeny"], ["nikolai", "nikolay", "nicolai"], ["dmitri", "dmitry", "dmitrii"],
+  ["sergei", "sergey"], ["ilya", "ilia"], ["vlad", "vladislav", "vladimir"], ["fred", "frederick", "frederik"], ["ed", "edward", "eddie"],
+  ["herb", "herbert"], ["cj", "c j"], ["tj", "t j"], ["jj", "j j"]];
+const PJ_FIRST_OF = {}; for (const G of PJ_FIRST) for (const n of G) PJ_FIRST_OF[n.replace(/ /g, "")] = G.map(x => x.replace(/ /g, ""));
+function pjPropKey(MP, name) {
+  const k = bkNm(name); if (MP[k]) return k;
+  const T = String(name || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\b(jr|sr|ii|iii|iv)\b\.?/g, "").replace(/[^a-z\s-]/g, "").split(/\s+/).filter(Boolean);
+  if (T.length < 2) return k;
+  const last = T.slice(1).join(""), lastOnly = T[T.length - 1];
+  for (const f of PJ_FIRST_OF[T[0]] || []) { if (MP[f + last]) return f + last; if (MP[f + lastOnly]) return f + lastOnly; }
+  return MP[T[0] + lastOnly] ? T[0] + lastOnly : k;   // middle names dropped
+}
 // a ladder has to make sense: each higher rung ("3+" after "2+") is less likely, so its price is longer. A rung that
 // breaks the order is a misread or stale price and is dropped rather than shown (or flagged as an edge).
 function pjLadder(L) {   // walked out from the rung nearest even money, so one bad rung can't take the good ones with it
@@ -261,7 +282,7 @@ function pjProps(p, stat, max = 3) {
   const C = pjCtx(p.gid); if (!C) return [];
   const MP = pjMktProps();
   let L;
-  const PO = (PJ_ODDS.props || {})[PJA.sport] || {}, nk = bkNm(p.name), BK = (PO.bk || {})[nk] || {}, FR = (PO.fair || {})[nk] || {};
+  const PO = (PJ_ODDS.props || {})[PJA.sport] || {}, nk = MP ? pjPropKey(MP, p.name) : bkNm(p.name), BK = (PO.bk || {})[nk] || {}, FR = (PO.fair || {})[nk] || {};
   if (MP) L = pjLadder(Object.entries(MP[nk] || {}).filter(([k]) => k.split("|")[0] === stat)
     .map(([k, a]) => { const n = +k.split("|")[1] + 0.5; return [pjPropLab(stat, n), 1 / pjDec(a), {stat, n, fd: BK[k] === "FD", fair: FR[k]}, a]; }));
   else return [];   // no made-up props: a league's props open when DraftKings posts them
@@ -476,10 +497,3 @@ function pjRender() {
 window.addEventListener("scroll", () => { const h = document.querySelector(".hdr"); if (h) h.classList.toggle("stuck", window.scrollY > 8); }, {passive: true});
 setInterval(() => { if (TAB === "home" && !document.getElementById("sheet").classList.contains("open")) pjRender(); }, 60e3);   // countdowns
 // My bets: live status for a leg in this page's league
-function pjLegStatus(l) {
-  if (!PJA || l.sport !== PJA.sport) return null;
-  const g = PJA.games().find(x => String(x.id) === String(l.gid)); if (!g) return null;
-  if (g.state === "live" && g.score) return `<span class="lg-live">Live ${esc(g.detail || "")} · ${esc(g.a.abbr)} ${g.score.a}–${g.score.h} ${esc(g.h.abbr)}</span>`;
-  if (g.state === "final" && g.score) return `<span class="lg-fin">Final ${esc(g.a.abbr)} ${g.score.a}–${g.score.h} ${esc(g.h.abbr)}</span>`;
-  return g.time ? `<span class="lg-pre">${esc(g.time)}</span>` : null;
-}

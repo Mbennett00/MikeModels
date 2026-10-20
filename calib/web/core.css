@@ -295,11 +295,28 @@ b, strong { font-weight: 700; }
 .bk-tk.live .bk-tag { background: var(--live); color: #fff; } .bk-tk.won .bk-tag { background: var(--acc); color: var(--acc-ink); } .bk-tk.lost .bk-tag { color: var(--t3); }
 .bk-tt { flex: 1; min-width: 0; font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bk-tko { font-size: 15px; font-weight: 700; }
-.bk-tl { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto 22px; gap: 10px; align-items: center; padding: 9px 0; }
+.bk-tl { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto auto; gap: 10px; align-items: center; padding: 9px 0; }
 .bk-tl > div { min-width: 0; display: flex; flex-direction: column; } .bk-tl b { font-size: 14px; font-weight: 600; } .bk-tl i { font-style: normal; font-size: 12px; color: var(--t3); }
 .bk-r { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: var(--s2); border: 1px solid var(--line2); font-size: 10px; font-weight: 700; color: var(--t3); }
 .bk-tl.win .bk-r { background: var(--acc); border-color: var(--acc); color: var(--acc-ink); } .bk-tl.loss .bk-r { background: var(--dn); border-color: var(--dn); color: #fff; }
 .lg-pre { color: var(--t2); } .lg-live { color: var(--live); font-weight: 600; } .lg-fin { color: var(--t2); font-weight: 600; }
+/* live tracking on a ticket: scoreboard + clock under the pick, a status chip, a progress bar for props and totals */
+.lg-sb { color: var(--t1); font-weight: 700; font-variant-numeric: tabular-nums; }
+.lg-chip { padding: 4px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; white-space: nowrap; background: var(--s3); color: var(--t2); }
+.lg-chip.ok { background: rgba(62,224,143,.16); color: var(--up); } .lg-chip.bad { background: rgba(255,90,122,.16); color: var(--dn); }
+.lg-chip.mid { background: rgba(255,210,63,.14); color: var(--acc); }
+.lg-bar { position: relative; height: 18px; margin: -2px 0 6px 44px; border-radius: 9px; background: var(--s2); overflow: hidden; }
+.lg-bar i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 9px; background: rgba(255,210,63,.35); transition: width .6s ease; }
+.lg-bar.ok i { background: rgba(62,224,143,.45); } .lg-bar.bad i { background: rgba(255,90,122,.4); }
+.lg-bar span { position: relative; display: block; padding: 0 9px; font-size: 10.5px; font-weight: 700; line-height: 18px; color: var(--t1); }
+.bk-legs { display: flex; align-items: center; gap: 4px; margin: 4px 0 8px; }
+.bk-legs i { width: 14px; height: 6px; border-radius: 3px; background: var(--s3); }
+.bk-legs i.y, .bk-legs i.o { background: var(--up); } .bk-legs i.o { opacity: .55; } .bk-legs i.x { background: var(--dn); } .bk-legs i.l { background: var(--live); }
+.bk-legs span { margin-left: 6px; font-size: 11.5px; font-weight: 600; color: var(--t3); }
+.lv-dot { display: inline-block; width: 8px; height: 8px; margin-right: 7px; border-radius: 50%; background: var(--live); vertical-align: 1px; animation: lvp 1.4s ease-in-out infinite; }
+@keyframes lvp { 50% { opacity: .35; } }
+.mb-day .lv-at { font-style: normal; font-weight: 600; color: var(--t3); }
+.mb-day { gap: 12px; } .mb-day > b { white-space: nowrap; } .mb-day > span { text-align: right; }
 .bk-prog { position: relative; height: 20px; margin: 4px 0 6px; border-radius: 10px; background: var(--s2); overflow: hidden; }
 .bk-prog i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--acc-soft); } .bk-prog span { position: relative; display: block; text-align: center; font-size: 11px; font-weight: 600; line-height: 20px; }
 .bk-tkf { display: flex; justify-content: space-between; align-items: center; padding-top: 10px; border-top: 1px solid var(--line); font-size: 13px; color: var(--t2); }
