@@ -245,9 +245,14 @@ const pjPropLab = (stat, n) => stat === "goals" && n === 1 ? "Scores a goal" : s
 const pjMktProps = () => { const P = ((PJ_ODDS.props || {})[PJA.sport] || {}).players; return P && Object.keys(P).length ? P : null; };
 // a ladder has to make sense: each higher rung ("3+" after "2+") is less likely, so its price is longer. A rung that
 // breaks the order is a misread or stale price and is dropped rather than shown (or flagged as an edge).
-function pjLadder(L) {
-  const out = []; let last = 1.01;
-  for (const r of L.sort((x, y) => x[2].n - y[2].n)) { if (r[1] < last - 0.005) { out.push(r); last = r[1]; } }
+function pjLadder(L) {   // walked out from the rung nearest even money, so one bad rung can't take the good ones with it
+  L = L.sort((x, y) => x[2].n - y[2].n); if (L.length < 2) return L;
+  const c = r => r[2].fair > 0 && r[2].fair < 1 ? r[2].fair : r[1];
+  let i = 0; L.forEach((r, j) => { if (Math.abs(c(r) - 0.5) < Math.abs(c(L[i]) - 0.5)) i = j; });
+  const out = [L[i]]; let last = c(L[i]);
+  for (const r of L.slice(i + 1)) if (c(r) < last - 0.005) { out.push(r); last = c(r); }
+  last = c(L[i]);
+  for (const r of L.slice(0, i).reverse()) if (c(r) > last + 0.005) { out.unshift(r); last = c(r); }
   return out;
 }
 // a player's bettable lines for one stat: [{sel, top}], nearest even money first, then shown low to high.

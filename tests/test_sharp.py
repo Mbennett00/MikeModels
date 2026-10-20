@@ -50,3 +50,26 @@ def test_merge_keeps_draftkings_rungs_and_adds_missing_games():
     assert P["players"]["nathanmackinnon"] == {"points|1.5": -110, "points|2.5": 285, "points|3.5": 900}   # ESPN DraftKings wins
     assert P["bk"] == {"nathanmackinnon": {"points|3.5": "FD"}} and P["book"] == "DraftKings + FanDuel"
     assert [g["home"] for g in out["lines"]["NHL"]["games"]] == ["Boston Bruins", "New Jersey Devils"]
+
+
+def test_misfiled_period_market_is_dropped():
+    """DraftKings' 1st-quarter points came through as full-game player_points (1+ points at -112)."""
+    J = "John Collins"
+    R = [row("draftkings", "player_points", "Over", 0.5, -112, J, market_id="q1"),
+         row("draftkings", "player_points", "Over", 1.5, -108, J, market_id="q1"),
+         row("draftkings", "player_points", "Over", 2.5, 323, J, market_id="q1"),
+         row("draftkings", "player_points", "Over", 12.5, 101, J, market_id="full"),
+         row("draftkings", "player_points", "Under", 12.5, -129, J, st="under", market_id="full"),
+         row("fanduel", "player_points", "Over", 4.5, -2800, J, market_id="fd1"),
+         row("fanduel", "player_points", "Over", 11.5, -122, J, market_id="fd2"),
+         row("fanduel", "player_points", "Under", 11.5, -108, J, st="under", market_id="fd2"),
+         row("fanduel", "player_points", "Over", 13.5, 148, J, market_id="fd2"),
+         row("fanduel", "player_points", "Over", 24.5, 1700, J, market_id="fd3")]
+    m = sharp.build_props("NBA", R)["props"]["johncollins"]
+    assert set(m) == {"pts|12.5", "pts|4.5", "pts|11.5", "pts|13.5", "pts|24.5"}
+    assert m["pts|12.5"] == 101
+
+
+def test_ladder_judged_from_even_money():
+    F = {"pts|0.5": 0.53, "pts|4.5": 0.96, "pts|11.5": 0.53, "pts|12.5": 0.48, "pts|13.5": 0.38, "pts|24.5": 0.05}
+    assert sharp.ladder_drop(F) == ["pts|0.5"]

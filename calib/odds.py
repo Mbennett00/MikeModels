@@ -439,7 +439,7 @@ def run(state: str = "state", log=print):
     out = pull_lines(prev, web, os.environ.get("ODDS_API_KEY", ""), log)
     out["props"] = pull_props(prev, web, log)
     from calib import sharp
-    sh = sharp.pull([lg for lg in ESPN if upcoming(web, lg)], os.environ.get("SHARP_API_KEY", ""), log)
+    sh = sharp.pull(list(ESPN), os.environ.get("SHARP_API_KEY", ""), log)   # every league: the API only returns games to come
     out["sharp"] = {lg: {"fetched_at": v["fetched_at"], "complete": v["complete"], "games": len(v["games"]), "players": len(v["props"])} for lg, v in sh.items()}
     # SharpAPI prices NFL props for free, so the paid Odds API pull only runs without it
     have_nfl = len((sh.get("NFL") or {}).get("props") or {}) >= 10

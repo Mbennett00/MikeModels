@@ -94,10 +94,41 @@ def nm(s: str) -> str:
     return _nm(s)
 
 
+def _clean(entries: list) -> list:
+    """One book's rows for one player and stat -> the rows that belong to the full-game ladder.
+    Feeds sometimes file a period market (DraftKings' 1st-quarter points) under the full-game type. Every row of a
+    market shares a market_id, so: the anchor is the market whose two-sided line sits nearest even money; any other
+    market whose over prices contradict the anchor's ladder (a lower line must be likelier, a higher one less) goes."""
+    over = [e for e in entries if e["side"] == "over"]
+    by_m = {}
+    for e in entries:
+        by_m.setdefault(e["m"], []).append(e)
+    pairs = []
+    for m, es in by_m.items():
+        o = {e["line"]: e["a"] for e in es if e["side"] == "over"}; u = {e["line"]: e["a"] for e in es if e["side"] == "under"}
+        for ln in set(o) & set(u):
+            pairs.append((abs(_p(o[ln]) / (_p(o[ln]) + _p(u[ln])) - 0.5), m))
+    if pairs:
+        anchor = min(pairs)[1]
+    elif over:
+        anchor = min(over, key=lambda e: abs(_p(e["a"]) - 0.5))["m"]
+    else:
+        return []
+    A = sorted((e["line"], _p(e["a"])) for e in by_m[anchor] if e["side"] == "over")
+    def fits(e):
+        p = _p(e["a"])
+        return all(p >= q - 0.02 for ln, q in A if ln > e["line"]) and all(p <= q + 0.02 for ln, q in A if ln < e["line"])
+    keep = list(by_m[anchor])
+    for m, es in by_m.items():
+        if m != anchor and all(fits(e) for e in es if e["side"] == "over"):
+            keep += es
+    return keep
+
+
 def build_props(league: str, rows: list) -> dict:
     """Rows -> {"props", "bk", "fair"} (see the module notes)."""
     kinds = PROPS[league]
-    q = {}   # (player, key) -> {book: {"over": am, "under": am}}
+    raw = {}   # (book, player, stat) -> [{line, side, a, m}]
     for r in rows:
         stat = kinds.get(r.get("market_type"))
         who = r.get("player_name") or (r.get("selection") if "scorer" in str(r.get("market_type")) else None)
@@ -118,23 +149,53 @@ def build_props(league: str, rows: list) -> dict:
             line = float(line)
             if line != int(line) + 0.5:          # whole-number lines push; the page's "N+" rungs are half lines
                 continue
-        q.setdefault((nm(who), f"{stat}|{line:g}"), {}).setdefault(bk, {})[side] = a
+        m = r.get("market_id") or r["market_type"]
+        raw.setdefault((bk, nm(who), stat), []).append({"line": line, "side": side, "a": a, "m": f"{r['market_type']}:{m}"})
+    q = {}   # (player, key) -> {book: {"over": am, "under": am}}
+    for (bk, who, stat), es in raw.items():
+        for e in (es if stat in ("goals", "td") and all(x["line"] == 0.5 for x in es) else _clean(es)):
+            q.setdefault((who, f"{stat}|{e['line']:g}"), {}).setdefault(bk, {})[e["side"]] = e["a"]
     props, bk, fair = {}, {}, {}
     for (who, k), by in q.items():
-        ps = []
+        ps = {}
         for b, s in by.items():
             if "over" not in s:
                 continue
             po = _p(s["over"])
-            ps.append(po / (po + _p(s["under"])) if "under" in s else min(0.99, po / VIG1))
+            ps[b] = po / (po + _p(s["under"])) if "under" in s else min(0.99, po / VIG1)
+        if len(ps) == 2 and abs(ps["DK"] - ps["FD"]) > 0.2:     # the books disagree wildly: one of them is a misread
+            continue
         dk, fd = (by.get("DK") or {}).get("over"), (by.get("FD") or {}).get("over")
         if dk is None and fd is None:
             continue
         props.setdefault(who, {})[k] = dk if dk is not None else fd
         if dk is None:
             bk.setdefault(who, {})[k] = "FD"
-        fair.setdefault(who, {})[k] = round(sum(ps) / len(ps), 4)
+        fair.setdefault(who, {})[k] = round(sum(ps.values()) / len(ps), 4)
+    for who, F in fair.items():               # each ladder, walked out from its rung nearest even money, must slope
+        for stat in {k.split("|")[0] for k in F}:
+            for k in ladder_drop({k: v for k, v in F.items() if k.startswith(stat + "|")}):
+                for d in (props, bk, fair):
+                    (d.get(who) or {}).pop(k, None)
     return {"props": props, "bk": bk, "fair": fair}
+
+
+def ladder_drop(F: dict) -> list:
+    """{"stat|line": chance} -> the rungs that break the slope (a higher line must be less likely), judged outward
+    from the rung nearest 50% so one bad rung can't take the good ones with it."""
+    L = sorted(F.items(), key=lambda kv: float(kv[0].split("|")[1]))
+    if len(L) < 2:
+        return []
+    i = min(range(len(L)), key=lambda j: abs(L[j][1] - 0.5))
+    bad, last = [], L[i][1]
+    for k, v in L[i + 1:]:
+        if v < last - 0.005: last = v
+        else: bad.append(k)
+    last = L[i][1]
+    for k, v in reversed(L[:i]):
+        if v > last + 0.005: last = v
+        else: bad.append(k)
+    return bad
 
 
 def build_games(league: str, rows: list) -> list:
