@@ -198,7 +198,11 @@ async function pjPollProps(evs) {
       }
     }
   }));
-  if (Object.keys(out).length) { PJ_ODDS.props = PJ_ODDS.props || {}; PJ_ODDS.props[lg] = {book: "DraftKings", fetched_at: new Date().toISOString(), live: true, players: out}; pjRefresh(); }
+  if (Object.keys(out).length) { PJ_ODDS.props = PJ_ODDS.props || {};
+    const O = PJ_ODDS.props[lg] || {}, P = {}, B = JSON.parse(JSON.stringify(O.bk || {}));
+    for (const [w, q] of Object.entries(O.players || {})) if (B[w]) P[w] = Object.fromEntries(Object.entries(q).filter(([k]) => B[w][k]));   // FanDuel-only rungs stay
+    for (const [w, q] of Object.entries(out)) { P[w] = Object.assign(P[w] || {}, q); if (B[w]) for (const k in q) delete B[w][k]; }   // DraftKings wins where it hangs the rung
+    PJ_ODDS.props[lg] = Object.assign({}, O, {fetched_at: new Date().toISOString(), live: true, players: P, bk: B}); pjRefresh(); }
 }
 setTimeout(() => pjPoll(), 1200); setInterval(() => pjPoll(), 30e3);
 document.addEventListener("visibilitychange", () => { if (!document.hidden) pjPoll(); });
@@ -252,13 +256,14 @@ function pjProps(p, stat, max = 3) {
   const C = pjCtx(p.gid); if (!C) return [];
   const MP = pjMktProps();
   let L;
-  if (MP) L = pjLadder(Object.entries(MP[bkNm(p.name)] || {}).filter(([k]) => k.split("|")[0] === stat)
-    .map(([k, a]) => { const n = +k.split("|")[1] + 0.5; return [pjPropLab(stat, n), 1 / pjDec(a), {stat, n}, a]; }));
+  const PO = (PJ_ODDS.props || {})[PJA.sport] || {}, nk = bkNm(p.name), BK = (PO.bk || {})[nk] || {}, FR = (PO.fair || {})[nk] || {};
+  if (MP) L = pjLadder(Object.entries(MP[nk] || {}).filter(([k]) => k.split("|")[0] === stat)
+    .map(([k, a]) => { const n = +k.split("|")[1] + 0.5; return [pjPropLab(stat, n), 1 / pjDec(a), {stat, n, fd: BK[k] === "FD", fair: FR[k]}, a]; }));
   else return [];   // no made-up props: a league's props open when DraftKings posts them
   L = L.filter(x => x[1] != null && x[1] >= 0.1 && x[1] <= 0.9);   // no lottery tickets, no −1000 locks
   return L.sort((x, y) => Math.abs(x[1] - 0.5) - Math.abs(y[1] - 0.5)).slice(0, max).sort((x, y) => x[2].n - y[2].n).map(([l, c, spec, a]) => ({
-    top: (stat === "td" || stat === "goals") && spec.n === 1 ? "Anytime" : `${Math.ceil(spec.n)}+`,
-    sel: bkSel({dec: a ? Math.round(pjDec(a) * 1e4) / 1e4 : undefined, src: a ? "dk" : undefined, img: p.img, logo: p.logo, color: p.color, sport: C.sport, gid: p.gid, kind: "prop", side: "yes", line: spec.n,
+    top: ((stat === "td" || stat === "goals") && spec.n === 1 ? "Anytime" : `${Math.ceil(spec.n)}+`) + (spec.fd ? " · FD" : ""),
+    sel: bkSel({dec: a ? Math.round(pjDec(a) * 1e4) / 1e4 : undefined, src: a ? (spec.fd ? "fd" : "dk") : undefined, fair: spec.fair, book: spec.fd ? "FanDuel" : "DraftKings", img: p.img, logo: p.logo, color: p.color, sport: C.sport, gid: p.gid, kind: "prop", side: "yes", line: spec.n,
       p: c, pick: `${p.name} ${l}`, mkt: (PJA.markets.find(m => m.k === stat) || {}).label || "Player prop",
       game: C.game, start: C.start, open: C.open, ev: C.ev, pl: {name: p.name, id: String(p.id), espn: !!C.espnIds, team: p.team, stat, n: spec.n}})}));
 }
@@ -278,7 +283,7 @@ function pjPropRow(p, stat) {
 // model's chance beats the price by PJ_EDGE or more in expected value, the cell is marked as an edge.
 const PJ_EDGE = 0.03;
 const pjFair = p => p == null || !isFinite(p) ? "–" : bkAm(1 / Math.min(0.99, Math.max(0.01, p)));
-const pjIsMkt = x => x && (x.src === "mkt" || x.src === "dk");
+const pjIsMkt = x => x && (x.src === "mkt" || x.src === "dk" || x.src === "fd");
 function pjModelP(g, x) { if (!x) return null;
   if (x.live) return x.kind === "ml" && g.lph != null ? (x.side === "home" ? g.lph : 1 - g.lph) : null;   // in play the model only reads the winner
   if (x.kind === "ml") return x.side === "home" ? g.ph : 1 - g.ph; return PJA.price ? PJA.price(g.id, x.kind, x.side, x.line) : null; }
@@ -287,7 +292,8 @@ function pjModelP(g, x) { if (!x) return null;
 // chance beats it by PJ_EDGE. A model that disagrees with the market by more than 25 points is reading something the
 // market isn't (a misread price, late news): no edge is claimed there.
 const PJ_W = 0.5, PJ_GAP = 0.25;
-const pjMktFair = x => !x || x.p == null ? null : x.src === "dk" ? Math.min(0.99, (1 / x.dec) / 1.06) : x.p;
+// a prop's fair chance: DraftKings + FanDuel with the vig out (SharpAPI, both sides where posted), else its own price less a typical 6% hold
+const pjMktFair = x => !x || x.p == null ? null : x.src === "dk" || x.src === "fd" ? (x.fair > 0 && x.fair < 1 ? x.fair : Math.min(0.99, (1 / x.dec) / 1.06)) : x.p;
 function pjEV(x, mp) {
   if (!pjIsMkt(x) || mp == null || !isFinite(mp)) return null;
   const pm = pjMktFair(x); if (pm == null) return null;

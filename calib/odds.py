@@ -8,7 +8,9 @@ Budget: a league is pulled only when it has games coming up and its last pull is
 NFL once), and never once the month's usage would pass ODDS_MONTH_CAP (480 of 500 by default). Usage is read for
 free from /v4/sports before any paid call, so the cap holds whatever else uses the key.
 Props: ESPN's core odds feed carries DraftKings' prop prices for free (no key): milestones and anytime scorers for
-all three leagues. The pages show props at DraftKings' lines and prices only.
+all three leagues. With SHARP_API_KEY set, calib.sharp adds DraftKings + FanDuel from SharpAPI's free tier: FanDuel
+fills rungs DraftKings doesn't hang, both books give each rung a no-vig fair chance, NFL props come priced (so the
+paid Odds API NFL prop pull is skipped), and games without a consensus line get one from the two books.
 Writes state/site/odds.json (kept with the state) and state/site/web/odds.json. Never raises: a failed pull keeps
 the last good prices, and the pages fall back to their own when a game has none.
 """
@@ -398,6 +400,34 @@ def attach_gids(lines: dict, web: str, log=print):
         log(f"odds: {lg} market lines matched to {hit} page games ({open_games} on the page)")
 
 
+def merge_sharp(out: dict, sh: dict, log=print):
+    """Fold SharpAPI's DraftKings + FanDuel pull into the page's odds: DraftKings (ESPN, the live source) keeps every rung
+    it hangs; FanDuel fills the rest, tagged in "bk"; "fair" is the two-book no-vig chance; games the consensus lines
+    lack are added from the two books."""
+    now = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
+    for lg, v in sh.items():
+        if v["props"]:
+            cur = out["props"].get(lg) or {}
+            dk = cur.get("players") or {}
+            players, bk = {}, {}
+            for who, q in v["props"].items():
+                players[who] = dict(q)
+                tags = {k: t for k, t in (v["bk"].get(who) or {}).items() if k not in (dk.get(who) or {})}
+                if tags:
+                    bk[who] = tags
+            for who, q in dk.items():
+                players.setdefault(who, {}).update(q)
+            out["props"][lg] = {"book": "DraftKings" + (" + FanDuel" if bk else ""), "fetched_at": cur.get("fetched_at") or now,
+                                "players": players, "bk": bk, "fair": v["fair"], "sharp_at": v["fetched_at"]}
+        if v["games"]:
+            L = (out.get("lines") or {}).setdefault(lg, {"fetched_at": now, "games": []})
+            have = {(nm(x.get("home")), nm(x.get("away"))) for x in L.get("games") or []}
+            add = [g for g in v["games"] if (nm(g["home"]), nm(g["away"])) not in have]
+            L["games"] = (L.get("games") or []) + add
+            if add:
+                log(f"odds: {lg} {len(add)} games priced from DraftKings + FanDuel (no consensus line yet)")
+
+
 def run(state: str = "state", log=print):
     site = os.path.join(state, "site"); web = os.path.join(site, "web")
     os.makedirs(web, exist_ok=True)
@@ -408,12 +438,18 @@ def run(state: str = "state", log=print):
         prev = {}
     out = pull_lines(prev, web, os.environ.get("ODDS_API_KEY", ""), log)
     out["props"] = pull_props(prev, web, log)
-    out["nflp"], nflp, out["used"] = pull_nfl_props(prev, os.environ.get("ODDS_API_KEY", ""), out.get("used"), log)
+    from calib import sharp
+    sh = sharp.pull([lg for lg in ESPN if upcoming(web, lg)], os.environ.get("SHARP_API_KEY", ""), log)
+    out["sharp"] = {lg: {"fetched_at": v["fetched_at"], "complete": v["complete"], "games": len(v["games"]), "players": len(v["props"])} for lg, v in sh.items()}
+    # SharpAPI prices NFL props for free, so the paid Odds API pull only runs without it
+    have_nfl = len((sh.get("NFL") or {}).get("props") or {}) >= 10
+    out["nflp"], nflp, out["used"] = pull_nfl_props(prev, "" if have_nfl else os.environ.get("ODDS_API_KEY", ""), out.get("used"), log)
     if nflp:
         props_nfl = (out["props"].get("NFL") or {}).get("players") or {}
         for k, q in nflp.items():
             props_nfl.setdefault(k, {}).update(q)
         out["props"]["NFL"] = {"book": "DraftKings", "fetched_at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), "players": props_nfl}
+    merge_sharp(out, sh, log)
     attach_gids(out.get("lines"), web, log)
     out["cap"] = CAP
     out["generated_at"] = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
