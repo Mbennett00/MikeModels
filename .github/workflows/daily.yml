@@ -92,7 +92,7 @@ jobs:
         if: steps.pick.outputs.task == 'sharp-probe'
         run: |
           python scripts/sharp_probe.py
-          gh release upload data-latest sharp_probe.txt --clobber
+          mv -f sharp_probe.txt state/site/       # the state upload at the end publishes it (and would overwrite a direct upload)
       - name: Run ${{ steps.pick.outputs.task }}
         if: steps.pick.outputs.task != 'morning' && steps.pick.outputs.task != 'recalibrate' && steps.pick.outputs.task != 'espn-probe' && steps.pick.outputs.task != 'sharp-probe'
         run: python -m nhlmodel.daily ${{ steps.pick.outputs.task }}
