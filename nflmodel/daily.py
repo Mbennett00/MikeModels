@@ -170,10 +170,6 @@ def run(state: str = "state", log=print) -> dict:
     book, book_short = "consensus", "DK/FD"
     cached = O.from_market(os.path.join(site, "odds.json"))
     evs = O.match(cached["events"], wk) if cached else {}
-    # DraftKings props from ESPN's free feed (TD, yards, catches)
-    from . import espn_props as EP
-    ep = EP.fetch(I.norm, log) if os.environ.get("NFL_ESPN_PROPS", "1") != "0" else {}
-    ep_games = ep.get("games", {}) if ep else {}
     npath = os.path.join(site, "nfl_line_news.json")
     try:
         ln = json.load(open(npath))
@@ -347,12 +343,6 @@ def run(state: str = "state", log=print) -> dict:
     except Exception as e:
         log(f"nfl matchup grades: {e}")
     attach_props(lineup, players)
-    # DraftKings prices onto each player (matched by team names + kickoff, then player name)
-    key_of = {g.game_id: f"{g.away_team}@{g.home_team}" for g in wk.itertuples()}
-    for p_ in players:
-        dk = ((ep_games.get(key_of.get(p_["game_id"])) or {}).get("players") or {}).get(I.norm(p_["name"]))
-        p_["dk"] = dict(dk) if dk else None
-    meta.update(props_book="DraftKings" if ep_games else None, props_at=(ep or {}).get("fetched_at"))
     out = dict(meta=meta, games=games, players=players, teams=team_table(R, rows, season), key_m=cfg.key_m, key_t=cfg.key_t,
                injuries=injuries, lineups=lineup)
     try:

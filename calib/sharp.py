@@ -6,13 +6,14 @@ league). From that it builds, per league:
   props  {player key: {"stat|line": american}}   the over ("N+") price: DraftKings' where it has the rung, else FanDuel's
   bk     {player key: {"stat|line": "FD"}}        rungs priced from FanDuel (DraftKings didn't hang them)
   fair   {player key: {"stat|line": p}}           chance of the over with the vig out, averaged over the books: no-vig
-                                                  from both sides where a book posts the under, else 1/decimal / 1.06
+                                                  from both sides where a book posts the under, else 1/decimal less hold1()
   games  [{home, away, t, books, ml, spread, total}]  the same shape as calib.odds consensus lines
 Never raises: any failure logs and returns what it has.
 """
 from __future__ import annotations
 
 import datetime as dt
+import math
 import os
 import re
 import statistics
@@ -34,7 +35,10 @@ PROPS = {   # SharpAPI market type -> the page's stat
 BOOKS = {"draftkings": "DK", "fanduel": "FD"}
 PACE = float(os.environ.get("SHARP_PACE", "5.3"))      # seconds between calls: 12 a minute on the free tier
 MAX_PAGES = int(os.environ.get("SHARP_MAX_PAGES", "40"))
-VIG1 = 1.06                                             # one-sided prop: typical hold when there's no under to cancel it
+def hold1(p: float) -> float:
+    """A one-sided prop's hold, when there's no under to cancel it: about 5% near even money, rising to about 25% on
+    long shots (books shade long odds hardest: the favourite-longshot bias)."""
+    return 1.05 + 0.20 * max(0.0, 0.5 - p) / 0.5
 
 
 def _p(a: float) -> float:
@@ -94,22 +98,36 @@ def nm(s: str) -> str:
     return _nm(s)
 
 
-def _clean(entries: list) -> list:
+def _pairs(entries: list) -> list:
+    """[(|no-vig over - 50%|, line, market)] for every line a market prices both ways."""
+    by_m, out = {}, []
+    for e in entries:
+        by_m.setdefault(e["m"], []).append(e)
+    for m, es in by_m.items():
+        o = {e["line"]: e["a"] for e in es if e["side"] == "over"}; u = {e["line"]: e["a"] for e in es if e["side"] == "under"}
+        for ln in set(o) & set(u):
+            out.append((abs(_p(o[ln]) / (_p(o[ln]) + _p(u[ln])) - 0.5), ln, m))
+    return out
+
+
+def _clean(entries: list, center: float | None = None) -> list:
     """One book's rows for one player and stat -> the rows that belong to the full-game ladder.
-    Feeds sometimes file a period market (DraftKings' 1st-quarter points) under the full-game type. Every row of a
-    market shares a market_id, so: the anchor is the market whose two-sided line sits nearest even money; any other
-    market whose over prices contradict the anchor's ladder (a lower line must be likelier, a higher one less) goes."""
+    Feeds sometimes file a period market (DraftKings' 1st-quarter points or rebounds) under the full-game type. Every
+    row of a market shares a market_id, so one market anchors the ladder and any other market whose over prices
+    contradict it (a lower line must be likelier, a higher one less) goes. The anchor is the market priced both ways
+    nearest the player's main line across both books (center), so a book whose only two-way market is a quarter
+    market can't anchor on it."""
     over = [e for e in entries if e["side"] == "over"]
     by_m = {}
     for e in entries:
         by_m.setdefault(e["m"], []).append(e)
-    pairs = []
-    for m, es in by_m.items():
-        o = {e["line"]: e["a"] for e in es if e["side"] == "over"}; u = {e["line"]: e["a"] for e in es if e["side"] == "under"}
-        for ln in set(o) & set(u):
-            pairs.append((abs(_p(o[ln]) / (_p(o[ln]) + _p(u[ln])) - 0.5), m))
-    if pairs:
-        anchor = min(pairs)[1]
+    pairs = _pairs(entries)
+    if center is not None and over:
+        near = min(over, key=lambda e: (abs(e["line"] - center), abs(_p(e["a"]) - 0.5)))
+        cand = [x for x in pairs if abs(x[1] - center) <= max(1.0, 0.15 * center)]
+        anchor = min(cand)[2] if cand else near["m"]
+    elif pairs:
+        anchor = min(pairs)[2]
     elif over:
         anchor = min(over, key=lambda e: abs(_p(e["a"]) - 0.5))["m"]
     else:
@@ -152,8 +170,17 @@ def build_props(league: str, rows: list) -> dict:
         m = r.get("market_id") or r["market_type"]
         raw.setdefault((bk, nm(who), stat), []).append({"line": line, "side": side, "a": a, "m": f"{r['market_type']}:{m}"})
     q = {}   # (player, key) -> {book: {"over": am, "under": am}}
+    # (player, stat) -> the main line: among the lines either book prices both ways near even money, the largest. A
+    # period market (quarter, half) can only run lower than the full game, so when the books disagree the bigger
+    # line is the full-game one.
+    centers = {}
     for (bk, who, stat), es in raw.items():
-        for e in (es if stat in ("goals", "td") and all(x["line"] == 0.5 for x in es) else _clean(es)):
+        for x in _pairs(es):
+            if x[0] <= 0.12 and x[1] > centers.get((who, stat), -1):
+                centers[(who, stat)] = x[1]
+    for (bk, who, stat), es in raw.items():
+        c = centers.get((who, stat))
+        for e in (es if stat in ("goals", "td") and all(x["line"] == 0.5 for x in es) else _clean(es, c)):
             q.setdefault((who, f"{stat}|{e['line']:g}"), {}).setdefault(bk, {})[e["side"]] = e["a"]
     props, bk, fair = {}, {}, {}
     for (who, k), by in q.items():
@@ -162,7 +189,7 @@ def build_props(league: str, rows: list) -> dict:
             if "over" not in s:
                 continue
             po = _p(s["over"])
-            ps[b] = po / (po + _p(s["under"])) if "under" in s else min(0.99, po / VIG1)
+            ps[b] = po / (po + _p(s["under"])) if "under" in s else min(0.99, po / hold1(po))
         if len(ps) == 2 and abs(ps["DK"] - ps["FD"]) > 0.2:     # the books disagree wildly: one of them is a misread
             continue
         dk, fd = (by.get("DK") or {}).get("over"), (by.get("FD") or {}).get("over")
@@ -172,12 +199,45 @@ def build_props(league: str, rows: list) -> dict:
         if dk is None:
             bk.setdefault(who, {})[k] = "FD"
         fair.setdefault(who, {})[k] = round(sum(ps.values()) / len(ps), 4)
-    for who, F in fair.items():               # each ladder, walked out from its rung nearest even money, must slope
-        for stat in {k.split("|")[0] for k in F}:
-            for k in ladder_drop({k: v for k, v in F.items() if k.startswith(stat + "|")}):
-                for d in (props, bk, fair):
-                    (d.get(who) or {}).pop(k, None)
+    for who, F in fair.items():
+        for k in [k for k, v in F.items() if abs(_p(props[who][k]) - v) > 0.12]:   # a price must agree with its own fair chance
+            for d in (props, bk, fair):
+                (d.get(who) or {}).pop(k, None)
+        for stat in {k.split("|")[0] for k in F}:   # each ladder, walked out from its rung nearest even money, must slope
+            for src in (F, {k: _p(a) for k, a in props.get(who, {}).items()}):   # in fair chances and in the prices bet
+                for k in ladder_drop({k: v for k, v in src.items() if k.startswith(stat + "|")}):
+                    for d in (props, bk, fair):
+                        (d.get(who) or {}).pop(k, None)
+    if league == "NHL":   # small counts: every rung must sit near a Poisson fitted to the even-money rung
+        for who, F in fair.items():
+            for stat in {k.split("|")[0] for k in F}:
+                for k in poisson_drop({k: v for k, v in F.items() if k.startswith(stat + "|")}):
+                    for d in (props, bk, fair):
+                        (d.get(who) or {}).pop(k, None)
     return {"props": props, "bk": bk, "fair": fair}
+
+
+def _sf(line: float, lam: float) -> float:
+    """P(X > line) for X ~ Poisson(lam)."""
+    p, s = math.exp(-lam), 0.0
+    for i in range(int(math.floor(line)) + 1):
+        s += p; p *= lam / (i + 1)
+    return max(1e-6, min(1 - 1e-6, 1 - s))
+
+
+def poisson_drop(F: dict, tol: float = 1.0) -> list:
+    """{"stat|line": chance} -> rungs whose chance is more than tol (log-odds) off a Poisson through the rung nearest
+    50%. Catches a misfiled rung inside an otherwise sane ladder: 1+ points at -330 but 2+ at +790 (Poisson says ~+180)."""
+    if len(F) < 2:
+        return []
+    k0 = min(F, key=lambda k: abs(F[k] - 0.5)); L0 = float(k0.split("|")[1])
+    lo, hi = 1e-4, 60.0
+    for _ in range(60):
+        mid = (lo + hi) / 2
+        lo, hi = (mid, hi) if _sf(L0, mid) < F[k0] else (lo, mid)
+    lam = (lo + hi) / 2
+    lg = lambda q: math.log(q / (1 - q))
+    return [k for k, v in F.items() if 0 < v < 1 and abs(lg(v) - lg(_sf(float(k.split("|")[1]), lam))) > tol]
 
 
 def ladder_drop(F: dict) -> list:

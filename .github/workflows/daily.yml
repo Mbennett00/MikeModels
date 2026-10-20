@@ -17,7 +17,7 @@ on:
         description: "What to run"
         type: choice
         default: slate
-        options: [slate, morning, update, grade, backtest, tune, dfo-probe, xg-compare, recalibrate, espn-probe, sharp-probe]
+        options: [slate, morning, update, grade, backtest, tune, dfo-probe, xg-compare, recalibrate, sharp-probe]
   workflow_call:                # used by recalibrate.yml (the page's RECALIBRATE MODEL button)
     inputs:
       task:
@@ -39,10 +39,8 @@ jobs:
       web: ${{ steps.web.outputs.web }}
     env:
       GH_TOKEN: ${{ github.token }}
-      # Pikt's market odds come from calib/odds.py: DraftKings + FanDuel from SharpAPI's free tier (game lines and
-      # props) plus DraftKings props from ESPN. No paid odds feed.
-      NFL_ESPN_PROPS: "0"    # the model pages' own ESPN prop pulls stay off (calib/odds.py covers props)
-      NHL_ESPN_PROPS: "0"
+      # Pikt's market odds come from calib/odds.py: DraftKings + FanDuel game lines and props from SharpAPI's free tier.
+      # ESPN is used for injuries and scores only.
       SHARP_API_KEY: ${{ secrets.SHARP_API_KEY }}
       PYTHONUNBUFFERED: "1"
     steps:
@@ -74,16 +72,13 @@ jobs:
           # weekly self-calibration (Mondays): applies a new version only if it beats the current one walk-forward
           if [ "$(TZ=America/New_York date +%u)" = "1" ]; then python -m calib recalibrate --sport all || true; fi
           python -m nhlmodel.daily slate
-      - name: ESPN probe
-        if: steps.pick.outputs.task == 'espn-probe'
-        run: python scripts/espn_probe.py
       - name: SharpAPI probe
         if: steps.pick.outputs.task == 'sharp-probe'
         run: |
           python scripts/sharp_probe.py
           mv -f sharp_probe.txt state/site/       # the state upload at the end publishes it (and would overwrite a direct upload)
       - name: Run ${{ steps.pick.outputs.task }}
-        if: steps.pick.outputs.task != 'morning' && steps.pick.outputs.task != 'recalibrate' && steps.pick.outputs.task != 'espn-probe' && steps.pick.outputs.task != 'sharp-probe'
+        if: steps.pick.outputs.task != 'morning' && steps.pick.outputs.task != 'recalibrate' && steps.pick.outputs.task != 'sharp-probe'
         run: python -m nhlmodel.daily ${{ steps.pick.outputs.task }}
       - name: Recalibrate and republish
         if: steps.pick.outputs.task == 'recalibrate'
@@ -102,7 +97,7 @@ jobs:
         run: |
           python -m nbamodel.daily 2>&1 | tee nba.log
           echo "::notice title=NBA run::$(grep '^nba:' nba.log | tail -n 4 | tr '\n' ' ')"
-      - name: Odds (DraftKings + FanDuel lines and props from SharpAPI, DraftKings props from ESPN)
+      - name: Odds (DraftKings + FanDuel lines and props from SharpAPI)
         if: always() && steps.pull.outcome == 'success'
         continue-on-error: true
         run: |

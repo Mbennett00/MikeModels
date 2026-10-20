@@ -30,8 +30,8 @@ same release files but is no longer needed.
 **Market odds (free).** `calib/odds.py` runs on every scheduled run. Game lines and player props come from
 DraftKings and FanDuel through SharpAPI's free tier (repo secret `SHARP_API_KEY`; 12 requests a minute, data 60 s
 behind): each game's line is the one both books hang at their median price, and each prop rung gets a no-vig fair
-chance from the two books. DraftKings props also come straight from ESPN (no key), and the page refreshes DraftKings
-lines from ESPN every 30 seconds and props every 5 minutes. There is no paid odds feed.
+chance from the two books. SharpAPI is the only odds source; ESPN is used for injuries and scores (bet grading,
+live tracking) only. Pre-game lines close at the start; there is no live in-game betting.
 
 Setup (one time):
 1. **Odds:** sign up at sharpapi.io (free tier), then add the key in GitHub → repo **Settings → Secrets and

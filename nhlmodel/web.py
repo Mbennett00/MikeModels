@@ -14,7 +14,7 @@ import shutil
 import numpy as np
 import pandas as pd
 
-from .data.teams import DISPLAY, norm_name
+from .data.teams import DISPLAY
 from .player_model import project_team_players
 from .pricing import fair_american
 from .team_model import TeamModel
@@ -98,12 +98,6 @@ def build(state, plays: pd.DataFrame, meta: dict, news: dict | None, images: dic
                           lam_home=_num(gp.lam_home), lam_away=_num(gp.lam_away), p_ot_home=_num(gp.p_ot_home),
                           reg=_mat(gp.matrix), p1=_mat(gp.p1_matrix)))
     players = []
-    try:   # DraftKings prop prices published by the slate run (nhlmodel.espn_props)
-        ep = json.load(open(os.path.join(os.path.dirname(out_dir.rstrip("/")), "espn_props.json")))
-        book_props = ep.get("players", {}) if ep.get("date") == str(meta.get("date", "")) else {}   # tonight's prices only
-        meta = dict(meta, props_book=ep.get("book"), props_at=ep.get("fetched_at"))
-    except (OSError, ValueError):
-        book_props = {}
     pp = plays[(plays.player.fillna("") != "") & (plays.selection == "over")] if len(plays) else plays
     for pid, d in (pp.groupby("player_id") if len(pp) else []):
         r0 = d.iloc[0]
@@ -112,7 +106,7 @@ def build(state, plays: pd.DataFrame, meta: dict, news: dict | None, images: dic
         players.append(dict(id=int(pid), name=r0.player, team=r0.team, pos=r0.get("pos", "F"),
                             game_id=int(r0.game_id), confirmed=bool(r0.confirmed),
                             headshot=faces.get(str(int(pid))) or (r0.headshot if isinstance(r0.get("headshot"), str) else ""),
-                            num=numbers.get(str(int(pid))), lam=lam, dk=book_props.get(norm_name(r0.player)) or None))
+                            num=numbers.get(str(int(pid))), lam=lam))
     # per-player matchup effect (tonight vs an average opponent at a neutral rink) for the rink view
     mxp = {}
     for g in state.schedule.itertuples():
