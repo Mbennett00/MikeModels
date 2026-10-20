@@ -26,6 +26,9 @@
 .court .dot.miss { background: transparent !important; border-color: rgba(40,20,10,.55); opacity: .7; }
 .court .dot.now { box-shadow: 0 0 0 3px rgba(255,255,255,.95), 0 1px 4px rgba(0,0,0,.3); animation: pk .9s ease-out; }
 @keyframes pk { from { transform: scale(2.3); } to { transform: scale(1); } }
+/* the box score is wide: it scrolls sideways with the names pinned */
+.sx-scroll { overflow-x: auto; scrollbar-width: none; } .sx-scroll::-webkit-scrollbar { display: none; }
+.sx-scroll .sx-tb { min-width: 640px; } .sx-scroll .sx-tb td:first-child, .sx-scroll .sx-tb th:first-child { position: sticky; left: 0; z-index: 1; background: #141c5c; }
 </style>
 </head>
 <body class="sim">
@@ -303,8 +306,8 @@ const SIMX = {
     const {st, T} = sim;
     return ["a", "h"].map(k => { const B = Object.values(st.box).filter(b => b.k === k && b.sec > 0).sort((x, y) => (y.p.start - x.p.start) || y.sec - x.sec);
       return `<div class="sx-card" style="margin-top:12px;padding-bottom:6px">${sxHead(T[k])}
-        ${sxTable(["Player", "MIN", "PTS", "REB", "AST", "FG", "3PT", "FT", "STL", "BLK", "TO", "PF", "+/-"], B.map(b => [`${esc(lastName(b.p.name))}${b.p.start ? "" : ""}`, minS(b.sec), `<b>${b.pts}</b>`, b.oreb + b.dreb, b.ast,
-          `${b.fgm}-${b.fga}`, `${b.tpm}-${b.tpa}`, `${b.ftm}-${b.fta}`, b.stl, b.blk, b.tov, b.pf, b.pm > 0 ? `+${b.pm}` : b.pm]))}</div>`; }).join("");
+        <div class="sx-scroll">${sxTable(["Player", "MIN", "PTS", "REB", "AST", "FG", "3PT", "FT", "STL", "BLK", "TO", "PF", "+/-"], B.map(b => [`${esc(lastName(b.p.name))}${b.p.start ? "" : ""}`, minS(b.sec), `<b>${b.pts}</b>`, b.oreb + b.dreb, b.ast,
+          `${b.fgm}-${b.fga}`, `${b.tpm}-${b.tpa}`, `${b.ftm}-${b.fta}`, b.stl, b.blk, b.tov, b.pf, b.pm > 0 ? `+${b.pm}` : b.pm]))}</div></div>`; }).join("");
   },
   frac(e) { const m = /(\d+):(\d+)/.exec(e.t || "") || [0, 0, 0], secs = +m[1] * 60 + +m[2], q = {Q1: 1, Q2: 2, Q3: 3, Q4: 4}[e.pl];
     return q ? ((4 - q) * Q_LEN + secs) / 2880 : secs / 2880; },

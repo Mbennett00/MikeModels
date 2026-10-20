@@ -701,3 +701,101 @@ body.pj .mk-live { background: linear-gradient(180deg, rgba(255,90,122,.08), tra
 body.pj .mlogo { height: 38px; filter: drop-shadow(0 2px 0 rgba(0,0,0,.35)); }
 body.pj .splash img { width: 132px; height: 132px; border-radius: 30px; animation: pop .6s ease; }
 @keyframes pop { 0% { transform: scale(.7); opacity: 0; } 60% { transform: scale(1.08); opacity: 1; } }
+
+/* ================= PIKT · liquid-glass cartoon theme =================
+   The cartoon stays (rounded display face, pixel labels, chunky rounded shapes, bouncy presses, electric yellow) and
+   the surfaces turn premium: a deep indigo night lit by soft colour glows, translucent glass cards that blur what is
+   behind them with a bright rim along the top edge and a soft sheen, floating glass bars, and glossy candy buttons. */
+:root {
+  --bg: #070b2c; --s1: rgba(255,255,255,.07); --s2: rgba(255,255,255,.1); --s3: rgba(255,255,255,.14); --s4: rgba(255,255,255,.2);
+  --line: rgba(255,255,255,.09); --line2: rgba(255,255,255,.14); --ink: #04081f;
+  --glass: linear-gradient(180deg, rgba(255,255,255,.13), rgba(255,255,255,.045) 55%, rgba(255,255,255,.03));
+  --sheen: radial-gradient(140% 70% at 15% -10%, rgba(255,255,255,.22), transparent 48%);
+  --rim: inset 0 1px 0 rgba(255,255,255,.38), inset 0 0 0 1px rgba(255,255,255,.1), inset 0 -1px 0 rgba(255,255,255,.04);
+  --float: 0 18px 40px -12px rgba(2,4,24,.75), 0 4px 10px rgba(2,4,24,.35);
+  --blur: blur(22px) saturate(170%);
+  --candy: linear-gradient(180deg, #fff1a8 0%, #ffd23f 42%, #ffb800 100%);
+  --candy-rim: inset 0 1.5px 0 rgba(255,255,255,.85), inset 0 -3px 0 rgba(160,90,0,.35), 0 6px 18px -4px rgba(255,190,20,.55);
+  --mint: linear-gradient(180deg, rgba(62,224,143,.32), rgba(62,224,143,.14));
+  --r: 22px;
+}
+html, body.pj {
+  background:
+    radial-gradient(60% 45% at 12% 8%, rgba(76,110,255,.55), transparent 70%) fixed,
+    radial-gradient(55% 40% at 92% 18%, rgba(168,85,247,.42), transparent 70%) fixed,
+    radial-gradient(60% 45% at 85% 88%, rgba(34,211,238,.26), transparent 70%) fixed,
+    radial-gradient(55% 40% at 8% 92%, rgba(236,72,153,.24), transparent 70%) fixed,
+    radial-gradient(rgba(255,255,255,.07) 1px, transparent 1.3px) 0 0 / 26px 26px fixed,
+    linear-gradient(180deg, #0a1040, #060a26) fixed;
+}
+body.pj { --t2: #c4cfff; --t3: #8e9ad6; }
+.splash { background: radial-gradient(60% 50% at 50% 35%, rgba(76,110,255,.5), transparent 70%), #070b2c; }
+/* the glass surfaces */
+body.pj .gc, body.pj .list, body.pj .gl, body.pj .card, body.pj .bk-tk, body.pj .ms, body.pj .mb-strip, body.pj .pod, body.pj .fg, body.pj .xpanel, body.pj .tk, body.pj .er-wrap, body.pj .bk-drop {
+  background: var(--sheen), var(--glass); border: 0; border-radius: var(--r); box-shadow: var(--rim), var(--float);
+  -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur); }
+body.pj .bk-tk.won { box-shadow: var(--rim), inset 0 0 0 1.5px rgba(62,224,143,.55), 0 0 26px -6px rgba(62,224,143,.45), var(--float); }
+body.pj .list > * + *, body.pj .gr, body.pj .er, body.pj .pr { border-color: rgba(255,255,255,.07); }
+body.pj .mb-empty { border: 1.5px dashed rgba(255,255,255,.2); background: rgba(255,255,255,.04); -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur); }
+/* floating glass bars: the header and the tab bar */
+body.pj .hdr, body.pj .hdr.stuck { background: linear-gradient(180deg, rgba(10,16,60,.72), rgba(10,16,60,.45)); border-bottom: 0;
+  box-shadow: inset 0 -1px 0 rgba(255,255,255,.08), 0 10px 30px -18px rgba(0,0,0,.8); -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur); }
+body.pj .nav { left: 12px; right: 12px; bottom: calc(10px + var(--safe-b)); padding-bottom: 0; max-width: 536px; margin: 0 auto; border-radius: 30px; border-top: 0;
+  background: linear-gradient(180deg, rgba(40,52,140,.55), rgba(16,22,80,.6)); box-shadow: var(--rim), 0 20px 40px -10px rgba(0,0,0,.7);
+  -webkit-backdrop-filter: blur(26px) saturate(180%); backdrop-filter: blur(26px) saturate(180%); }
+body.pj .nav button.on .ico { background: var(--candy); color: var(--acc-ink); border: 0; box-shadow: var(--candy-rim); }
+body.pj .bk-bar { bottom: calc(var(--bar) + 22px + var(--safe-b)); }
+.wrap { padding-bottom: calc(var(--bar) + 120px + var(--safe-b)); }
+body.pj .tabs { border-bottom: 1px solid rgba(255,255,255,.08); }
+body.pj .tabs button.on::after, body.pj .sport a.on::after { background: var(--candy); box-shadow: 0 0 12px rgba(255,210,63,.6); }
+/* the wallet: a gold candy pill */
+body.pj .coin { background: var(--candy); border: 0; box-shadow: var(--candy-rim); }
+body.pj .coin b { color: #2a1c00; }
+/* hero: a lit glass panel */
+body.pj .hero { border: 0; border-radius: 26px; background: radial-gradient(120% 80% at 90% -10%, rgba(255,210,63,.32), transparent 45%), radial-gradient(90% 90% at 0% 100%, rgba(168,85,247,.45), transparent 60%),
+  linear-gradient(150deg, #3d6bff, #2132c0 55%, #1a1f8a); box-shadow: inset 0 1.5px 0 rgba(255,255,255,.45), inset 0 0 0 1px rgba(255,255,255,.14), 0 24px 50px -16px rgba(60,80,255,.65); }
+/* prices: glass capsules; a pick turns to gold candy, an edge glows mint */
+body.pj .px, body.pj .bk-px { border: 0; border-radius: 16px; background: linear-gradient(180deg, rgba(255,255,255,.14), rgba(255,255,255,.05)); color: var(--t1);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.3), inset 0 0 0 1px rgba(255,255,255,.1), 0 6px 14px -8px rgba(0,0,0,.7); transition: transform .12s cubic-bezier(.3,1.6,.5,1), box-shadow .12s, background .12s; }
+body.pj .px:active, body.pj .bk-px:active { transform: scale(.94); box-shadow: inset 0 1px 0 rgba(255,255,255,.25), inset 0 0 0 1px rgba(255,255,255,.08); }
+body.pj .px.on, body.pj .bk-px.on { background: var(--candy); color: #2a1c00; box-shadow: var(--candy-rim); transform: none; }
+body.pj .px.on i, body.pj .px.on em, body.pj .bk-px.on i { color: rgba(42,28,0,.7); }
+body.pj .px.edge { background: var(--mint); box-shadow: inset 0 1px 0 rgba(255,255,255,.3), inset 0 0 0 1.5px rgba(62,224,143,.75), 0 0 22px -6px rgba(62,224,143,.7); }
+body.pj .px.edge.on { background: var(--candy); }
+body.pj .px.off, body.pj .bk-px.off { background: rgba(255,255,255,.04); box-shadow: inset 0 0 0 1px rgba(255,255,255,.06); color: var(--t3); }
+body.pj .er-ev { background: var(--mint); border: 0; box-shadow: inset 0 0 0 1.5px rgba(62,224,143,.7); }
+/* chips, segments, search: glass capsules, gold when on */
+body.pj .chip { border: 0; background: rgba(255,255,255,.08); box-shadow: inset 0 1px 0 rgba(255,255,255,.22), inset 0 0 0 1px rgba(255,255,255,.08); }
+body.pj .chip.on { background: var(--candy); color: #2a1c00; box-shadow: var(--candy-rim); }
+body.pj .seg, body.pj .hv, body.pj .xseg { border: 0; border-radius: 18px; background: rgba(255,255,255,.07); box-shadow: inset 0 1px 0 rgba(255,255,255,.18), inset 0 0 0 1px rgba(255,255,255,.07);
+  -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur); }
+body.pj .seg button, body.pj .hv button, body.pj .xseg button { border-radius: 14px; transition: background .2s, color .2s; }
+body.pj .seg button.on, body.pj .hv button.on, body.pj .xseg button.on { background: var(--candy); color: #2a1c00; box-shadow: var(--candy-rim); }
+body.pj .search { border: 0; background: rgba(255,255,255,.08); box-shadow: inset 0 1px 0 rgba(255,255,255,.2), inset 0 0 0 1px rgba(255,255,255,.08); }
+/* game cards */
+body.pj .st-live { border: 0; background: linear-gradient(180deg, #ff7b95, #ff3d64); box-shadow: inset 0 1px 0 rgba(255,255,255,.5), 0 0 14px rgba(255,90,122,.6); }
+body.pj .tug { border: 0; background: rgba(255,255,255,.08); box-shadow: inset 0 0 0 1px rgba(255,255,255,.1); }
+body.pj .gc-edge { border: 0; border-radius: 16px; background: var(--mint); box-shadow: inset 0 1px 0 rgba(255,255,255,.25), inset 0 0 0 1px rgba(62,224,143,.45), 0 0 24px -10px rgba(62,224,143,.7); }
+body.pj .gc-edge span { color: var(--up); } body.pj .gc-edge em { color: var(--up); }
+body.pj .pav { border: 2px solid rgba(255,255,255,.75); box-shadow: 0 0 0 2px var(--tc, #555), 0 6px 14px -6px rgba(0,0,0,.7); }
+body.pj .mk { gap: 8px; }
+/* slip bar, sheet, toasts, buttons */
+body.pj .bk-bar { background: var(--candy); color: #2a1c00; border: 0; border-radius: 22px; box-shadow: var(--candy-rim), 0 18px 34px -10px rgba(255,180,0,.55); }
+body.pj .bk-bar .bk-n { background: #2a1c00; }
+body.pj .sheet { background: linear-gradient(180deg, rgba(36,48,140,.82), rgba(14,20,70,.9)); border: 0; border-radius: 30px 30px 0 0;
+  box-shadow: inset 0 1.5px 0 rgba(255,255,255,.35), 0 -20px 50px -10px rgba(0,0,0,.6); -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%); }
+body.pj .scrim { background: rgba(3,5,25,.45); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
+body.pj .bk-tag { border: 0; box-shadow: inset 0 1px 0 rgba(255,255,255,.35); }
+body.pj .bk-toast { border: 0; border-radius: 20px; background: linear-gradient(180deg, rgba(60,75,190,.85), rgba(26,36,120,.9)); box-shadow: var(--rim), var(--float);
+  -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur); }
+body.pj .bk-toast.ok { background: linear-gradient(180deg, rgba(40,150,100,.85), rgba(20,90,60,.9)); }
+body.pj .mb-empty button, body.pj .pod-go, body.pj .ms-go, body.pj .bk-drop button, body.pj .bk-slide.ready { border: 0; background: var(--candy); color: #2a1c00; box-shadow: var(--candy-rim); }
+body.pj .bk-slide { border: 0; background: rgba(255,255,255,.08); box-shadow: inset 0 1px 0 rgba(255,255,255,.22), inset 0 0 0 1px rgba(255,255,255,.08); }
+body.pj .sheet input, body.pj .bk-q button, body.pj .bk-leg input { border: 0; background: rgba(255,255,255,.08); box-shadow: inset 0 1px 0 rgba(255,255,255,.2), inset 0 0 0 1px rgba(255,255,255,.1); }
+body.pj .lg-chip { box-shadow: inset 0 1px 0 rgba(255,255,255,.18); }
+body.pj .lg-bar { background: rgba(255,255,255,.07); box-shadow: inset 0 0 0 1px rgba(255,255,255,.06); }
+/* the logo floats on a soft glow */
+body.pj .mlogo { filter: drop-shadow(0 4px 14px rgba(255,210,63,.35)) drop-shadow(0 2px 0 rgba(0,0,0,.3)); }
+@media (prefers-reduced-transparency: reduce) {
+  body.pj .gc, body.pj .list, body.pj .card, body.pj .bk-tk, body.pj .nav, body.pj .hdr, body.pj .sheet { -webkit-backdrop-filter: none; backdrop-filter: none; background: #141d5c; }
+}

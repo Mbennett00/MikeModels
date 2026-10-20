@@ -238,7 +238,7 @@ function pjMarkets(g) {
     ${pjCell((M.spread || [])[i], (M.spread || [])[i] ? pjSp(M.spread[i].line) : "", pjModelP(g, (M.spread || [])[i]))}
     ${pjCell((M.total || [])[i], (M.total || [])[i] ? `${i ? "U" : "O"} ${M.total[i].line}` : "", pjModelP(g, (M.total || [])[i]))}
     ${pjCell((M.ml || [])[i], "", pjModelP(g, (M.ml || [])[i]))}`;
-  const src = M.books ? `Market · ${M.books}` : "Model lines";
+  const src = M.books ? "Market · DK + FD" : "Model lines";
   return `<div class="mk"><span class="mk-h">${src}</span><i>${esc(M.spreadLab || "Spread")}</i><i>Total</i><i>Money</i>${row(g.a, 0)}${row(g.h, 1)}</div>`;
 }
 // the game card: model win chances and projected score on top, the market underneath with the model's read
