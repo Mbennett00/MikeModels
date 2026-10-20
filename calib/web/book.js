@@ -77,18 +77,19 @@ function bkSlipHtml() {
   const L = BKS.slip, P = bkCanParlay() && BKS.mode === "parlay";
   if (!L.length) return `<div class="sh-t">Bet slip</div><div class="bk-empty">Tap any price to add it here.</div>`;
   const leg = x => { const s = BK_REG[x.key] || x, lock = !s.open;
-    return `<div class="bk-leg ${lock ? "lock" : ""} ${s.boost ? "boost" : ""}">${bkArt(s)}
+    return `<div class="bk-leg ${lock ? "lock" : ""} ${s.boost ? "boost" : ""}" style="--tc:${esc(s.color || "#5b6cff")}">${bkArt(s)}
       <div class="bk-lt"><b>${esc(s.pick)}</b><i>${s.boost ? "⚡ " : ""}${esc(s.mkt)} · ${esc(s.game)}</i>${lock ? `<em>Started · remove to place</em>` : ""}</div>
       <span class="bk-od">${bkAm(s.dec)}</span><button class="bk-x" data-bkx="${esc(x.key)}" aria-label="Remove">✕</button>
-      ${P ? "" : `<label class="bk-st"><input inputmode="numeric" pattern="[0-9]*" data-bks="${esc(x.key)}" value="${x.stake || ""}" placeholder="0"><span id="bkw-${esc(x.key)}">${x.stake ? "wins " + bkN(x.stake * (s.dec - 1)) : ""}</span></label>`}</div>`; };
-  return `<div class="bk-sh"><div class="sh-t">Bet slip</div><span class="bk-bal">${BK_COIN}${bkN(BKS.coins)}</span></div>
+      ${P ? "" : `<label class="bk-st"><i class="bk-cn">${BK_COIN}</i><input inputmode="numeric" pattern="[0-9]*" data-bks="${esc(x.key)}" value="${x.stake || ""}" placeholder="Stake"><span id="bkw-${esc(x.key)}">${x.stake ? "wins " + bkN(x.stake * (s.dec - 1)) : ""}</span></label>`}</div>`; };
+  const cur = P ? BKS.pstake || 0 : (L.every(x => x.stake === L[0].stake) ? L[0].stake || 0 : -1);
+  return `<div class="bk-sh"><div class="sh-t">Bet slip <em class="bk-cnt">${L.length}</em></div><span class="bk-bal">${BK_COIN}${bkN(BKS.coins)}</span></div>
     ${L.length >= 2 ? `<div class="seg" style="--n:2"><button class="${P ? "" : "on"}" data-bkm="single">Singles</button><button class="${P ? "on" : ""} ${bkCanParlay() ? "" : "dis"}" data-bkm="parlay">Parlay</button></div>
       ${bkCanParlay() ? "" : `<div class="bk-why">Parlays need picks from different games.</div>`}` : ""}
     <div class="bk-legs">${L.map(leg).join("")}</div>
-    ${P ? `<div class="bk-par"><span>Parlay odds</span><b>${bkAm(bkParlayDec())}</b></div>
-      <label class="bk-st big"><input inputmode="numeric" pattern="[0-9]*" data-bks="parlay" value="${BKS.pstake || ""}" placeholder="Stake"><span></span></label>` : ""}
-    <div class="bk-q">${[100, 250, 500, 1000].map(v => `<button data-bkq="${v}">${bkN(v)}</button>`).join("")}<button data-bkq="max">Max</button></div>
-    <div class="bk-foot"><div><span>Stake</span><b id="bk-ts">0</b></div><div><span>To win</span><b id="bk-tw">0</b></div></div>
+    ${P ? `<div class="bk-par"><span>${L.length}-leg parlay</span><b>${bkAm(bkParlayDec())}</b><em>${bkParlayDec().toFixed(1)}×</em></div>
+      <label class="bk-st big"><i class="bk-cn">${BK_COIN}</i><input inputmode="numeric" pattern="[0-9]*" data-bks="parlay" value="${BKS.pstake || ""}" placeholder="Stake"><span></span></label>` : ""}
+    <div class="bk-q">${[100, 250, 500, 1000].map(v => `<button data-bkq="${v}" class="${cur === v ? "on" : ""}">${bkN(v)}</button>`).join("")}<button data-bkq="max">Max</button></div>
+    <div class="bk-foot"><div><span>Stake</span><b>${BK_COIN}<i id="bk-ts">0</i></b></div><div><span>Payout</span><b><i id="bk-tw">0</i></b><small>if it hits</small></div></div>
     <div class="bk-slide" id="bk-place" role="button" aria-label="Slide to place"><span class="bk-sf"></span><span class="bk-stx" id="bk-stx">Enter a stake</span><span class="bk-th">${BK_COIN}</span></div>
     <button class="bk-clear" data-bkclear="1">Clear slip</button>
     <div class="bk-fine">Play coins only. No deposits, no cash value.</div>`;
@@ -100,10 +101,10 @@ function bkTotals() {
 }
 function bkSlipRefresh() {
   const t = bkTotals(), ts = document.getElementById("bk-ts"), tw = document.getElementById("bk-tw"), b = document.getElementById("bk-place"); if (!ts) return;
-  ts.textContent = bkN(t.stake); tw.textContent = bkN(t.win);
+  ts.textContent = bkN(t.stake); tw.textContent = bkN(t.stake + t.win);
   const P = bkCanParlay() && BKS.mode === "parlay", lock = BKS.slip.some(x => !(BK_REG[x.key] || x).open);
   const n = P ? 1 : BKS.slip.filter(x => x.stake > 0).length;
-  b.classList.toggle("dis", !t.stake || t.stake > BKS.coins || lock);
+  b.classList.toggle("dis", !t.stake || t.stake > BKS.coins || lock); b.classList.toggle("ready", !b.classList.contains("dis"));
   document.getElementById("bk-stx").textContent = t.stake > BKS.coins ? "Not enough coins" : lock ? "Remove started games" : !t.stake ? "Enter a stake" : `Slide to bet · win ${bkN(t.win)}`;
   for (const x of BKS.slip) { const w = document.getElementById("bkw-" + x.key); if (w) w.textContent = x.stake ? "wins " + bkN(x.stake * ((BK_REG[x.key] || x).dec - 1)) : ""; }
 }
@@ -307,7 +308,7 @@ function bkTicket(b) {
   if (b.st === "open" && multi) {
     const st = b.legs.map(l => l.r ? (l.r === "loss" ? "x" : "y") : ((bkLegNow(l) || {}).chip || [""])[0] === "ok" ? "o" : ((BK_LIVE_EV[bkLvKey(l)] || {}).state === "in" ? "l" : "p"));
     const n = k => st.filter(x => x === k).length;
-    prog = `<div class="bk-legs">${st.map(x => `<i class="${x}"></i>`).join("")}<span>${[n("y") && `${n("y")} won`, n("o") && `${n("o")} on track`, n("l") && `${n("l")} live`, n("x") && `${n("x")} lost`, n("p") && `${n("p")} to start`].filter(Boolean).join(" · ")}</span></div>`;
+    prog = `<div class="bk-lgs">${st.map(x => `<i class="${x}"></i>`).join("")}<span>${[n("y") && `${n("y")} won`, n("o") && `${n("o")} on track`, n("l") && `${n("l")} live`, n("x") && `${n("x")} lost`, n("p") && `${n("p")} to start`].filter(Boolean).join(" · ")}</span></div>`;
   }
   return `<div class="bk-tk ${tag[0]}"><div class="bk-tkh"><span class="bk-tag">${tag[1]}</span><b class="bk-tt">${title}</b><span class="bk-tko">${bkAm(b.dec)}</span></div>
     ${b.legs.map(l => bkLegHtml(l, multi)).join("")}${prog}
