@@ -154,7 +154,7 @@ function pjProps(p, stat, max = 3) {
   else return [];   // no made-up props: a league's props open when the books post them
   L = L.filter(x => x[1] != null && x[1] >= 0.1 && x[1] <= 0.9);   // no lottery tickets, no −1000 locks
   return L.sort((x, y) => Math.abs(x[1] - 0.5) - Math.abs(y[1] - 0.5)).slice(0, max).sort((x, y) => x[2].n - y[2].n).map(([l, c, spec, a]) => ({
-    top: ((stat === "td" || stat === "goals") && spec.n === 1 ? "Anytime" : `${Math.ceil(spec.n)}+`) + (spec.fd ? " · FD" : ""),
+    top: ((stat === "td" || stat === "goals") && spec.n === 1 ? "Anytime" : `${Math.ceil(spec.n)}+`),
     sel: bkSel({dec: a ? Math.round(pjDec(a) * 1e4) / 1e4 : undefined, src: a ? (spec.fd ? "fd" : "dk") : undefined, fair: spec.fair, book: spec.fd ? "FanDuel" : "DraftKings", img: p.img, logo: p.logo, color: p.color, sport: C.sport, gid: p.gid, kind: "prop", side: "yes", line: spec.n,
       p: c, pick: `${p.name} ${l}`, mkt: (PJA.markets.find(m => m.k === stat) || {}).label || "Player prop",
       game: C.game, start: C.start, open: C.open, ev: C.ev, pl: {name: p.name, id: String(p.id), espn: !!C.espnIds, team: p.team, stat, n: spec.n}})}));
@@ -208,7 +208,7 @@ function pjCell(x, top, mp) {
   const ev = pjEV(x, mp), hot = !x.live && ev != null && ev >= PJ_EDGE, t = top ? `<i>${esc(top)}</i>` : "";   // edges are a pre-game read
   if (!x.open) return `<span class="px off">${t}<b>🔒</b></span>`;
   const mv = x.mv > 0 ? "mv-up" : x.mv < 0 ? "mv-dn" : "";   // the price just moved: longer odds flash green, shorter red
-  return `<button class="px ${hot ? "edge" : ""} ${pjIsMkt(x) ? "" : "fair"} ${bkIn(x.key) ? "on" : ""} ${mv}" data-bk="${esc(x.key)}">${t}<b>${bkAm(x.dec)}${mv ? `<s>${x.mv > 0 ? "▲" : "▼"}</s>` : ""}</b><em>${hot ? pjEvTxt(ev) : mp != null ? "Model " + pjPct(mp) : x.live ? "Live" : ""}</em></button>`;
+  return `<button class="px ${hot ? "edge" : ""} ${x.src === "fd" ? "fd" : ""} ${pjIsMkt(x) ? "" : "fair"} ${bkIn(x.key) ? "on" : ""} ${mv}" data-bk="${esc(x.key)}">${t}<b>${bkAm(x.dec)}${mv ? `<s>${x.mv > 0 ? "▲" : "▼"}</s>` : ""}</b><em>${hot ? pjEvTxt(ev) : mp != null ? "Model " + pjPct(mp) : x.live ? "Live" : ""}</em></button>`;
 }
 // a game's six market sides with the model's view of each
 function pjGameEdges(g) {
@@ -238,7 +238,7 @@ function pjMarkets(g) {
     ${pjCell((M.spread || [])[i], (M.spread || [])[i] ? pjSp(M.spread[i].line) : "", pjModelP(g, (M.spread || [])[i]))}
     ${pjCell((M.total || [])[i], (M.total || [])[i] ? `${i ? "U" : "O"} ${M.total[i].line}` : "", pjModelP(g, (M.total || [])[i]))}
     ${pjCell((M.ml || [])[i], "", pjModelP(g, (M.ml || [])[i]))}`;
-  const src = M.books ? "Market · DK + FD" : "Model lines";
+  const src = M.books ? "DK + FD" : "Model";
   return `<div class="mk"><span class="mk-h">${src}</span><i>${esc(M.spreadLab || "Spread")}</i><i>Total</i><i>Money</i>${row(g.a, 0)}${row(g.h, 1)}</div>`;
 }
 // the game card: model win chances and projected score on top, the market underneath with the model's read

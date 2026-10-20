@@ -258,7 +258,7 @@ function sxBattle(sim, e, n) {
   const mv = last && SIMX.move ? SIMX.move(last, sim) : null;
   const text = last ? `<div class="bt-text ${last.sc ? "big" : ""}">${mv ? `<span class="mv">${esc(mv.mv)}</span>` : ""}<p>${last.text}</p>${mv && mv.eff ? `<span class="eff">${esc(mv.eff)}</span>` : ""}</div>`
     : `<div class="bt-text"><span class="mv">A WILD ${esc(T.a.name.toUpperCase())} TEAM APPEARS!</span><p>${esc(SIMX.kickText)}…</p></div>`;
-  return `<div class="bt"><span class="bt-clock">${esc(e ? `${e.pl} ${e.t}` : `${SIMX.startPl} ${SIMX.startClock}`)}</span>${card("a")}${mon("a")}${mon("h")}${card("h")}</div>${text}`;
+  return `<div class="bt" style="--ca:${esc(T.a.color)};--ch:${esc(T.h.color)}"><span class="bt-clock">${esc(e ? `${e.pl} ${e.t}` : `${SIMX.startPl} ${SIMX.startClock}`)}</span>${card("a")}${mon("a")}${mon("h")}${card("h")}</div>${text}`;
 }
 function sxLive() {
   const sim = SX.sim, shown = sim.ev.slice(0, SX.n), cur = shown[shown.length - 1];

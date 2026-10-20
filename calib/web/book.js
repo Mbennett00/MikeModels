@@ -45,7 +45,7 @@ const bkIn = key => BKS.slip.some(x => x.key === key);
 function bkBtn(s, top = "") {
   if (!s || s.p == null || !isFinite(s.p)) return `<span class="bk-px off">–</span>`;
   if (!s.open) return `<span class="bk-px off">${top ? `<i>${esc(top)}</i>` : ""}<b>🔒</b></span>`;
-  return `<button class="bk-px ${bkIn(s.key) ? "on" : ""}" data-bk="${esc(s.key)}">${top ? `<i>${esc(top)}</i>` : ""}<b>${bkAm(s.dec)}</b></button>`;
+  return `<button class="bk-px ${bkIn(s.key) ? "on" : ""} ${s.src === "fd" ? "fd" : ""}" data-bk="${esc(s.key)}">${top ? `<i>${esc(top)}</i>` : ""}<b>${bkAm(s.dec)}</b></button>`;
 }
 function bkToggle(key) {
   const s = BK_REG[key]; if (!s) return;
