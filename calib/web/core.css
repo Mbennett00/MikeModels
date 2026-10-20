@@ -709,3 +709,64 @@ body.pj .px.fd, body.pj .bk-px.fd { position: relative; }
 body.pj .px.fd::after, body.pj .bk-px.fd::after { content: "FD"; position: absolute; top: 4px; right: 5px; font-size: 7.5px; font-weight: 700; letter-spacing: .04em; color: var(--t3); opacity: .8; }
 body.pj .px.fd.on::after, body.pj .bk-px.fd.on::after { color: rgba(29,21,0,.55); }
 body.pj .bk-tk.live .bk-tag { background: rgba(255,93,108,.15); color: var(--live); } body.pj .bk-tk.won .bk-tag { background: var(--up-soft); color: var(--up); }
+
+/* ================= PIKT · pop =================
+   The calm base stays (easy on the eyes); colour comes in where it means something: each game wears its two teams'
+   colours, the balance and tonight panels are vivid gradient cards, active controls get an electric violet-blue,
+   edges are solid mint, players carry their team's ring. */
+:root {
+  --vio: #7c5cff; --blu: #3d9bff; --pink: #ff4fa3; --cyan: #22d3ee;
+  --electric: linear-gradient(135deg, #8b5cff 0%, #5b6cff 45%, #3d9bff 100%);
+}
+html, body, body.pj {
+  background: radial-gradient(70% 38% at 0% 0%, rgba(124,92,255,.20), transparent 70%) fixed, radial-gradient(60% 34% at 100% 6%, rgba(61,155,255,.16), transparent 70%) fixed,
+    radial-gradient(70% 40% at 100% 100%, rgba(255,79,163,.10), transparent 70%) fixed, var(--bg); }
+/* the balance: the app's signature card */
+body.pj .mb-strip { border: 0; background: radial-gradient(90% 120% at 100% 0%, rgba(255,255,255,.22), transparent 50%), var(--electric);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 18px 40px -16px rgba(110,90,255,.8); }
+body.pj .mb-strip i, body.pj .mb-strip .mb-st i, body.pj .mb-strip span { color: rgba(255,255,255,.8); }
+body.pj .mb-strip b { color: #fff; } body.pj .mb-strip .bk-c, body.pj .mb-strip svg { color: #ffe27a; }
+body.pj .mb-strip .up { color: #b6ffdf !important; } body.pj .mb-strip .dn { color: #ffd0d8 !important; }
+/* tonight: a teal-to-blue panel */
+body.pj .hero { border: 0; background: radial-gradient(90% 120% at 100% 0%, rgba(255,255,255,.18), transparent 50%), linear-gradient(135deg, #0ea5b7 0%, #2563eb 60%, #4f46e5 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.3), 0 18px 40px -16px rgba(37,99,235,.75); }
+body.pj .hero-k { color: #fff; opacity: .9; } body.pj .hero-n b { color: #fff; } body.pj .hero-n b.up { color: #b6ffdf; }
+body.pj .hero-n i, body.pj .hero-s { color: rgba(255,255,255,.8); }
+/* daily bonus: a warm card */
+body.pj .bk-drop { border: 1px solid rgba(245,200,75,.25); background: radial-gradient(100% 140% at 0% 0%, rgba(245,200,75,.18), transparent 60%), var(--s1); }
+/* game cards wear both teams' colours */
+body.pj .gc { background: radial-gradient(80% 60% at 0% 0%, color-mix(in srgb, var(--ca) 30%, transparent), transparent 70%),
+  radial-gradient(80% 60% at 100% 0%, color-mix(in srgb, var(--ch) 30%, transparent), transparent 70%), var(--s1); border-color: rgba(255,255,255,.08); }
+body.pj .gc::before { height: 3px; opacity: 1; }
+body.pj .gc.islive { box-shadow: 0 0 0 1px rgba(255,79,163,.45), 0 0 30px -8px rgba(255,79,163,.55), var(--lift); }
+body.pj .tug { height: 6px; } body.pj .tug i { border-radius: 3px; box-shadow: 0 0 10px -2px currentColor; }
+body.pj .fg { background: radial-gradient(80% 90% at 0% 0%, color-mix(in srgb, var(--ca) 38%, transparent), transparent 70%), radial-gradient(80% 90% at 100% 100%, color-mix(in srgb, var(--ch) 38%, transparent), transparent 70%), var(--s1); }
+/* headings with an accent */
+body.pj .hd b { position: relative; padding-left: 12px; } body.pj .hd b::before { content: ""; position: absolute; left: 0; top: 15%; bottom: 15%; width: 4px; border-radius: 2px; background: var(--electric); }
+/* controls: electric when active */
+body.pj .sport a.on::after, body.pj .tabs button.on::after { background: var(--electric); height: 3px; box-shadow: 0 0 12px rgba(124,92,255,.7); }
+body.pj .sport a.on, body.pj .tabs button.on { color: #fff; }
+body.pj .nav button.on .ico { background: var(--electric); color: #fff; box-shadow: 0 6px 16px -6px rgba(110,90,255,.9); }
+body.pj .chip.on { background: var(--electric); color: #fff; box-shadow: 0 6px 16px -8px rgba(110,90,255,.9); }
+body.pj .seg button.on, body.pj .hv button.on, body.pj .xseg button.on { background: var(--electric); color: #fff; box-shadow: 0 6px 16px -8px rgba(110,90,255,.9); }
+body.pj .more { color: #a99bff; }
+/* prices: picks in gold that glows, edges in bright mint */
+body.pj .px.on, body.pj .bk-px.on { box-shadow: 0 0 0 1px rgba(255,215,106,.6), 0 8px 22px -6px rgba(245,200,75,.7); }
+body.pj .px.edge { background: linear-gradient(180deg, rgba(52,211,153,.24), rgba(52,211,153,.10)); border-color: rgba(52,211,153,.7); box-shadow: 0 0 18px -6px rgba(52,211,153,.6); }
+body.pj .er-ev { background: linear-gradient(180deg, #4ee8ad, #22c58a); color: #03170e; font-weight: 750; box-shadow: 0 6px 14px -6px rgba(52,211,153,.7); }
+body.pj .gc-edge { border: 0; background: linear-gradient(90deg, rgba(52,211,153,.24), rgba(52,211,153,.08)); box-shadow: inset 0 0 0 1px rgba(52,211,153,.4); }
+body.pj .gc-sim { color: #a99bff; }
+/* players: team-colour ring and glow, a team stripe on each row */
+body.pj .pav { box-shadow: 0 0 0 2px var(--tc, #556), 0 0 16px -4px var(--tc, #556); }
+body.pj .pr { position: relative; } body.pj .pr::before { content: ""; position: absolute; left: 0; top: 14px; bottom: 14px; width: 3px; border-radius: 0 3px 3px 0; background: var(--tc, #556); opacity: .9; }
+/* the slip bar and the wallet */
+body.pj .bk-bar { box-shadow: 0 0 0 1px rgba(255,215,106,.5), 0 16px 34px -10px rgba(245,200,75,.7); }
+body.pj .coin { background: linear-gradient(180deg, rgba(255,255,255,.1), rgba(255,255,255,.04)), var(--s2); border-color: rgba(245,200,75,.35); box-shadow: 0 0 18px -8px rgba(245,200,75,.6); }
+/* live */
+body.pj .st-live { background: linear-gradient(180deg, #ff6fb4, #ff3d8f); color: #fff; box-shadow: 0 0 14px -2px rgba(255,79,163,.7); }
+body.pj .bk-tk.live { box-shadow: 0 0 0 1px rgba(255,79,163,.3), var(--lift); }
+body.pj .bk-tk.live::before { background: linear-gradient(180deg, #ff6fb4, #ff3d8f); }
+body.pj .bk-tk.live .bk-tag { background: linear-gradient(180deg, #ff6fb4, #ff3d8f); color: #fff; }
+body.pj .bk-tk.won::before { background: linear-gradient(180deg, #4ee8ad, #22c58a); }
+body.pj .hero-n b.up { color: #c9ffe6 !important; text-shadow: 0 0 18px rgba(52,211,153,.6); }
+body.pj .list .pr, body.pj .pj-mini .pr { background: radial-gradient(70% 120% at 0% 0%, color-mix(in srgb, var(--tc, #556) 16%, transparent), transparent 70%); }

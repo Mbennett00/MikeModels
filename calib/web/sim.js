@@ -146,7 +146,7 @@ function openBook(a, h) {
 const myBets = gid => BK.bets.filter(b => b.gid === gid);
 function sxBook() {
   const B = SX.book, T = B.T, orb = k => `<div class="orb" style="--c:${esc(T[k].color)}">${sxLogo(T[k])}</div>`;
-  const vs = `<div class="bk-vs"><div class="t">${orb("a")}<b>${esc(T.a.name)}</b><span>${esc(SIMX.teamSub({T}, null, "a", false))}</span></div><div class="vs">VS</div><div class="t">${orb("h")}<b>${esc(T.h.name)}</b><span>${esc(SIMX.teamSub({T}, null, "h", false))}</span></div></div>`;
+  const vs = `<div class="bk-vs" style="--ca:${esc(T.a.color)};--ch:${esc(T.h.color)}"><div class="t">${orb("a")}<b>${esc(T.a.name)}</b><span>${esc(SIMX.teamSub({T}, null, "a", false))}</span></div><div class="vs">VS</div><div class="t">${orb("h")}<b>${esc(T.h.name)}</b><span>${esc(SIMX.teamSub({T}, null, "h", false))}</span></div></div>`;
   if (!B.mk) return `<section class="sx-card">${vs}<div style="padding:14px"><div class="sx-note" style="margin:0">${B.done ? `The house is simulating ${B.N.toLocaleString()} games to set the odds… ${B.done.toLocaleString()}` : "Getting the teams ready…"}</div><div class="sx-prog"><i style="width:${(100 * B.done / B.N).toFixed(1)}%"></i></div></div></section>`;
   const on = id => B.slip.includes(id) ? "on" : "";
   const btn = s => `<button class="bk-px ${on(s.id)}" data-bet="${s.id}"><small>${esc(s.top)}</small><b>${am(s.dec)}</b></button>`;
@@ -229,7 +229,7 @@ function sxPicker() {
   const T = SIMX.teams(), G = SIMX.slate(), u = new URLSearchParams(location.search), g0 = G[0];
   const a = T.some(t => t.ab === u.get("away")) ? u.get("away") : g0 ? g0.a.ab : T[0].ab, h = T.some(t => t.ab === u.get("home")) ? u.get("home") : g0 ? g0.h.ab : T[1].ab;
   const opt = sel => T.map(t => `<option value="${t.ab}" ${t.ab === sel ? "selected" : ""}>${esc(t.full || t.name)}</option>`).join("");
-  const rows = G.map(g => `<button class="sx-g" data-go="${g.a.ab}|${g.h.ab}">
+  const rows = G.map(g => `<button class="sx-g" data-go="${g.a.ab}|${g.h.ab}" style="--ca:${esc(g.a.color)};--ch:${esc(g.h.color)}">
       <span class="sx-gt">${sxLogo(g.a)}<b>${esc(g.a.ab)}</b><i>${SIMX.fmt(g.pa)}</i></span>
       <span class="sx-gm"><em>${esc(g.when || "")}</em><span class="sx-wp"><i style="width:${Math.round(84 * (1 - g.pHome))}px;background:${esc(g.a.color)}"></i><i style="background:${esc(g.h.color)}"></i></span><small>${sxPct(1 - g.pHome)} · ${sxPct(g.pHome)}</small></span>
       <span class="sx-gt r"><i>${SIMX.fmt(g.ph)}</i><b>${esc(g.h.ab)}</b>${sxLogo(g.h)}</span></button>`).join("");
