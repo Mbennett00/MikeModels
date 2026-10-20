@@ -1,8 +1,3 @@
 [
- {"url": "https://api.sharpapi.io/api/v1/markets", "headers": {"X-API-Key": "{KEY}"}},
- {"url": "https://api.sharpapi.io/api/v1/odds", "headers": {"X-API-Key": "{KEY}"}, "params": {"league": "nhl", "is_live": "false", "is_player_prop": "true", "limit": "1"}},
- {"url": "https://api.sharpapi.io/api/v1/odds", "headers": {"X-API-Key": "{KEY}"}, "params": {"league": "nba", "is_live": "false", "is_player_prop": "true", "limit": "1"}},
- {"url": "https://api.sharpapi.io/api/v1/odds", "headers": {"X-API-Key": "{KEY}"}, "params": {"league": "nfl", "is_live": "false", "is_player_prop": "true", "limit": "1"}},
- {"url": "https://api.sharpapi.io/api/v1/odds", "headers": {"X-API-Key": "{KEY}"}, "params": {"league": "nhl", "is_live": "false", "market": "main", "limit": "1"}},
- {"url": "https://api.sharpapi.io/api/v1/odds", "headers": {"X-API-Key": "{KEY}"}, "params": {"league": "nhl", "is_live": "false", "player_name": "Nathan MacKinnon", "sportsbook": "draftkings", "limit": "40"}}
+ {"url": "https://api.sharpapi.io/api/v1/odds", "headers": {"X-API-Key": "{KEY}"}, "params": {"league": "nba", "is_live": "false", "player_name": "John Collins", "market": "player_points", "limit": "60"}}
 ]
