@@ -23,7 +23,7 @@ self.addEventListener("fetch", e => {
     .catch(() => caches.match(r).then(m => m || caches.match("./index.html"))));
 });
 """
-MANIFEST = dict(name="Pikt", short_name="Pikt", description="Pikt: NHL, NFL and NBA lines and props with play coins",
+MANIFEST = dict(name="Pikt", short_name="Pikt", description="Pikt: NHL, NFL and NBA projections and game sims",
                 start_url="./index.html", scope="./", display="standalone", orientation="portrait",
                 background_color="#0b0f17", theme_color="#0b0f17",
                 icons=[dict(src="icon-192.png", sizes="192x192", type="image/png", purpose="any"),

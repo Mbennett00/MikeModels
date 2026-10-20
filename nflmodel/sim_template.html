@@ -460,17 +460,6 @@ const SIMX = {
     if (/rush/.test(txt)) return {mv: `${me} used GROUND POUND!`, eff: y >= 15 ? "A critical hit!" : y <= 0 ? "It had no effect…" : ""};
     return null;
   },
-  props(B) {   // the sportsbook's player props: quarterback, lead back, top receivers, likeliest scorers
-    const out = [];
-    for (const k of ["a", "h"]) {
-      const T = B.T[k], P = (D.players || []).filter(p => p.team === T.ab && !/^(out|ir|doubtful)/i.test(p.status || "") && sxInj(p.name) !== "out"), val = (d, n, i) => ((d.p[k + "|" + n] || [])[i] || 0);
-      const qb = P.find(p => p.role === "QB"); if (qb) out.push({id: `py_${k}`, who: qb.name, team: k, stat: "pass yds", kind: "ou", get: d => val(d, qb.name, 0)});
-      P.filter(p => p.role === "RB").sort((x, y) => y.rush_yds - x.rush_yds).slice(0, 1).forEach((p, i) => out.push({id: `ry_${k}${i}`, who: p.name, team: k, stat: "rush yds", kind: "ou", get: d => val(d, p.name, 1)}));
-      P.filter(p => p.role !== "QB").sort((x, y) => y.rec_yds - x.rec_yds).slice(0, 2).forEach((p, i) => out.push({id: `cy_${k}${i}`, who: p.name, team: k, stat: "rec yds", kind: "ou", get: d => val(d, p.name, 2)}));
-      P.filter(p => p.role !== "QB").sort((x, y) => y.p_td - x.p_td).slice(0, 3).forEach((p, i) => out.push({id: `td_${k}${i}`, who: p.name, team: k, stat: "anytime TD", kind: "yes", get: d => val(d, p.name, 4)}));
-    }
-    return out;
-  },
   digest(sim) {   // what the 1,000-game view keeps from each game
     const p = {}; for (const b of Object.values(sim.st.box)) if (b.p) p[b.k + "|" + b.name] = [b.pyds, b.ryds, b.cyds, b.rec, b.rtd + b.ctd > 0 ? 1 : 0];
     return {s: sim.final, ot: sim.st.q === 5, p};

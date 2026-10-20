@@ -1,21 +1,20 @@
 // ---------- PIKT (shared by the NHL, NFL and NBA pages) ----------
-// A play-coin sportsbook on the real market (DraftKings + FanDuel lines and props from SharpAPI) with the
-// model's read on every price: its chance for each side, and the prices where it sees an edge. Bets settle from
-// ESPN finals (calib/web/book.js).
+// Projections and sims: the model's read on every game and player, shown next to the real market (DraftKings + FanDuel
+// lines and props from SharpAPI, read-only) with its chance for each side and the prices where it sees an edge.
 // Each page sets PJA (its adapter) and calls pjRender():
 //   PJA.games()      -> [{id, state: pre|live|final, time, detail, a, h, ph, lph, sa, sh, score: {a, h}, stats: [[label, value]], note}]
 //                       team = {abbr, name, color, logo, sub}
 //   PJA.players()    -> [{id, gid, name, team, pos, img, logo, color, meta, vals: {mk: {v, txt, chance, chanceLab, live}}}]
 //   PJA.markets      -> [{k, label}]                  (Props tab, in order; k is the prop's stat)
 //   PJA.panels(g)    -> [{k, label, html()}]          (only the lineup view (rink / field / court) is kept)
-//   PJA.playerLines(id) -> [[label, chance, {stat, n}]]  (player sheet; the third item makes the line bettable)
-//   PJA.ctx(gid)     -> {sport, game, start, open, ev: {date, home, away, id}}   (what a bet needs to be graded)
+//   PJA.playerLines(id) -> [[label, chance, {stat, n}]]  (player sheet)
+//   PJA.ctx(gid)     -> {sport, game, start, open, ev: {date, home, away, id}}
 //   PJA.lines(gid)   -> {spreadLab, spread: [a, h], total: [over, under], ml: [a, h]} of bkSel selections
 //   PJA.top(), PJA.kicker(), PJA.after(render)
 document.body.classList.add("pj");
 let PJA = null;
 const PJ = {mk: null, q: "", game: "all", open: new Set(), panel: {}, n: 40};
-const PJ_TABS = [["home", "Home"], ["games", "Games"], ["players", "Props"], ["bets", "My bets"], ["model", "Model"]];
+const PJ_TABS = [["home", "Home"], ["games", "Games"], ["players", "Players"], ["model", "Model"]];
 const PJ_IC = {
   home: '<path d="M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5.5h-5V20H5a1 1 0 0 1-1-1z"/>',
   games: '<rect x="3.5" y="5" width="17" height="14" rx="3"/><path d="M12 5v14M3.5 12h17"/>',
@@ -39,12 +38,10 @@ function pjImgAlts(players) { for (const p of players || []) { if (!p.headshot |
   const alt = p.headshot_alt || (/\/mugs\/nhl\/\d+\/[A-Z]+\//.test(p.headshot) ? p.headshot.replace(/\/mugs\/nhl\/\d+\/[A-Z]+\//, "/mugs/nhl/latest/") : null);
   if (alt) PJ_IMG_ALT[p.headshot] = alt; } }
 
-// ---- shell: header coin, docked tab bar, sheet ----
+// ---- shell: docked tab bar, sheet ----
 (() => {
-  const sub = document.getElementById("sub"), hb2 = document.querySelector(".hb2"), hb1 = document.querySelector(".hb1");
+  const sub = document.getElementById("sub"), hb2 = document.querySelector(".hb2");
   if (sub && hb2) hb2.insertBefore(sub, hb2.querySelector(".iconbtn"));
-  if (hb1 && !document.getElementById("coin")) { const c = document.createElement("button"); c.id = "coin"; c.className = "coin"; c.setAttribute("aria-label", "Wallet");
-    c.onclick = () => pjGo("bets"); hb1.appendChild(c); }
 })();
 function pjNav() {
   const el = document.getElementById("nav"); if (!el) return;
@@ -80,7 +77,7 @@ function pjMarket(g) {
   const is = (full, team) => { const a = bkNm(full), b = bkNm(team.name); return !!b && (a.endsWith(b) || a === bkNm(team.abbr)); };
   return L.find(x => x.gid && x.gid === String(g.id)) || L.find(x => !x.gid && is(x.home, g.h) && is(x.away, g.a) && (!t || !x.t || Math.abs(new Date(x.t) - t) < 36e5 * 18)) || null;
 }
-// redraw unless the user is typing or has a sheet open (the slip reads fresh prices from the registry when it reopens)
+// redraw unless the user is typing or has a sheet open
 function pjRefresh() { const ae = document.activeElement, sh = document.getElementById("sheet");
   if ((ae && (ae.tagName === "INPUT" || ae.tagName === "SELECT")) || (sh && sh.classList.contains("open"))) return; pjRender(); }
 // game lines with their artwork: each side carries its team's logo and colour, totals carry both logos
@@ -208,7 +205,7 @@ function pjCell(x, top, mp) {
   const ev = pjEV(x, mp), hot = !x.live && ev != null && ev >= PJ_EDGE, t = top ? `<i>${esc(top)}</i>` : "";   // edges are a pre-game read
   if (!x.open) return `<span class="px off">${t}<b>🔒</b></span>`;
   const mv = x.mv > 0 ? "mv-up" : x.mv < 0 ? "mv-dn" : "";   // the price just moved: longer odds flash green, shorter red
-  return `<button class="px ${hot ? "edge" : ""} ${x.src === "fd" ? "fd" : ""} ${pjIsMkt(x) ? "" : "fair"} ${bkIn(x.key) ? "on" : ""} ${mv}" data-bk="${esc(x.key)}">${t}<b>${bkAm(x.dec)}${mv ? `<s>${x.mv > 0 ? "▲" : "▼"}</s>` : ""}</b><em>${hot ? pjEvTxt(ev) : mp != null ? "Model " + pjPct(mp) : x.live ? "Live" : ""}</em></button>`;
+  return `<span class="px ${hot ? "edge" : ""} ${x.src === "fd" ? "fd" : ""} ${pjIsMkt(x) ? "" : "fair"}">${t}<b>${bkAm(x.dec)}</b><em>${hot ? pjEvTxt(ev) : mp != null ? "Model " + pjPct(mp) : ""}</em></span>`;
 }
 // a game's six market sides with the model's view of each
 function pjGameEdges(g) {
@@ -253,7 +250,7 @@ function pjGameCard(g) {
       ${pre ? `<span class="tr-p"><b>${esc(k === "h" ? g.sh : g.sa)}</b><i>proj</i></span>` : `<strong>${sc ?? 0}</strong>`}<span class="tr-w"><b>${pjPct(mine)}</b><i>${g.state === "live" && g.lph != null ? "live" : g.state === "final" ? "model" : "win"}</i></span></div>`; };
   const pa = Math.round(100 * (1 - p)), best = pjGameEdges(g).filter(e => e.ev >= PJ_EDGE).sort((a, b) => b.ev - a.ev)[0];
   return `<article class="gc ${g.state === "live" ? "islive" : ""}" data-gid="${esc(g.id)}" style="--ca:${esc(g.a.color || "#3a4a44")};--ch:${esc(g.h.color || "#44503a")}">
-      <div class="gc-h"><span class="gc-st">${pjStatus(g)}</span>${pre ? pjCountdown(g) : ""}${g.note ? `<span class="gc-note">${g.note}</span>` : ""}${PJA.simUrl ? `<a class="gc-sim" href="${esc(PJA.simUrl(g))}">Sim &amp; bet ›</a>` : ""}</div>
+      <div class="gc-h"><span class="gc-st">${pjStatus(g)}</span>${pre ? pjCountdown(g) : ""}${g.note ? `<span class="gc-note">${g.note}</span>` : ""}${PJA.simUrl ? `<a class="gc-sim" href="${esc(PJA.simUrl(g))}">Sim it ›</a>` : ""}</div>
       <div class="rows">${team(g.a, "a")}${team(g.h, "h")}</div>
       <div class="tug"><i style="width:${pa}%;background:${esc(g.a.color || "#556")}"></i><i style="width:${100 - pa}%;background:${esc(g.h.color || "#556")}"></i></div>
       ${g.stats && g.stats.length ? `<div class="gst">${g.stats.map(([l, v]) => `<div><i>${l}</i><b>${v}</b></div>`).join("")}</div>` : ""}
@@ -289,7 +286,7 @@ function pjHome() {
       <div class="hero-n"><div><b>${G.length}</b><i>games</i></div><div><b>${mkt}</b><i>with market lines</i></div><div><b class="${E.length ? "up" : ""}">${E.length}</b><i>model edges</i></div></div>
       <span class="hero-s">An edge is a price where the model's chance, blended with the market's, beats it by ${Math.round(100 * PJ_EDGE)}% or more.</span></section>`;
   const top = (PJA.top ? PJA.top() : []).slice(0, 6);
-  return bkStripHtml() + hero + pjTicker(live)
+  return hero + pjTicker(live)
     + (E.length ? `<div class="hd"><b>Top edges</b><span class="hd-s">Model vs market</span></div><div class="list">${E.slice(0, 8).map(pjEdgeRow).join("")}</div>` : "")
     + `<div class="hd"><b>${esc(PJA.gamesLabel || "Tonight's games")}</b><button data-go="games">All games</button></div><div class="gl">${G.filter(g => g.state !== "live").map(pjGameRow).join("")}</div>`
     + (top.length ? `<div class="hd"><b>${esc(PJA.topLabel || "Top projections")}</b><button data-go="players">All players</button></div><div class="list">${top.map(({p, mk}) => pjProjRow(p, mk)).join("")}</div>` : "")
@@ -345,7 +342,7 @@ function pjRender() {
   const b = document.body;
   [...b.classList].filter(c => c.startsWith("tab-")).forEach(c => b.classList.remove(c)); b.classList.add("tab-" + TAB);
   const v = document.getElementById("view");
-  const html = ({home: pjHome, games: pjGames, players: pjPlayers, bets: bkScreen, model: () => PJA.modelHtml ? PJA.modelHtml() : ""}[TAB] || pjHome)();
+  const html = ({home: pjHome, games: pjGames, players: pjPlayers, model: () => PJA.modelHtml ? PJA.modelHtml() : ""}[TAB] || pjHome)();
   if (html !== window.PJ_HTML || v.dataset.tab !== TAB) { window.PJ_HTML = html; v.dataset.tab = TAB; v.innerHTML = html; }
   v.querySelectorAll("[data-go]").forEach(x => x.onclick = () => pjGo(x.dataset.go));
   v.querySelectorAll("[data-gogame]").forEach(x => x.onclick = () => { PJ.open.add(String(x.dataset.gogame)); TAB = "games"; pjRender();
@@ -360,14 +357,10 @@ function pjRender() {
   v.querySelectorAll("[data-pjsearch]").forEach(x => x.onclick = () => { PJ.searching = !PJ.searching; if (!PJ.searching) PJ.q = ""; pjRender(); const i = document.getElementById("pjq"); if (i) i.focus(); });
   const q = document.getElementById("pjq");
   if (q) q.oninput = () => { PJ.q = q.value; const pos = q.selectionStart; pjRender(); const n = document.getElementById("pjq"); if (n) { n.focus(); n.setSelectionRange(pos, pos); } };
-  bkWire(v);
   if (TAB === "model" && PJA.modelWire) PJA.modelWire(pjRender);
   if (PJA.after) PJA.after(pjRender);
-  const c = document.getElementById("coin"); if (c) { const h = bkPill(); if (c.dataset.h !== h) { c.dataset.h = h; c.innerHTML = h; } }
-  bkBar();
   requestAnimationFrame(() => { const h = document.querySelector(".hdr"); if (h) { const hv = h.offsetHeight + "px"; if (window.PJ_HH !== hv) { window.PJ_HH = hv; document.documentElement.style.setProperty("--hdrh", hv); } } });
   const sp = document.getElementById("splash"); if (sp && !sp.classList.contains("out")) { sp.classList.add("out"); setTimeout(() => sp.remove(), 400); }
 }
 window.addEventListener("scroll", () => { const h = document.querySelector(".hdr"); if (h) h.classList.toggle("stuck", window.scrollY > 8); }, {passive: true});
 setInterval(() => { if (TAB === "home" && !document.getElementById("sheet").classList.contains("open")) pjRender(); }, 60e3);   // countdowns
-// My bets: live status for a leg in this page's league

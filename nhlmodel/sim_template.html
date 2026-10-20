@@ -320,8 +320,6 @@ const SIMX = {
         ${sxTable(["Skaters", "G", "A", "SOG", "Hit", "Blk", "FO", "TOI"], B.map(b => [esc(b.p.name), b.g, b.a, b.sog, b.hit, b.blk, b.fow + b.fol ? `${b.fow}-${b.fol}` : "–", b.toi ? `${Math.floor(b.toi / 60)}:${String(Math.round(b.toi % 60)).padStart(2, "0")}` : "–"]))}
         ${sxTable(["Goalie", "SA", "GA", "SV%", "Season"], [[esc(G.name), G.sa, G.ga, svp(G), G.season ? G.season.toFixed(3).replace(/^0/, "") : "–"]])}</div>`; }).join("");
   },
-  spreadName: "Puck line",
-  spreadLine: B => SIMX.pModel(B.a, B.h) >= .5 ? -1.5 : 1.5,
   frac(e) { const m = /(\d+):(\d+)/.exec(e.t || "") || [0, 0, 0], secs = +m[1] * 60 + +m[2], p = {P1: 1, P2: 2, P3: 3}[e.pl];
     return p ? ((3 - p) * 1200 + secs) / 3600 : e.pl === "OT" ? secs / 3600 * .5 : 0; },
   liveP(sim, e) {   // goals still to come at each side's expected rate; a tie after regulation is a coin flip
@@ -341,16 +339,6 @@ const SIMX = {
       return {mv: `${me} used ${mv}!`, eff: "But the goalie stopped it!"}; }
     if (/pull/.test(txt)) return {mv: `${me} used EXTRA ATTACKER!`, eff: ""};
     return null;
-  },
-  props(B) {   // the sportsbook's player props: likeliest scorers, top shooters, a point
-    const out = [];
-    for (const k of ["a", "h"]) {
-      const T = B.T[k], sk = T.sk.filter(p => p.lam), val = (d, n, i) => ((d.p[k + "|" + n] || [])[i] || 0);
-      [...sk].sort((x, y) => (L3(y).goals || 0) - (L3(x).goals || 0)).slice(0, 3).forEach((p, i) => out.push({id: `g_${k}${i}`, who: p.name, team: k, stat: "anytime goal", kind: "yes", get: d => val(d, p.name, 0)}));
-      [...sk].sort((x, y) => (L3(y).sog || 0) - (L3(x).sog || 0)).slice(0, 2).forEach((p, i) => out.push({id: `s_${k}${i}`, who: p.name, team: k, stat: "shots", kind: "ou", get: d => val(d, p.name, 2)}));
-      [...sk].sort((x, y) => (L3(y).points || 0) - (L3(x).points || 0)).slice(0, 1).forEach((p, i) => out.push({id: `pt_${k}${i}`, who: p.name, team: k, stat: "a point", kind: "yes", get: d => val(d, p.name, 0) + val(d, p.name, 1)}));
-    }
-    return out;
   },
   digest(sim) {
     const p = {}; for (const b of Object.values(sim.st.box)) p[b.k + "|" + b.p.name] = [b.g, b.a, b.sog];

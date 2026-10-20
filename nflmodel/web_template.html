@@ -26,7 +26,7 @@
     <button class="iconbtn" id="infoBtn" aria-label="How it works">?</button></div></div>
   <div class="strip" id="strip"></div>
   <div id="view"></div>
-  <div class="foot">Data from nflverse &amp; ESPN · play coins only, no real money</div>
+  <div class="foot">Data from nflverse &amp; ESPN · odds from DraftKings &amp; FanDuel · for information only</div>
 </div>
 <nav class="nav"><div class="in" id="nav"></div></nav>
 <div class="scrim" id="scrim"></div>
@@ -69,7 +69,7 @@ async function loadLive() {
     }
   } catch (e) {}
 }
-// box scores (ESPN game summary) for games with open prop bets: drives the sweat and grades NFL props at the final
+// box scores (ESPN game summary) for games under way or just finished: each player's live stats
 const NBOX = {};
 const nrm = s => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\b(jr|sr|ii|iii|iv)\b/g, "").replace(/[^a-z]/g, "");
 async function loadBoxes() {
