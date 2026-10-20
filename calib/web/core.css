@@ -1,3 +1,4 @@
+@font-face { font-family: "Plus Jakarta Sans"; font-style: normal; font-weight: 200 800; font-display: swap; src: url("pikt-sans.woff2") format("woff2"); }
 /* ================= PIKT · design system =================
    One stylesheet for the NHL, NFL and NBA pages. Flat dark surfaces, one accent (mint) used only for selections and
    the main action, one typeface with tabular numbers, a standard bottom tab bar. */
@@ -770,3 +771,47 @@ body.pj .bk-tk.live .bk-tag { background: linear-gradient(180deg, #ff6fb4, #ff3d
 body.pj .bk-tk.won::before { background: linear-gradient(180deg, #4ee8ad, #22c58a); }
 body.pj .hero-n b.up { color: #c9ffe6 !important; text-shadow: 0 0 18px rgba(52,211,153,.6); }
 body.pj .list .pr, body.pj .pj-mini .pr { background: radial-gradient(70% 120% at 0% 0%, color-mix(in srgb, var(--tc, #556) 16%, transparent), transparent 70%); }
+
+/* ================= PIKT · polish =================
+   Plus Jakarta Sans throughout; one type scale (11 / 12.5 / 14 / 15 / 17 / 20 / 28); one radius family (cards 18, controls
+   12, pills round); colour only on the hero cards, team washes, picks and edges, no decorative glows. */
+:root { --fb: "Plus Jakarta Sans", "Inter", "SF Pro Text", system-ui, -apple-system, sans-serif; --fh: var(--fb); --fd: var(--fb); --px: var(--fb); --r: 18px; }
+body.pj { font-family: var(--fb); letter-spacing: 0; font-feature-settings: "tnum" 1; }
+body.pj b, body.pj strong { font-weight: 700; }
+/* headings: plain, confident */
+body.pj .hd b { padding-left: 0; font-size: 20px; font-weight: 800; letter-spacing: -.025em; } body.pj .hd b::before { display: none; }
+body.pj .hd .hd-s, body.pj .hd span { font-size: 12.5px; font-weight: 600; color: var(--t3); }
+/* small labels: quieter caps */
+body.pj .gst i, body.pj .tr-p i, body.pj .tr-w i, body.pj .hero-k, body.pj .gc-edge span, body.pj .bk-tag { letter-spacing: .06em; font-size: 10.5px; font-weight: 700; }
+/* no glows on controls */
+body.pj .sport a.on::after, body.pj .tabs button.on::after { box-shadow: none; }
+body.pj .nav button.on .ico, body.pj .chip.on, body.pj .seg button.on, body.pj .hv button.on, body.pj .xseg button.on { box-shadow: none; }
+body.pj .coin { box-shadow: none; border-color: var(--line2); }
+body.pj .tug i { box-shadow: none; }
+body.pj .px.edge { box-shadow: none; }
+body.pj .px.on, body.pj .bk-px.on { box-shadow: 0 4px 14px -6px rgba(245,200,75,.55); }
+body.pj .bk-bar { box-shadow: 0 12px 28px -12px rgba(0,0,0,.7); }
+body.pj .gc.islive { box-shadow: 0 0 0 1px rgba(255,79,163,.4), var(--lift); }
+body.pj .st-live { box-shadow: none; }
+body.pj .pav { box-shadow: 0 0 0 2px var(--tc, #556); }
+body.pj .hero-n b.up { text-shadow: none; }
+body.pj .mb-strip, body.pj .hero { box-shadow: 0 14px 32px -18px rgba(40,40,120,.9); }
+/* one radius family */
+body.pj .px, body.pj .bk-px, body.pj .er-ev, body.pj .gc-edge, body.pj .search { border-radius: 12px; }
+body.pj .seg, body.pj .hv, body.pj .xseg { border-radius: 14px; } body.pj .seg button, body.pj .hv button, body.pj .xseg button { border-radius: 10px; }
+/* numbers: tight, tabular */
+body.pj .px b, body.pj .bk-px b { font-size: 15px; font-weight: 700; letter-spacing: -.02em; }
+body.pj .tr-p b, body.pj .tr-w b { font-weight: 800; letter-spacing: -.03em; }
+body.pj .hero-n b, body.pj .mb-bal b { font-weight: 800; letter-spacing: -.04em; }
+/* top edges: the name gets the room; the edge sits inline */
+body.pj .er { grid-template-columns: 34px minmax(0, 1fr) 76px; gap: 12px; padding: 12px 14px; }
+body.pj .er-t b { font-size: 15px; font-weight: 700; }
+body.pj .er-t i { display: flex; align-items: center; gap: 7px; font-size: 12px; }
+body.pj .er-t .er-ev { flex: none; min-width: 0; padding: 2px 7px; border-radius: 6px; font-size: 11.5px; font-weight: 800; font-style: normal; box-shadow: none; }
+/* players */
+body.pj .pr::before { top: 16px; bottom: 16px; width: 2px; opacity: .8; }
+body.pj .pr-who b { font-size: 15px; font-weight: 700; }
+body.pj .pj-note2 { font-size: 12px; line-height: 1.5; }
+body.pj .gc b, body.pj .gr b, body.pj .pr b, body.pj .er b, body.pj .tm b { letter-spacing: -.005em; }
+body.pj .hd b { letter-spacing: -.02em; }
+body.pj, body.sim { word-spacing: .06em; }

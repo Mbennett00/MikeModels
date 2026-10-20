@@ -159,7 +159,7 @@ function sxBook() {
     return rows ? `<div class="bk-mk"><h4>${esc(g.name)} <span class="bk-tag">SIM-PRICED</span></h4>${rows}</div>` : "";
   }).join("");
   const mine = myBets(B.gid);
-  return `<section class="sx-card">${vs}<div class="bk-intro">A wild <b>${esc(T.a.name)}</b> team appears! The house simulated <b>${B.N.toLocaleString()} games</b> of this matchup to set every price. Your game will be a brand-new one.</div></section>
+  return `<section class="sx-card">${vs}<div class="bk-intro">Every price comes from <b>${B.N.toLocaleString()} simulated games</b> of this matchup. Yours will be a fresh one.</div></section>
     ${sxInjCard(T)}
     <div class="sx-h"><b>Odds board</b><span>Tap a price to add it</span></div>
     <section class="sx-card">${groups}</section>
@@ -257,7 +257,7 @@ function sxBattle(sim, e, n) {
   const mon = k => `<div class="bt-mon ${k} ${hitK === k ? "hit" : ""} ${hurtK === k ? "hurt" : ""}" style="--c:${esc(T[k].color)}"><div class="orb">${sxLogo(T[k])}</div>${last && last.side === k && !last.sc ? '<span class="bt-poss">★</span>' : ""}</div>`;
   const mv = last && SIMX.move ? SIMX.move(last, sim) : null;
   const text = last ? `<div class="bt-text ${last.sc ? "big" : ""}">${mv ? `<span class="mv">${esc(mv.mv)}</span>` : ""}<p>${last.text}</p>${mv && mv.eff ? `<span class="eff">${esc(mv.eff)}</span>` : ""}</div>`
-    : `<div class="bt-text"><span class="mv">A WILD ${esc(T.a.name.toUpperCase())} TEAM APPEARS!</span><p>${esc(SIMX.kickText)}…</p></div>`;
+    : `<div class="bt-text"><span class="mv">${esc(T.a.ab)} vs ${esc(T.h.ab)}</span><p>${esc(SIMX.kickText)}…</p></div>`;
   return `<div class="bt" style="--ca:${esc(T.a.color)};--ch:${esc(T.h.color)}"><span class="bt-clock">${esc(e ? `${e.pl} ${e.t}` : `${SIMX.startPl} ${SIMX.startClock}`)}</span>${card("a")}${mon("a")}${mon("h")}${card("h")}</div>${text}`;
 }
 function sxLive() {
@@ -277,7 +277,7 @@ function sxFinal() {
   const team = k => `<div class="t ${k} ${w && w !== k ? "l" : ""}">${sxLogo(T[k])}<b>${esc(T[k].ab)}</b><strong>${f[k]}</strong></div>`;
   const bets = SX.book && SX.book.gid === sim.gid ? myBets(sim.gid) : [];
   const net = bets.reduce((s, b) => s + (b.st === "won" ? b.pay - b.stake : b.st === "lost" ? -b.stake : 0), 0);
-  return `<section class="sx-card"><div class="sx-win"><div class="tro">${w ? "🏆" : "🤝"}</div><b>${w ? `${esc(T[w].name)} win!` : "It's a draw!"}</b><span>${esc(SIMX.finalLab(sim))}</span></div>
+  return `<section class="sx-card"><div class="sx-win"><b>${w ? `${esc(T[w].name)} win!` : "It's a draw!"}</b><span>${esc(SIMX.finalLab(sim))}</span></div>
       <div class="sx-fsc">${team("a")}<span class="m">FINAL</span>${team("h")}</div></section>
     ${bets.length ? `<div class="sx-h"><b>Your bets</b><span style="color:${net >= 0 ? "var(--leaf)" : "var(--berry)"};font-weight:700">${net >= 0 ? "+" : ""}${fmtC(net)} coins</span></div><section class="sx-card bk-bets">${bets.map(betRow).join("")}</section>` : ""}
     <div class="sx-seg sx-tabs">${tabs.map(([k, l]) => `<button class="${SX.tab === k ? "on" : ""}" data-tab="${k}">${l}</button>`).join("")}</div>

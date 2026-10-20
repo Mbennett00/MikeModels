@@ -1,3 +1,4 @@
+@font-face { font-family: "Plus Jakarta Sans"; font-style: normal; font-weight: 200 800; font-display: swap; src: url("pikt-sans.woff2") format("woff2"); }
 /* ---------- game simulators: a bright cartoon "monster battle" look (shared by the NFL and NHL sims) ---------- */
 body.sim {
   --ink: #050c2e; --bg: #0b1647; --s1: #13226a; --s2: #1a2d84; --s3: #22389a; --card: #13226a;
@@ -294,3 +295,16 @@ body.sim .bt-text .mv { color: #b3a6ff; } body.sim .bt-text.big .mv, body.sim .b
 body.sim .sx-g { background: radial-gradient(70% 120% at 0% 50%, color-mix(in srgb, var(--ca, #5b6cff) 26%, transparent), transparent 70%), radial-gradient(70% 120% at 100% 50%, color-mix(in srgb, var(--ch, #3d9bff) 26%, transparent), transparent 70%), var(--s1); }
 body.sim .sx-top3 { background: radial-gradient(90% 70% at 50% 0%, color-mix(in srgb, var(--c, #5b6cff) 30%, transparent), transparent 70%), var(--s1); }
 body.sim .sx-r.sc { background: linear-gradient(90deg, rgba(52,211,153,.14), transparent); }
+/* ---------- polish: Plus Jakarta Sans, no decorative glows ---------- */
+body.sim { --fb: "Plus Jakarta Sans", "Inter", "SF Pro Text", system-ui, -apple-system, sans-serif; --px: var(--fb); letter-spacing: 0; }
+body.sim b, body.sim strong { font-weight: 700; }
+body.sim .sx-h b { font-size: 20px; font-weight: 800; letter-spacing: -.025em; }
+body.sim .sx-seg button.on, body.sim .bk-modes button.on, body.sim .bk-px.on { box-shadow: none; }
+body.sim .sx-btn { box-shadow: 0 10px 24px -14px rgba(245,200,75,.7); }
+body.sim .bt-hp div i { box-shadow: none; }
+body.sim .sx-win { padding: 22px 14px 18px; } body.sim .sx-win b { margin-top: 0; font-size: 24px; font-weight: 800; letter-spacing: -.03em; }
+body.sim .sx-win span { font-size: 11px; font-weight: 700; letter-spacing: .08em; }
+body.sim .bk-intro { font-size: 13.5px; font-weight: 500; }
+body.sim .sx-note { font-size: 12px; color: var(--t3); }
+body.sim .bt-text .mv { letter-spacing: .06em; }
+body.sim { word-spacing: .06em; }

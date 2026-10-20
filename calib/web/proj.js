@@ -228,8 +228,7 @@ function pjAllEdges() {
 }
 function pjEdgeRow(e) {
   const tap = e.p ? `data-player="${esc(e.p.id)}"` : `data-gogame="${esc(e.g.id)}"`;
-  return `<div class="er" ${tap}>${bkArt(e.x, "sm")}<span class="er-t"><b>${esc(e.x.pick)}</b><i>${esc(e.x.game)} · Model ${pjPct(e.mp)}</i></span>
-    <span class="er-ev">${pjEvTxt(e.ev)}</span>${bkBtn(e.x)}</div>`;
+  return `<div class="er" ${tap}>${bkArt(e.x, "sm")}<span class="er-t"><b>${esc(e.x.pick)}</b><i><em class="er-ev">${pjEvTxt(e.ev)}</em>${esc(e.x.game)}</i></span>${bkBtn(e.x)}</div>`;
 }
 function pjMarkets(g) {
   if (g.state !== "pre" && g.state !== "live") return "";
