@@ -71,7 +71,7 @@ for c in calls:
         import time; time.sleep(6)                                 # free tier: 12 requests a minute
         body = r.text.replace(key, "***") if key else r.text
         hdr = {k: v for k, v in r.headers.items() if re.search(r"rate|limit|remaining|access-control|cache", k, re.I)}
-        log(f"### CALL {c['url']} -> {r.status_code} {json.dumps(hdr)}\n{body[:15000]}")
+        log(f"### CALL {c['url']} -> {r.status_code} {json.dumps(hdr)}\n{body[:60000]}")
     except Exception as e:
         log(f"### CALL {c['url']} ERR {e}")
 
