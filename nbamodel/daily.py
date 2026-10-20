@@ -181,9 +181,11 @@ def install_page(web: str):
     """Copy the NBA page next to the others (the NHL build calls this too, so no page drops another)."""
     from calib.webassets import install as _install
     _install(os.path.join(HERE, "web_template.html"), os.path.join(web, "nba.html"))
-    src = os.path.join(os.path.dirname(web), "nba.json")
-    if os.path.exists(src) and os.path.abspath(src) != os.path.abspath(os.path.join(web, "nba.json")):
-        shutil.copy(src, os.path.join(web, "nba.json"))
+    _install(os.path.join(HERE, "sim_template.html"), os.path.join(web, "nbasim.html"))   # the game simulator
+    for name in ("nba.json", "nba_sim.json"):
+        src = os.path.join(os.path.dirname(web), name)
+        if os.path.exists(src) and os.path.abspath(src) != os.path.abspath(os.path.join(web, name)):
+            shutil.copy(src, os.path.join(web, name))
 
 
 if __name__ == "__main__":

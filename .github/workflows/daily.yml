@@ -103,14 +103,15 @@ jobs:
         run: |
           python -m calib.odds 2>&1 | tee odds.log
           grep '^odds:' odds.log | while read -r l; do echo "::notice title=Odds::$l"; done
-      - name: Sim data (league, team and player profiles for the NFL and NHL game simulators)
+      - name: Sim data (league, team and player profiles for the NFL, NHL and NBA game simulators)
         if: always() && steps.pull.outcome == 'success'
         continue-on-error: true
         run: |
           python -m nflmodel.simdata 2>&1 | tee sim.log || true
           python -m nhlmodel.simdata 2>&1 | tee -a sim.log || true
-          if [ -d state/site/web ]; then cp -f state/site/nfl_sim.json state/site/nhl_sim.json state/site/web/ 2>/dev/null || true; fi
-          grep -E '^(nfl|nhl) sim:' sim.log | while read -r l; do echo "::notice title=Sim data::$l"; done
+          python -m nbamodel.simdata 2>&1 | tee -a sim.log || true
+          if [ -d state/site/web ]; then cp -f state/site/nfl_sim.json state/site/nhl_sim.json state/site/nba_sim.json state/site/web/ 2>/dev/null || true; fi
+          grep -E '^(nfl|nhl|nba) sim:' sim.log | while read -r l; do echo "::notice title=Sim data::$l"; done
       - name: Upload state
         # also after a failure, so checkpointed games from a long first load are kept
         if: always() && steps.pull.outcome == 'success'

@@ -219,6 +219,7 @@ PJA = {
     for (const L of [0.5, 1.5, 2.5, 3.5]) if (p.fg3 >= 0.3 || L < 1) out.push([`${L + 0.5}+ threes`, pStat(p, "fg3", L), {stat: "fg3", n: L + 0.5}]);
     const pra = p.pts + p.reb + p.ast; for (const L of near(pra, 5, 10)) out.push([`${L + 0.5}+ PRA`, pStat(p, "pra", L), {stat: "pra", n: L + 0.5}]);
     return out; },
+  simUrl: g => `nbasim.html?away=${encodeURIComponent(g.a.abbr)}&home=${encodeURIComponent(g.h.abbr)}`,
   ctx: gid => { const g = D.games.find(x => String(x.game_id) === String(gid)); if (!g) return null;
     return {sport: "NBA", espnIds: true, game: `${g.away.abbr} @ ${g.home.abbr}`, start: g.start_utc, open: !scoreOf(g) && new Date(g.start_utc) > Date.now(),
       ev: {date: bkEvDate(g.start_utc), home: g.home.abbr, away: g.away.abbr, id: String(g.game_id)}}; },

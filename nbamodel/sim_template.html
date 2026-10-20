@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f1c58">
+<title>Pikt · NBA game sim</title>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+/*CALIB_CSS*/
+/*SIM_CSS*/
+/* ---------- the court ---------- */
+.court { position: relative; height: 96px; margin: 0 14px 14px; border-radius: 22px; overflow: hidden; border: 3px solid var(--ink);
+  background: repeating-linear-gradient(90deg, #e9b77c 0 14px, #e3ad70 14px 28px); }
+.court .mid { position: absolute; top: 0; bottom: 0; left: 50%; width: 2px; margin-left: -1px; background: rgba(255,255,255,.75); }
+.court .cc { position: absolute; top: 50%; left: 50%; width: 26px; height: 26px; margin: -13px; border-radius: 50%; border: 2px solid rgba(255,255,255,.75); }
+.court .key { position: absolute; top: 33%; bottom: 33%; width: 19%; background: rgba(var(--kc, 30,60,160), .28); border: 2px solid rgba(255,255,255,.75); }
+.court .key.l { left: 0; border-left: 0; } .court .key.r { right: 0; border-right: 0; }
+.court .arc { position: absolute; top: 6%; bottom: 6%; width: 30%; border: 2px solid rgba(255,255,255,.75); }
+.court .arc.l { left: -8%; border-radius: 0 50% 50% 0; } .court .arc.r { right: -8%; border-radius: 50% 0 0 50%; }
+.court .rim { position: absolute; top: 50%; width: 9px; height: 9px; margin-top: -4.5px; border-radius: 50%; border: 2px solid #ff6a2b; }
+.court .zn { position: absolute; top: 4px; font-size: 9px; font-weight: 700; letter-spacing: .08em; color: rgba(60,30,10,.5); }
+.court .dot { position: absolute; width: 9px; height: 9px; margin: -4.5px; border-radius: 50%; border: 2px solid var(--ink); }
+.court .dot.miss { background: transparent !important; border-color: rgba(40,20,10,.55); opacity: .7; }
+.court .dot.now { box-shadow: 0 0 0 3px rgba(255,255,255,.95), 0 1px 4px rgba(0,0,0,.3); animation: pk .9s ease-out; }
+@keyframes pk { from { transform: scale(2.3); } to { transform: scale(1); } }
+</style>
+</head>
+<body class="sim">
+<div class="wrap">
+  <div class="hdr"><div class="sx-top"><a href="nba.html" id="back"></a><b>Game sim</b><img class="mlogo" src="pikt-wordmark.png" alt="Pikt"></div></div>
+  <div id="view"><div class="empty"><div class="t">Loading teams…</div></div></div>
+</div>
+<script>
+/*SIM_JS*/
+$("#back").innerHTML = ICON.back + "NBA";
+let D = null, SDH = null;
+const TEAMS = {}, TM = {}, CALK = {}, SIM_VER = "1|";   // bump when the engine changes so saved tunings are redone
+// league numbers: replaced by nba_sim.json (built from the full box scores of the most recent ~500 games)
+let LG = {pace: 99.5, tov: .135, stl_share: .52, fga: .86, three: .40, ftr: .27, fg2: .54, fg3: .36, ft: .78, orb: .245, ast: .62, blk: .2, pf: .19};
+const Q_LEN = 720, OT_LEN = 300;
+
+// ---------- teams: the model's projections plus each team's and player's box-score profile ----------
+function loadTeams() {
+  for (const g of D.games || []) for (const k of ["home", "away"]) {
+    const t = g[k], inj = (D.injuries || []).filter(x => x.team === t.abbr);
+    const listed = inj.filter(x => /^(out|doubt)/i.test(x.status || "")), out = new Set(listed.map(x => x.name));
+    const mine = (D.players || []).filter(p => p.team === t.abbr && !out.has(p.name) && !/^(out|doubt)/i.test(p.status || ""));
+    const fresh = mine.filter(p => sxInj(p.name) === "out");   // ruled out after the projection was made
+    // the scoring they take with them: their share of the team's projected points, at a fifth (others take the shots)
+    const share = fresh.reduce((x, p) => x + (p.pts || 0), 0) / (mine.reduce((x, p) => x + (p.pts || 0), 0) || 1), adj = 1 - .2 * share;
+    TEAMS[t.abbr] = {ab: t.abbr, name: t.name, full: `${t.city || ""} ${t.name}`.trim(), color: sxVis(t.color), logo: t.logo, roster: mine.filter(p => !fresh.includes(p)), adj,
+      inj: [...fresh.map(p => ({name: p.name, pos: p.pos, fresh: true})), ...listed.slice(0, 6).map(x => ({name: x.name, pos: ""}))],
+      adjTxt: share > .02 ? `sim −${(100 * .2 * share).toFixed(0)}% points` : "", injSig: fresh.map(p => p.name).join(",")};
+  }
+}
+const PX = id => (SDH && SDH.players && SDH.players[String(id)]) || null;
+function team(ab) {
+  if (TM[ab]) return TM[ab];
+  const T = TEAMS[ab], X = Object.assign({pace: 1, three: 1, ftr: 1, tov: 1, orb: 1, drb: 1, fg2: 1, fg3: 1, ast: 1, d_fg2: 1, d_fg3: 1, d_tov: 1, d_three: 1, d_ftr: 1, stl: 1, blk: 1}, (SDH && SDH.teams && SDH.teams[ab]) || {});
+  let ro = [...T.roster].filter(p => (p.min || 0) > 4).sort((x, y) => y.min - x.min).slice(0, 13);
+  for (let i = ro.length; i < 9; i++) ro.push({name: `${ab} bench ${i - ro.length + 1}`, min: 12, pts: 4.5, reb: 2.2, ast: 1, fg3: .4, gen: true});
+  const sc = 240 / ro.reduce((s, p) => s + p.min, 0);   // minutes add up to the game
+  const pl = ro.map((p, i) => {
+    const x = PX(p.id), m = Math.min(42, p.min * sc), per = v => v / Math.max(6, p.min) * 36;
+    // per 36: his box-score rates where we have them, otherwise worked out from the projection
+    const pts36 = per(p.pts || 0), fg3m36 = per(p.fg3 || 0);
+    const r = x ? {f2a: x.f2a, f3a: x.f3a, fta: x.fta, fg2: x.fg2, fg3: x.fg3, ft: x.ft, oreb: x.oreb, dreb: x.dreb, ast: x.ast, tov: x.tov, stl: x.stl, blk: x.blk, pf: x.pf}
+      : (() => { const f3a = fg3m36 / LG.fg3, fta = .22 * pts36, f2a = Math.max(1, (pts36 - 3 * fg3m36 - LG.ft * fta) / (2 * LG.fg2));
+          return {f2a, f3a, fta, fg2: LG.fg2, fg3: LG.fg3, ft: LG.ft, oreb: per(p.reb || 0) * .24, dreb: per(p.reb || 0) * .76, ast: per(p.ast || 0), tov: .09 * (f2a + f3a + .44 * fta) + .25 * per(p.ast || 0), stl: .9, blk: .5, pf: 2.6}; })();
+    const fga = (r.f2a || 0) + (r.f3a || 0);
+    return Object.assign({}, p, r, {k: i, tgt: m, start: i < 5, gen: !!p.gen, use: (fga + .44 * (r.fta || 0) + (r.tov || 0)) / 36, s3: fga ? (r.f3a || 0) / fga : .35,
+      ftr: fga ? (r.fta || 0) / fga : .25, proj: {pts: p.pts, reb: p.reb, ast: p.ast, fg3: p.fg3}});
+  });
+  return TM[ab] = Object.assign({}, T, {pl, x: X});
+}
+const gameOf = (a, h) => (D.games || []).find(x => x.home.abbr === h && x.away.abbr === a);
+const Phi = z => { const t = 1 / (1 + .2316419 * Math.abs(z)), d = .3989423 * Math.exp(-z * z / 2), p = d * t * (.3193815 + t * (-.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274)))); return z > 0 ? 1 - p : p; };
+function expected(a, h) {   // the model's points, less anyone ruled out since the projection
+  const g = gameOf(a, h), lp = (D.meta.model || {}).league_pts || 112;
+  if (g) return [g.pts_away * TEAMS[a].adj, g.pts_home * TEAMS[h].adj];
+  return [lp * TEAMS[a].adj, lp * TEAMS[h].adj];
+}
+function pModel(a, h) {
+  const g = gameOf(a, h);
+  if (g && g.p_home != null && TEAMS[a].adj === 1 && TEAMS[h].adj === 1) return g.p_home;
+  const [ea, eh] = expected(a, h), sd = (g && g.sd_margin) || (D.meta.model || {}).sd_margin || 13.5;
+  return Phi((eh - ea) / sd);
+}
+// tune each team's shooting and each player's shot share, boards and assists until the averages match the model:
+// team points for this matchup, and each player's projected points, rebounds and assists
+function prepare(a, h) {
+  const key = a + "|" + h; if (CALK[key]) return CALK[key];
+  const ver = SIM_VER + (D.meta.generated_at || D.meta.date) + (SDH ? SDH.built : "") + TEAMS[a].injSig + "|" + TEAMS[h].injSig;
+  const saved = sxCalGet("nba", ver, key); if (saved) return CALK[key] = saved;
+  const [ea, eh] = expected(a, h), E = {a: ea, h: eh}, T = {a: team(a), h: team(h)};
+  let c = {a: {eff: 1, mu: {}, mr: {}, ma: {}}, h: {eff: 1, mu: {}, mr: {}, ma: {}}};
+  for (const n of [150, 300, 500]) {
+    CALK[key] = c; const pts = {a: 0, h: 0}, P = {};
+    for (let i = 0; i < n; i++) { const s = simulate(a, h, true);
+      for (const k of ["a", "h"]) pts[k] += s.st.score[k];
+      for (const b of Object.values(s.st.box)) { const q = P[b.k + "|" + b.p.name] || (P[b.k + "|" + b.p.name] = [0, 0, 0]); q[0] += b.pts; q[1] += b.oreb + b.dreb; q[2] += b.ast; } }
+    const nc = {};
+    for (const k of ["a", "h"]) {
+      nc[k] = {eff: clamp(c[k].eff * Math.pow(E[k] / Math.max(60, pts[k] / n), 1.1), .75, 1.35), mu: {}, mr: {}, ma: {}};
+      // each player's share of what the projected players produce, against his share of their projections (the
+      // projections needn't add up to the team's total; team points are tuned above)
+      const L = T[k].pl.filter(p => !p.gen), q = p => P[k + "|" + p.name] || [0, 0, 0];
+      for (const [i, key, m] of [[0, "pts", "mu"], [1, "reb", "mr"], [2, "ast", "ma"]]) {
+        const pr = L.reduce((s, p) => s + (p.proj[key] || 0), 0), sm = L.reduce((s, p) => s + q(p)[i], 0) / n;
+        for (const p of T[k].pl) { const prev = c[k][m][p.name] ?? 1;
+          nc[k][m][p.name] = p.gen || !p.proj[key] || !pr ? prev : clamp(prev * Math.pow((p.proj[key] / pr * sm) / Math.max(.3, q(p)[i] / n), .9), .3, 3.5); }
+        const avg = T[k].pl.reduce((s, p) => s + nc[k][m][p.name], 0) / T[k].pl.length;   // keep them centred on 1
+        for (const p of T[k].pl) nc[k][m][p.name] /= avg;
+      }
+    }
+    c = nc;
+  }
+  for (const n of [400, 400]) {   // last passes: team shooting only, now the shot shares have settled
+    CALK[key] = c; const pts = {a: 0, h: 0};
+    for (let i = 0; i < n; i++) { const s = simulate(a, h, true); pts.a += s.st.score.a; pts.h += s.st.score.h; }
+    for (const k of ["a", "h"]) c[k].eff = clamp(c[k].eff * Math.pow(E[k] / Math.max(60, pts[k] / n), 1.1), .75, 1.35);
+  }
+  sxCalPut("nba", ver, key, c);
+  return CALK[key] = c;
+}
+
+// ---------- the engine: possession by possession ----------
+// Each team gets the number of possessions the two teams' paces give; on each one the ball is turned over (at the two
+// teams' turnover and forcing rates, a steal at their steal rates) or someone on the floor shoots: who, by usage and
+// shot share; a two or a three by his own mix against what this defence allows; in by his own shooting against what
+// this defence allows; fouled by his free-throw rate. Misses are blocked or rebounded at each team's board rates,
+// makes assisted at each team's rate by whoever on the floor passes most. Five play at a time, rotated so minutes
+// come out at the projections; fouls add up to bonus free throws and foul-outs; trailing teams foul late.
+function simulate(a, h, Q) {
+  const S = {a: team(a), h: team(h)}, C = CALK[a + "|" + h] || {a: {eff: 1, mu: {}, mr: {}, ma: {}}, h: {eff: 1, mu: {}, mr: {}, ma: {}}};
+  const opp = k => k === "a" ? "h" : "a", ts = () => ({fgm: 0, fga: 0, tpm: 0, tpa: 0, ftm: 0, fta: 0, oreb: 0, dreb: 0, ast: 0, tov: 0, stl: 0, blk: 0, pf: 0, paint: 0, sec: 0, lead: 0});
+  const st = {score: {a: 0, h: 0}, qp: {a: [], h: []}, per: 1, team: {a: ts(), h: ts()}, box: {}, fouls: {a: 0, h: 0}, runs: [], ties: 0, changes: 0};
+  const ev = [], X = {a: S.a.x, h: S.h.x};
+  const pb = (k, p) => st.box[k + "|" + p.name] || (st.box[k + "|" + p.name] = {k, p, sec: 0, pts: 0, fgm: 0, fga: 0, tpm: 0, tpa: 0, ftm: 0, fta: 0, oreb: 0, dreb: 0, ast: 0, tov: 0, stl: 0, blk: 0, pf: 0, pm: 0});
+  const mu = (k, p) => C[k].mu[p.name] ?? 1, mr = (k, p) => C[k].mr[p.name] ?? 1, ma = (k, p) => C[k].ma[p.name] ?? 1;
+  let left = Q_LEN, on = {a: [], h: []}, lastSub = {a: 0, h: 0}, lastLead = 0;
+  const clk = () => `${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, "0")}`;
+  const pl = () => st.per <= 4 ? `Q${st.per}` : st.per === 5 ? "OT" : `${st.per - 4}OT`;
+  const say = (o, f) => { if (Q) return; ev.push(Object.assign({pl: pl(), t: clk(), score: {...st.score}, fg: {a: [st.team.a.fgm, st.team.a.fga], h: [st.team.h.fgm, st.team.h.fga]}, fouls: {...st.fouls}}, o, {text: f()})); };
+  // rotation: whoever is furthest behind his projected minutes plays; starters open each half; close games go to the starters
+  function rotate(k, force) {
+    const T = S[k], gq = (st.per <= 4 ? Q_LEN : OT_LEN) - left, frac = Math.min(1, (Math.min(st.per, 5) - 1) * Q_LEN / 2880 + gq / 2880), margin = Math.abs(st.score.a - st.score.h);
+    const ok = T.pl.filter(p => pb(k, p).pf < 6);
+    let five;
+    if (force === "start") five = ok.filter(p => p.start).slice(0, 5);
+    else if ((st.per >= 4 && left < 300 && margin <= 10) || st.per > 4) five = [...ok].sort((x, y) => y.tgt - x.tgt).slice(0, 5);
+    else if (st.per === 4 && left < 360 && margin > 20) five = [...ok].sort((x, y) => x.tgt - y.tgt).slice(0, 5);
+    else five = [...ok].sort((x, y) => (y.tgt * frac * 60 - pb(k, y).sec + (on[k].includes(y) ? 25 : 0)) - (x.tgt * frac * 60 - pb(k, x).sec + (on[k].includes(x) ? 25 : 0))).slice(0, 5);
+    while (five.length < 5 && five.length < ok.length) five.push(ok.find(p => !five.includes(p)));
+    on[k] = five; lastSub[k] = gq;
+  }
+  const pickOn = (k, w, not) => { const L = on[k].filter(p => p !== not); return pick(L, L.map(w)); };
+  // where a shot comes from on the court: away attacks the right-hand basket, home the left
+  const spot = (k, three, rim) => { const d = three ? 23.8 + R() * 3 : rim ? R() * 5 : 8 + R() * 13, ang = (R() - .5) * (three ? 2.6 : 2.2), ax = d * Math.cos(ang), ay = d * Math.sin(ang);
+    return {x: k === "a" ? clamp(94.5 - ax * .95, 52, 97) : clamp(5.5 + ax * .95, 3, 48), y: clamp(50 + (k === "a" ? ay : -ay) * 1.9, 6, 94)}; };
+  function freeThrows(k, shooter, n, why) {
+    let made = 0; const T = st.team[k], b = pb(k, shooter);
+    for (let i = 0; i < n; i++) { T.fta++; b.fta++; if (R() < clamp(shooter.ft || LG.ft, .4, .96)) { made++; T.ftm++; b.ftm++; b.pts++; st.score[k]++; on[k].forEach(p => pb(k, p).pm++); on[opp(k)].forEach(p => pb(opp(k), p).pm--); } }
+    if (made) say({kind: "ft", side: k, sc: true}, () => `${esc(lastName(shooter.name))} ${made} of ${n} at the line${why ? ` (${why})` : ""}`);
+    else say({kind: "ft", side: k}, () => `${esc(lastName(shooter.name))} misses both at the line`);
+    return made === n;   // the last one in: the other team's ball; a miss can be rebounded
+  }
+  function score(k, n) { st.score[k] += n; on[k].forEach(p => pb(k, p).pm += n); on[opp(k)].forEach(p => pb(opp(k), p).pm -= n);
+    const lead = st.score.h - st.score.a; if (Math.sign(lead) !== Math.sign(lastLead) && lastLead !== 0 && lead !== 0) st.changes++; if (lead === 0) st.ties++; if (lead !== 0) lastLead = lead;
+    for (const s of ["a", "h"]) st.team[s].lead = Math.max(st.team[s].lead, st.score[s] - st.score[opp(s)]); }
+  // one possession for side k: returns the seconds it took
+  function possession(k, secs) {
+    const o = opp(k), Tk = st.team[k], To = st.team[o], x = X[k], y = X[o];
+    const late = st.per >= 4 && left <= 45, diff = st.score[k] - st.score[o];
+    if (late && diff > 0 && diff <= 8 && R() < .7) {   // trailing team fouls to stop the clock
+      const fouler = pickOn(o, p => (p.pf || 2.5) + 1), sh = pickOn(k, p => (p.ft || LG.ft) * 2 + p.use * 10);
+      pb(o, fouler).pf++; To.pf++; st.fouls[o]++;
+      say({kind: "pen", side: o}, () => `${esc(lastName(fouler.name))} fouls ${esc(lastName(sh.name))} intentionally`);
+      freeThrows(k, sh, 2, "intentional foul"); return Math.min(secs, 4);
+    }
+    for (let second = 0; second < 3; second++) {   // up to three chances (offensive rebounds)
+      if (R() < LG.tov * x.tov * y.d_tov) {   // turnover
+        const who = pickOn(k, p => (p.tov || 1.5) + .2); pb(k, who).tov++; Tk.tov++;
+        if (R() < LG.stl_share * y.stl) { const thief = pickOn(o, p => (p.stl || .8) + .1); pb(o, thief).stl++; To.stl++;
+          say({kind: "to", side: k, to: true}, () => `${esc(lastName(thief.name))} <b>steals it</b> from ${esc(lastName(who.name))}`); }
+        else say({kind: "to", side: k, to: true}, () => `Turnover · ${esc(lastName(who.name))} ${pick(["throws it away", "travels", "steps out of bounds", "offensive foul", "loses the handle", "shot-clock violation"], [4, 2, 1, 2, 3, 1])}`);
+        return secs;
+      }
+      if (R() < LG.pf * .32) {   // a foul away from the shot: free throws in the bonus
+        const fouler = pickOn(o, p => (p.pf || 2.5) + .5), b = pb(o, fouler); b.pf++; To.pf++; st.fouls[o]++;
+        if (b.pf >= 6) { say({kind: "pen", side: o, to: true}, () => `${esc(fouler.name)} fouls out`); rotate(o); }
+        if (st.fouls[o] >= 5) { const sh = pickOn(k, p => (p.fta || 2) * mu(k, p)); if (!freeThrows(k, sh, 2, "bonus")) { if (R() < .14) { const r = pickOn(k, p => (p.oreb || 1) * mr(k, p)); pb(k, r).oreb++; Tk.oreb++; continue; } const r = pickOn(o, p => (p.dreb || 3) * mr(o, p)); pb(o, r).dreb++; To.dreb++; } return secs; }
+      }
+      const sh = pickOn(k, p => p.use * mu(k, p)), b = pb(k, sh);
+      const three = R() < clamp(sh.s3 * y.d_three, 0, .95), rim = !three && R() < .55;
+      const pct = clamp((three ? (sh.fg3 || LG.fg3) * y.d_fg3 : (sh.fg2 || LG.fg2) * y.d_fg2 * (rim ? 1.12 : .82)) * C[k].eff, .05, .85);
+      const pos = spot(k, three, rim);
+      if (R() < clamp(sh.ftr * .33 * y.d_ftr, 0, .35)) {   // fouled on the shot
+        const fouler = pickOn(o, p => (p.pf || 2.5) + .5), fb = pb(o, fouler); fb.pf++; To.pf++; st.fouls[o]++;
+        if (R() < pct * .4) {   // and one
+          Tk.fgm++; Tk.fga++; b.fgm++; b.fga++; if (three) { Tk.tpm++; Tk.tpa++; b.tpm++; b.tpa++; } if (rim) Tk.paint += 2;
+          b.pts += three ? 3 : 2; score(k, three ? 3 : 2);
+          say({kind: "score", side: k, sc: true, x: pos.x, y: pos.y, made: true}, () => `<b>${esc(sh.name)}</b> ${three ? "hits a three" : rim ? "scores at the rim" : "hits the jumper"} <b>and one!</b>`);
+          freeThrows(k, sh, 1, "and one");
+        } else freeThrows(k, sh, three ? 3 : 2, `fouled by ${lastName(fouler.name)}`);
+        if (fb.pf >= 6) { say({kind: "pen", side: o, to: true}, () => `${esc(fouler.name)} fouls out`); rotate(o); }
+        return secs;
+      }
+      Tk.fga++; b.fga++; if (three) { Tk.tpa++; b.tpa++; }
+      if (R() < pct) {
+        Tk.fgm++; b.fgm++; if (three) { Tk.tpm++; b.tpm++; } if (rim) Tk.paint += 2;
+        const n = three ? 3 : 2; b.pts += n; score(k, n);
+        let as = null;
+        if (R() < clamp((three ? .86 : .55) * x.ast, .2, .97)) { as = pickOn(k, p => ((p.ast || 1) + .1) * ma(k, p), sh); if (as) { pb(k, as).ast++; Tk.ast++; } }
+        const how = three ? pick(["drains a three", "splashes a three", "pulls up from deep", "hits from the corner"], [3, 2, 2, 1]) : rim ? pick(["lays it in", "throws it down", "finishes at the rim", "scores in the paint"], [3, 2, 2, 2]) : pick(["hits the jumper", "knocks down the mid-range", "fades away and hits"], [3, 2, 1]);
+        say({kind: "score", side: k, sc: true, x: pos.x, y: pos.y, made: true, three}, () => `<b>${esc(sh.name)}</b> ${how}${as ? ` (assist ${esc(lastName(as.name))})` : ""}`);
+        return secs;
+      }
+      // a miss: blocked, then the board
+      let blocked = null;
+      if (!three && R() < LG.blk * y.blk * (rim ? 1.6 : .5)) { blocked = pickOn(o, p => (p.blk || .4) + .05); pb(o, blocked).blk++; To.blk++; }
+      say({kind: "shot", side: k, x: pos.x, y: pos.y}, () => blocked ? `${esc(lastName(blocked.name))} <b>blocks</b> ${esc(lastName(sh.name))}` : `${esc(lastName(sh.name))} misses ${three ? "from three" : rim ? "at the rim" : "the jumper"}`);
+      const orb = LG.orb * x.orb / (LG.orb * x.orb + (1 - LG.orb) * y.drb);
+      if (R() < orb) { const r = pickOn(k, p => ((p.oreb || .8) + .1) * mr(k, p)); pb(k, r).oreb++; Tk.oreb++; secs += 4; continue; }
+      const r = pickOn(o, p => ((p.dreb || 3) + .2) * mr(o, p)); pb(o, r).dreb++; To.dreb++;
+      return secs;
+    }
+    return secs;
+  }
+  const poss48 = LG.pace * Math.sqrt(X.a.pace * X.h.pace), mean = 2880 / (2 * poss48);
+  say({kind: "sec"}, () => "Tip-off");
+  rotate("a", "start"); rotate("h", "start");
+  let off = R() < .5 ? "a" : "h", openQ = off;
+  while (true) {
+    const qlen = st.per <= 4 ? Q_LEN : OT_LEN, g = qlen - left;
+    for (const k of ["a", "h"]) if (g - lastSub[k] >= 150 || g < lastSub[k]) rotate(k);
+    let d = clamp(mean * (.45 + R() * 1.1), 4, 24);
+    if (left <= 24 && left > 0) d = Math.min(left, d);
+    const used = possession(off, d);
+    const t = Math.min(left, used);
+    left -= t;
+    for (const k of ["a", "h"]) for (const p of on[k]) pb(k, p).sec += t;
+    off = off === "a" ? "h" : "a";
+    if (left > 0) continue;
+    for (const k of ["a", "h"]) st.qp[k].push(st.score[k] - st.qp[k].reduce((s, v) => s + v, 0));
+    if (st.per < 4) { say({kind: "sec"}, () => `End of the ${["1st", "2nd", "3rd"][st.per - 1]} quarter`); st.per++; left = Q_LEN; st.fouls = {a: 0, h: 0};
+      off = st.per === 2 || st.per === 3 ? opp(openQ) : openQ; if (st.per === 3) { rotate("a", "start"); rotate("h", "start"); lastSub = {a: 0, h: 0}; } else lastSub = {a: -999, h: -999};
+      say({kind: "sec"}, () => `${["", "", "2nd", "3rd", "4th"][st.per]} quarter`); continue; }
+    if (st.score.a !== st.score.h) break;
+    st.per++; left = OT_LEN; st.fouls = {a: 0, h: 0}; lastSub = {a: -999, h: -999}; off = R() < .5 ? "a" : "h";
+    say({kind: "sec"}, () => `End of regulation · tied ${st.score.a}–${st.score.h} · overtime`);
+    if (st.per > 9) break;
+  }
+  say({kind: "sec"}, () => `Final${st.per > 4 ? ` · ${st.per === 5 ? "OT" : (st.per - 4) + "OT"}` : ""}`);
+  return {a, h, T: S, st, ev, final: {...st.score}, exp: expected(a, h)};
+}
+
+// ---------- screens ----------
+const pctS = (m, a) => a ? `${Math.round(100 * m / a)}%` : "–";
+const minS = s => `${Math.floor(s / 60)}`;
+const SIMX = {
+  dataUrl: "nba.json", extraUrl: "nba_sim.json", injPath: "basketball/nba", startPl: "Q1", startClock: "12:00", kickText: "Tip-off", otLabel: "Overtime", emptyText: "No NBA games on today's slate",
+  multiN: 1000, multiChunk: 20, marginBins: [[-99, -16], [-15, -8], [-7, -1], [1, 7], [8, 15], [16, 99]], marginEdge: 16, marginMid: "One-possession and close games in the middle",
+  note: "Teams on today's slate, built from the full box scores of the last ~500 NBA games plus the model's projections. The game is played possession by possession: each team gets the possessions the two paces give, the ball goes to whoever is on the floor by usage, twos and threes by each player's own mix and shooting against what this defence allows, free throws by his free-throw rate. Rebounds, assists, steals, blocks, fouls, bonus free throws, foul-outs and late intentional fouls all play out, five at a time, rotated so minutes come out at the projections. Each matchup is tuned so team points and each player's points, rebounds and assists average the model's numbers.",
+  fmt: v => v.toFixed(1), avgLabel: "Avg score",
+  init(d, x) { D = d; if (x && x.league) { SDH = x; LG = Object.assign({}, LG, x.league); } loadTeams(); },
+  teams: () => Object.keys(TEAMS).map(team).sort((x, y) => x.name.localeCompare(y.name)),
+  team, expected, pModel, prepare, simulate,
+  slate: () => (D.games || []).filter(g => g.state !== "post").map(g => ({a: team(g.away.abbr), h: team(g.home.abbr), pa: g.pts_away, ph: g.pts_home, pHome: pModel(g.away.abbr, g.home.abbr),
+    when: g.start_utc ? new Date(g.start_utc).toLocaleTimeString("en-US", {hour: "numeric", minute: "2-digit"}) : ""})),
+  slateLabel: () => "Today",
+  teamSub: (sim, e, k, final) => { if (!sim.st) return (TM[k] || {}).name || ""; const f = final ? [sim.st.team[k].fgm, sim.st.team[k].fga] : e && e.fg ? e.fg[k] : [0, 0]; return `FG ${f[0]}/${f[1]}`; },
+  finalLab: sim => sim.st.per > 4 ? `FINAL · ${sim.st.per === 5 ? "OT" : (sim.st.per - 4) + "OT"}` : "FINAL",
+  stage(sim, e, n) {
+    const T = sim.T, per = e ? e.pl : "Q1", dots = sim.ev.slice(0, n).filter(x => x.x != null && x.pl === per).slice(-18), cur = sim.ev[n - 1];
+    const f = e && e.fouls ? e.fouls : {a: 0, h: 0}, bonus = k => f[k === "a" ? "h" : "a"] >= 5;
+    return `<div class="sx-sit"><span>${["a", "h"].map(k => `${esc(T[k].ab)} fouls ${f[k]}${bonus(k) ? ' <span class="warn">bonus</span>' : ""}`).join(" · ")}</span><span>FG <b>${e && e.fg ? `${pctS(...e.fg.a)}–${pctS(...e.fg.h)}` : "–"}</b></span></div>
+      <div class="court"><span class="zn" style="left:4%">${esc(T.h.ab)}</span><span class="zn" style="right:4%">${esc(T.a.ab)}</span>
+        <i class="key l"></i><i class="key r"></i><i class="arc l"></i><i class="arc r"></i><i class="mid"></i><i class="cc"></i><i class="rim" style="left:4.5%"></i><i class="rim" style="right:4.5%"></i>
+        ${dots.map(d => `<i class="dot ${d.made ? "" : "miss"} ${d === cur ? "now" : ""}" style="left:${d.x}%;top:${d.y}%;background:${esc(T[d.side].color)}"></i>`).join("")}</div>`;
+  },
+  summary(sim) {
+    const {st, T} = sim, A = st.team.a, H = st.team.h, won = k => st.score[k] > st.score[k === "a" ? "h" : "a"];
+    const B = Object.values(st.box).filter(b => b.sec > 0);
+    const gs = b => b.pts + .4 * b.fgm - .7 * b.fga - .4 * (b.fta - b.ftm) + .7 * b.oreb + .3 * b.dreb + b.stl + .7 * b.ast + .7 * b.blk - .4 * b.pf - b.tov + (won(b.k) ? 1 : 0);
+    const tops = [...B].sort((x, y) => gs(y) - gs(x)).slice(0, 3).map((b, i) => ({label: ["Player of the game", "2nd star", "3rd star"][i], name: b.p.name, img: b.p.headshot, team: T[b.k],
+      line: `${b.pts} PTS · ${b.oreb + b.dreb} REB · ${b.ast} AST`}));
+    const heads = ["1", "2", "3", "4"].concat(st.qp.a.slice(4).map((_, i) => i ? `OT${i + 1}` : "OT"));
+    return sxTops(tops)
+      + `<div class="sx-h"><b>Scoring</b><span>Lead changes ${st.changes} · ties ${st.ties}</span></div>` + sxLineScore(sim, heads, {a: st.qp.a, h: st.qp.h})
+      + `<div class="sx-h"><b>Team stats</b><span>Model ${esc(T.a.ab)} ${sim.exp[0].toFixed(1)} – ${sim.exp[1].toFixed(1)} ${esc(T.h.ab)}</span></div>`
+      + sxCompare(sim, [["Field goals", A.fga ? A.fgm / A.fga : 0, H.fga ? H.fgm / H.fga : 0, true, `${A.fgm}/${A.fga}`, `${H.fgm}/${H.fga}`],
+        ["Threes", A.tpa ? A.tpm / A.tpa : 0, H.tpa ? H.tpm / H.tpa : 0, true, `${A.tpm}/${A.tpa}`, `${H.tpm}/${H.tpa}`],
+        ["Free throws", A.fta ? A.ftm / A.fta : 0, H.fta ? H.ftm / H.fta : 0, true, `${A.ftm}/${A.fta}`, `${H.ftm}/${H.fta}`],
+        ["Rebounds", A.oreb + A.dreb, H.oreb + H.dreb, true], ["Offensive boards", A.oreb, H.oreb, true], ["Assists", A.ast, H.ast, true],
+        ["Points in the paint", A.paint, H.paint, true], ["Steals", A.stl, H.stl, true], ["Blocks", A.blk, H.blk, true], ["Turnovers", A.tov, H.tov, false], ["Fouls", A.pf, H.pf, false],
+        ["Biggest lead", A.lead, H.lead, true]]);
+  },
+  box(sim) {
+    const {st, T} = sim;
+    return ["a", "h"].map(k => { const B = Object.values(st.box).filter(b => b.k === k && b.sec > 0).sort((x, y) => (y.p.start - x.p.start) || y.sec - x.sec);
+      return `<div class="sx-card" style="margin-top:12px;padding-bottom:6px">${sxHead(T[k])}
+        ${sxTable(["Player", "MIN", "PTS", "REB", "AST", "FG", "3PT", "FT", "STL", "BLK", "TO", "PF", "+/-"], B.map(b => [`${esc(lastName(b.p.name))}${b.p.start ? "" : ""}`, minS(b.sec), `<b>${b.pts}</b>`, b.oreb + b.dreb, b.ast,
+          `${b.fgm}-${b.fga}`, `${b.tpm}-${b.tpa}`, `${b.ftm}-${b.fta}`, b.stl, b.blk, b.tov, b.pf, b.pm > 0 ? `+${b.pm}` : b.pm]))}</div>`; }).join("");
+  },
+  frac(e) { const m = /(\d+):(\d+)/.exec(e.t || "") || [0, 0, 0], secs = +m[1] * 60 + +m[2], q = {Q1: 1, Q2: 2, Q3: 3, Q4: 4}[e.pl];
+    return q ? ((4 - q) * Q_LEN + secs) / 2880 : secs / 2880; },
+  liveP(sim, e) {   // the points still to come at each side's expected rate, with the model's spread of outcomes
+    const f = SIMX.frac(e), lead = e.score.h - e.score.a;
+    if (f <= 0) return lead > 0 ? 1 : lead < 0 ? 0 : .5;
+    const g = gameOf(sim.a, sim.h), sd = ((g && g.sd_margin) || 13.5) * Math.sqrt(f), mu = (sim.exp[1] - sim.exp[0]) * f;
+    return Phi((lead + mu) / Math.max(.5, sd));
+  },
+  type: T => { const x = T.x || {}; return (x.pace || 1) > 1.025 ? {n: "Speed", c: "#f97316"} : (x.three || 1) > 1.06 ? {n: "Splash", c: "#38bdf8"} : (x.d_fg2 || 1) < .975 ? {n: "Steel", c: "#64748b"} : (x.orb || 1) > 1.06 ? {n: "Rock", c: "#a16207"} : {n: "Normal", c: "#8b90a8"}; },
+  move(e, sim) {
+    const me = e.side && sim.T[e.side] ? sim.T[e.side].ab : "", txt = e.text || "";
+    if (e.kind === "score") return {mv: `${me} used ${/and one/.test(txt) ? "AND-ONE" : e.three ? "SPLASH THREE" : /throws it down/.test(txt) ? "SLAM DUNK" : /rim|lays|paint/.test(txt) ? "DRIVE" : "JUMPER"}!`, eff: "It's super effective!"};
+    if (e.kind === "shot") return /blocks/.test(txt) ? {mv: `${me} used DRIVE!`, eff: "But it was blocked!"} : {mv: `${me} used JUMPER!`, eff: "But it missed!"};
+    if (e.kind === "to") return {mv: /steals/.test(txt) ? `${me} got PICKPOCKETED!` : `${me} lost the ball!`, eff: ""};
+    if (e.kind === "ft") return {mv: `${me} used FREE THROW!`, eff: e.sc ? "It's super effective!" : "But it missed!"};
+    if (e.kind === "pen") return {mv: `${me} committed a foul!`, eff: ""};
+    return null;
+  },
+  props(B) {   // the sportsbook's player props: top scorers, rebounders, passers and shooters
+    const out = [];
+    for (const k of ["a", "h"]) {
+      const pl = B.T[k].pl.filter(p => !p.gen), val = (d, n, i) => ((d.p[k + "|" + n] || [])[i] || 0), top = (f, n) => [...pl].sort((x, y) => f(y) - f(x)).slice(0, n);
+      top(p => p.pts || 0, 3).forEach((p, i) => out.push({id: `pt_${k}${i}`, who: p.name, team: k, stat: "points", kind: "ou", get: d => val(d, p.name, 0)}));
+      top(p => p.reb || 0, 2).forEach((p, i) => out.push({id: `rb_${k}${i}`, who: p.name, team: k, stat: "rebounds", kind: "ou", get: d => val(d, p.name, 1)}));
+      top(p => p.ast || 0, 1).forEach((p, i) => out.push({id: `as_${k}${i}`, who: p.name, team: k, stat: "assists", kind: "ou", get: d => val(d, p.name, 2)}));
+      top(p => p.fg3 || 0, 1).forEach((p, i) => out.push({id: `th_${k}${i}`, who: p.name, team: k, stat: "threes", kind: "ou", get: d => val(d, p.name, 3)}));
+    }
+    return out;
+  },
+  digest(sim) {
+    const p = {}; for (const b of Object.values(sim.st.box)) p[b.k + "|" + b.p.name] = [b.pts, b.oreb + b.dreb, b.ast, b.tpm];
+    return {s: sim.final, ot: sim.st.per > 4, p};
+  },
+  multiPlayers(M) {
+    const rows = [], n = M.res.length;
+    for (const k of ["a", "h"]) { const T = M.T[k];
+      for (const p of T.pl.filter(p => !p.gen).sort((x, y) => (y.pts || 0) - (x.pts || 0)).slice(0, 5)) {
+        let s = [0, 0, 0, 0]; for (const d of M.res) { const v = d.p[k + "|" + p.name] || [0, 0, 0, 0]; v.forEach((x, i) => s[i] += x); }
+        const mute = v => `<span style="color:var(--t3);font-weight:500"> ${v}</span>`;
+        rows.push([`${esc(lastName(p.name))} <span style="color:var(--t3);font-weight:500">${esc(T.ab)}</span>`, `<b>${(s[0] / n).toFixed(1)}</b>${mute((p.pts || 0).toFixed(1))}`,
+          `<b>${(s[1] / n).toFixed(1)}</b>${mute((p.reb || 0).toFixed(1))}`, `<b>${(s[2] / n).toFixed(1)}</b>${mute((p.ast || 0).toFixed(1))}`, `<b>${(s[3] / n).toFixed(1)}</b>${mute((p.fg3 || 0).toFixed(1))}`]);
+      } }
+    if (!rows.length) return "";
+    return `<div class="sx-h"><b>Players: sim vs model</b><span>Sim, then model</span></div><div class="sx-card">${sxTable(["Player", "PTS", "REB", "AST", "3PM"], rows)}</div>`;
+  },
+};
+sxBoot();
+</script>
+</body>
+</html>
