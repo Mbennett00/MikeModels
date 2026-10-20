@@ -421,8 +421,9 @@ def merge_sharp(out: dict, sh: dict, log=print):
                                 "players": players, "bk": bk, "fair": v["fair"], "sharp_at": v["fetched_at"]}
         if v["games"]:
             L = (out.get("lines") or {}).setdefault(lg, {"fetched_at": now, "games": []})
-            have = {(nm(x.get("home")), nm(x.get("away"))) for x in L.get("games") or []}
-            add = [g for g in v["games"] if (nm(g["home"]), nm(g["away"])) not in have]
+            nick = lambda t: nm(str(t or "").split()[-1] if str(t or "").split() else "")   # "LA Kings" = "Los Angeles Kings"
+            have = {(nick(x.get("home")), nick(x.get("away"))) for x in L.get("games") or []}
+            add = [g for g in v["games"] if (nick(g["home"]), nick(g["away"])) not in have]
             L["games"] = (L.get("games") or []) + add
             if add:
                 log(f"odds: {lg} {len(add)} games priced from DraftKings + FanDuel (no consensus line yet)")

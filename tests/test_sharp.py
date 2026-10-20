@@ -41,15 +41,16 @@ def test_games_consensus():
 
 def test_merge_keeps_draftkings_rungs_and_adds_missing_games():
     out = {"props": {"NHL": {"book": "DraftKings", "players": {"nathanmackinnon": {"points|1.5": -110, "points|2.5": 285}}}},
-           "lines": {"NHL": {"games": [{"home": "Boston Bruins", "away": "Buffalo Sabres"}]}}}
+           "lines": {"NHL": {"games": [{"home": "Boston Bruins", "away": "Buffalo Sabres"}, {"home": "Washington Capitals", "away": "Los Angeles Kings"}]}}}
     sh = {"NHL": {"fetched_at": "t", "complete": True, "props": {"nathanmackinnon": {"points|1.5": -105, "points|3.5": 900}},
                   "bk": {"nathanmackinnon": {"points|3.5": "FD", "points|2.5": "FD"}}, "fair": {"nathanmackinnon": {"points|1.5": 0.49}},
-                  "games": [{"home": "New Jersey Devils", "away": "Colorado Avalanche"}, {"home": "Boston Bruins", "away": "Buffalo Sabres"}]}}
+                  "games": [{"home": "New Jersey Devils", "away": "Colorado Avalanche"}, {"home": "Boston Bruins", "away": "Buffalo Sabres"},
+                            {"home": "Washington Capitals", "away": "LA Kings"}]}}
     odds.merge_sharp(out, sh, log=lambda *_: None)
     P = out["props"]["NHL"]
     assert P["players"]["nathanmackinnon"] == {"points|1.5": -110, "points|2.5": 285, "points|3.5": 900}   # ESPN DraftKings wins
     assert P["bk"] == {"nathanmackinnon": {"points|3.5": "FD"}} and P["book"] == "DraftKings + FanDuel"
-    assert [g["home"] for g in out["lines"]["NHL"]["games"]] == ["Boston Bruins", "New Jersey Devils"]
+    assert [g["home"] for g in out["lines"]["NHL"]["games"]] == ["Boston Bruins", "Washington Capitals", "New Jersey Devils"]
 
 
 def test_misfiled_period_market_is_dropped():
