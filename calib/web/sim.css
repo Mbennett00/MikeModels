@@ -1,5 +1,5 @@
-@font-face { font-family: "Archivo"; font-style: normal; font-weight: 100 900; font-stretch: 62% 125%; font-display: swap; src: url("pikt-display.woff2") format("woff2"); }
-@font-face { font-family: "Plus Jakarta Sans"; font-style: normal; font-weight: 200 800; font-display: swap; src: url("pikt-sans.woff2") format("woff2"); }
+@font-face { font-family: "Lilita One"; font-style: normal; font-weight: 400; font-display: swap; src: url("pikt-display.woff2") format("woff2"); }
+@font-face { font-family: "Fredoka"; font-style: normal; font-weight: 300 700; font-display: swap; src: url("pikt-sans.woff2") format("woff2"); }
 /* ---------- game simulators: a bright cartoon "monster battle" look (shared by the NFL and NHL sims) ---------- */
 body.sim {
   --ink: #050c2e; --bg: #0b1647; --s1: #13226a; --s2: #1a2d84; --s3: #22389a; --card: #13226a;
@@ -317,3 +317,11 @@ body.sim .sx-win b, body.sim .bk-vs .t b, body.sim .bk-px b, body.sim .sx-btn, b
 body.sim .sx-h b { font-size: 22px; font-weight: 900; } body.sim .bt-sc strong { font-weight: 900; font-size: 30px; }
 body.sim .sx-fsc strong { font-weight: 900; } body.sim .sx-win b { font-weight: 900; font-size: 26px; }
 body.sim .bk-px b, body.sim .sx-gt b, body.sim .bt-nm b, body.sim .sx-btn { font-weight: 800; }
+/* ---------- cartoon type: Lilita One for headings, names, scores and odds; Fredoka for the rest ---------- */
+body.sim { --fb: "Fredoka", "Plus Jakarta Sans", system-ui, -apple-system, sans-serif; --px: var(--fb); --fdisp: "Lilita One", "Fredoka", system-ui, sans-serif; font-weight: 500; word-spacing: 0; letter-spacing: .005em; }
+body.sim b, body.sim strong { font-weight: 600; }
+body.sim .sx-h b, body.sim .sx-top b, body.sim .sx-gt b, body.sim .bt-nm b, body.sim .bt-sc strong, body.sim .bt-clock, body.sim .sx-fsc strong, body.sim .sx-fsc .t b,
+body.sim .sx-win b, body.sim .bk-vs .t b, body.sim .bk-px b, body.sim .sx-btn, body.sim .sx-coins, body.sim .sx-top3 b, body.sim .sx-kv b, body.sim .sx-mw strong, body.sim .sx-ls td.t, body.sim .bt-text .mv {
+  font-family: var(--fdisp); font-weight: 400; font-stretch: normal; font-synthesis: none; letter-spacing: .01em; }
+body.sim .sx-h b { font-size: 24px; } body.sim .bt-sc strong { font-size: 32px; } body.sim .sx-win b { font-size: 28px; }
+body.sim .bt-text .mv { font-size: 13px; letter-spacing: .04em; }

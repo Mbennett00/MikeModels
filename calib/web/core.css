@@ -1,5 +1,5 @@
-@font-face { font-family: "Archivo"; font-style: normal; font-weight: 100 900; font-stretch: 62% 125%; font-display: swap; src: url("pikt-display.woff2") format("woff2"); }
-@font-face { font-family: "Plus Jakarta Sans"; font-style: normal; font-weight: 200 800; font-display: swap; src: url("pikt-sans.woff2") format("woff2"); }
+@font-face { font-family: "Lilita One"; font-style: normal; font-weight: 400; font-display: swap; src: url("pikt-display.woff2") format("woff2"); }
+@font-face { font-family: "Fredoka"; font-style: normal; font-weight: 300 700; font-display: swap; src: url("pikt-sans.woff2") format("woff2"); }
 /* ================= PIKT · design system =================
    One stylesheet for the NHL, NFL and NBA pages. Flat dark surfaces, one accent (mint) used only for selections and
    the main action, one typeface with tabular numbers, a standard bottom tab bar. */
@@ -840,3 +840,23 @@ body.pj .nav button span { font-weight: 700; font-stretch: 100%; }
 body.pj .gst b { font-size: 15px; }
 body.pj .er-t b, body.pj .pr-who b { font-stretch: 96%; font-size: 15.5px; }
 body.pj .mk-t b { font-family: var(--fdisp); font-weight: 800; font-stretch: 104%; font-size: 14.5px; }
+
+/* ================= PIKT · cartoon type =================
+   Lilita One (chunky, rounded, cartoon) for everything read first; Fredoka (rounded, friendly) for the rest. Lilita
+   comes in one heavy weight, so it is never faux-bolded. */
+:root { --fb: "Fredoka", "Plus Jakarta Sans", system-ui, -apple-system, sans-serif; --fh: var(--fb); --fd: var(--fb); --px: var(--fb);
+  --fdisp: "Lilita One", "Fredoka", system-ui, sans-serif; }
+body.pj { font-family: var(--fb); font-weight: 500; letter-spacing: .005em; word-spacing: 0; }
+body.pj b, body.pj strong { font-weight: 600; }
+body.pj .hd b, body.pj .hx-h b, body.pj .sport a, body.pj .tabs button,
+body.pj .tm-n b, body.pj .tr-p b, body.pj .tr-w b, body.pj .tr strong, body.pj .er-t b, body.pj .pr-who b, body.pj .pr-pj b,
+body.pj .px b, body.pj .bk-px b, body.pj .hero-n b, body.pj .mb-bal b, body.pj .mb-st b, body.pj .coin b, body.pj .gst b, body.pj .ps-tile b, body.pj .mk-t b,
+body.pj .bk-tt, body.pj .bk-tko, body.pj .bk-tl b, body.pj .lg-sb, body.pj .bk-bar, body.pj .sheet h2, body.pj .sheet h3, body.pj .ps-h b, body.pj .gc-st, body.pj .st-time {
+  font-family: var(--fdisp); font-weight: 400; font-stretch: normal; font-synthesis: none; letter-spacing: .01em; }
+body.pj .hd b { font-size: 24px; letter-spacing: .01em; }
+body.pj .sport a { font-size: 18px; } body.pj .tabs button { font-size: 16px; }
+body.pj .tm-n b { font-size: 18px; } body.pj .er-t b, body.pj .pr-who b { font-size: 16.5px; }
+body.pj .tr-p b, body.pj .tr-w b { font-size: 21px; } body.pj .px b, body.pj .bk-px b { font-size: 17px; }
+body.pj .hero-n b { font-size: 36px; letter-spacing: 0; } body.pj .mb-bal b { font-size: 38px; letter-spacing: 0; }
+body.pj .nav button span { font-family: var(--fb); font-weight: 600; font-size: 11px; }
+body.pj .px i, body.pj .px em, body.pj .gst i, body.pj .tr-p i, body.pj .tr-w i { font-weight: 600; }
