@@ -1,0 +1,9 @@
+[
+ {"url": "https://api.sharpapi.io/api/v1/account", "headers": {"X-API-Key": "{KEY}"}},
+ {"url": "https://api.sharpapi.io/api/v1/leagues", "params": {"sport": "hockey"}},
+ {"url": "https://api.sharpapi.io/api/v1/odds", "headers": {"X-API-Key": "{KEY}"}, "params": {"league": "nhl", "market": "main", "is_live": "false", "limit": "30"}},
+ {"url": "https://api.sharpapi.io/api/v1/odds", "headers": {"X-API-Key": "{KEY}"}, "params": {"league": "nhl", "player_name": "Nathan MacKinnon", "limit": "60"}},
+ {"url": "https://api.sharpapi.io/api/v1/odds", "headers": {"X-API-Key": "{KEY}", "Origin": "https://mbennett00.github.io"}, "params": {"league": "nfl", "is_player_prop": "true", "limit": "20"}},
+ {"url": "https://api.sharpapi.io/api/v1/odds", "headers": {"X-API-Key": "{KEY}"}, "params": {"league": "nba", "market": "props", "limit": "20"}},
+ {"url": "https://api.sharpapi.io/api/v1/account/usage", "headers": {"X-API-Key": "{KEY}"}}
+]

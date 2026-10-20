@@ -48,14 +48,16 @@ def crawl(start, cap=80):
                 todo.append(v)
 
 
-for extra in ("https://docs.sharpapi.io/llms.txt", "https://docs.sharpapi.io/llms-full.txt", "https://docs.sharpapi.io/openapi.json",
+DOCS = not os.path.exists(os.path.join(os.path.dirname(__file__), "sharp_calls.json"))
+for extra in () if not DOCS else ("https://docs.sharpapi.io/llms.txt", "https://docs.sharpapi.io/llms-full.txt", "https://docs.sharpapi.io/openapi.json",
               "https://sharpapi.io/llms.txt", "https://sharpapi.io/pricing"):
     try:
         r = requests.get(extra, headers=H, timeout=25)
         log(f"### {extra}\nHTTP {r.status_code}\n{(text(r.text) if 'html' in r.headers.get('content-type', '') else r.text)[:60000] if r.status_code == 200 else ''}")
     except Exception as e:
         log(f"### {extra}\nERR {e}")
-crawl("https://docs.sharpapi.io/en/")
+if DOCS:
+    crawl("https://docs.sharpapi.io/en/")
 
 key = os.environ.get("SHARP_API_KEY", "")
 log(f"### key present: {bool(key)} (length {len(key)})")
@@ -66,6 +68,7 @@ for c in calls:
     try:
         r = requests.get(c["url"], headers={**H, **{k: sub(v) for k, v in c.get("headers", {}).items()}},
                          params={k: sub(v) for k, v in c.get("params", {}).items()}, timeout=30)
+        import time; time.sleep(6)                                 # free tier: 12 requests a minute
         body = r.text.replace(key, "***") if key else r.text
         hdr = {k: v for k, v in r.headers.items() if re.search(r"rate|limit|remaining|access-control|cache", k, re.I)}
         log(f"### CALL {c['url']} -> {r.status_code} {json.dumps(hdr)}\n{body[:15000]}")
