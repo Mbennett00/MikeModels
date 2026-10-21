@@ -1,3 +1,5 @@
 [
- {"url": "https://api.sharpapi.io/api/v1/odds", "headers": {"X-API-Key": "{KEY}"}, "params": {"league": "nba", "is_live": "false", "player_name": "John Collins", "market": "player_points", "limit": "60"}}
+ {"url": "https://api.sharpapi.io/api/v1/odds", "headers": {"X-API-Key": "{KEY}"}, "params": {"league": "nba", "is_live": "false", "player_name": "Nikola Jokic", "limit": "200"}},
+ {"url": "https://api.sharpapi.io/api/v1/odds", "headers": {"X-API-Key": "{KEY}"}, "params": {"league": "nba", "is_live": "false", "market": "player_double_double", "limit": "5"}},
+ {"url": "https://api.sharpapi.io/api/v1/markets", "headers": {"X-API-Key": "{KEY}"}, "params": {"league": "nba"}}
 ]

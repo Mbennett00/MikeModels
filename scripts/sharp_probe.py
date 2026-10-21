@@ -77,9 +77,15 @@ for c in calls:
 
 open("sharp_probe.txt", "w").write("\n\n".join(OUT))
 print(f"::notice title=sharp probe::{len(OUT)} sections, {sum(map(len, OUT))} chars")
-# lines naming a search term go to the run notes (the release asset holding the full text isn't always reachable)
+# what the run notes can carry (the release asset holding the full text isn't always reachable): every market type the
+# calls returned, each call's status and error text, and snippets around a search term
+allt = "\n".join(OUT)
+mts = sorted(set(re.findall(r'"market_type"\s*:\s*"([^"]+)"', allt)))
+print("::notice title=probe market types::" + (", ".join(mts) or "none")[:3800])
+for c in re.findall(r"### CALL (\S+ -> \d+)[^\n]*\n(.{0,300})", allt):
+    print("::notice title=probe call::" + (c[0] + " " + c[1]).replace("%", "%25")[:600])
 want = os.environ.get("PROBE_GREP", "")
 if want:
-    hits = list(dict.fromkeys(m.strip()[:400] for m in re.findall(rf"[^\n]*(?:{want})[^\n]*", "\n".join(OUT), re.I)))
-    for h in hits[:9]:
-        print(f"::notice title=probe {want}::" + h.replace("%", "%25").replace("\r", " "))
+    hits = list(dict.fromkeys(m.strip() for m in re.findall(rf".{{0,100}}(?:{want}).{{0,100}}", allt, re.I)))
+    for h in hits[:6]:
+        print(f"::notice title=probe {want}::" + h.replace("%", "%25"))
