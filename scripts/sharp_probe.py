@@ -77,3 +77,9 @@ for c in calls:
 
 open("sharp_probe.txt", "w").write("\n\n".join(OUT))
 print(f"::notice title=sharp probe::{len(OUT)} sections, {sum(map(len, OUT))} chars")
+# lines naming a search term go to the run notes (the release asset holding the full text isn't always reachable)
+want = os.environ.get("PROBE_GREP", "")
+if want:
+    hits = list(dict.fromkeys(m.strip()[:400] for m in re.findall(rf"[^\n]*(?:{want})[^\n]*", "\n".join(OUT), re.I)))
+    for h in hits[:9]:
+        print(f"::notice title=probe {want}::" + h.replace("%", "%25").replace("\r", " "))

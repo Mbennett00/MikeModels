@@ -75,7 +75,7 @@ jobs:
       - name: SharpAPI probe
         if: steps.pick.outputs.task == 'sharp-probe'
         run: |
-          python scripts/sharp_probe.py
+          PROBE_GREP="double" python scripts/sharp_probe.py
           mv -f sharp_probe.txt state/site/       # the state upload at the end publishes it (and would overwrite a direct upload)
       - name: Run ${{ steps.pick.outputs.task }}
         if: steps.pick.outputs.task != 'morning' && steps.pick.outputs.task != 'recalibrate' && steps.pick.outputs.task != 'sharp-probe'
