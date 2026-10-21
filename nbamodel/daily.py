@@ -165,6 +165,12 @@ def run(state: str = "state", log=print):
     out["meta"]["repo"] = os.environ.get("GITHUB_REPOSITORY", "Mbennett00/MikeModels")
     write(site, out)
     log(f"nba: {len(out['games'])} games ({'upcoming' if out['meta']['upcoming'] else 'tonight'}), {len(out['players'])} player projections")
+    try:   # how the double-double / triple-double chances have held up (logged for the run notes)
+        c = model.double_check(box, games)
+        if c:
+            log("nba dd: " + " ".join(f"{k}={v}" for k, v in c.items()))
+    except Exception as e:
+        log(f"nba dd: check failed ({e})")
 
 
 def write(site: str, out: dict):

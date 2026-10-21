@@ -94,3 +94,13 @@ def test_poisson_check_drops_a_rung_out_of_line():
     assert sharp.poisson_drop(F) == ["points|1.5"]
     sane = {"sog|1.5": 0.72, "sog|2.5": 0.48, "sog|3.5": 0.27, "sog|4.5": 0.15}
     assert sharp.poisson_drop(sane) == []
+
+
+def test_double_double_yes_no_props():
+    R = [row("draftkings", "player_double_double", "Yes", None, -150, "Nikola Jokic", st="yes"),
+         row("draftkings", "player_double_double", "No", None, 120, "Nikola Jokic", st="no"),
+         row("fanduel", "player_triple_double", "Nikola Jokić", None, 130, None, st="yes")]
+    P = sharp.build_props("NBA", R)
+    assert P["props"]["nikolajokic"] == {"dd|0.5": -150, "trip|0.5": 130}
+    assert P["bk"]["nikolajokic"] == {"trip|0.5": "FD"}
+    assert abs(P["fair"]["nikolajokic"]["dd|0.5"] - sharp._p(-150) / (sharp._p(-150) + sharp._p(120))) < 1e-3

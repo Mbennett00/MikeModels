@@ -41,7 +41,18 @@ const phi = x => { const t = 1 / (1 + 0.2316419 * Math.abs(x)), d = 0.3989423 * 
 // ---------- chances (mirror nbamodel.model) ----------
 const pOver = (mean, sd, L) => 1 - phi((L - mean) / Math.max(sd, 1e-6));
 function pThrees(mean, L) { const k = Math.floor(L), lam = Math.max(mean, 1e-6); let cdf = 0, pm = Math.exp(-lam); for (let i = 0; i <= k; i++) { cdf += pm; pm *= lam / (i + 1); } return 1 - cdf; }
-function pStat(p, k, L) { return k === "fg3" ? pThrees(p.fg3, L) : k === "pra" ? pOver(p.pts + p.reb + p.ast, Math.hypot(p.sd.pts, p.sd.reb, p.sd.ast), L) : pOver(p[k], p.sd[k], L); }
+// double-double (two of pts / reb / ast to 10) and triple-double: mixed over a shared minutes swing (nbamodel.model.p_double)
+const NB_GH = [[-2.8570, 0.0113], [-1.3556, 0.2221], [0, 0.5333], [1.3556, 0.2221], [2.8570, 0.0113]], NB_SWING = 0.16;
+function pDouble(p, need) {
+  let out = 0;
+  for (const [z, w] of NB_GH) {
+    const f = Math.max(0, 1 + NB_SWING * z);
+    const [a, b, c] = ["pts", "reb", "ast"].map(k => { const m = p[k], s = p.sd[k]; return pOver(m * f, Math.sqrt(Math.max(s * s - (NB_SWING * m) ** 2, 0.25 * s * s)), 9.5); });
+    out += w * (a * b * c + (need === 2 ? a * b * (1 - c) + a * (1 - b) * c + (1 - a) * b * c : 0));
+  }
+  return Math.min(1, Math.max(0, out));
+}
+function pStat(p, k, L) { if (k === "dd") return pDouble(p, 2); if (k === "trip") return pDouble(p, 3); return k === "fg3" ? pThrees(p.fg3, L) : k === "pra" ? pOver(p.pts + p.reb + p.ast, Math.hypot(p.sd.pts, p.sd.reb, p.sd.ast), L) : pOver(p[k], p.sd[k], L); }
 
 // ---------- live scores + box scores (ESPN, in the browser) ----------
 const ESPN = "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/";
@@ -111,15 +122,17 @@ function nGame(g) {
   if (st === "final") v.hit = (s.home > s.away) === (g.p_home >= 0.5);
   return v;
 }
-const NMK = {pts: {L: 19.5, lab: "20+ pts", d: 1}, reb: {L: 7.5, lab: "8+ reb", d: 1}, ast: {L: 5.5, lab: "6+ ast", d: 1}, fg3: {L: 1.5, lab: "2+ threes", d: 1}, pra: {L: 29.5, lab: "30+ PRA", d: 1}};
+const NMK = {pts: {L: 19.5, lab: "20+ pts", d: 1}, reb: {L: 7.5, lab: "8+ reb", d: 1}, ast: {L: 5.5, lab: "6+ ast", d: 1}, fg3: {L: 1.5, lab: "2+ threes", d: 1}, pra: {L: 29.5, lab: "30+ PRA", d: 1}, dd: {L: 0.5, lab: "Double-double", d: 1}, trip: {L: 0.5, lab: "Triple-double", d: 1}};
 function nPlayer(p) {
   const t = teamOf(p.team), g = gameOf(p), B = g && NBOX[g.game_id] ? NBOX[g.game_id].box[String(p.id)] : null;
-  const live = k => B ? (k === "pra" ? B.pts + B.reb + B.ast : B[k]) : null, pra = p.pts + p.reb + p.ast;
+  const n10 = B ? [B.pts, B.reb, B.ast].filter(x => x >= 10).length : 0;
+  const live = k => !B ? null : k === "pra" ? B.pts + B.reb + B.ast : k === "dd" ? (n10 >= 2 ? "✓" : `${n10}/2`) : k === "trip" ? (n10 >= 3 ? "✓" : `${n10}/3`) : B[k], pra = p.pts + p.reb + p.ast;
   const val = (k, v, txt) => ({v, txt, chance: pStat(p, k, NMK[k].L), chanceLab: NMK[k].lab, live: live(k)});
   return {id: p.id, gid: p.game_id, name: p.name, team: p.team, pos: p.pos, img: p.headshot, logo: t.logo, color: t.color,
     meta: `${p.team} · ${p.pos || "–"}${g ? ` · ${g.home.abbr === p.team ? "vs" : "@"} ${p.opp}` : ""} · ${p.min.toFixed(0)} min${!p.gp && p.gp_pre ? " · from preseason" : ""}${p.status ? " · " + ST(p.status) : ""}`,
     vals: {pts: val("pts", p.pts, p.pts.toFixed(1)), reb: val("reb", p.reb, p.reb.toFixed(1)), ast: val("ast", p.ast, p.ast.toFixed(1)),
-           fg3: val("fg3", p.fg3, p.fg3.toFixed(1)), pra: val("pra", pra, pra.toFixed(1))}};
+           fg3: val("fg3", p.fg3, p.fg3.toFixed(1)), pra: val("pra", pra, pra.toFixed(1)),
+           dd: val("dd", pDouble(p, 2), pct(pDouble(p, 2))), trip: val("trip", pDouble(p, 3), pDouble(p, 3) < 0.005 ? "<1%" : pct(pDouble(p, 3)))}};
 }
 function bars(a, h, lab, va, vh, ra, rh, sc) {
   const w = v => Math.max(4, Math.min(100, 100 * Math.abs(v) / sc)), better = ra < rh ? "a" : rh < ra ? "h" : "";
@@ -198,7 +211,9 @@ PJA = {
             {k: "reb", label: "Rebounds", unit: "proj reb", note: "Projected rebounds · bar = chance of 8+"},
             {k: "ast", label: "Assists", unit: "proj ast", note: "Projected assists · bar = chance of 6+"},
             {k: "fg3", label: "Threes", unit: "proj 3PM", note: "Projected threes made · bar = chance of 2+"},
-            {k: "pra", label: "PRA", unit: "proj PRA", note: "Points + rebounds + assists · bar = chance of 30+"}],
+            {k: "pra", label: "PRA", unit: "proj PRA", note: "Points + rebounds + assists · bar = chance of 30+"},
+            {k: "dd", label: "Double-double", unit: "chance", note: "Chance of 10+ in two of points, rebounds and assists"},
+            {k: "trip", label: "Triple-double", unit: "chance", note: "Chance of 10+ in points, rebounds and assists"}],
   kicker: () => `NBA · ${D.meta.preseason ? "Preseason" : D.meta.upcoming ? "Next slate" : "Tonight"}`,
   header, strip,
   games: () => D.games.slice().sort((x, y) => new Date(x.start_utc) - new Date(y.start_utc)).map(nGame),
@@ -218,6 +233,9 @@ PJA = {
     for (const L of near(p.ast, 2, 2)) out.push([`${L + 0.5}+ assists`, pStat(p, "ast", L), {stat: "ast", n: L + 0.5}]);
     for (const L of [0.5, 1.5, 2.5, 3.5]) if (p.fg3 >= 0.3 || L < 1) out.push([`${L + 0.5}+ threes`, pStat(p, "fg3", L), {stat: "fg3", n: L + 0.5}]);
     const pra = p.pts + p.reb + p.ast; for (const L of near(pra, 5, 10)) out.push([`${L + 0.5}+ PRA`, pStat(p, "pra", L), {stat: "pra", n: L + 0.5}]);
+    const dd = pDouble(p, 2), td = pDouble(p, 3);
+    if (dd >= 0.02) out.push(["Double-double", dd, {stat: "dd", n: 1}]);
+    if (td >= 0.01) out.push(["Triple-double", td, {stat: "trip", n: 1}]);
     return out; },
   simUrl: g => `nbasim.html?away=${encodeURIComponent(g.a.abbr)}&home=${encodeURIComponent(g.h.abbr)}`,
   ctx: gid => { const g = D.games.find(x => String(x.game_id) === String(gid)); if (!g) return null;

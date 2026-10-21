@@ -30,8 +30,10 @@ PROPS = {   # SharpAPI market type -> the page's stat
             "player_shots_on_goal": "sog"},
     "NFL": {"anytime_touchdown_scorer": "td", "player_receiving_yards": "rec_yds", "player_rushing_yards": "rush_yds",
             "player_passing_yards": "pass_yds", "player_receptions": "rec"},
-    "NBA": {"player_points": "pts", "player_rebounds": "reb", "player_assists": "ast", "player_made_threes": "fg3"},
+    "NBA": {"player_points": "pts", "player_rebounds": "reb", "player_assists": "ast", "player_made_threes": "fg3",
+            "player_double_double": "dd", "double_double": "dd", "player_triple_double": "trip", "triple_double": "trip"},
 }
+YES_NO = ("dd", "trip")      # props with no line: a player does it or he doesn't
 BOOKS = {"draftkings": "DK", "fanduel": "FD"}
 PACE = float(os.environ.get("SHARP_PACE", "5.3"))      # seconds between calls: 12 a minute on the free tier
 MAX_PAGES = int(os.environ.get("SHARP_MAX_PAGES", "40"))
@@ -149,7 +151,7 @@ def build_props(league: str, rows: list) -> dict:
     raw = {}   # (book, player, stat) -> [{line, side, a, m}]
     for r in rows:
         stat = kinds.get(r.get("market_type"))
-        who = r.get("player_name") or (r.get("selection") if "scorer" in str(r.get("market_type")) else None)
+        who = r.get("player_name") or (r.get("selection") if "scorer" in str(r.get("market_type")) or stat in YES_NO else None)
         bk = BOOKS.get(r.get("sportsbook"))
         a = r.get("odds_american")
         if not stat or not who or not bk or a is None or r.get("is_live") or str(who).lower().startswith("any "):
@@ -160,6 +162,11 @@ def build_props(league: str, rows: list) -> dict:
         side = str(r.get("selection_type") or "").lower()
         if "scorer" in r["market_type"]:
             line, side = 0.5, "over"
+        elif stat in YES_NO:                     # yes / no: "yes" is the over of a 0.5 line
+            side = {"yes": "over", "over": "over", "no": "under", "under": "under"}.get(side)
+            if not side:
+                continue
+            line = 0.5
         else:
             line = r.get("line")
             if line is None or side not in ("over", "under"):
@@ -180,7 +187,7 @@ def build_props(league: str, rows: list) -> dict:
                 centers[(who, stat)] = x[1]
     for (bk, who, stat), es in raw.items():
         c = centers.get((who, stat))
-        for e in (es if stat in ("goals", "td") and all(x["line"] == 0.5 for x in es) else _clean(es, c)):
+        for e in (es if stat in ("goals", "td", *YES_NO) and all(x["line"] == 0.5 for x in es) else _clean(es, c)):
             q.setdefault((who, f"{stat}|{e['line']:g}"), {}).setdefault(bk, {})[e["side"]] = e["a"]
     props, bk, fair = {}, {}, {}
     for (who, k), by in q.items():
@@ -302,9 +309,17 @@ def pull(leagues: list, key: str, log=print) -> dict:
         try:
             base = {"league": LG[lg], "is_live": "false", "sportsbook": ",".join(BOOKS)}
             g_rows, _ = c.rows(dict(base, market=",".join(MAIN[lg])), 6)
-            p_rows, done = c.rows(dict(base, market=",".join(PROPS[lg])), MAX_PAGES)
+            p_rows, done = c.rows(dict(base, market=",".join(k for k, v in PROPS[lg].items() if v not in YES_NO)), MAX_PAGES)
         except Exception as e:
             log(f"odds: SharpAPI {lg} failed ({str(e)[:160]})"); continue
+        yn = [k for k, v in PROPS[lg].items() if v in YES_NO]
+        if yn:   # asked apart: an unknown market name must not cost the main props
+            try:
+                y_rows, _ = c.rows(dict(base, market=",".join(yn)), 4)
+                p_rows += y_rows
+                log(f"odds: SharpAPI {lg} yes/no props: {len(y_rows)} rows ({', '.join(sorted({str(r.get('market_type')) for r in y_rows})) or 'none'})")
+            except Exception as e:
+                log(f"odds: SharpAPI {lg} yes/no props failed ({str(e)[:160]})")
         P = build_props(lg, p_rows)
         out[lg] = {"fetched_at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), "games": build_games(lg, g_rows),
                    "complete": done, **P}

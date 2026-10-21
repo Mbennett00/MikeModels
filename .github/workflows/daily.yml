@@ -97,6 +97,7 @@ jobs:
         run: |
           python -m nbamodel.daily 2>&1 | tee nba.log
           echo "::notice title=NBA run::$(grep '^nba:' nba.log | tail -n 4 | tr '\n' ' ')"
+          grep '^nba dd:' nba.log | while read -r l; do echo "::notice title=NBA doubles::$l"; done
       - name: Odds (DraftKings + FanDuel lines and props from SharpAPI)
         if: always() && steps.pull.outcome == 'success'
         continue-on-error: true

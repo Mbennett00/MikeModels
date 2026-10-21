@@ -201,6 +201,7 @@ def player_projections(box: pd.DataFrame, games: pd.DataFrame, roster: pd.DataFr
                                 pts=round(v["pts"], 1), reb=round(v["reb"], 1), ast=round(v["ast"], 1), fg3=round(v["fg3"], 2),
                                 sd=dict(pts=round(0.35 * v["pts"] + 2.2, 2), reb=round(1.15 * math.sqrt(max(v["reb"], .1)) + 0.4, 2),
                                         ast=round(1.2 * math.sqrt(max(v["ast"], .1)) + 0.3, 2))))
+                out[-1].update(dd=round(p_double(out[-1], out[-1]["sd"], 2), 3), trip=round(p_double(out[-1], out[-1]["sd"], 3), 3))
     return sorted(out, key=lambda p: -p["pts"])
 
 
@@ -216,3 +217,62 @@ def p_threes(mean: float, line: float) -> float:
     for i in range(k + 1):
         cdf += pm; pm *= lam / (i + 1)
     return 1 - cdf
+
+
+# Double-doubles and triple-doubles: ten or more in two (three) of points, rebounds and assists. The three stats are
+# not independent: a player who plays long minutes fills every column at once. So the chance is mixed over a shared
+# minutes factor (normal, sd MIN_SWING, by Gauss-Hermite quadrature) with the stats independent given it.
+MIN_SWING = 0.16
+_GH = ((-2.8570, 0.0113), (-1.3556, 0.2221), (0.0, 0.5333), (1.3556, 0.2221), (2.8570, 0.0113))   # probabilists' nodes, weights
+
+
+def p_double(mean: dict, sd: dict, need: int = 2) -> float:
+    """Chance at least `need` of pts, reb, ast reach 10 (need=2 a double-double, 3 a triple-double)."""
+    out = 0.0
+    for z, w in _GH:
+        f = max(0.0, 1 + MIN_SWING * z)
+        q = []
+        for k in ("pts", "reb", "ast"):
+            m, s = mean[k], sd[k]
+            sc = math.sqrt(max(s * s - (MIN_SWING * m) ** 2, 0.25 * s * s))   # the spread left once minutes are known
+            q.append(p_over(m * f, sc, 9.5))
+        a, b, c = q
+        two = a * b * (1 - c) + a * (1 - b) * c + (1 - a) * b * c
+        out += w * (a * b * c + (two if need == 2 else 0.0))
+    return float(min(1.0, max(0.0, out)))
+
+
+def double_check(box: pd.DataFrame, games: pd.DataFrame, n_games: int = 500, n_recent: int = 30, decay: float = 0.9) -> dict:
+    """Backtest: each player's last n_games regular-season and playoff games, projected from his games before it (per
+    minute rates times average minutes, the page's spreads), the chances above against what happened."""
+    meta = games.set_index("game_id")[["date", "season_type"]]
+    b = box.join(meta, on="game_id", how="inner")
+    b = b[b.season_type.isin([2, 3]) & (b["min"] > 0)].copy()
+    b["date"] = pd.to_datetime(b.date)
+    b = b.sort_values("date")
+    test_ids = set(b.drop_duplicates("game_id").game_id.tail(n_games))
+    rows = []
+    for pid, x in b.groupby("player_id"):
+        x = x.reset_index(drop=True)
+        for i in x.index[x.game_id.isin(test_ids)]:
+            h = x.iloc[max(0, i - n_recent):i]
+            if len(h) < 5:
+                continue
+            w = decay ** np.arange(len(h))[::-1]
+            mins = float(np.average(h["min"], weights=w))
+            v = {s: mins * float((w * h[s]).sum() / max((w * h["min"]).sum(), 1e-9)) for s in ("pts", "reb", "ast")}
+            sd = dict(pts=0.35 * v["pts"] + 2.2, reb=1.15 * math.sqrt(max(v["reb"], .1)) + 0.4, ast=1.2 * math.sqrt(max(v["ast"], .1)) + 0.3)
+            r = x.loc[i]
+            n10 = int(r.pts >= 10) + int(r.reb >= 10) + int(r.ast >= 10)
+            rows.append((p_double(v, sd, 2), p_double(v, sd, 3), n10 >= 2, n10 >= 3))
+    if not rows:
+        return {}
+    R = pd.DataFrame(rows, columns=["pdd", "ptd", "dd", "td"])
+    out = dict(n=len(R), dd_exp=round(float(R.pdd.sum())), dd=int(R.dd.sum()), td_exp=round(float(R.ptd.sum()), 1), td=int(R.td.sum()))
+    for lo, hi in ((0.2, 0.4), (0.4, 0.6), (0.6, 0.8), (0.8, 1.01)):
+        g = R[(R.pdd >= lo) & (R.pdd < hi)]
+        out[f"dd{int(100 * lo)}"] = f"{len(g)}:{g.pdd.mean():.2f}/{g.dd.mean():.2f}" if len(g) else "-"
+    for lo, hi in ((0.05, 0.15), (0.15, 0.3), (0.3, 1.01)):
+        g = R[(R.ptd >= lo) & (R.ptd < hi)]
+        out[f"td{int(100 * lo)}"] = f"{len(g)}:{g.ptd.mean():.2f}/{g.td.mean():.2f}" if len(g) else "-"
+    return out

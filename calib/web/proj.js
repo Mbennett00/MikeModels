@@ -102,7 +102,8 @@ const pjCtx = gid => PJA.ctx ? PJA.ctx(gid) : null;
 // a player's bettable lines for one stat: [{sel, top}] nearest even money first, then shown low to high
 const PJ_PLAB = {goals: "goals", sog: "shots", points: "points", assists: "assists", td: "TDs", pass_yds: "pass yds", rush_yds: "rush yds", rec_yds: "rec yds", rec: "catches",
   pts: "points", reb: "rebounds", ast: "assists", fg3: "threes", pra: "PRA"};
-const pjPropLab = (stat, n) => stat === "goals" && n === 1 ? "Scores a goal" : stat === "td" && n === 1 ? "Anytime TD" : `${n}+ ${PJ_PLAB[stat] || stat}`;
+const PJ_YES = {goals: "Scores a goal", td: "Anytime TD", dd: "Double-double", trip: "Triple-double"};   // yes / no props
+const pjPropLab = (stat, n) => PJ_YES[stat] && n === 1 ? PJ_YES[stat] : `${n}+ ${PJ_PLAB[stat] || stat}`;
 const pjMktProps = () => { const P = ((PJ_ODDS.props || {})[PJA.sport] || {}).players; return P && Object.keys(P).length ? P : null; };
 // The books and our pages don't always spell a player the same way ("Alex Wennberg" / "Alexander Wennberg", "Nick" /
 // "Nicholas", "Yegor" / "Egor"). A player's props are found by his exact name first, then by a known first-name variant
@@ -151,7 +152,7 @@ function pjProps(p, stat, max = 3) {
   else return [];   // no made-up props: a league's props open when the books post them
   L = L.filter(x => x[1] != null && x[1] >= 0.1 && x[1] <= 0.9);   // no lottery tickets, no −1000 locks
   return L.sort((x, y) => Math.abs(x[1] - 0.5) - Math.abs(y[1] - 0.5)).slice(0, max).sort((x, y) => x[2].n - y[2].n).map(([l, c, spec, a]) => ({
-    top: ((stat === "td" || stat === "goals") && spec.n === 1 ? "Anytime" : `${Math.ceil(spec.n)}+`),
+    top: (spec.n === 1 && (stat === "td" || stat === "goals") ? "Anytime" : spec.n === 1 && PJ_YES[stat] ? "Yes" : `${Math.ceil(spec.n)}+`),
     sel: bkSel({dec: a ? Math.round(pjDec(a) * 1e4) / 1e4 : undefined, src: a ? (spec.fd ? "fd" : "dk") : undefined, fair: spec.fair, book: spec.fd ? "FanDuel" : "DraftKings", img: p.img, logo: p.logo, color: p.color, sport: C.sport, gid: p.gid, kind: "prop", side: "yes", line: spec.n,
       p: c, pick: `${p.name} ${l}`, mkt: (PJA.markets.find(m => m.k === stat) || {}).label || "Player prop",
       game: C.game, start: C.start, open: C.open, ev: C.ev, pl: {name: p.name, id: String(p.id), espn: !!C.espnIds, team: p.team, stat, n: spec.n}})}));

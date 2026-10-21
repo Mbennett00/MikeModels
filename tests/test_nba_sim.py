@@ -25,3 +25,14 @@ def test_parse_and_build_rates():
     assert abs(L["pace"] - (8 * 17 + .44 * 8 * 4 - 8 + 16)) < .05 and set(out["teams"]) == {"BOS", "NY"}   # possessions per 48
     p = out["players"]["BOS0"]
     assert p["f3a"] == round(36 * 6 / 30, 2) and p["start"] == 1.0 and abs(out["teams"]["BOS"]["fg2"] - 1) < 1e-6
+
+
+def test_double_and_triple_double_chances():
+    import math
+    from nbamodel.model import p_double
+    sd = lambda v: dict(pts=0.35 * v["pts"] + 2.2, reb=1.15 * math.sqrt(v["reb"]) + 0.4, ast=1.2 * math.sqrt(v["ast"]) + 0.3)
+    big = dict(pts=28, reb=12.5, ast=10)
+    guard = dict(pts=24, reb=4, ast=7)
+    assert 0.75 < p_double(big, sd(big), 2) < 0.92 and 0.3 < p_double(big, sd(big), 3) < 0.55
+    assert p_double(guard, sd(guard), 3) < 0.02 < p_double(guard, sd(guard), 2) < 0.4
+    assert p_double(big, sd(big), 3) < p_double(big, sd(big), 2)
