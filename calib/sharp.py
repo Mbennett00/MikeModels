@@ -31,7 +31,7 @@ PROPS = {   # SharpAPI market type -> the page's stat
     "NFL": {"anytime_touchdown_scorer": "td", "player_receiving_yards": "rec_yds", "player_rushing_yards": "rush_yds",
             "player_passing_yards": "pass_yds", "player_receptions": "rec"},
     "NBA": {"player_points": "pts", "player_rebounds": "reb", "player_assists": "ast", "player_made_threes": "fg3",
-            "player_double_double": "dd", "double_double": "dd", "player_triple_double": "trip", "triple_double": "trip"},
+            "player_points_+_rebounds_+_assists": "pra", "player_double_double": "dd", "player_triple_double": "trip"},
 }
 YES_NO = ("dd", "trip")      # props with no line: a player does it or he doesn't
 BOOKS = {"draftkings": "DK", "fanduel": "FD"}
@@ -163,7 +163,8 @@ def build_props(league: str, rows: list) -> dict:
         if "scorer" in r["market_type"]:
             line, side = 0.5, "over"
         elif stat in YES_NO:                     # yes / no: "yes" is the over of a 0.5 line
-            side = {"yes": "over", "over": "over", "no": "under", "under": "under"}.get(side)
+            yn = {"yes": "over", "over": "over", "no": "under", "under": "under"}   # the side sits in selection ("Yes", type "other")
+            side = yn.get(side) or yn.get(str(r.get("selection") or "").strip().lower())
             if not side:
                 continue
             line = 0.5
