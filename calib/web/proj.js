@@ -14,13 +14,15 @@
 document.body.classList.add("pj");
 let PJA = null;
 const PJ = {mk: null, q: "", game: "all", open: new Set(), panel: {}, n: 40};
-const PJ_TABS = [["home", "Home"], ["games", "Games"], ["players", "Players"], ["model", "Model"]];
+const PJ_TABS = [["home", "Home"], ["games", "Games"], ["odds", "Odds"], ["players", "Players"], ["model", "Model"]];
 const PJ_IC = {
   home: '<path d="M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5.5h-5V20H5a1 1 0 0 1-1-1z"/>',
   games: '<rect x="3.5" y="5" width="17" height="14" rx="3"/><path d="M12 5v14M3.5 12h17"/>',
   players: '<circle cx="12" cy="8" r="3.6"/><path d="M4.8 20c.9-3.7 3.7-5.6 7.2-5.6s6.3 1.9 7.2 5.6"/>',
   bets: '<path d="M4 7.5A1.5 1.5 0 0 1 5.5 6h13A1.5 1.5 0 0 1 20 7.5V10a2 2 0 0 0 0 4v2.5a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 16.5V14a2 2 0 0 0 0-4z"/><path d="M14.5 6v12" stroke-dasharray="2 2"/>',
   model: '<path d="M4 19V5M4 19h16"/><path d="m7 15 4-4 3 3 5-6"/>',
+  odds: '<path d="M4 8h11M4 8l3-3M4 8l3 3M20 16H9m11 0-3-3m3 3-3 3"/>',
+  move: '<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>',
   search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
 };
 const pjIc = k => `<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${PJ_IC[k] || ""}</svg>`;
@@ -236,7 +238,8 @@ function pjMarkets(g) {
     ${pjCell((M.total || [])[i], (M.total || [])[i] ? `${i ? "U" : "O"} ${M.total[i].line}` : "", pjModelP(g, (M.total || [])[i]))}
     ${pjCell((M.ml || [])[i], "", pjModelP(g, (M.ml || [])[i]))}`;
   const src = M.books ? "DK + FD" : "Model";
-  return `<div class="mk"><span class="mk-h">${src}</span><i>${esc(M.spreadLab || "Spread")}</i><i>Total</i><i>Money</i>${row(g.a, 0)}${row(g.h, 1)}</div>`;
+  return `<div class="mk"><span class="mk-h">${src}</span><i>${esc(M.spreadLab || "Spread")}</i><i>Total</i><i>Money</i>${row(g.a, 0)}${row(g.h, 1)}</div>`
+    + (M.books ? `<button class="mk-lm" data-lm="${esc(g.id)}">${pjIc("move")}<span>${esc(obMoveTxt(g, obMove(g, "spread"), "spread") || "Odds & line history")}</span><b>›</b></button>` : "");
 }
 // the game card: model win chances and projected score on top, the market underneath with the model's read
 function pjGameCard(g) {
@@ -289,6 +292,7 @@ function pjHome() {
   const top = (PJA.top ? PJA.top() : []).slice(0, 6);
   return hero + pjTicker(live)
     + (E.length ? `<div class="hd"><b>Top edges</b><span class="hd-s">Model vs market</span></div><div class="list">${E.slice(0, 8).map(pjEdgeRow).join("")}</div>` : "")
+    + obMovesHome()
     + `<div class="hd"><b>${esc(PJA.gamesLabel || "Tonight's games")}</b><button data-go="games">All games</button></div><div class="gl">${G.filter(g => g.state !== "live").map(pjGameRow).join("")}</div>`
     + (top.length ? `<div class="hd"><b>${esc(PJA.topLabel || "Top projections")}</b><button data-go="players">All players</button></div><div class="list">${top.map(({p, mk}) => pjProjRow(p, mk)).join("")}</div>` : "")
     + (PJA.record ? PJA.record() : "");
@@ -343,7 +347,7 @@ function pjRender() {
   const b = document.body;
   [...b.classList].filter(c => c.startsWith("tab-")).forEach(c => b.classList.remove(c)); b.classList.add("tab-" + TAB);
   const v = document.getElementById("view");
-  const html = ({home: pjHome, games: pjGames, players: pjPlayers, model: () => PJA.modelHtml ? PJA.modelHtml() : ""}[TAB] || pjHome)();
+  const html = ({home: pjHome, games: pjGames, odds: obBoard, players: pjPlayers, model: () => PJA.modelHtml ? PJA.modelHtml() : ""}[TAB] || pjHome)();
   if (html !== window.PJ_HTML || v.dataset.tab !== TAB) { window.PJ_HTML = html; v.dataset.tab = TAB; v.innerHTML = html; }
   v.querySelectorAll("[data-go]").forEach(x => x.onclick = () => pjGo(x.dataset.go));
   v.querySelectorAll("[data-gogame]").forEach(x => x.onclick = () => { PJ.open.add(String(x.dataset.gogame)); TAB = "games"; pjRender();
@@ -358,6 +362,7 @@ function pjRender() {
   v.querySelectorAll("[data-pjsearch]").forEach(x => x.onclick = () => { PJ.searching = !PJ.searching; if (!PJ.searching) PJ.q = ""; pjRender(); const i = document.getElementById("pjq"); if (i) i.focus(); });
   const q = document.getElementById("pjq");
   if (q) q.oninput = () => { PJ.q = q.value; const pos = q.selectionStart; pjRender(); const n = document.getElementById("pjq"); if (n) { n.focus(); n.setSelectionRange(pos, pos); } };
+  obWire(v);
   if (TAB === "model" && PJA.modelWire) PJA.modelWire(pjRender);
   if (PJA.after) PJA.after(pjRender);
   requestAnimationFrame(() => { const h = document.querySelector(".hdr"); if (h) { const hv = h.offsetHeight + "px"; if (window.PJ_HH !== hv) { window.PJ_HH = hv; document.documentElement.style.setProperty("--hdrh", hv); } } });

@@ -1,4 +1,4 @@
-"""Inline the shared design system (calib/web/core.css) and app code (health.js, book.js, proj.js) into a page template."""
+"""Inline the shared design system (calib/web/core.css) and app code (health.js, book.js, proj.js, odds.js) into a page template."""
 import os
 
 HERE = os.path.join(os.path.dirname(__file__), "web")
@@ -6,7 +6,7 @@ HERE = os.path.join(os.path.dirname(__file__), "web")
 
 def inline(html: str) -> str:
     css = open(os.path.join(HERE, "core.css")).read()
-    js = "\n".join(open(os.path.join(HERE, n)).read() for n in ("health.js", "book.js", "proj.js"))
+    js = "\n".join(open(os.path.join(HERE, n)).read() for n in ("health.js", "book.js", "proj.js", "odds.js"))
     sim = open(os.path.join(HERE, "sim.css")).read()   # the game simulators' shared screens
     sim_js = open(os.path.join(HERE, "sim.js")).read()
     return html.replace("/*CALIB_CSS*/", css).replace("/*SIM_CSS*/", sim).replace("/*SIM_JS*/", sim_js).replace("/*CALIB_JS*/", js)

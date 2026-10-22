@@ -861,3 +861,48 @@ body.pj .hero-n b { font-size: 36px; letter-spacing: 0; } body.pj .mb-bal b { fo
 body.pj .nav button span { font-family: var(--fb); font-weight: 600; font-size: 11px; }
 body.pj .px i, body.pj .px em, body.pj .gst i, body.pj .tr-p i, body.pj .tr-w i { font-weight: 600; }
 
+
+/* ================= PIKT · odds board + line movement ================= */
+body.pj .ob-seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 4px; margin: 12px 0 4px; border-radius: 14px; background: var(--s1); border: 1px solid var(--line); }
+body.pj .ob-seg button { height: 38px; font-family: var(--fdisp); font-weight: 400; font-size: 15px; letter-spacing: .01em; }
+.ob-g { margin-top: 12px; border-radius: var(--r); border: 1px solid var(--line); overflow: hidden; cursor: pointer;
+  background: linear-gradient(105deg, color-mix(in srgb, var(--ca) 16%, transparent), transparent 42%, transparent 58%, color-mix(in srgb, var(--ch) 16%, transparent)), var(--s1); }
+.ob-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 14px 4px; }
+.ob-m { display: flex; align-items: center; gap: 6px; min-width: 0; } .ob-m img, .ob-m .pj-code { width: 22px; height: 22px; object-fit: contain; }
+.ob-m b { font-family: var(--fdisp); font-weight: 400; font-size: 16px; letter-spacing: .01em; white-space: nowrap; }
+.ob-m i { font-style: normal; font-size: 12px; color: var(--t3); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ob-mv { flex: none; display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 9px; border-radius: 12px; font-size: 12px; font-weight: 700;
+  background: rgba(245,200,75,.14); color: var(--gold, #f5c84b); }
+.ob-mv .ico { width: 14px; height: 14px; } .ob-mv.fall .ico { transform: scaleY(-1); } .ob-mv.upm { background: rgba(52,211,153,.14); color: var(--up); } .ob-mv.dnm { background: rgba(255,90,95,.14); color: var(--dn); }
+.ob-grid { display: grid; grid-template-columns: minmax(0, 1fr) repeat(4, 58px); gap: 5px; align-items: center; padding: 6px 14px 10px; }
+.ob-grid > i { font-style: normal; font-size: 11px; font-weight: 700; color: var(--t3); text-align: center; text-transform: uppercase; letter-spacing: .04em; }
+.ob-t { display: flex; align-items: center; gap: 7px; min-width: 0; } .ob-t img, .ob-t .pj-code { width: 26px; height: 26px; object-fit: contain; }
+.ob-t b { font-family: var(--fdisp); font-weight: 400; font-size: 16px; letter-spacing: .01em; }
+.ob-ou { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 8px; background: var(--s3); font: 400 14px var(--fdisp); font-style: normal; color: var(--t2); }
+.ob-c { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 50px; border-radius: 12px; background: var(--s2); border: 1px solid var(--line2); }
+.ob-c i { font-style: normal; font-size: 11.5px; font-weight: 600; color: var(--t2); } .ob-c b { font-family: var(--fdisp); font-weight: 400; font-size: 15px; letter-spacing: .01em; }
+.ob-c.off { color: var(--t3); } .ob-c.op { background: transparent; border-style: dashed; opacity: .8; }
+.ob-c.best { border-color: rgba(52,211,153,.7); background: rgba(52,211,153,.12); box-shadow: 0 0 0 1px rgba(52,211,153,.25) inset; } .ob-c.best b { color: var(--up); }
+.ob-c.pk { background: rgba(124,92,255,.12); border-color: rgba(124,92,255,.35); } .ob-c.pk.edge { background: var(--electric, #6b5cff); border-color: transparent; } .ob-c.pk.edge i, .ob-c.pk.edge b { color: #fff; }
+.ob-f { display: flex; justify-content: space-between; gap: 8px; padding: 9px 14px 11px; border-top: 1px solid var(--line); font-size: 12px; font-weight: 600; color: var(--t3); }
+.ob-f span:first-child { color: var(--t2); } .ob-f span:last-child { color: var(--acc); white-space: nowrap; }
+.ob-hm { display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px 14px; border-bottom: 1px solid var(--line); text-align: left; background: none; color: inherit; }
+.ob-hm:last-child { border-bottom: 0; } .ob-hm .ob-m { flex: 1; }
+.ob-hv { display: flex; flex-direction: column; align-items: flex-end; } .ob-hv b { font-family: var(--fdisp); font-weight: 400; font-size: 15px; } .ob-hv i { font-style: normal; font-size: 12px; font-weight: 600; color: var(--gold, #f5c84b); }
+.mk-lm { display: flex; align-items: center; gap: 6px; width: calc(100% - 28px); margin: 0 14px 12px; height: 36px; padding: 0 12px; border-radius: 12px; background: var(--s2); border: 1px solid var(--line); color: var(--t2); font-size: 13px; font-weight: 600; }
+.mk-lm .ico { width: 16px; height: 16px; color: var(--gold, #f5c84b); } .mk-lm span { flex: 1; text-align: left; } .mk-lm b { color: var(--acc); }
+.ob-sh .ob-lg { width: 34px; height: 34px; object-fit: contain; }
+.ob-ch { display: block; width: 100%; height: auto; margin: 10px 0 4px; border-radius: 14px; background: var(--s1); border: 1px solid var(--line); }
+.ob-ch .gr { stroke: var(--line2); stroke-width: 1; } .ob-ch .yl { fill: var(--t3); font: 600 11px var(--fb); text-anchor: end; }
+.ob-ch .xl { fill: var(--t3); font: 600 10.5px var(--fb); } .ob-ch .xl.r { text-anchor: end; }
+.ob-ch .ln { fill: none; stroke: #7c5cff; stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; filter: drop-shadow(0 3px 6px rgba(124,92,255,.5)); }
+.ob-ch .fair { stroke: var(--acc); stroke-width: 1.6; stroke-dasharray: 5 5; } .ob-ch .fl { fill: var(--acc); font: 700 11px var(--fb); text-anchor: end; }
+.ob-ch .o { fill: var(--s1); stroke: var(--t2); stroke-width: 2; } .ob-ch .c { fill: #7c5cff; stroke: #fff; stroke-width: 2; }
+.ob-sum { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 10px 0; }
+.ob-sum div, .ob-bk div { padding: 10px 12px; border-radius: 12px; background: var(--s2); border: 1px solid var(--line); }
+.ob-sum span, .ob-bk span { display: block; font-size: 11px; font-weight: 700; color: var(--t3); text-transform: uppercase; letter-spacing: .04em; }
+.ob-sum b, .ob-bk b { font-family: var(--fdisp); font-weight: 400; font-size: 15px; } .ob-sum b i, .ob-bk b i, .ob-log b i { font-family: var(--fb); font-style: normal; font-size: 12px; color: var(--t2); font-weight: 600; }
+.ob-bk { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ob-log div { display: flex; justify-content: space-between; gap: 10px; padding: 9px 2px; border-bottom: 1px solid var(--line); font-size: 13px; }
+.ob-log span { color: var(--t3); font-weight: 600; } .ob-log b { font-weight: 700; } .ob-ar { font-style: normal; font-size: 10px; color: var(--gold, #f5c84b); margin-right: 6px; }
+@media (max-width: 380px) { .ob-grid { grid-template-columns: minmax(0, 1fr) repeat(4, 52px); gap: 4px; } .ob-c b { font-size: 14px; } }

@@ -37,6 +37,8 @@ def test_games_consensus():
     assert g["home"] == "New Jersey Devils" and g["books"] == 2 and g["t"] == "2026-10-20T23:00:00Z"
     assert g["spread"] == {"home": -1.5, "home_price": 200, "away_price": -240} and g["total"]["line"] == 6.5
     assert g["ml"]["away"] < -140 and g["ml"]["home"] > 120
+    assert g["by"]["DK"] == {"ml": {"home": 130, "away": -150}}
+    assert g["by"]["FD"]["spread"] == {"home": -1.5, "home_price": 200, "away_price": -240} and g["by"]["FD"]["total"]["over"] == -105
 
 
 def test_merge_takes_both_books():

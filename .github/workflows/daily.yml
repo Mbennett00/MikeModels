@@ -9,6 +9,8 @@ on:
     - cron: "35 19 * * *"       # ~3:30pm ET
     - cron: "35 21 * * *"       # ~5:30pm ET: re-price with later lines / goalie news
     - cron: "40 22 * * *"       # ~6:40pm ET: last check before 7pm puck drops
+    - cron: "50 13-23 * * *"    # hourly ~9:50am-7:50pm ET: game lines only (line movement snapshots), a few minutes each
+    - cron: "50 0-3 * * *"      # ...and on through ~11:50pm ET
   push:
     paths: ["overrides/**"]     # committing a lineup/goalie override re-prices the slate
   workflow_dispatch:
@@ -17,7 +19,7 @@ on:
         description: "What to run"
         type: choice
         default: slate
-        options: [slate, morning, update, grade, backtest, tune, dfo-probe, xg-compare, recalibrate, sharp-probe]
+        options: [slate, odds, morning, update, grade, backtest, tune, dfo-probe, xg-compare, recalibrate, sharp-probe]
   workflow_call:                # used by recalibrate.yml (the page's RECALIBRATE MODEL button)
     inputs:
       task:
@@ -54,6 +56,7 @@ jobs:
         run: |
           case "${{ github.event_name }}|${{ github.event.schedule }}" in
             "schedule|5 10 * * *") t=morning ;;
+            "schedule|50 "*) t=odds ;;
             schedule*) t=slate ;;
             push*) t=slate ;;
             *) t="${{ inputs.task }}" ;;
@@ -62,7 +65,18 @@ jobs:
           echo "Task: $t"
       - name: Download state
         id: pull
+        if: steps.pick.outputs.task != 'odds'
         run: scripts/state.sh pull
+      - name: Line snapshot (odds task, game lines only, then republish the last pages with them)
+        if: steps.pick.outputs.task == 'odds'
+        run: |
+          mkdir -p state/site state/dl
+          gh release download data-latest -D state/dl -p odds.json -p odds_hist.json -p web.tar.gz --clobber || true
+          mv -f state/dl/odds.json state/dl/odds_hist.json state/site/ 2>/dev/null || true
+          if [ -f state/dl/web.tar.gz ]; then tar xzf state/dl/web.tar.gz -C state/site; fi
+          python -m calib.odds --lines-only 2>&1 | tee odds.log
+          grep '^odds:' odds.log | while read -r l; do echo "::notice title=Odds::$l"; done
+          gh release upload data-latest state/site/odds.json state/site/odds_hist.json --clobber
       - name: Morning (update data, grade, backtest)
         if: steps.pick.outputs.task == 'morning'
         run: |
@@ -78,7 +92,7 @@ jobs:
           PROBE_GREP="double" python scripts/sharp_probe.py
           mv -f sharp_probe.txt state/site/       # the state upload at the end publishes it (and would overwrite a direct upload)
       - name: Run ${{ steps.pick.outputs.task }}
-        if: steps.pick.outputs.task != 'morning' && steps.pick.outputs.task != 'recalibrate' && steps.pick.outputs.task != 'sharp-probe'
+        if: steps.pick.outputs.task != 'morning' && steps.pick.outputs.task != 'recalibrate' && steps.pick.outputs.task != 'sharp-probe' && steps.pick.outputs.task != 'odds'
         run: python -m nhlmodel.daily ${{ steps.pick.outputs.task }}
       - name: Recalibrate and republish
         if: steps.pick.outputs.task == 'recalibrate'
@@ -116,7 +130,10 @@ jobs:
       - name: Upload state
         # also after a failure, so checkpointed games from a long first load are kept
         if: always() && steps.pull.outcome == 'success'
-        run: scripts/state.sh push
+        run: |
+          # the built pages travel too, so the hourly line snapshots can republish them without rebuilding
+          if [ -f state/site/web/index.html ]; then tar czf state/site/web.tar.gz -C state/site web; fi
+          scripts/state.sh push
       - name: Check for web page
         id: web
         if: always()

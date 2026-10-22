@@ -267,7 +267,7 @@ def ladder_drop(F: dict) -> list:
 
 
 def build_games(league: str, rows: list) -> list:
-    """Rows -> consensus game lines (median over the two books, main lines only)."""
+    """Rows -> consensus game lines (median over the two books, main lines only), and each book's own in "by"."""
     ev = {}
     for r in rows:
         if r.get("is_live") or r.get("market_type") not in MAIN[league] or r.get("is_alternate_line") or r.get("odds_american") is None:
@@ -296,13 +296,28 @@ def build_games(league: str, rows: list) -> list:
         if tot:
             pt, L = max(tot.items(), key=lambda kv: (len(kv[1]), -abs(kv[0] - statistics.median(tot))))
             g["total"] = {"line": pt, "over": _mid([x[0] for x in L]), "under": _mid([x[1] for x in L])}
-        if len(g) > 5:
+        by = {}
+        for book, m in e["b"].items():
+            b = {}
+            for mt, s in m.items():
+                if mt == "moneyline" and "home" in s and "away" in s:
+                    b["ml"] = {"home": s["home"][0], "away": s["away"][0]}
+                elif mt in ("puck_line", "point_spread") and "home" in s and "away" in s and s["home"][1] is not None:
+                    b["spread"] = {"home": float(s["home"][1]), "home_price": s["home"][0], "away_price": s["away"][0]}
+                elif mt.startswith("total") and "over" in s and "under" in s and s["over"][1] is not None:
+                    b["total"] = {"line": float(s["over"][1]), "over": s["over"][0], "under": s["under"][0]}
+            if b and book in BOOKS:
+                by[BOOKS[book]] = b
+        if by:
+            g["by"] = by
+        if len(g) > 5 + ("by" in g):
             out.append(g)
     return out
 
 
-def pull(leagues: list, key: str, log=print) -> dict:
-    """{league: {"fetched_at", "games", "props", "bk", "fair", "complete"}} for the leagues asked for."""
+def pull(leagues: list, key: str, log=print, props: bool = True) -> dict:
+    """{league: {"fetched_at", "games", "props", "bk", "fair", "complete"}} for the leagues asked for (props=False: game
+    lines only, a few calls, for the hourly line snapshots)."""
     if not key:
         return {}
     c, out = Client(key, log), {}
@@ -310,10 +325,10 @@ def pull(leagues: list, key: str, log=print) -> dict:
         try:
             base = {"league": LG[lg], "is_live": "false", "sportsbook": ",".join(BOOKS)}
             g_rows, _ = c.rows(dict(base, market=",".join(MAIN[lg])), 6)
-            p_rows, done = c.rows(dict(base, market=",".join(k for k, v in PROPS[lg].items() if v not in YES_NO)), MAX_PAGES)
+            p_rows, done = c.rows(dict(base, market=",".join(k for k, v in PROPS[lg].items() if v not in YES_NO)), MAX_PAGES) if props else ([], True)
         except Exception as e:
             log(f"odds: SharpAPI {lg} failed ({str(e)[:160]})"); continue
-        yn = [k for k, v in PROPS[lg].items() if v in YES_NO]
+        yn = [k for k, v in PROPS[lg].items() if v in YES_NO] if props else []
         if yn:   # asked apart: an unknown market name must not cost the main props
             try:
                 y_rows, _ = c.rows(dict(base, market=",".join(yn)), 4)
